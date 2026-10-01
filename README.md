@@ -12,7 +12,7 @@ A three-tier web app for housemates to track shared expenses, split costs, and r
 
 Requirements: Podman 4 or later with a compose provider (or Docker Desktop).
 
-1. `git clone https://github.com/NeitLN/Fair-Share.git`
+1. `git clone --branch week4/compose-anh7032 https://github.com/NeitLN/Fair-Share.git`
 2. `cd Fair-Share`
 3. `cp .env.example .env` — **then open `.env` and set `DB_PASSWORD`** to a password of letters and digits only. Characters such as `@ : / #` break the connection URL, and Compose will not start the stack until this value is set.
 4. `podman compose up --build`
