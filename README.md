@@ -4,7 +4,7 @@ A three-tier web app for housemates to track shared expenses, split costs, and r
 
 Requirements: Docker Desktop (or Podman 4+ with a compose provider).
 
-1. git clone git@github.com:NeitLN/Fair-Share.git
+1. git clone https://github.com/NeitLN/Fair-Share.git
 2. cd Fair-Share
 3. cp .env.example .env   # then set DB_PASSWORD (letters and digits only)
 4. docker compose up --build
