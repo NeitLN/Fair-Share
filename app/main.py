@@ -5,6 +5,7 @@ connect it to PostgreSQL in Week 4, deploy it in Lab 3 and test it
 in a pipeline from Week 6.
 """
 
+import logging
 import os
 
 import psycopg
@@ -13,6 +14,8 @@ from fastapi import FastAPI, HTTPException
 APP_NAME = os.getenv("APP_NAME", "sdp-starter")
 APP_VERSION = "0.1.0"
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title=APP_NAME, version=APP_VERSION)
 
@@ -57,5 +60,6 @@ def health_db():
         with psycopg.connect(DATABASE_URL, connect_timeout=3) as conn:
             n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
     except psycopg.Error as err:
+        logger.error("database error: %s", err)
         raise HTTPException(status_code=503, detail=f"database error: {err}")
     return {"db": "ok", "notes": n}
