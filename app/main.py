@@ -12,6 +12,7 @@ import psycopg
 from fastapi import FastAPI, HTTPException
 
 APP_NAME = os.getenv("APP_NAME", "sdp-starter")
+APP_ENV = os.getenv("APP_ENV", "development")
 APP_VERSION = "0.1.0"
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -30,7 +31,12 @@ ITEMS = [
 @app.get("/")
 def root():
     """Proves the app is reachable. Open /docs for the interactive API page."""
-    return {"app": APP_NAME, "version": APP_VERSION, "message": "Hello from the starter app"}
+    return {
+        "app": APP_NAME,
+        "env": APP_ENV,
+        "version": APP_VERSION,
+        "message": "Hello from the starter app",
+    }
 
 
 @app.get("/health")
