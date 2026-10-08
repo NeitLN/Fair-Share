@@ -15,7 +15,6 @@ APP_NAME = os.getenv("APP_NAME", "sdp-starter")
 APP_VERSION = "0.2.0"
 APP_ENV = os.getenv("APP_ENV", "development")
 DATABASE_URL = os.getenv("DATABASE_URL")
-MISSING = os.environ["DEFINITELY_NOT_SET"]  # Lab 3 Task F: deliberate start-up failure
 
 logger = logging.getLogger("uvicorn.error")
 
