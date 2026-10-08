@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 
 APP_NAME = os.getenv("APP_NAME", "sdp-starter")
 APP_VERSION = "0.1.0"
+APP_ENV = os.getenv("APP_ENV", "development")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 logger = logging.getLogger("uvicorn.error")
@@ -30,12 +31,20 @@ ITEMS = [
 @app.get("/")
 def root():
     """Proves the app is reachable. Open /docs for the interactive API page."""
-    return {"app": APP_NAME, "version": APP_VERSION, "message": "Hello from the starter app"}
+    return {
+        "app": APP_NAME,
+        "version": APP_VERSION,
+        "env": APP_ENV,
+        "message": "Hello from the starter app",
+    }
 
 
 @app.get("/health")
 def health():
-    """Used by Render (Lab 3) and the pipeline (Week 6) to check the app is alive."""
+    """Used by Render (Lab 3) and the pipeline (Week 6) to check the app is alive.
+
+    Fast, no login, touches nothing: never query the database here.
+    """
     return {"status": "ok"}
 
 
