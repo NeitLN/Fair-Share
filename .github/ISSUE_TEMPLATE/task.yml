@@ -1,0 +1,30 @@
+name: Task
+description: A planned piece of work from the roadmap
+labels: []
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What this task delivers and why it matters for the project.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: The concrete changes (files, endpoints, pages, settings).
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checkboxes that must all be true to close the issue.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: input
+    id: reviewer
+    attributes:
+      label: Reviewer
+      description: GitHub username of the reviewer (see docs/ROADMAP.md).
