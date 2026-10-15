@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fair-Share Progress</title>
+<style>
+:root {
+  --bg: #f7f7f5; --card: #fff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dc;
+  --accent: #2f6f4f; --plan: #9a9a92; --warn: #b5651d; --ok: #2f6f4f; --bad: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151514; --card: #1e1e1c; --ink: #ecebe6; --muted: #a3a29b; --line: #33332f;
+    --accent: #6fbf8f; --plan: #77776f; --warn: #e0a060; --ok: #6fbf8f; --bad: #f08a80;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+a { color: var(--accent); }
+header h1 { margin: 0; font-size: 28px; }
+header p { margin: 4px 0; color: var(--muted); }
+.tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px; margin: 20px 0;
+}
+.tile, .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.tile { padding: 14px 16px; }
+.tile b { display: block; font-size: 26px; }
+.tile span { color: var(--muted); font-size: 13px; }
+.card { margin: 16px 0; padding: 14px 16px; overflow-x: auto; }
+h2 { font-size: 18px; margin: 0 0 10px; }
+h3 { font-size: 15px; margin: 14px 0 6px; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { font-weight: 600; }
+.num { text-align: right; white-space: nowrap; }
+small { color: var(--muted); }
+.bar { background: var(--line); border-radius: 6px; height: 10px; min-width: 120px; }
+.bar span { display: block; height: 100%; background: var(--accent); border-radius: 6px; }
+svg { width: 100%; height: auto; }
+.grid { stroke: var(--line); }
+.axis { fill: var(--muted); font-size: 11px; }
+.planned { fill: none; stroke: var(--plan); stroke-width: 2; stroke-dasharray: 6 4; }
+.actual { fill: none; stroke: var(--accent); stroke-width: 3; }
+.legend span { margin-right: 16px; color: var(--muted); font-size: 13px; }
+.tasks { list-style: none; padding: 0; margin: 0; }
+.tasks li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.pill {
+  display: inline-block; min-width: 78px; font-size: 12px; padding: 1px 8px; margin-right: 8px;
+  border-radius: 999px; background: var(--line); text-align: center;
+}
+.done .pill { background: var(--accent); color: var(--card); }
+.in-review .pill { background: var(--warn); color: var(--card); }
+.warn { color: var(--warn); }
+.ok { color: var(--ok); }
+.bad { color: var(--bad); }
+code { font-size: 13px; }
+footer { color: var(--muted); font-size: 13px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Fair-Share · project progress</h1>
+  <p>72ITDS30103 Software Development Platforms · Van Lang University · team of 3 ·
+     assessment <strong>Thu 12 Nov 2026</strong></p>
+  <p>$links</p>
+</header>
+
+<section class="tiles">$tiles</section>
+
+<section class="card">
+  <h2>Milestones</h2>
+  <table>
+    <tr><th>Milestone</th><th>Due</th><th>Progress</th><th class="num">Tasks done</th></tr>
+    $milestone_rows
+  </table>
+</section>
+
+<section class="card">
+  <h2>Planned vs actual</h2>
+  <p class="legend"><span>▬ actual tasks closed</span>
+    <span>┅ planned (all tasks of a milestone done by its due date)</span></p>
+  $burnup
+  <small>Scope = the current $task_total task issues. The plan line steps up on each
+    milestone's due date.</small>
+</section>
+
+<section class="card">
+  <h2>Work per member</h2>
+  <table>
+    <tr><th>Member</th><th class="num">Tasks done / assigned</th><th class="num">PRs merged</th>
+      <th class="num">PRs reviewed (others')</th><th class="num">Commits on main</th></tr>
+    $member_rows
+  </table>
+  <small>Counts include the Lab 1–4 work in this repository. They show activity, not effort or
+    quality; open any number to see the records behind it.</small>
+</section>
+
+<section class="card">
+  <h2>Who reviews whom</h2>
+  <table>
+    <tr><th>PR author ↓ · reviewer →</th>$matrix_head</tr>
+    $matrix_rows
+  </table>
+  <small>Pull requests reviewed (any review state) by someone other than their author.</small>
+</section>
+
+<section class="card">
+  <h2>Tasks by sprint</h2>
+  <small>Open = not started or in progress (the $board_link shows In Progress).
+    In Review = an open PR closes it. Done = closed by a merged PR.</small>
+  $sprints
+</section>
+
+<section class="card">
+  <h2>Recently merged pull requests</h2>
+  <table>
+    <tr><th>PR</th><th>Title</th><th>Author</th><th>Reviewed by</th><th>Merged</th></tr>
+    $pr_rows
+  </table>
+</section>
+
+<section class="card">
+  <h2>Pipeline on main (CI/CD)</h2>
+  <table>
+    <tr><th>When (UTC)</th><th>Merge</th><th>Commit</th><th>Result</th><th>Jobs</th></tr>
+    $run_rows
+  </table>
+  <small>The <code>smoke</code> job passes only when the live API serves the merged commit.</small>
+</section>
+
+<footer>$footer</footer>
+</main>
+</body>
+</html>

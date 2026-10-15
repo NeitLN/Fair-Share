@@ -1,0 +1,52 @@
+name: Progress dashboard
+
+on:
+  push:
+    branches: [ main ]       # after every merge
+  schedule:
+    - cron: "0 23 * * *"     # every day 06:00 Vietnam time
+  workflow_dispatch:         # or by hand: Actions → Progress dashboard → Run workflow
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+  pages: write               # to publish to GitHub Pages
+  id-token: write            # proves to Pages that this workflow is the publisher
+
+concurrency:
+  group: pages               # never two dashboard deploys at once; separate from production
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Collect GitHub data and render the page
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
+        run: python .github/dashboard/build.py _site
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
