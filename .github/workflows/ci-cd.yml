@@ -118,10 +118,13 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: production               # two merges in a row never deploy at the same time
     steps:
+      - uses: actions/checkout@v7         # for .github/scripts/render-deploy.sh
+
       - name: Trigger the API deploy (Render web service)
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API || secrets.RENDER_DEPLOY_HOOK }}
-        run: curl -fsS -X POST "$HOOK" -o /dev/null
+          SERVICE: ${{ vars.RENDER_SERVICE_API || 'srv-db3k8udg1s2s73aqcpug' }}   # fair-share-4bu9
+        run: ./.github/scripts/render-deploy.sh API
 
       - name: Trigger the web deploy (Render static site)
         env:
@@ -131,7 +134,7 @@ jobs:
             echo "::notice::RENDER_DEPLOY_HOOK_WEB is not set yet (T-14), web deploy skipped"
             exit 0
           fi
-          curl -fsS -X POST "$HOOK" -o /dev/null
+          ./.github/scripts/render-deploy.sh web
 
   smoke:
     needs: deploy                         # a deploy hook only queues a deploy; prove it went live
@@ -149,7 +152,7 @@ jobs:
             if [ "$live" = "$GITHUB_SHA" ]; then exit 0; fi
             sleep 20
           done
-          echo "::error::$API_URL did not serve $GITHUB_SHA within 10 minutes"
+          echo "::error::$API_URL did not serve $GITHUB_SHA within 10 minutes. Open the Render deploy printed by the deploy job (Events / Deploys) to see whether it failed, was cancelled or is still queued."
           exit 1
 
       - name: The web app loads
