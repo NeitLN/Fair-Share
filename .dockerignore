@@ -12,3 +12,12 @@ node_modules/
 .env.*
 .vscode/
 README.md
+
+# Not needed in the API image (the Dockerfile copies only app/ and db/)
+frontend/
+docs/
+tests/
+.github/
+*.md
+compose.yml
+.ruff_cache/
