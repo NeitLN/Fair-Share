@@ -118,7 +118,44 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: production               # two merges in a row never deploy at the same time
     steps:
-      - name: Trigger the Render deploy
+      - name: Trigger the API deploy (Render web service)
         env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: curl -fsS -X POST "$HOOK"
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API || secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$HOOK" -o /dev/null
+
+      - name: Trigger the web deploy (Render static site)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_WEB }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_WEB is not set yet (T-14), web deploy skipped"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" -o /dev/null
+
+  smoke:
+    needs: deploy                         # a deploy hook only queues a deploy; prove it went live
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
+      WEB_URL: ${{ vars.WEB_URL }}
+    steps:
+      - name: The live API runs the merged commit
+        run: |
+          deadline=$((SECONDS + 600))       # build + cold start can take several minutes
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            live=$(curl -fsS --max-time 60 "$API_URL/api/version" | jq -r .commit) || live=""
+            echo "live: ${live:-not answering yet}   expected: $GITHUB_SHA"
+            if [ "$live" = "$GITHUB_SHA" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "::error::$API_URL did not serve $GITHUB_SHA within 10 minutes"
+          exit 1
+
+      - name: The web app loads
+        run: |
+          if [ -z "$WEB_URL" ]; then
+            echo "::notice::WEB_URL is not set yet (T-14), skipped"
+            exit 0
+          fi
+          curl -fsS --max-time 60 "$WEB_URL" | grep -q 'id="root"'
