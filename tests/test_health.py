@@ -25,3 +25,9 @@ def test_items():
 
 def test_missing_item():
     assert client.get("/items/999").status_code == 404
+
+
+def test_version_reports_the_commit():
+    response = client.get("/api/version")
+    assert response.status_code == 200
+    assert set(response.json()) == {"app", "version", "env", "commit"}

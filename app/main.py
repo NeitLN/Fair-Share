@@ -15,6 +15,8 @@ APP_NAME = os.getenv("APP_NAME", "sdp-starter")
 APP_VERSION = "1.2.2"
 APP_ENV = os.getenv("APP_ENV", "development")
 DATABASE_URL = os.getenv("DATABASE_URL")
+# Render sets RENDER_GIT_COMMIT to the commit it built; the pipeline's smoke test compares it
+APP_COMMIT = os.getenv("RENDER_GIT_COMMIT", "unknown")
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -46,6 +48,12 @@ def health():
     Fast, no login, touches nothing: never query the database here.
     """
     return {"status": "ok"}
+
+
+@app.get("/api/version")
+def version():
+    """Which build is live. After a merge, the pipeline waits until commit = the merged SHA."""
+    return {"app": APP_NAME, "version": APP_VERSION, "env": APP_ENV, "commit": APP_COMMIT}
 
 
 @app.get("/items")
