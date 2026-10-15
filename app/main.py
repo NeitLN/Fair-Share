@@ -70,5 +70,5 @@ def health_db():
             n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
     except psycopg.Error as err:
         logger.error("database error: %s", err)
-        raise HTTPException(status_code=503, detail=f"database error: {err}")
+        raise HTTPException(status_code=503, detail=f"database error: {err}") from err
     return {"db": "ok", "notes": n}
