@@ -6,8 +6,24 @@ on:
     branches: [ main ]       # and every merge to main
 
 jobs:
-  check:
+  backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:                            # a throw-away database for this job only
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: appdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d appdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://app:ci-only-not-a-secret@localhost:5432/appdb
     steps:
       - uses: actions/checkout@v7
 
@@ -19,16 +35,88 @@ jobs:
       - name: Install
         run: pip install -r requirements-dev.txt
 
+      - name: Prepare the database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/init.sql
+
       - name: Lint
         run: ruff check .
 
       - name: Test
         run: pytest -q
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Is there a frontend yet?
+        id: detect
+        working-directory: .
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::frontend/ does not exist yet (T-09), nothing to check"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        if: steps.detect.outputs.present == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.detect.outputs.present == 'true'
+        run: npm run lint
+
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        run: npm test
+
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the API image
+        run: docker build -t fair-share-api:ci .
+
+      - name: The API container starts and answers /health
+        run: |
+          docker run -d --name api -p 8000:8000 fair-share-api:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8000/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs api
+          exit 1
+
+      - name: Build the web image
+        run: |
+          if [ -f frontend/Dockerfile ]; then
+            docker build -t fair-share-web:ci frontend
+          else
+            echo "::notice::frontend/Dockerfile does not exist yet (T-10), skipped"
+          fi
+
   deploy:
-    needs: check                          # only after check has passed
+    needs: [ backend, frontend, images ]  # only after every check has passed
     if: github.event_name == 'push'       # only after a merge to main, never on a PR
     runs-on: ubuntu-latest
+    concurrency: production               # two merges in a row never deploy at the same time
     steps:
       - name: Trigger the Render deploy
         env:
