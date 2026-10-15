@@ -123,6 +123,7 @@ jobs:
       - name: Trigger the API deploy (Render web service)
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API || secrets.RENDER_DEPLOY_HOOK }}
+          SERVICE: ${{ vars.RENDER_SERVICE_API || 'srv-db3k8udg1s2s73aqcpug' }}   # fair-share-4bu9
         run: ./.github/scripts/render-deploy.sh API
 
       - name: Trigger the web deploy (Render static site)
