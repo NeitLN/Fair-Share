@@ -12,9 +12,10 @@ feature, **Quick add**, will turn a sentence such as *"dinner 240k, Minh paid, s
 pre-filled expense form that the user confirms.
 
 > **Where we are (Week 7):** the platform is in place: Docker image, Compose stack, live HTTPS deployment
-> on Render, and a GitHub Actions pipeline that blocks a bad merge and deploys a good one. The running app
-> is still the course's FastAPI starter. The expense features, the React app, Supabase and the AI feature
-> arrive in Weeks 7–8 ([project status](#project-status)).
+> on Render backed by **Supabase PostgreSQL**, and a GitHub Actions pipeline that blocks a bad merge,
+> deploys a good one and proves which commit is live. The running app is still the course's FastAPI
+> starter; the expense features, the React app and the AI feature arrive in Weeks 7–8
+> ([project status](#project-status)).
 
 Final project for **72ITDS30103 Software Development Platforms**, Van Lang University, Semester 261.
 What is assessed is the platform pipeline around the application: container, Compose stack, CI/CD,
@@ -24,7 +25,7 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 |---|---|
 | 🌐 **Live API** | https://fair-share-4bu9.onrender.com · interactive docs at [`/docs`](https://fair-share-4bu9.onrender.com/docs) |
 | 🖥️ **Web app** | Render Static Site, URL added here in Week 7–8 (T-14) |
-| 📋 **Project board** | [Fair-Share Roadmap](https://github.com/users/NeitLN/projects/2) · [milestones](https://github.com/NeitLN/Fair-Share/milestones) |
+| 📈 **Progress** | [Project board](https://github.com/users/NeitLN/projects/2) · [milestones](https://github.com/NeitLN/Fair-Share/milestones) · [weekly reports](https://github.com/NeitLN/Fair-Share/issues?q=label%3Aweekly-report) · [how to follow it](#project-status) |
 | 📄 **Docs** | [Specification](docs/PROJECT_SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) |
 
 > The free Render instance sleeps after ~15 minutes without traffic. The first request after that can
@@ -67,8 +68,8 @@ user stories and acceptance criteria.
 
 ## Architecture
 
-Target architecture for Session 20. Live today: the API on Render and the pipeline. Supabase and the
-static site arrive in Week 7, Gemini in Week 8.
+Target architecture for Session 20. Live today: the API on Render, Supabase and the pipeline. The static
+site arrives in Week 7–8, Gemini in Week 8.
 
 ```mermaid
 flowchart LR
@@ -91,7 +92,7 @@ flowchart LR
 | Layer | Technology | Where it runs |
 |---|---|---|
 | Presentation | React + TypeScript + Vite | Render Static Site (CDN, HTTPS) |
-| Application | Python 3.12 (CI; the image moves from 3.14 to 3.12 in [#60](https://github.com/NeitLN/Fair-Share/pull/60)), FastAPI, Uvicorn, psycopg 3 | Docker container on a Render Web Service |
+| Application | Python 3.12 (same in the image and in CI), FastAPI, Uvicorn, psycopg 3 | Docker container on a Render Web Service, non-root |
 | Data | PostgreSQL 16 | Supabase (cloud) · `postgres:16-alpine` (local) |
 | AI | Google Gemini API, structured JSON output | Called from the API only |
 | CI/CD | GitHub Actions → Render deploy hooks | GitHub-hosted runners |
@@ -143,7 +144,7 @@ All configuration comes from **environment variables**; nothing environment-spec
 | Variable | Read by | Local (Compose) | Production (Render) | Secret? |
 |---|---|---|---|---|
 | `DB_PASSWORD` | `compose.yml` (`db` service and the URL below) | `.env` | — | yes |
-| `DATABASE_URL` | `app/main.py` | built in `compose.yml` from `DB_PASSWORD` | service env var (Supabase session pooler, `sslmode=require`, from Week 7) | **yes** |
+| `DATABASE_URL` | `app/main.py` | built in `compose.yml` from `DB_PASSWORD` | service env var (Supabase session pooler, `sslmode=require`) | **yes** |
 | `APP_NAME` | `app/main.py` (default `sdp-starter`) | not forwarded by Compose, so the default is used | service env var | no |
 | `APP_ENV` | `app/main.py` (default `development`) | not forwarded, default | `production` | no |
 | `PORT` | the container's start command (default `8000`) | default | set by Render | no |
@@ -197,7 +198,7 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | `GET` | `/health/db` | Readiness: runs one query against PostgreSQL; `503` if it cannot |
 | `GET` | `/` | Name, version and environment of the running app |
 | `GET` | `/items`, `/items/{id}` | Starter sample data; removed when the real API lands (T-06) |
-| `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test (in review, [#62](https://github.com/NeitLN/Fair-Share/pull/62)) |
+| `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test |
 
 Planned endpoints, all under `/api`: households, members, expenses, settlements, balances and
 `POST /api/households/{id}/ai/parse-expense`, which returns a draft and never saves it. Request/response
@@ -209,8 +210,8 @@ shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-j
 |---|---|---|---|
 | ruff | `ruff check .` | Python style, unused imports, likely bugs, import order | in CI |
 | pytest | `pytest -q` | Starter HTTP endpoints | in CI |
-| pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | `/health/db` against a real database; skipped locally without one, never skipped in CI | in review, [#61](https://github.com/NeitLN/Fair-Share/pull/61) |
-| Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in review, [#61](https://github.com/NeitLN/Fair-Share/pull/61) |
+| pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | `/health/db` against a real database; skipped locally without one, never skipped in CI | in CI |
+| Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
 | ESLint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA type checks and component tests | with `frontend/` (T-09) |
 
 A pull request is merged only when these pass in CI **and** another team member has approved it.
@@ -221,27 +222,29 @@ Defined in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
 
 ```mermaid
 flowchart LR
-    PR["Pull request"] --> C["check<br/>ruff + pytest"]
-    C --> R{"green<br/>+ 1 approval?"}
-    R -- "merge to main" --> C2["check again"]
-    C2 --> D["deploy<br/>Render deploy hook"]
+    PR["Pull request"] --> B["backend<br/>ruff + pytest + PostgreSQL"]
+    PR --> F["frontend<br/>lint + test + build"]
+    PR --> I["images<br/>docker build + /health"]
+    B & F & I --> R{"all green<br/>+ 1 approval?"}
+    R -- "merge to main" --> D["deploy<br/>Render deploy hook(s)"]
+    D --> S["smoke<br/>live commit = merged commit"]
 ```
 
-**Today on `main`:**
+| Job | Runs on | What it does | What it keeps out of `main` |
+|---|---|---|---|
+| `backend` | every PR and merge | `ruff check .`, then `pytest -q` against a PostgreSQL 16 service container | Lint errors, broken endpoints, SQL that fails on a real database |
+| `frontend` | every PR and merge | `npm ci`, lint, test, build in `frontend/` (passes with a notice until `frontend/` exists) | A SPA that does not type-check, test or build |
+| `images` | every PR and merge | Builds the API image and checks the container answers `/health`; builds the web image once it exists | A Dockerfile that breaks, or a container that crashes on start |
+| `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
+| `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit (10 min cap) | A deploy that silently never goes live |
 
-* **On every pull request:** the `check` job runs `ruff check .` and `pytest -q`. Branch protection on
-  `main` requires it to pass plus one approving review, for administrators too, so a red check blocks the
-  merge. This was demonstrated in Lab 4 with a deliberately failing test.
-* **On every merge to `main`:** `check` runs again; only if it passes does the `deploy` job call the
-  Render deploy hook (stored as a GitHub Actions secret). Render's auto-deploy is off, so only a green
-  pipeline deploys.
-
-**In review:**
-
-| PR | Adds |
-|---|---|
-| [#61](https://github.com/NeitLN/Fair-Share/pull/61) (T-13) | Three jobs instead of `check`: `backend` (ruff + pytest against a PostgreSQL service container), `frontend` (lint, test, build once `frontend/` exists), `images` (build the API image and check the container answers `/health`) |
-| [#62](https://github.com/NeitLN/Fair-Share/pull/62) (T-23, T-24) | Deploy both Render services, then a `smoke` job that waits until the live `/api/version` reports the merged commit, red after 10 minutes |
+* Branch protection on `main` requires `backend`, `frontend` and `images` plus one approving review, for
+  administrators too. A deliberately failing test was blocked in Lab 4; the demo branch for Session 20 is
+  task T-35.
+* Render's auto-deploy is off, so only a green pipeline deploys.
+* **Incident, 15 Oct:** the first `smoke` run went red. The deploy hook secret belonged to another Render
+  service, so `deploy` had been green while production stayed on an old commit. Fixed by replacing the
+  secret and checking the service id in the script ([#64](https://github.com/NeitLN/Fair-Share/pull/64)).
 
 ## Deployment
 
@@ -249,7 +252,7 @@ flowchart LR
 |---|---|---|
 | API | Render Web Service, Docker, free instance | GitHub Actions calls the deploy hook; Render builds the root [`Dockerfile`](Dockerfile) |
 | Web app | Render Static Site (Week 7–8, T-14) | Same pipeline, second deploy hook |
-| Database | Supabase PostgreSQL (Week 7, T-05) | Created once; attached to the API with a single `DATABASE_URL` env var |
+| Database | Supabase PostgreSQL (Singapore, free tier) | Attached to the API with a single `DATABASE_URL` env var (session pooler, TLS); Row Level Security on, so Supabase's public REST API cannot read the tables |
 
 Before a demo: open the live URL a few minutes early to wake the instance, and check the Supabase
 dashboard, *resuming* the project if it was paused for inactivity.
@@ -313,6 +316,17 @@ Fair-Share/
 
 ## Project status
 
+### Follow the progress
+
+| Where | What you see | Updated |
+|---|---|---|
+| [**Project board**](https://github.com/users/NeitLN/projects/2) | Every task `T-01…T-39` as a card: *Todo → In Progress → In Review → Done*. Views: **Board**, **This sprint**, **Roadmap** (W7–W10 timeline), **All tasks**, and one view per member | Live: a linked PR moves a card to *In Review*, a merge moves it to *Done* |
+| [**Project status updates**](https://github.com/users/NeitLN/projects/2) (top of the board) | The leader's weekly *On track / At risk* note: what was done, what is next | Every Friday |
+| [**Milestones**](https://github.com/NeitLN/Fair-Share/milestones) | % complete and due date of W7, W8, W9, W10 | Live |
+| [**Weekly reports**](https://github.com/NeitLN/Fair-Share/issues?q=label%3Aweekly-report) | Generated by [`weekly-report.yml`](.github/workflows/weekly-report.yml): milestone progress, issues closed / PRs merged / reviews / commits **per member**, merged PRs with their reviewers, open P0 tasks, pipeline and live-deploy health | Every Friday 09:00 (UTC+7) |
+| [**Pull requests**](https://github.com/NeitLN/Fair-Share/pulls?q=is%3Apr) | Who wrote and who reviewed each change; every PR closes a `T-xx` issue | Live |
+| [**Actions**](https://github.com/NeitLN/Fair-Share/actions) | Every check and deploy; the `smoke` job proves which commit is live | Every PR and merge |
+
 Week 6 is complete: container, Compose stack, live HTTPS deployment, and a pipeline that blocks a bad merge
 and deploys a good one. Remaining milestones:
 
@@ -333,10 +347,10 @@ The five live-demo criteria of the brief, and where the evidence is. Updated as 
 |---|---|---|
 | Publicly reachable over HTTPS (6) | https://fair-share-4bu9.onrender.com; web app URL from T-14 | ✅ API live · 🚧 web app |
 | Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ api + db · 🚧 + web (T-11), final rehearsal T-34 |
-| CI pipeline green on pull requests (5) | [Actions history](https://github.com/NeitLN/Fair-Share/actions); a red PR was blocked in Lab 4 | ✅ · 🚧 build + DB jobs (#61) |
-| Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ · 🚧 commit-verified smoke test (#62) |
+| CI pipeline green on pull requests (5) | [Actions history](https://github.com/NeitLN/Fair-Share/actions); a red PR was blocked in Lab 4 | ✅ lint, tests on PostgreSQL, image build |
+| Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ verified by the `smoke` job (live commit = merged commit) |
 | Configuration and secrets via the environment, none in the repository (4) | [Configuration](#configuration), `.gitignore`, `.env.example` | ✅ policy · 🚧 full-history audit (T-29) |
-| Managed cloud PostgreSQL attached by one env var | `DATABASE_URL` on Render → Supabase | 🚧 Week 7 (T-05) |
+| Managed cloud PostgreSQL attached by one env var | `DATABASE_URL` on Render → Supabase; live [`/health/db`](https://fair-share-4bu9.onrender.com/health/db) | ✅ |
 | AI feature on the live URL, failure handled | Quick add + fallback | 🗓️ Week 8 (T-19, T-21, T-22) |
 
 ✅ done · 🚧 in progress or in review · 🗓️ planned

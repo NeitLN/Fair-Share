@@ -1,0 +1,26 @@
+name: Weekly report
+
+on:
+  schedule:
+    - cron: "0 2 * * 5"      # every Friday 09:00 Vietnam time, after Thursday's class
+  workflow_dispatch:         # or by hand: Actions → Weekly report → Run workflow
+
+permissions:
+  contents: read
+  issues: write              # to open the report issue
+  pull-requests: read
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # full history for the commit counts
+
+      - name: Open this week's progress report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
+        run: ./.github/scripts/weekly-report.sh
