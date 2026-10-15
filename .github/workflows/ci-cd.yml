@@ -24,3 +24,13 @@ jobs:
 
       - name: Test
         run: pytest -q
+
+  deploy:
+    needs: check                          # only after check has passed
+    if: github.event_name == 'push'       # only after a merge to main, never on a PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the Render deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$HOOK"
