@@ -108,8 +108,8 @@ will not carry them and they add nothing to the assessed pipeline.
 | Report PDF, ≤ 12 pages, 8 sections | Việt Tiến (editor), each section owner |
 | Contribution table signed by all, matches Git history | Việt Tiến |
 | Live URL awake, loads over HTTPS on mobile data | Việt Tiến |
-| Supabase resumed from the dashboard if paused, one query run | Duy Anh |
-| Clean clone rehearsed on a machine that never had the project | Hoàng Minh |
+| Supabase resumed from the dashboard if paused, one query run | Hoàng Minh |
+| Clean clone rehearsed on a machine that never had the project | Duy Anh |
 | Pipeline green on `main`, failing branch ready for the gate demo | Việt Tiến |
 | No key / connection string / `.env` in files or history | Việt Tiến (audit), all (review) |
 | Each member knows their presentation block and their commits | Everyone |
