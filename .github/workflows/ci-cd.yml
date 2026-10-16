@@ -112,6 +112,20 @@ jobs:
             echo "::notice::frontend/Dockerfile does not exist yet (T-10), skipped"
           fi
 
+      - name: The web container starts and serves the SPA, deep links included
+        if: hashFiles('frontend/Dockerfile') != ''
+        run: |
+          docker run -d --name web -p 8080:8080 fair-share-web:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/ | grep -q 'id="root"' &&
+               curl -fsS http://localhost:8080/households/1 | grep -q 'id="root"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs web
+          exit 1
+
   deploy:
     needs: [ backend, frontend, images ]  # only after every check has passed
     if: github.event_name == 'push'       # only after a merge to main, never on a PR
