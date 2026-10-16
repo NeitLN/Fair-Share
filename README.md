@@ -153,9 +153,9 @@ All configuration comes from **environment variables**; nothing environment-spec
 | Variable | Read by | Local (Compose) | Production (Render) | Secret? |
 |---|---|---|---|---|
 | `DB_PASSWORD` | `compose.yml` (`db` service and the URL below) | `.env` | — | yes |
-| `DATABASE_URL` | `app/main.py` | built in `compose.yml` from `DB_PASSWORD` | service env var (Supabase session pooler, `sslmode=require`) | **yes** |
-| `APP_NAME` | `app/main.py` (default `sdp-starter`) | not forwarded by Compose, so the default is used | service env var | no |
-| `APP_ENV` | `app/main.py` (default `development`) | not forwarded, default | `production` | no |
+| `DATABASE_URL` | `app/config.py` | built in `compose.yml` from `DB_PASSWORD` | service env var (Supabase session pooler, `sslmode=require`) | **yes** |
+| `APP_NAME` | `app/config.py` (default `sdp-starter`) | not forwarded by Compose, so the default is used | service env var | no |
+| `APP_ENV` | `app/config.py` (default `development`) | not forwarded, default | `production` | no |
 | `PORT` | the container's start command (default `8000`) | default | set by Render | no |
 
 **Added with upcoming features**
@@ -204,9 +204,8 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness for Render and the pipeline; never touches the database |
-| `GET` | `/health/db` | Readiness: runs one query against PostgreSQL; `503` if it cannot |
+| `GET` | `/health/db` | Readiness: runs one query against PostgreSQL; `503` with a safe message if it cannot (details in the server log) |
 | `GET` | `/` | Name, version and environment of the running app |
-| `GET` | `/items`, `/items/{id}` | Starter sample data; removed when the real API lands (T-06) |
 | `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test |
 
 Planned endpoints, all under `/api`: households, members, expenses, settlements, balances and
@@ -218,7 +217,7 @@ shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-j
 | Tool | Command | Covers | Status |
 |---|---|---|---|
 | ruff | `ruff check .` | Python style, unused imports, likely bugs, import order | in CI |
-| pytest | `pytest -q` | Starter HTTP endpoints | in CI |
+| pytest | `pytest -q` | Health and version endpoints, the error format, `/health/db` with no or an unreachable database | in CI |
 | pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | `/health/db` against a real database; skipped locally without one, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
 | oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint, API client and route tests; `npm run build` type-checks | in CI |
@@ -290,7 +289,11 @@ Found a security problem? Open an issue **without** the secret in it, or tell th
 ```
 Fair-Share/
 ├── app/                  # FastAPI application (API image)
-│   └── main.py
+│   ├── main.py           # create_app(): start-up/shut-down, error handlers, routers
+│   ├── config.py         # Settings read from environment variables
+│   ├── db.py             # psycopg connection pool + get_conn dependency
+│   ├── errors.py         # ApiError and the {"error": {code, message}} format
+│   └── routers/          # system.py: /, /health, /health/db, /api/version
 ├── db/
 │   └── init.sql          # schema + seed for the local database
 ├── tests/                # pytest
@@ -318,9 +321,10 @@ Fair-Share/
 
 | Symptom | Cause and fix |
 |---|---|
-| `/health/db` → `503` mentioning password authentication | Usually `DB_PASSWORD` changed after the volume was created; PostgreSQL keeps the first password. For a disposable local database: `docker compose down -v` (**deletes local data**), then `up` again |
-| `/health/db` → `503` mentioning the connection URL | `DB_PASSWORD` contains symbols such as `@`, `:` or `/`. Use letters and digits only |
-| `/health/db` → `503 DATABASE_URL is not set` | The API was started outside Compose without `DATABASE_URL`. See [Development without Docker](#development-without-docker) |
+| `/health/db` → `503 database_unavailable` | The API cannot reach PostgreSQL. The reason is in `docker compose logs api`; the two usual ones follow |
+| `docker compose logs api` mentions password authentication | Usually `DB_PASSWORD` changed after the volume was created; PostgreSQL keeps the first password. For a disposable local database: `docker compose down -v` (**deletes local data**), then `up` again |
+| `docker compose logs api` mentions the connection URL | `DB_PASSWORD` contains symbols such as `@`, `:` or `/`. Use letters and digits only |
+| `/health/db` → `503 database_not_configured` | `DATABASE_URL` is not set: the API was started outside Compose without `DATABASE_URL`. See [Development without Docker](#development-without-docker) |
 | `port is already allocated` on 3000 or 8000 | Another app uses that port. Stop it, or change the left side of `"3000:8080"` (web) or `"8000:8000"` (api) in `compose.yml` locally |
 | `localhost:3000` shows the page but every action fails, `/api/...` → `502` | The `api` container is not running. `docker compose ps` and `docker compose logs api` show why |
 | Windows + Podman: `localhost:3000` does not answer | A rootful Podman machine is not always reachable via localhost. Use the machine's WSL IP, or run `podman machine set --rootful=false` and restart the machine |
