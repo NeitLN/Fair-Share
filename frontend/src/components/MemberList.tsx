@@ -30,6 +30,11 @@ function MemberList({
     return <p>Đang tải danh sách thành viên…</p>
   }
 
+  // Removing cannot be undone from the UI, so ask first
+  function confirmRemove(member: Member) {
+    if (window.confirm(`Xoá ${member.name} khỏi nhà?`)) onRemove(member.id)
+  }
+
   function startEditing(member: Member) {
     setEditingId(member.id)
     setDraft(member.name)
@@ -91,7 +96,7 @@ function MemberList({
                   type="button"
                   aria-label={`Xoá ${member.name}`}
                   disabled={removingId === member.id}
-                  onClick={() => onRemove(member.id)}
+                  onClick={() => confirmRemove(member)}
                 >
                   {removingId === member.id ? 'Đang xoá…' : 'Xoá'}
                 </button>

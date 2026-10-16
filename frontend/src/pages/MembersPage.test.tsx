@@ -1,8 +1,13 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { mockApi, renderApp } from '../test/renderApp'
+
+beforeEach(() => {
+  // The user answers "OK" to "Xoá … khỏi nhà?"
+  vi.stubGlobal('confirm', vi.fn(() => true))
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()

@@ -1,7 +1,12 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, test, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import MemberList from './MemberList'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('MemberList', () => {
   test('renders every member with rename and remove buttons', () => {
@@ -54,5 +59,28 @@ describe('MemberList', () => {
     expect(screen.getByRole('button', { name: 'Xoá Tiến' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Xoá Tiến' })).toHaveTextContent('Đang xoá…')
     expect(screen.getByRole('button', { name: 'Xoá Minh' })).toBeEnabled()
+  })
+
+  test('asks before removing, and does nothing on Cancel', async () => {
+    const onRemove = vi.fn()
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+    render(
+      <MemberList
+        members={[{ id: 1, household_id: 7, name: 'Minh', created_at: '' }]}
+        loading={false}
+        error={null}
+        onRename={vi.fn()}
+        onRemove={onRemove}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Xoá Minh' }))
+    expect(confirm).toHaveBeenCalledWith('Xoá Minh khỏi nhà?')
+    expect(onRemove).not.toHaveBeenCalled()
+
+    confirm.mockReturnValue(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Xoá Minh' }))
+    expect(onRemove).toHaveBeenCalledWith(1)
   })
 })
