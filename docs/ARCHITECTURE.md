@@ -60,6 +60,19 @@ flowchart LR
 
 The **API image is identical** in both: the Dockerfile at the repository root is what Render builds.
 
+**The web image** (`frontend/Dockerfile`) is used **only by Compose**; Render's Static Site runs
+`npm run build` itself and serves `dist/` from its CDN.
+
+| Choice | Why |
+|---|---|
+| Two stages: `node:22-alpine` builds, `nginx-unprivileged:1.29-alpine` serves | The final image holds only nginx and `dist/`: no Node, `node_modules` or source |
+| `package*.json` copied and `npm ci` run before the source | Dependency layer stays cached while only code changes |
+| nginx runs as uid 101 and listens on **8080** | Same no-root rule as the API image; a non-root process cannot bind ports below 1024 |
+| `try_files $uri /index.html` | React Router deep links (`/households/7`) survive a reload |
+| `/api/` proxied unchanged to `${API_UPSTREAM}` (default `http://api:8000`), looked up per request through the container's DNS (`NGINX_LOCAL_RESOLVERS`) | Works on Docker and Podman; nginx starts even if `api` is not up yet (that request gets a 502) |
+| `X-Forwarded-For` set on proxied requests | The API sees the real client IP for the AI per-IP limit |
+| `/assets/*` cached for a year (`immutable`), `index.html` sent `no-cache` | Vite hashes asset names, so a new deploy is picked up on the next load |
+
 ## 3. Repository layout (target)
 
 ```
@@ -78,7 +91,7 @@ Fair-Share/
 ├── frontend/                 # React + TypeScript + Vite SPA
 │   ├── src/                  # pages/, components/, api/
 │   ├── Dockerfile            # node build stage → nginx runtime stage (local Compose)
-│   └── nginx.conf
+│   └── nginx.conf            # template: SPA fallback, /api proxy, asset caching
 ├── tests/                    # pytest: unit + API tests against a real PostgreSQL
 ├── .github/workflows/ci-cd.yml
 ├── compose.yml
