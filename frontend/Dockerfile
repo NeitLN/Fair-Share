@@ -16,7 +16,8 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # ---- Stage 2: only nginx and the built files; no Node, no node_modules, no source ----
-FROM nginx:1.29-alpine
+# The unprivileged variant runs nginx as user "nginx" (uid 101), never as root
+FROM nginxinc/nginx-unprivileged:1.29-alpine
 
 # Where /api is proxied to (the Compose service name) and: fill NGINX_LOCAL_RESOLVERS from
 # /etc/resolv.conf at start-up, so nginx can look the api service up by name
@@ -26,4 +27,4 @@ ENV API_UPSTREAM=http://api:8000 \
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /src/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8080
