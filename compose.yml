@@ -7,7 +7,8 @@ services:
     ports:
       - "3000:8080"             # nginx runs as non-root and listens on 8080 inside the container
     depends_on:
-      - api
+      api:
+        condition: service_healthy   # the first page load never hits a 502 from a starting API
 
   api:
     build: .
@@ -18,6 +19,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # The slim image has no curl; Python is there. /health never touches the database.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   db:
     image: postgres:16-alpine
