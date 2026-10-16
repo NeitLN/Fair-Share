@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Fair-Share · Project Ledger</title>
+<meta name="description" content="Progress and collaboration record of the Fair-Share team project (72ITDS30103).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@115,600;115,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page: #F4F7F6; --card: #FFFFFF; --ink: #14211B; --muted: #5C6B64; --rule: #DDE5E1;
+  --rule-strong: #B9C6C0; --tint: #E8EFEC;
+  --m1: #3157D5; --m2: #D99A06; --m3: #087F70;
+  --alert: #A4401A; --alert-bg: #FBEDE6;
+  --display: "Archivo", "Arial Narrow", sans-serif;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body {
+  margin: 0; color: var(--ink); font: 400 15px/1.55 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+a { color: inherit; text-decoration: underline; text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--ink); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px;
+  border-radius: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+.mono { font-family: var(--mono); font-size: 13px; }
+small, .muted { color: var(--muted); }
+
+/* masthead */
+.masthead { border-bottom: 1px solid var(--rule); background: var(--card); }
+.masthead .wrap { display: flex; flex-wrap: wrap; gap: 6px 24px; justify-content: space-between;
+  align-items: baseline; padding-top: 14px; padding-bottom: 14px; }
+.brand { font: 700 15px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.brand span { color: var(--muted); font-family: var(--sans); font-weight: 500; letter-spacing: 0;
+  text-transform: none; margin-left: 8px; }
+.masthead nav { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 32px;
+  padding: 40px 0 28px; align-items: end; }
+.eyebrow { font: 500 13px/1.3 var(--mono); color: var(--muted); margin: 0 0 10px; }
+.figure { font: 700 clamp(64px, 10vw, 112px)/0.9 var(--display); letter-spacing: -0.02em; margin: 0; }
+.figure a { text-decoration: none; }
+.figure a:hover { text-decoration: underline; text-decoration-thickness: 3px; }
+.figure .of { color: var(--muted); font-weight: 600; }
+.figure-label { font: 500 15px/1.3 var(--mono); margin: 10px 0 0; letter-spacing: .02em; }
+.lede { font-size: 17px; margin: 16px 0 0; max-width: 46ch; }
+.progress { height: 8px; background: var(--tint); border-radius: 4px; margin-top: 20px; overflow: hidden; }
+.progress span { display: block; height: 100%; width: var(--w); background: var(--ink);
+  transform-origin: left; animation: fill .9s ease-out both; }
+.callout { margin-top: 16px; padding: 10px 14px; border-left: 3px solid var(--alert);
+  background: var(--alert-bg); color: var(--alert); font-size: 14px; border-radius: 0 4px 4px 0; }
+.callout a { color: inherit; }
+.health { list-style: none; margin: 0; padding: 16px 18px; background: var(--card);
+  border: 1px solid var(--rule); border-radius: 8px; font-size: 14px; }
+.health li { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; padding: 6px 0;
+  align-items: baseline; }
+.health li + li { border-top: 1px solid var(--rule); }
+.health .when { padding-top: 10px; color: var(--muted); font-size: 12px; display: block; }
+
+/* sections */
+section.block { background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 22px 24px; margin: 0 0 20px; }
+.block h2 { font: 600 19px/1.3 var(--sans); margin: 0 0 4px; }
+.block .sub { margin: 0 0 18px; color: var(--muted); font-size: 14px; max-width: 72ch; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.grid2 > section.block { margin: 0; }
+.stack { display: grid; gap: 20px; margin-bottom: 20px; }
+
+/* signature: distribution bars */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 18px; padding: 0;
+  list-style: none; font-size: 14px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.sw.m1, .seg.m1 { background: var(--m1); color: #fff; }
+.sw.m2, .seg.m2 { background: var(--m2); color: var(--ink); }
+.sw.m3, .seg.m3 { background: var(--m3); color: #fff; }
+.dist { display: grid; gap: 18px; }
+.dist-row { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 6px 20px;
+  align-items: center; }
+.dist-label { font-weight: 600; font-size: 15px; }
+.dist-label small { display: block; font-weight: 400; font-size: 12px; }
+.bar { display: flex; height: 30px; border-radius: 5px; overflow: hidden; background: var(--tint);
+  gap: 2px; }
+.seg { width: var(--w); display: flex; align-items: center; padding: 0 8px; font: 500 13px var(--mono);
+  white-space: nowrap; overflow: hidden; transform-origin: left; animation: fill .9s ease-out both; }
+.bar.empty { align-items: center; padding: 0 10px; font-size: 13px; color: var(--muted); }
+.counts { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 18px; margin: 0; padding: 0;
+  list-style: none; font-size: 13px; color: var(--muted); }
+.counts li { display: flex; align-items: center; gap: 6px; }
+.counts b { color: var(--ink); font: 500 13px var(--mono); }
+
+/* tables */
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule);
+  vertical-align: top; }
+th { font-weight: 600; font-size: 13px; color: var(--muted); }
+td.num, th.num { text-align: right; font-family: var(--mono); }
+.scroll { overflow-x: auto; }
+.matrix td.self { color: var(--muted); }
+.zero { color: var(--muted); }
+.none { color: var(--alert); font-weight: 500; }
+
+/* milestones + burn-up */
+.ms { list-style: none; margin: 0 0 20px; padding: 0; display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.ms li { border-top: 3px solid var(--rule); padding-top: 10px; }
+.ms li.current { border-top-color: var(--ink); }
+.ms .name { font-weight: 600; font-size: 14px; }
+.ms .due { font: 400 12px var(--mono); color: var(--muted); }
+.ms .mini { height: 6px; background: var(--tint); border-radius: 3px; margin: 8px 0 4px; overflow: hidden; }
+.ms .mini span { display: block; height: 100%; width: var(--w); background: var(--ink); }
+svg.chart { width: 100%; height: auto; display: block; }
+.chart .axis { fill: var(--muted); font: 11px var(--mono); }
+.chart .gridline { stroke: var(--rule); }
+.chart .today { stroke: var(--rule-strong); stroke-dasharray: 2 3; }
+.chart .planned { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 4; }
+.chart .actual { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; }
+.chart .dot { fill: var(--ink); }
+.chart .dot-label { fill: var(--ink); font: 500 12px var(--mono); }
+.key { display: flex; gap: 18px; font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+.key .k-actual::before, .key .k-plan::before { content: ""; display: inline-block; width: 22px;
+  margin-right: 6px; vertical-align: middle; border-top: 3px solid var(--ink); }
+.key .k-plan::before { border-top: 2px dashed var(--muted); }
+details { margin-top: 12px; }
+summary { cursor: pointer; font-size: 14px; font-weight: 500; }
+
+/* tasks */
+.sprint { border-top: 1px solid var(--rule); padding: 12px 0 4px; }
+.sprint > summary { list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.sprint > summary::-webkit-details-marker { display: none; }
+.sprint > summary::before { content: "▸"; margin-right: 8px; color: var(--muted); }
+.sprint[open] > summary::before { content: "▾"; }
+.sprint > summary .title { flex: 1; }
+.tasks { list-style: none; margin: 10px 0 8px; padding: 0; columns: 2; column-gap: 32px; }
+.tasks li { break-inside: avoid; display: grid; grid-template-columns: 92px 1fr; gap: 10px;
+  padding: 5px 0; font-size: 14px; }
+.st { font: 500 12px/1.6 var(--mono); white-space: nowrap; }
+.st::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }
+.st.done::before { background: var(--ink); }
+.st.review::before { background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
+.st.open { color: var(--muted); }
+.st.open::before { border-color: var(--muted); }
+.who { font-size: 12px; color: var(--muted); }
+
+/* pipeline */
+.jobs { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 12px var(--mono); color: var(--muted); }
+.ok { color: var(--m3); }
+.bad { color: var(--alert); }
+
+footer { padding: 8px 0 48px; color: var(--muted); font-size: 13px; }
+
+@keyframes fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .seg, .progress span { animation: none; } }
+@media (max-width: 860px) {
+  .hero, .grid2 { grid-template-columns: minmax(0, 1fr); }
+  .ms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tasks { columns: 1; }
+  .dist-row { grid-template-columns: minmax(0, 1fr); }
+  .counts { grid-column: 1; }
+}
+@media (max-width: 480px) {
+  .wrap { padding: 0 16px; }
+  section.block { padding: 18px 16px; }
+  .ms { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <div class="brand">Fair-Share<span>Project ledger · 72ITDS30103 · Van Lang University</span></div>
+    <nav aria-label="Project links">$nav</nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">$eyebrow</p>
+      <h1 class="figure" aria-label="$heading_label">$figure</h1>
+      <p class="figure-label">$done_label</p>
+      <div class="progress" aria-hidden="true"><span style="--w:$pct%"></span></div>
+      <p class="lede">$lede</p>
+      $callout
+    </div>
+    <ul class="health" aria-label="Live system checks">$health</ul>
+  </div>
+
+  <section class="block" aria-labelledby="dist-h">
+    <h2 id="dist-h">How the work is distributed</h2>
+    <p class="sub">Each bar is the team's total for one kind of contribution, split by member.
+      Counts show activity, not effort or quality, and the roles differ (platform, frontend,
+      backend). Open any number to see the records behind it.</p>
+    <ul class="legend">$legend</ul>
+    <div class="dist">$dist</div>
+  </section>
+
+  <div class="grid2">
+    <section class="block" aria-labelledby="mx-h">
+      <h2 id="mx-h">Who reviews whom</h2>
+      <p class="sub">Pull requests reviewed by someone other than their author (any review state).</p>
+      <div class="scroll"><table class="matrix">
+        <tr><th scope="col">Author ↓ · reviewer →</th>$matrix_head</tr>
+        $matrix_rows
+      </table></div>
+    </section>
+    <section class="block" aria-labelledby="pr-h">
+      <h2 id="pr-h">Recently merged</h2>
+      <p class="sub">Latest merged pull requests and who reviewed them.</p>
+      <div class="scroll"><table>
+        <tr><th scope="col">PR</th><th scope="col">Author</th><th scope="col">Reviewed by</th>
+          <th scope="col" class="num">Merged</th></tr>
+        $pr_rows
+      </table></div>
+    </section>
+  </div>
+
+  <section class="block" aria-labelledby="ms-h" style="margin-top:20px">
+    <h2 id="ms-h">Milestones and pace</h2>
+    <p class="sub">Planned: every task of a milestone done by its due date. Actual: task issues
+      closed, day by day. Scope is the current $task_total task issues.</p>
+    <ol class="ms">$milestones</ol>
+    <p class="key"><span class="k-actual">Actual</span><span class="k-plan">Planned</span></p>
+    $burnup
+    <details><summary>Show the numbers behind the chart</summary>
+      <div class="scroll"><table>$burnup_table</table></div></details>
+  </section>
+
+  <section class="block" aria-labelledby="t-h">
+    <h2 id="t-h">Tasks by sprint</h2>
+    <p class="sub">Done: task issue closed. In review: an open pull request references it for closure.
+      Open: not started or in progress; the $board_link shows which.</p>
+    $sprints
+  </section>
+
+  <section class="block" aria-labelledby="ci-h">
+    <h2 id="ci-h">Pipeline on main</h2>
+    <p class="sub">Recent pipeline runs on main. A passed smoke job confirms the live API served that run's commit.</p>
+    <div class="scroll"><table>
+      <tr><th scope="col">Run (UTC)</th><th scope="col">Merge</th><th scope="col">Result</th>
+        <th scope="col">Jobs</th></tr>
+      $run_rows
+    </table></div>
+  </section>
+</main>
+
+<footer class="wrap">$footer</footer>
+</body>
+</html>
