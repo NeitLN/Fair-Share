@@ -30,3 +30,9 @@ main {
 .tabs a[aria-current='page'] {
   font-weight: 600;
 }
+
+.household-name {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
