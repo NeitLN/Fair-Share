@@ -96,15 +96,15 @@ flowchart LR
 | Data | PostgreSQL 16 | Supabase (cloud) · `postgres:16-alpine` (local) |
 | AI | Google Gemini API, structured JSON output | Called from the API only |
 | CI/CD | GitHub Actions → Render deploy hooks | GitHub-hosted runners |
-| Quality | ruff, pytest, ESLint, Vitest | Locally and in CI |
+| Quality | ruff, pytest, oxlint, Vitest | Locally and in CI |
 
 Every platform is on a free tier that needs **no credit card**. Fallbacks are declared in
 [ARCHITECTURE.md §7](docs/ARCHITECTURE.md#7-platform-selection-and-declared-fallbacks-zero-credit-card).
 
 ## Quick start (Docker Compose)
 
-**Requirements:** Git and Docker Desktop, or Podman 4+ with a compose provider. Nothing else: Python and
-PostgreSQL run inside containers.
+**Requirements:** Git and Docker Desktop, or Podman 4+ with a compose provider. Nothing else: Node,
+Python and PostgreSQL run inside containers.
 
 ```bash
 git clone https://github.com/NeitLN/Fair-Share.git
@@ -119,11 +119,20 @@ URL, where symbols such as `@` or `:` would break it). Then:
 docker compose up --build
 ```
 
+This starts three containers, in this order: `db` (PostgreSQL) → `api` (FastAPI) once the database is
+healthy → `web` (nginx serving the React app) once the API is healthy. The first build takes a few
+minutes; later starts take seconds.
+
 | Check | URL | Expected |
 |---|---|---|
-| API is alive | http://localhost:3000/health | `{"status":"ok"}` |
-| API reaches PostgreSQL | http://localhost:3000/health/db | `{"db":"ok","notes":1}` |
-| Interactive API docs | http://localhost:3000/docs | Swagger UI |
+| **Web app** | http://localhost:3000 | The Fair-Share page |
+| Web app reaches the API through nginx | http://localhost:3000/api/version | `{"app":…,"version":…}` |
+| API is alive | http://localhost:8000/health | `{"status":"ok"}` |
+| API reaches PostgreSQL | http://localhost:8000/health/db | `{"db":"ok","notes":1}` |
+| Interactive API docs | http://localhost:8000/docs | Swagger UI |
+
+The browser only ever talks to `web` on port 3000; nginx forwards `/api/...` to the `api` container.
+Port 8000 is published so you can open `/docs` while developing.
 
 ```bash
 docker compose down        # stop, keep the data
@@ -212,7 +221,7 @@ shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-j
 | pytest | `pytest -q` | Starter HTTP endpoints | in CI |
 | pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | `/health/db` against a real database; skipped locally without one, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
-| ESLint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA type checks and component tests | with `frontend/` (T-09) |
+| oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint, API client and route tests; `npm run build` type-checks | in CI |
 
 A pull request is merged only when these pass in CI **and** another team member has approved it.
 
@@ -234,7 +243,7 @@ flowchart LR
 |---|---|---|---|
 | `backend` | every PR and merge | `ruff check .`, then `pytest -q` against a PostgreSQL 16 service container | Lint errors, broken endpoints, SQL that fails on a real database |
 | `frontend` | every PR and merge | `npm ci`, lint, test, build in `frontend/` (passes with a notice until `frontend/` exists) | A SPA that does not type-check, test or build |
-| `images` | every PR and merge | Builds the API image and checks the container answers `/health`; builds the web image once it exists | A Dockerfile that breaks, or a container that crashes on start |
+| `images` | every PR and merge | Builds both images; checks the API container answers `/health` and the web container serves the SPA and a deep link | A Dockerfile that breaks, or a container that crashes on start |
 | `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
 | `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit (10 min cap) | A deploy that silently never goes live |
 
@@ -285,20 +294,24 @@ Fair-Share/
 ├── db/
 │   └── init.sql          # schema + seed for the local database
 ├── tests/                # pytest
+├── frontend/             # React + TypeScript + Vite SPA
+│   ├── src/              # api/ (client), pages/, lib/
+│   ├── Dockerfile        # web image: node build → nginx (Compose only)
+│   └── nginx.conf        # SPA fallback, /api proxy, asset caching
 ├── docs/                 # specification, architecture, roadmap
 ├── .github/
 │   ├── workflows/ci-cd.yml
 │   ├── ISSUE_TEMPLATE/
 │   └── pull_request_template.md
 ├── Dockerfile            # API image (the one Render builds)
-├── compose.yml           # local stack: api + PostgreSQL
+├── compose.yml           # local stack: web (nginx + SPA) + api + PostgreSQL
 ├── requirements.txt      # runtime dependencies
 ├── requirements-dev.txt  # + pytest, ruff
 ├── pyproject.toml        # ruff and pytest configuration
 └── .env.example          # local configuration template
 ```
 
-`frontend/` (React SPA) and `db/migrations/` are added in Week 7; see the target layout in
+`db/migrations/` is added in Week 7 (T-07); see the target layout in
 [ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-repository-layout-target).
 
 ## Troubleshooting
@@ -308,7 +321,8 @@ Fair-Share/
 | `/health/db` → `503` mentioning password authentication | Usually `DB_PASSWORD` changed after the volume was created; PostgreSQL keeps the first password. For a disposable local database: `docker compose down -v` (**deletes local data**), then `up` again |
 | `/health/db` → `503` mentioning the connection URL | `DB_PASSWORD` contains symbols such as `@`, `:` or `/`. Use letters and digits only |
 | `/health/db` → `503 DATABASE_URL is not set` | The API was started outside Compose without `DATABASE_URL`. See [Development without Docker](#development-without-docker) |
-| `port is already allocated` on 3000 | Another app uses port 3000. Stop it, or change the left side of `"3000:8000"` in `compose.yml` locally |
+| `port is already allocated` on 3000 or 8000 | Another app uses that port. Stop it, or change the left side of `"3000:8080"` (web) or `"8000:8000"` (api) in `compose.yml` locally |
+| `localhost:3000` shows the page but every action fails, `/api/...` → `502` | The `api` container is not running. `docker compose ps` and `docker compose logs api` show why |
 | Windows + Podman: `localhost:3000` does not answer | A rootful Podman machine is not always reachable via localhost. Use the machine's WSL IP, or run `podman machine set --rootful=false` and restart the machine |
 | Live URL takes ~50 s to answer | The free Render instance was asleep. Wait; it stays awake while in use |
 | Live `/health/db` fails, local works | Supabase project paused, or `DATABASE_URL` on Render wrong. Resume it in the Supabase dashboard |
@@ -346,7 +360,7 @@ The five live-demo criteria of the brief, and where the evidence is. Updated as 
 | Criterion (points) | Evidence | Status |
 |---|---|---|
 | Publicly reachable over HTTPS (6) | https://fair-share-4bu9.onrender.com; web app URL from T-14 | ✅ API live · 🚧 web app |
-| Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ api + db · 🚧 + web (T-11), final rehearsal T-34 |
+| Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ web + api + db (T-11) · 🚧 clean clone on a teammate's machine, final rehearsal T-34 |
 | CI pipeline green on pull requests (5) | [Actions history](https://github.com/NeitLN/Fair-Share/actions); a red PR was blocked in Lab 4 | ✅ lint, tests on PostgreSQL, image build |
 | Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ verified by the `smoke` job (live commit = merged commit) |
 | Configuration and secrets via the environment, none in the repository (4) | [Configuration](#configuration), `.gitignore`, `.env.example` | ✅ policy · 🚧 full-history audit (T-29) |

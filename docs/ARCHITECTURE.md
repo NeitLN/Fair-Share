@@ -3,9 +3,9 @@
 This document is the source for report sections 1, 2, 3, 5, 6 and 7. **Rule: the diagrams here must
 always match what is deployed.** A PR that changes the topology updates this file in the same PR.
 
-> **Status legend.** This document describes the **target** for Session 20. Live today (15/10): the
-> FastAPI starter on Render (`fair-share-4bu9`) with CI + deploy hook, and Compose with `web` (API) +
-> `db`. Items marked *(W7)*, *(W8)* arrive with that milestone; the PR that ships one removes its marker.
+> **Status legend.** This document describes the **target** for Session 20. Live today (16/10): the
+> FastAPI starter on Render (`fair-share-4bu9`) with CI + deploy hook, and Compose with `web`
+> (nginx + SPA) + `api` + `db`. Items marked *(W7)*, *(W8)* arrive with that milestone; the PR that ships one removes its marker.
 
 ## 1. Deployed topology (production)
 
@@ -59,6 +59,11 @@ flowchart LR
 | TLS | None (localhost) | Render terminates HTTPS; Supabase requires TLS |
 
 The **API image is identical** in both: the Dockerfile at the repository root is what Render builds.
+
+**Start-up order** (`depends_on` with `condition: service_healthy`): `db` passes `pg_isready` → `api`
+starts and passes its `/health` check → `web` starts. The first page load after `docker compose up`
+therefore never meets a booting API. Published ports: `3000` → `web:8080` (the app), `8000` → `api:8000`
+(`/docs` and `/health/db` while developing). `db` publishes no port: only `api` talks to it.
 
 **The web image** (`frontend/Dockerfile`) is used **only by Compose**; Render's Static Site runs
 `npm run build` itself and serves `dist/` from its CDN.
@@ -285,7 +290,7 @@ flowchart LR
 |---|---|
 | `backend` | Python lint errors, broken endpoints, wrong split/balance maths, migrations that fail on a fresh DB |
 | `frontend` | TypeScript/ESLint errors, failing component tests, a SPA that does not build |
-| `images` | A Dockerfile that no longer builds (what Render would fail on after merge) |
+| `images` | A Dockerfile that no longer builds (what Render would fail on after merge), a container that crashes on start, or a `compose.yml` whose stack does not come up with the web app reaching the API and the API reaching PostgreSQL |
 | `secrets` | A committed key or connection string |
 | `deploy` | Runs only on `push` to `main` after all checks; PRs never deploy |
 | `smoke` | A deploy hook only *queues* a deploy. This job proves the live API runs the exact merged commit and the web app loads — otherwise the run goes red |
