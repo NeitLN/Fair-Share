@@ -55,6 +55,7 @@ function MembersPage() {
           rename.reset()
           remove.mutate(id)
         }}
+        removingId={remove.isPending ? remove.variables : null}
       />
     </>
   )

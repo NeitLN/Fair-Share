@@ -9,10 +9,19 @@ interface MemberListProps {
   /** Resolves when saved (edit mode closes), rejects on failure (edit mode stays open). */
   onRename: (id: number, name: string) => Promise<unknown>
   onRemove: (id: number) => void
+  /** The member being removed right now: their buttons are disabled so a double click sends one request. */
+  removingId?: number | null
 }
 
 /** Props-only list. Rename/remove are callbacks; the page does the API calls. */
-function MemberList({ members, loading, error, onRename, onRemove }: MemberListProps) {
+function MemberList({
+  members,
+  loading,
+  error,
+  onRename,
+  onRemove,
+  removingId = null,
+}: MemberListProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
@@ -71,11 +80,20 @@ function MemberList({ members, loading, error, onRename, onRemove }: MemberListP
             ) : (
               <li key={member.id}>
                 {member.name}{' '}
-                <button type="button" onClick={() => startEditing(member)}>
+                <button
+                  type="button"
+                  disabled={removingId === member.id}
+                  onClick={() => startEditing(member)}
+                >
                   Đổi tên
                 </button>{' '}
-                <button type="button" aria-label={`Xoá ${member.name}`} onClick={() => onRemove(member.id)}>
-                  Xoá
+                <button
+                  type="button"
+                  aria-label={`Xoá ${member.name}`}
+                  disabled={removingId === member.id}
+                  onClick={() => onRemove(member.id)}
+                >
+                  {removingId === member.id ? 'Đang xoá…' : 'Xoá'}
                 </button>
               </li>
             ),

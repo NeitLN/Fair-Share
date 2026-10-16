@@ -36,4 +36,23 @@ describe('MemberList', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Không kết nối được tới máy chủ.')
     expect(screen.queryByText(/Chưa có thành viên nào/)).not.toBeInTheDocument()
   })
+
+  test('the member being removed cannot be removed or renamed twice', () => {
+    render(
+      <MemberList
+        members={[
+          { id: 1, household_id: 7, name: 'Minh', created_at: '' },
+          { id: 2, household_id: 7, name: 'Tiến', created_at: '' },
+        ]}
+        loading={false}
+        error={null}
+        onRename={vi.fn()}
+        onRemove={vi.fn()}
+        removingId={2}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Xoá Tiến' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Xoá Tiến' })).toHaveTextContent('Đang xoá…')
+    expect(screen.getByRole('button', { name: 'Xoá Minh' })).toBeEnabled()
+  })
 })
