@@ -103,8 +103,8 @@ Every platform is on a free tier that needs **no credit card**. Fallbacks are de
 
 ## Quick start (Docker Compose)
 
-**Requirements:** Git and Docker Desktop, or Podman 4+ with a compose provider. Nothing else: Python and
-PostgreSQL run inside containers.
+**Requirements:** Git and Docker Desktop, or Podman 4+ with a compose provider. Nothing else: Node,
+Python and PostgreSQL run inside containers.
 
 ```bash
 git clone https://github.com/NeitLN/Fair-Share.git
@@ -119,11 +119,20 @@ URL, where symbols such as `@` or `:` would break it). Then:
 docker compose up --build
 ```
 
+This starts three containers, in this order: `db` (PostgreSQL) → `api` (FastAPI) once the database is
+healthy → `web` (nginx serving the React app) once the API is healthy. The first build takes a few
+minutes; later starts take seconds.
+
 | Check | URL | Expected |
 |---|---|---|
-| API is alive | http://localhost:3000/health | `{"status":"ok"}` |
-| API reaches PostgreSQL | http://localhost:3000/health/db | `{"db":"ok","notes":1}` |
-| Interactive API docs | http://localhost:3000/docs | Swagger UI |
+| **Web app** | http://localhost:3000 | The Fair-Share page |
+| Web app reaches the API through nginx | http://localhost:3000/api/version | `{"app":…,"version":…}` |
+| API is alive | http://localhost:8000/health | `{"status":"ok"}` |
+| API reaches PostgreSQL | http://localhost:8000/health/db | `{"db":"ok","notes":1}` |
+| Interactive API docs | http://localhost:8000/docs | Swagger UI |
+
+The browser only ever talks to `web` on port 3000; nginx forwards `/api/...` to the `api` container.
+Port 8000 is published so you can open `/docs` while developing.
 
 ```bash
 docker compose down        # stop, keep the data
@@ -291,7 +300,7 @@ Fair-Share/
 │   ├── ISSUE_TEMPLATE/
 │   └── pull_request_template.md
 ├── Dockerfile            # API image (the one Render builds)
-├── compose.yml           # local stack: api + PostgreSQL
+├── compose.yml           # local stack: web (nginx + SPA) + api + PostgreSQL
 ├── requirements.txt      # runtime dependencies
 ├── requirements-dev.txt  # + pytest, ruff
 ├── pyproject.toml        # ruff and pytest configuration
@@ -308,7 +317,8 @@ Fair-Share/
 | `/health/db` → `503` mentioning password authentication | Usually `DB_PASSWORD` changed after the volume was created; PostgreSQL keeps the first password. For a disposable local database: `docker compose down -v` (**deletes local data**), then `up` again |
 | `/health/db` → `503` mentioning the connection URL | `DB_PASSWORD` contains symbols such as `@`, `:` or `/`. Use letters and digits only |
 | `/health/db` → `503 DATABASE_URL is not set` | The API was started outside Compose without `DATABASE_URL`. See [Development without Docker](#development-without-docker) |
-| `port is already allocated` on 3000 | Another app uses port 3000. Stop it, or change the left side of `"3000:8000"` in `compose.yml` locally |
+| `port is already allocated` on 3000 or 8000 | Another app uses that port. Stop it, or change the left side of `"3000:8080"` (web) or `"8000:8000"` (api) in `compose.yml` locally |
+| `localhost:3000` shows the page but every action fails, `/api/...` → `502` | The `api` container is not running. `docker compose ps` and `docker compose logs api` show why |
 | Windows + Podman: `localhost:3000` does not answer | A rootful Podman machine is not always reachable via localhost. Use the machine's WSL IP, or run `podman machine set --rootful=false` and restart the machine |
 | Live URL takes ~50 s to answer | The free Render instance was asleep. Wait; it stays awake while in use |
 | Live `/health/db` fails, local works | Supabase project paused, or `DATABASE_URL` on Render wrong. Resume it in the Supabase dashboard |
