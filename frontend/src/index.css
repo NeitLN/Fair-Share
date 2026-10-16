@@ -36,3 +36,71 @@ main {
   font-size: 1.25rem;
   font-weight: 600;
 }
+
+/* Forms and lists: usable with a thumb on a 360 px wide phone (PROJECT_SPEC §4) */
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+form label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+input[type='text'] {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  border: 1px solid #8c959f;
+  border-radius: 6px;
+}
+
+button {
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  font: inherit;
+  border: 1px solid #8c959f;
+  border-radius: 6px;
+  background: #f6f8fa;
+  cursor: pointer;
+}
+
+button[type='submit'] {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #ffffff;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #d0d7de;
+}
+
+li label {
+  flex-basis: 100%;
+}
+
+[role='alert'] {
+  flex-basis: 100%;
+  margin: 0.25rem 0;
+  color: #cf222e;
+}
