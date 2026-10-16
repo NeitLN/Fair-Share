@@ -2,7 +2,8 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 interface HouseholdCreateFormProps {
-  onCreate: (name: string) => void
+  /** Resolves when saved (the input is cleared), rejects on failure (the text is kept). */
+  onCreate: (name: string) => Promise<unknown>
   submitting: boolean
   error: string | null
 }
@@ -12,7 +13,7 @@ function HouseholdCreateForm({ onCreate, submitting, error }: HouseholdCreateFor
   const [name, setName] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = name.trim()
     if (trimmed.length < 1 || trimmed.length > 60) {
@@ -20,7 +21,12 @@ function HouseholdCreateForm({ onCreate, submitting, error }: HouseholdCreateFor
       return
     }
     setValidation(null)
-    onCreate(trimmed)
+    try {
+      await onCreate(trimmed)
+      setName('')
+    } catch {
+      // The page shows the server's message through `error`; keep what the user typed
+    }
   }
 
   return (

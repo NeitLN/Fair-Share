@@ -6,7 +6,8 @@ interface MemberListProps {
   members: Member[]
   loading: boolean
   error: string | null
-  onRename: (id: number, name: string) => void
+  /** Resolves when saved (edit mode closes), rejects on failure (edit mode stays open). */
+  onRename: (id: number, name: string) => Promise<unknown>
   onRemove: (id: number) => void
 }
 
@@ -26,15 +27,19 @@ function MemberList({ members, loading, error, onRename, onRemove }: MemberListP
     setValidation(null)
   }
 
-  function saveEditing(id: number) {
+  async function saveEditing(id: number) {
     const trimmed = draft.trim()
     if (trimmed.length === 0) {
       setValidation('Tên thành viên không được để trống.')
       return
     }
-    setEditingId(null)
     setValidation(null)
-    onRename(id, trimmed)
+    try {
+      await onRename(id, trimmed)
+      setEditingId(null)
+    } catch {
+      // e.g. 409 duplicate name: the page shows the message, the user can fix the draft
+    }
   }
 
   return (

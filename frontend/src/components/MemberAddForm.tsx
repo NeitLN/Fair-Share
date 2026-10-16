@@ -2,7 +2,8 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 interface MemberAddFormProps {
-  onAdd: (name: string) => void
+  /** Resolves when saved (the input is cleared), rejects on failure (the text is kept). */
+  onAdd: (name: string) => Promise<unknown>
   submitting: boolean
   error: string | null
 }
@@ -12,7 +13,7 @@ function MemberAddForm({ onAdd, submitting, error }: MemberAddFormProps) {
   const [name, setName] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = name.trim()
     if (trimmed.length === 0) {
@@ -20,7 +21,12 @@ function MemberAddForm({ onAdd, submitting, error }: MemberAddFormProps) {
       return
     }
     setValidation(null)
-    onAdd(trimmed)
+    try {
+      await onAdd(trimmed)
+      setName('')
+    } catch {
+      // The page shows the server's message through `error`; keep what the user typed
+    }
   }
 
   return (
