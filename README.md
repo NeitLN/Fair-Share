@@ -96,7 +96,7 @@ flowchart LR
 | Data | PostgreSQL 16 | Supabase (cloud) · `postgres:16-alpine` (local) |
 | AI | Google Gemini API, structured JSON output | Called from the API only |
 | CI/CD | GitHub Actions → Render deploy hooks | GitHub-hosted runners |
-| Quality | ruff, pytest, ESLint, Vitest | Locally and in CI |
+| Quality | ruff, pytest, oxlint, Vitest | Locally and in CI |
 
 Every platform is on a free tier that needs **no credit card**. Fallbacks are declared in
 [ARCHITECTURE.md §7](docs/ARCHITECTURE.md#7-platform-selection-and-declared-fallbacks-zero-credit-card).
@@ -221,7 +221,7 @@ shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-j
 | pytest | `pytest -q` | Starter HTTP endpoints | in CI |
 | pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | `/health/db` against a real database; skipped locally without one, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
-| ESLint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA type checks and component tests | with `frontend/` (T-09) |
+| oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint, API client and route tests; `npm run build` type-checks | in CI |
 
 A pull request is merged only when these pass in CI **and** another team member has approved it.
 
@@ -243,7 +243,7 @@ flowchart LR
 |---|---|---|---|
 | `backend` | every PR and merge | `ruff check .`, then `pytest -q` against a PostgreSQL 16 service container | Lint errors, broken endpoints, SQL that fails on a real database |
 | `frontend` | every PR and merge | `npm ci`, lint, test, build in `frontend/` (passes with a notice until `frontend/` exists) | A SPA that does not type-check, test or build |
-| `images` | every PR and merge | Builds the API image and checks the container answers `/health`; builds the web image once it exists | A Dockerfile that breaks, or a container that crashes on start |
+| `images` | every PR and merge | Builds both images; checks the API container answers `/health` and the web container serves the SPA and a deep link | A Dockerfile that breaks, or a container that crashes on start |
 | `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
 | `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit (10 min cap) | A deploy that silently never goes live |
 
@@ -294,6 +294,10 @@ Fair-Share/
 ├── db/
 │   └── init.sql          # schema + seed for the local database
 ├── tests/                # pytest
+├── frontend/             # React + TypeScript + Vite SPA
+│   ├── src/              # api/ (client), pages/, lib/
+│   ├── Dockerfile        # web image: node build → nginx (Compose only)
+│   └── nginx.conf        # SPA fallback, /api proxy, asset caching
 ├── docs/                 # specification, architecture, roadmap
 ├── .github/
 │   ├── workflows/ci-cd.yml
@@ -307,7 +311,7 @@ Fair-Share/
 └── .env.example          # local configuration template
 ```
 
-`frontend/` (React SPA) and `db/migrations/` are added in Week 7; see the target layout in
+`db/migrations/` is added in Week 7 (T-07); see the target layout in
 [ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-repository-layout-target).
 
 ## Troubleshooting
@@ -356,7 +360,7 @@ The five live-demo criteria of the brief, and where the evidence is. Updated as 
 | Criterion (points) | Evidence | Status |
 |---|---|---|
 | Publicly reachable over HTTPS (6) | https://fair-share-4bu9.onrender.com; web app URL from T-14 | ✅ API live · 🚧 web app |
-| Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ api + db · 🚧 + web (T-11), final rehearsal T-34 |
+| Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ web + api + db (T-11) · 🚧 clean clone on a teammate's machine, final rehearsal T-34 |
 | CI pipeline green on pull requests (5) | [Actions history](https://github.com/NeitLN/Fair-Share/actions); a red PR was blocked in Lab 4 | ✅ lint, tests on PostgreSQL, image build |
 | Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ verified by the `smoke` job (live commit = merged commit) |
 | Configuration and secrets via the environment, none in the repository (4) | [Configuration](#configuration), `.gitignore`, `.env.example` | ✅ policy · 🚧 full-history audit (T-29) |
