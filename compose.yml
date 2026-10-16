@@ -1,13 +1,24 @@
+# Local stack: one command, from a clean clone:  docker compose up --build
+#   http://localhost:3000       the web app (nginx serving the SPA, /api proxied to the api service)
+#   http://localhost:8000/docs  the API directly, for debugging
 services:
+  web:
+    build: ./frontend
+    ports:
+      - "3000:8080"             # nginx runs as non-root and listens on 8080 inside the container
+    depends_on:
+      - api
+
   api:
     build: .
     ports:
-      - "3000:8000"
+      - "8000:8000"
     environment:
       DATABASE_URL: postgresql://app:${DB_PASSWORD}@db:5432/appdb
     depends_on:
       db:
         condition: service_healthy
+
   db:
     image: postgres:16-alpine
     environment:
@@ -22,5 +33,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
 volumes:
   pgdata:
