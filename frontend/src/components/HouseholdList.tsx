@@ -1,3 +1,5 @@
+import { Link } from 'react-router'
+
 import type { Household } from '../api/types'
 
 interface HouseholdListProps {
@@ -15,11 +17,13 @@ function HouseholdList({ households, loading, error }: HouseholdListProps) {
     <div>
       {error && <p role="alert">{error}</p>}
       {households.length === 0 ? (
-        <p>Chưa có household nào — tạo cái đầu tiên</p>
+        <p>Chưa có nhà nào — tạo nhà đầu tiên ở trên.</p>
       ) : (
         <ul>
           {households.map((household) => (
-            <li key={household.id}>{household.name}</li>
+            <li key={household.id}>
+              <Link to={`/households/${household.id}`}>{household.name}</Link>
+            </li>
           ))}
         </ul>
       )}
