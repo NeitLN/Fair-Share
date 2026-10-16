@@ -16,8 +16,9 @@ function HouseholdList({ households, loading, error }: HouseholdListProps) {
   return (
     <div>
       {error && <p role="alert">{error}</p>}
+      {/* An empty list after an error means "could not load", not "no households" */}
       {households.length === 0 ? (
-        <p>Chưa có nhà nào — tạo nhà đầu tiên ở trên.</p>
+        !error && <p>Chưa có nhà nào — tạo nhà đầu tiên ở trên.</p>
       ) : (
         <ul>
           {households.map((household) => (

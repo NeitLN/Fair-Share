@@ -26,4 +26,10 @@ describe('HouseholdList', () => {
     render(<HouseholdList households={[]} loading={false} error={null} />)
     expect(screen.getByText(/Chưa có nhà nào/)).toBeInTheDocument()
   })
+
+  test('a load error is not mistaken for an empty list', () => {
+    render(<HouseholdList households={[]} loading={false} error="Không kết nối được tới máy chủ." />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Không kết nối được tới máy chủ.')
+    expect(screen.queryByText(/Chưa có nhà nào/)).not.toBeInTheDocument()
+  })
 })

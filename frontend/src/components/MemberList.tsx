@@ -46,8 +46,9 @@ function MemberList({ members, loading, error, onRename, onRemove }: MemberListP
     <div>
       {error && <p role="alert">{error}</p>}
       {validation && <p role="alert">{validation}</p>}
+      {/* An empty list after an error means "could not load", not "no members" */}
       {members.length === 0 ? (
-        <p>Chưa có thành viên nào — thêm người đầu tiên</p>
+        !error && <p>Chưa có thành viên nào — thêm người đầu tiên.</p>
       ) : (
         <ul>
           {members.map((member) =>
