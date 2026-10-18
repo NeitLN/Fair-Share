@@ -1,6 +1,6 @@
 // JSON shapes for households and members, mirroring the ERD in
-// docs/ARCHITECTURE.md §4. Field names must match the backend exactly;
-// if Duy Anh finalises different names with the backend lead, update here.
+// docs/ARCHITECTURE.md §4. Field names must match the backend exactly:
+// if the households/members API (T-08) uses different names, update them here.
 
 /** A household. `id` is a PostgreSQL bigint, serialised as a JSON number. */
 export interface Household {

@@ -8,7 +8,7 @@ interface HouseholdListProps {
   error: string | null
 }
 
-/** Props-only list of households. Data fetching stays in the page (Claude). */
+/** Props-only list of households. Data fetching stays in the page. */
 function HouseholdList({ households, loading, error }: HouseholdListProps) {
   if (loading) {
     return <p>Đang tải danh sách nhà…</p>
