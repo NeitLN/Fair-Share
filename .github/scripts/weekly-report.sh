@@ -32,13 +32,21 @@ bar() { local i out=""; for i in $(seq 1 10); do [ "$i" -le "$(( $1 / 10 ))" ] &
     done
   echo
 
+  # Every review submitted this week on someone else's pull request (several reviews on one PR
+  # count separately; a later comment on an old PR does not).
+  reviews_json=$(gh api graphql -f q="repo:$repo is:pr updated:>=$since_day" -f query='
+    query($q: String!) { search(query: $q, type: ISSUE, first: 100) { nodes { ... on PullRequest {
+      author { login } reviews(first: 100) { nodes { author { login } submittedAt } } } } } }')
+
   echo "## Per member this week"
   echo "| Member | Issues closed | PRs merged | Reviews given | Commits on main |"
   echo "|---|---|---|---|---|"
   for login in NeitLN anh7032 Jayson135724; do
     issues=$(count "is:issue is:closed assignee:$login closed:>=$since_day")
     prs=$(count "is:pr is:merged author:$login merged:>=$since_day")
-    reviews=$(count "is:pr reviewed-by:$login -author:$login updated:>=$since_day")
+    reviews=$(jq --arg who "$login" --arg since "$since_day" '[.data.search.nodes[]
+      | select(.author.login != $who) | .reviews.nodes[]
+      | select(.author.login == $who and .submittedAt >= $since)] | length' <<<"$reviews_json")
     commits=$(git log origin/main --no-merges --since="$since_day" --format='%ae %an' |
       grep -ciE "$login|${NAME[$login]}" || true)
     echo "| ${NAME[$login]} (@$login) | $issues | $prs | $reviews | $commits |"

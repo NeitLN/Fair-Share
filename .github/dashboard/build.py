@@ -178,7 +178,8 @@ def derive(raw):
         "milestones": milestones,
         "burnup": {"planned": planned, "actual": actual},
         "members": members,
-        "matrix": [[a, r, n] for (a, r), n in sorted(matrix.items())],
+        # str(): a deleted GitHub account has no login (None), which cannot be sorted with names
+        "matrix": [[a, r, n] for (a, r), n in sorted(matrix.items(), key=lambda kv: str(kv[0]))],
         "merged_prs": len(merged),
         "merged_without_review": sorted(p["number"] for p in merged if not reviewers(p)),
         "recent_prs": [{"number": p["number"], "title": p["title"], "url": p["url"],
@@ -223,6 +224,8 @@ def short(login):
 
 
 def fmt_day(iso):
+    if not iso:  # a milestone without a due date
+        return "no date"
     return dt.date.fromisoformat(iso).strftime("%a %d %b").replace(" 0", " ")
 
 

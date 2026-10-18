@@ -170,14 +170,24 @@ jobs:
     env:
       API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
       WEB_URL: ${{ vars.WEB_URL }}
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: The live API runs the merged commit
+      - name: The live API runs the merged commit (or a later one that contains it)
         run: |
           deadline=$((SECONDS + 600))       # build + cold start can take several minutes
           while [ "$SECONDS" -lt "$deadline" ]; do
             live=$(curl -fsS --max-time 60 "$API_URL/api/version" | jq -r .commit) || live=""
             echo "live: ${live:-not answering yet}   expected: $GITHUB_SHA"
             if [ "$live" = "$GITHUB_SHA" ]; then exit 0; fi
+            # Two merges close together: the next run may already have deployed a newer commit.
+            # That still proves this one went live if the newer commit contains it.
+            if [ -n "$live" ] && [ "$live" != "unknown" ]; then
+              rel=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$live" --jq .status) || rel=""
+              if [ "$rel" = "ahead" ]; then
+                echo "::notice::Live runs ${live:0:7}, a later commit that contains ${GITHUB_SHA:0:7}"
+                exit 0
+              fi
+            fi
             sleep 20
           done
           echo "::error::$API_URL did not serve $GITHUB_SHA within 10 minutes. Open the Render deploy printed by the deploy job (Events / Deploys) to see whether it failed, was cancelled or is still queued."

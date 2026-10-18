@@ -16,11 +16,19 @@ if [ -n "${SERVICE:-}" ] && [[ "$HOOK" != *"/deploy/$SERVICE?"* ]]; then
   exit 1
 fi
 
-answer=$(curl -fsS -X POST "$HOOK")
+# Deploy exactly the commit this run has tested. Without ref, Render deploys whatever is newest on
+# the branch, which may be a later merge whose checks are still running.
+url="$HOOK"
+if [ -n "${GITHUB_SHA:-}" ]; then
+  [[ "$HOOK" == *\?* ]] && sep="&" || sep="?"
+  url="${HOOK}${sep}ref=${GITHUB_SHA}"
+fi
+
+answer=$(curl -fsS -X POST "$url")
 deploy_id=$(jq -r '.deploy.id // empty' <<<"$answer" 2>/dev/null || true)
 
 if [ -n "$deploy_id" ]; then
-  echo "::notice::Render queued $label deploy $deploy_id"
+  echo "::notice::Render queued $label deploy $deploy_id for commit ${GITHUB_SHA:-latest}"
 else
   # Render accepted the call but created no new deploy, e.g. one is already queued.
   echo "::warning::Render accepted the $label hook but returned no deploy id (answer: ${answer:-empty}). The smoke job will tell whether the new commit went live."
