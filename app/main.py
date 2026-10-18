@@ -1,82 +1,41 @@
-"""Starter application for 72ITDS30103 Software Development Platforms.
+"""Fair-Share API: builds the FastAPI app.
 
-A deliberately small web API. You will containerise it in Lab 2,
-connect it to PostgreSQL in Week 4, deploy it in Lab 3 and test it
-in a pipeline from Week 6.
+Uvicorn starts `app.main:app` (see the Dockerfile). Tests call create_app() with their own
+Settings, so each test gets a fresh app without touching environment variables.
 """
 
-import logging
-import os
+from contextlib import asynccontextmanager
 
-import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
-APP_NAME = os.getenv("APP_NAME", "sdp-starter")
-APP_VERSION = "1.2.2"
-APP_ENV = os.getenv("APP_ENV", "development")
-DATABASE_URL = os.getenv("DATABASE_URL")
-# Render sets RENDER_GIT_COMMIT to the commit it built; the pipeline's smoke test compares it
-APP_COMMIT = os.getenv("RENDER_GIT_COMMIT", "unknown")
-
-logger = logging.getLogger("uvicorn.error")
-
-app = FastAPI(title=APP_NAME, version=APP_VERSION)
-
-# In-memory data. Week 4 replaces this with a PostgreSQL table.
-ITEMS = [
-    {"id": 1, "name": "Write a Dockerfile", "done": False},
-    {"id": 2, "name": "Run it with Compose", "done": False},
-    {"id": 3, "name": "Deploy it to Render", "done": False},
-]
+from app import errors
+from app.config import APP_VERSION, Settings
+from app.db import create_pool
+from app.routers import system
 
 
-@app.get("/")
-def root():
-    """Proves the app is reachable. Open /docs for the interactive API page."""
-    return {
-        "app": APP_NAME,
-        "version": APP_VERSION,
-        "env": APP_ENV,
-        "message": "Hello from the starter app",
-    }
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings.from_env()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Start-up: open the pool without waiting, so a paused database cannot block start-up.
+        pool = None
+        if settings.database_url:
+            pool = create_pool(settings.database_url, settings.db_timeout)
+            pool.open(wait=False)
+        app.state.pool = pool
+        try:
+            yield
+        finally:  # shut-down: close the connections cleanly
+            if pool is not None:
+                pool.close()
+
+    app = FastAPI(title=settings.app_name, version=APP_VERSION, lifespan=lifespan)
+    app.state.settings = settings
+    errors.install(app)
+    app.include_router(system.router)
+    return app
 
 
-@app.get("/health")
-def health():
-    """Used by Render (Lab 3) and the pipeline (Week 6) to check the app is alive.
-
-    Fast, no login, touches nothing: never query the database here.
-    """
-    return {"status": "ok"}
-
-
-@app.get("/api/version")
-def version():
-    """Which build is live. After a merge, the pipeline waits until commit = the merged SHA."""
-    return {"app": APP_NAME, "version": APP_VERSION, "env": APP_ENV, "commit": APP_COMMIT}
-
-
-@app.get("/items")
-def list_items():
-    return ITEMS
-
-
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    for item in ITEMS:
-        if item["id"] == item_id:
-            return item
-    raise HTTPException(status_code=404, detail="Item not found")
-
-@app.get("/health/db")
-def health_db():
-    """Proves the app can reach PostgreSQL and read the notes table."""
-    if not DATABASE_URL:
-        raise HTTPException(status_code=503, detail="DATABASE_URL is not set")
-    try:
-        with psycopg.connect(DATABASE_URL, connect_timeout=3) as conn:
-            n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
-    except psycopg.Error as err:
-        logger.error("database error: %s", err)
-        raise HTTPException(status_code=503, detail=f"database error: {err}") from err
-    return {"db": "ok", "notes": n}
+app = create_app()
