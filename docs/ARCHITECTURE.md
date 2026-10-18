@@ -124,13 +124,13 @@ erDiagram
     members {
         bigint id PK
         bigint household_id FK
-        text name "unique per household"
+        text name "1-40 chars, unique per household (case-insensitive)"
         timestamptz created_at
     }
     expenses {
         bigint id PK
         bigint household_id FK
-        text description
+        text description "1-120 chars"
         bigint amount "VND, > 0"
         bigint payer_id FK
         date spent_at
@@ -149,9 +149,14 @@ erDiagram
         bigint to_member_id FK "<> from_member_id"
         bigint amount "> 0"
         date settled_at
-        text note
+        text note "<= 200 chars"
+        timestamptz created_at
     }
 ```
+
+The schema is [`db/migrations/001_init.sql`](../db/migrations/001_init.sql). A payer and both parties of a
+settlement must be members of the **same household** (composite foreign keys on
+`(household_id, member_id)`), so even a buggy request cannot mix households.
 
 **Design decisions**
 
@@ -167,8 +172,21 @@ erDiagram
   `schema_migrations` table, so a fresh Supabase project and a fresh Compose volume reach the same schema
   with no manual step. Each file runs **in its own transaction** (a failure rolls back completely) while
   holding a PostgreSQL **advisory lock**, so two instances starting together cannot apply it twice.
-  Schema changes are new files, never edits to applied ones. CI tests a fresh database and an upgrade
-  from the previous migration.
+  Schema changes are new files, never edits to applied ones. CI applies them to a fresh database
+  (`python -m app.migrate`), and the tests check a repeated run, a failing file and two concurrent runs.
+  If the database is unreachable at start-up, the API logs it and starts anyway (so `/health` stays
+  green); the next start applies the migrations, and until then `/health/db` answers
+  `503 database_not_initialized` or `database_unavailable`. A broken migration (an SQL error) stops the API
+  from starting, so the deploy fails instead of half-applying a schema.
+* **Deleting:** a member that an expense, a share or a settlement points to cannot be deleted (foreign
+  key without `ON DELETE`, the API answers 409). Deleting a household is two statements in one
+  transaction: its expenses (with their shares), then the household (members and settlements cascade).
+  A single `DELETE` is not enough, because PostgreSQL checks the members' keys before the nested
+  expenses → shares cascade has run.
+* **Supabase's REST API is closed:** every table has Row Level Security enabled with no policies, so the
+  public Data API key can read nothing. The API connects as the tables' owner, which RLS does not apply to.
+* **Demo data:** [`db/seed.sql`](../db/seed.sql) adds one household with three members, only when
+  `SEED_DEMO_DATA=true` (Compose) and only into an empty database. Never set on Render.
 * **Surviving a restart or a pause:** all state lives in PostgreSQL; the API is stateless and reconnects
   through the pool. `/health/db` runs one query and returns a **safe** message on failure (details only
   in the server log). Before a demo: open the Supabase dashboard, *Resume* the project if it is paused,
@@ -258,6 +276,7 @@ sequenceDiagram
 | `GEMINI_MODEL` | no | `.env.example` default | — | API service env var |
 | `ALLOWED_ORIGINS` | no | not needed (same origin) | — | `https://<web>.onrender.com` |
 | `APP_ENV` | no | `development` | `test` | `production` |
+| `SEED_DEMO_DATA` | no | `true` (in `compose.yml`) | — | **not set** |
 | `VITE_API_BASE_URL` | no (public) | empty (same origin) | empty | Static site env var, build time |
 | `RENDER_DEPLOY_HOOK_API` / `_WEB` | **yes** | — | Actions secrets | — |
 

@@ -43,14 +43,17 @@ def health():
 
 @router.get("/health/db")
 def health_db(conn: Annotated[Connection, Depends(get_conn)]):
-    """Readiness: one query against PostgreSQL. Failures are a 503 with a safe message."""
+    """Readiness: one query against PostgreSQL. Failures are a 503 with a safe message.
+
+    `schema` is the latest migration applied, e.g. "001_init".
+    """
     try:
-        n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
+        schema = conn.execute("SELECT max(version) FROM schema_migrations").fetchone()[0]
     except psycopg.errors.UndefinedTable as exc:
-        # Reachable but empty (e.g. a new Supabase project before its schema is created):
-        # not ready, which is a 503 like every other readiness failure, not a server bug (500).
+        # Reachable but empty: the database was unreachable when the API started, so the
+        # migrations never ran. Not ready, a 503 like every other readiness failure, not a 500.
         raise ApiError(503, "database_not_initialized", "The database has no schema yet") from exc
-    return {"db": "ok", "notes": n}
+    return {"db": "ok", "schema": schema}
 
 
 @router.get("/api/version")

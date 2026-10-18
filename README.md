@@ -128,7 +128,7 @@ minutes; later starts take seconds.
 | **Web app** | http://localhost:3000 | The Fair-Share page |
 | Web app reaches the API through nginx | http://localhost:3000/api/version | `{"app":…,"version":…}` |
 | API is alive | http://localhost:8000/health | `{"status":"ok"}` |
-| API reaches PostgreSQL | http://localhost:8000/health/db | `{"db":"ok","notes":1}` |
+| API reaches PostgreSQL | http://localhost:8000/health/db | `{"db":"ok","schema":"001_init"}` (the latest migration) |
 | Interactive API docs | http://localhost:8000/docs | Swagger UI |
 
 The browser only ever talks to `web` on port 3000; nginx forwards `/api/...` to the `api` container.
@@ -139,8 +139,10 @@ docker compose down        # stop, keep the data
 docker compose down -v     # stop AND permanently delete the local database volume (fresh start)
 ```
 
-The first start creates the schema from [`db/init.sql`](db/init.sql). That file runs only when the
-`pgdata` volume is empty, so after changing it run `docker compose down -v` once.
+The API creates the schema itself: at every start it applies any new file in
+[`db/migrations/`](db/migrations) (each exactly once, recorded in `schema_migrations`), then adds a demo
+household with three members if the database is empty ([`db/seed.sql`](db/seed.sql), Compose only).
+Your data survives `docker compose down` and later starts; `down -v` gives you the demo household again.
 
 ## Configuration
 
@@ -156,6 +158,7 @@ All configuration comes from **environment variables**; nothing environment-spec
 | `DATABASE_URL` | `app/config.py` | built in `compose.yml` from `DB_PASSWORD` | service env var (Supabase session pooler, `sslmode=require`) | **yes** |
 | `APP_NAME` | `app/config.py` (default `sdp-starter`) | not forwarded by Compose, so the default is used | service env var | no |
 | `APP_ENV` | `app/config.py` (default `development`) | not forwarded, default | `production` | no |
+| `SEED_DEMO_DATA` | `app/config.py` (default off) | `true` in `compose.yml`: demo household in an empty database | **not set** | no |
 | `PORT` | the container's start command (default `8000`) | default | set by Render | no |
 
 **Added with upcoming features**
@@ -185,14 +188,15 @@ uvicorn app.main:app --reload        # API on http://localhost:8000
 ```
 
 Python does not read `.env` by itself. For `/health/db` to work outside Compose, start a throw-away
-PostgreSQL with a published port and set `DATABASE_URL` in your shell:
+PostgreSQL with a published port and set `DATABASE_URL` in your shell (the API, and the tests, apply
+the migrations to it):
 
 ```bash
 docker run -d --name fs-dev-db -p 5432:5432 \
-  -e POSTGRES_USER=app -e POSTGRES_PASSWORD=devonly -e POSTGRES_DB=appdb \
-  -v "$PWD/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro" postgres:16-alpine
+  -e POSTGRES_USER=app -e POSTGRES_PASSWORD=devonly -e POSTGRES_DB=appdb postgres:16-alpine
 export DATABASE_URL=postgresql://app:devonly@localhost:5432/appdb
 # PowerShell: $env:DATABASE_URL = "postgresql://app:devonly@localhost:5432/appdb"
+python -m app.migrate                # optional: apply the migrations without starting the API
 ```
 
 (The Compose `db` service does not publish a port, on purpose: only the API container talks to it.)
@@ -218,7 +222,7 @@ shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-j
 |---|---|---|---|
 | ruff | `ruff check .` | Python style, unused imports, likely bugs, import order | in CI |
 | pytest | `pytest -q` | Health and version endpoints, the error format, `/health/db` with no or an unreachable database | in CI |
-| pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | `/health/db` against a real database; skipped locally without one, never skipped in CI | in CI |
+| pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | Tests marked `db`: migrations (fresh, repeated, failing, concurrent), the schema's rules, the seed, `/health/db`; skipped locally without a database, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
 | oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint, API client and route tests; `npm run build` type-checks | in CI |
 
@@ -240,7 +244,7 @@ flowchart LR
 
 | Job | Runs on | What it does | What it keeps out of `main` |
 |---|---|---|---|
-| `backend` | every PR and merge | `ruff check .`, then `pytest -q` against a PostgreSQL 16 service container | Lint errors, broken endpoints, SQL that fails on a real database |
+| `backend` | every PR and merge | Applies the migrations to a fresh PostgreSQL 16 service container, then `ruff check .` and `pytest -q` against it | Lint errors, broken endpoints, migrations or SQL that fail on a real database |
 | `frontend` | every PR and merge | `npm ci`, lint, test, build in `frontend/` (passes with a notice until `frontend/` exists) | A SPA that does not type-check, test or build |
 | `images` | every PR and merge | Builds both images; checks the API container answers `/health` and the web container serves the SPA and a deep link | A Dockerfile that breaks, or a container that crashes on start |
 | `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
@@ -293,9 +297,11 @@ Fair-Share/
 │   ├── config.py         # Settings read from environment variables
 │   ├── db.py             # psycopg connection pool + get_conn dependency
 │   ├── errors.py         # ApiError and the {"error": {code, message}} format
+│   ├── migrate.py        # applies db/migrations at start-up (also: python -m app.migrate)
 │   └── routers/          # system.py: /, /health, /health/db, /api/version
 ├── db/
-│   └── init.sql          # schema + seed for the local database
+│   ├── migrations/       # 001_init.sql, ...: applied once each, never edited afterwards
+│   └── seed.sql          # demo household for the local Compose stack
 ├── tests/                # pytest
 ├── frontend/             # React + TypeScript + Vite SPA
 │   ├── src/              # api/ (client), pages/, lib/
@@ -314,7 +320,7 @@ Fair-Share/
 └── .env.example          # local configuration template
 ```
 
-`db/migrations/` is added in Week 7 (T-07); see the target layout in
+Target layout, with the routers and services still to come:
 [ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-repository-layout-target).
 
 ## Troubleshooting

@@ -23,6 +23,8 @@ class Settings:
     commit: str = "unknown"
     # Seconds a request waits for a database connection before it gets a 503.
     db_timeout: float = 5.0
+    # Load db/seed.sql into an empty database at start-up. Set only by compose.yml, never on Render.
+    seed_demo_data: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -37,4 +39,5 @@ class Settings:
                 if origin.strip()
             ),
             commit=os.getenv("RENDER_GIT_COMMIT", cls.commit),
+            seed_demo_data=os.getenv("SEED_DEMO_DATA", "").lower() in ("1", "true"),
         )
