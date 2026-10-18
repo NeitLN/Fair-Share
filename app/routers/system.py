@@ -2,11 +2,13 @@
 
 from typing import Annotated
 
+import psycopg
 from fastapi import APIRouter, Depends, Request
 from psycopg import Connection
 
 from app.config import APP_VERSION, Settings
 from app.db import get_conn
+from app.errors import ApiError
 
 router = APIRouter(tags=["system"])
 
@@ -42,7 +44,12 @@ def health():
 @router.get("/health/db")
 def health_db(conn: Annotated[Connection, Depends(get_conn)]):
     """Readiness: one query against PostgreSQL. Failures are a 503 with a safe message."""
-    n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
+    try:
+        n = conn.execute("SELECT count(*) FROM notes").fetchone()[0]
+    except psycopg.errors.UndefinedTable as exc:
+        # Reachable but empty (e.g. a new Supabase project before its schema is created):
+        # not ready, which is a 503 like every other readiness failure, not a server bug (500).
+        raise ApiError(503, "database_not_initialized", "The database has no schema yet") from exc
     return {"db": "ok", "notes": n}
 
 

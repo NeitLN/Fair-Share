@@ -15,7 +15,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://app:${DB_PASSWORD}@db:5432/appdb
+      # Local, throw-away database: the password only has to match the db service below. Without a
+      # .env file the default is used, so a clean clone starts with one command. Production never
+      # uses this: Render's DATABASE_URL points at Supabase.
+      DATABASE_URL: postgresql://app:${DB_PASSWORD:-fairshare_local}@db:5432/appdb
+      APP_NAME: ${APP_NAME:-fair-share}
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +34,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: app
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fairshare_local}
       POSTGRES_DB: appdb
     volumes:
       - pgdata:/var/lib/postgresql/data

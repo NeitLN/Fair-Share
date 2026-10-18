@@ -12,8 +12,11 @@ APP_VERSION = "1.2.2"
 
 @dataclass(frozen=True)
 class Settings:
-    app_name: str = "sdp-starter"
+    app_name: str = "fair-share"
     app_env: str = "development"
+    # Browser origins allowed to call the API from another site (the Render Static Site).
+    # Empty = no CORS headers at all: same-origin only, as in Docker Compose behind nginx.
+    allowed_origins: tuple[str, ...] = ()
     # None = no database configured: the API still starts and /health/db answers 503.
     database_url: str | None = None
     # Render sets RENDER_GIT_COMMIT to the commit it built; the smoke test compares it.
@@ -27,5 +30,11 @@ class Settings:
             app_name=os.getenv("APP_NAME", cls.app_name),
             app_env=os.getenv("APP_ENV", cls.app_env),
             database_url=os.getenv("DATABASE_URL") or None,
+            # ALLOWED_ORIGINS=https://fair-share-web.onrender.com,http://localhost:5173
+            allowed_origins=tuple(
+                origin.strip().rstrip("/")
+                for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+                if origin.strip()
+            ),
             commit=os.getenv("RENDER_GIT_COMMIT", cls.commit),
         )
