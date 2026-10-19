@@ -3,9 +3,10 @@
 This document is the source for report sections 1, 2, 3, 5, 6 and 7. **Rule: the diagrams here must
 always match what is deployed.** A PR that changes the topology updates this file in the same PR.
 
-> **Status legend.** This document describes the **target** for Session 20. Live today (16/10): the
-> FastAPI starter on Render (`fair-share-4bu9`) with CI + deploy hook, and Compose with `web`
-> (nginx + SPA) + `api` + `db`. Items marked *(W7)*, *(W8)* arrive with that milestone; the PR that ships one removes its marker.
+> **Status legend.** This document describes the **target** for Session 20. Live today (20/10): the
+> React SPA on a Render Static Site (`fair-share-web`), the API on Render (`fair-share-4bu9`) with
+> Supabase PostgreSQL, CI + deploy hooks, and Compose with `web` (nginx + SPA) + `api` + `db`.
+> Items marked *(W8)* arrive with that milestone; the PR that ships one removes its marker.
 
 ## 1. Deployed topology (production)
 
@@ -13,10 +14,10 @@ always match what is deployed.** A PR that changes the topology updates this fil
 flowchart LR
     U["Browser / phone<br/>(HTTPS)"]
     subgraph Render["Render (free tier)"]
-        WEB["Static Site (W7)<br/>React SPA<br/>fair-share-web"]
+        WEB["Static Site<br/>React SPA<br/>fair-share-web"]
         API["Web Service (Docker)<br/>FastAPI + Uvicorn<br/>fair-share-4bu9"]
     end
-    DB[("Supabase (W7)<br/>PostgreSQL<br/>session pooler, TLS")]
+    DB[("Supabase<br/>PostgreSQL<br/>session pooler, TLS")]
     AI["Google Gemini API (W8)<br/>(generateContent)"]
     GH["GitHub Actions<br/>CI/CD"]
 

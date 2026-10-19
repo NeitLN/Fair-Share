@@ -24,7 +24,7 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | | |
 |---|---|
 | 🌐 **Live API** | https://fair-share-4bu9.onrender.com · interactive docs at [`/docs`](https://fair-share-4bu9.onrender.com/docs) |
-| 🖥️ **Web app** | Render Static Site, URL added here in Week 7–8 (T-14) |
+| 🖥️ **Web app** | **https://fair-share-web.onrender.com** (Render Static Site) |
 | 📈 **Progress** | [**Dashboard**](https://neitln.github.io/Fair-Share/) · [Project board](https://github.com/users/NeitLN/projects/2) · [milestones](https://github.com/NeitLN/Fair-Share/milestones) · [weekly reports](https://github.com/NeitLN/Fair-Share/issues?q=label%3Aweekly-report) · [how to follow it](#project-status) |
 | 📄 **Docs** | [Specification](docs/PROJECT_SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) |
 
@@ -68,8 +68,8 @@ user stories and acceptance criteria.
 
 ## Architecture
 
-Target architecture for Session 20. Live today: the API on Render, Supabase and the pipeline. The static
-site arrives in Week 7–8, Gemini in Week 8.
+Target architecture for Session 20. Live today: the web app (Render Static Site), the API on Render,
+Supabase and the pipeline. Gemini arrives in Week 8.
 
 ```mermaid
 flowchart LR
@@ -163,8 +163,8 @@ All configuration comes from **environment variables**; nothing environment-spec
 | Variable | For | Where it will live | Secret? |
 |---|---|---|---|
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | AI Quick add (Week 8) | Render env var; optional local `.env` (without it Quick add says "not configured") | key: **yes** |
-| `ALLOWED_ORIGINS` | CORS for the SPA's origin (Week 7–8) | Render env var | no |
-| `VITE_API_BASE_URL` | SPA build (Week 7–8) | Render static site env var | no, public |
+| `ALLOWED_ORIGINS` | CORS: the web app's origin, `https://fair-share-web.onrender.com` | Render env var (API) | no |
+| `VITE_API_BASE_URL` | SPA build: the API's URL, baked into the JavaScript | Render static site env var | no, public |
 | `RENDER_DEPLOY_HOOK_API` / `_WEB` | deploy job | GitHub Actions secrets | **yes** |
 
 The full matrix, including CI, is in
@@ -260,7 +260,7 @@ flowchart LR
 | Piece | Platform | How it gets there |
 |---|---|---|
 | API | Render Web Service, Docker, free instance | GitHub Actions calls the deploy hook; Render builds the root [`Dockerfile`](Dockerfile) |
-| Web app | Render Static Site (Week 7–8, T-14) | Same pipeline, second deploy hook |
+| Web app | Render Static Site `fair-share-web`, rewrite `/* → /index.html`, auto-deploy off | Same pipeline, second deploy hook (`RENDER_DEPLOY_HOOK_WEB`); `smoke` checks `WEB_URL` serves the SPA |
 | Database | Supabase PostgreSQL (Singapore, free tier) | Attached to the API with a single `DATABASE_URL` env var (session pooler, TLS); Row Level Security on, so Supabase's public REST API cannot read the tables |
 
 Before a demo: open the live URL a few minutes early to wake the instance, and check the Supabase
@@ -367,7 +367,7 @@ The five live-demo criteria of the brief, and where the evidence is. Updated as 
 
 | Criterion (points) | Evidence | Status |
 |---|---|---|
-| Publicly reachable over HTTPS (6) | https://fair-share-4bu9.onrender.com; web app URL from T-14 | ✅ API live · 🚧 web app |
+| Publicly reachable over HTTPS (6) | [web app](https://fair-share-web.onrender.com) · [API](https://fair-share-4bu9.onrender.com) | ✅ both live over HTTPS |
 | Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ web + api + db (T-11) · 🚧 clean clone on a teammate's machine, final rehearsal T-34 |
 | CI pipeline green on pull requests (5) | [Actions history](https://github.com/NeitLN/Fair-Share/actions); a red PR was blocked in Lab 4 | ✅ lint, tests on PostgreSQL, image build |
 | Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ verified by the `smoke` job (live commit = merged commit) |
