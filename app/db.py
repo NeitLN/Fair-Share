@@ -35,6 +35,7 @@ def get_conn(request: Request) -> Iterator[Connection]:
 
     The transaction commits when the route returns and rolls back if it raises. A pool timeout or
     a dropped connection is turned into a safe 503 by the handlers in app/errors.py.
+    Always use it through ConnDep below, never a bare Depends(get_conn).
     """
     pool: ConnectionPool | None = request.app.state.pool
     if pool is None:
@@ -44,7 +45,10 @@ def get_conn(request: Request) -> Iterator[Connection]:
 
 
 # In a route: def list_things(conn: ConnDep): ...
-ConnDep = Annotated[Connection, Depends(get_conn)]
+# scope="function": the code after `yield` (the COMMIT) runs as soon as the route returns, before
+# the response is sent. With the default scope ("request") it would run after the response, so a
+# client could read just after a write and miss it, or get a 201 for data whose commit failed.
+ConnDep = Annotated[Connection, Depends(get_conn, scope="function")]
 
 
 def fetch_one(conn: Connection, sql: str, params: tuple = ()) -> dict[str, Any] | None:

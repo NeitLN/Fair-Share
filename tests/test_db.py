@@ -6,8 +6,37 @@ marked `db` are skipped when no database is reachable, so `pytest -q` still work
 import psycopg
 import pytest
 
-from app.db import get_conn
+from app.db import ConnDep, get_conn
 from app.migrate import MIGRATIONS_DIR
+
+
+@pytest.mark.db
+def test_the_transaction_commits_before_the_response_is_sent(make_client, db_url):
+    """A write is committed before the client hears "201", so reading it right after works and a
+    failed commit is an error response, never a success for data that was not saved.
+
+    The route breaks a constraint that PostgreSQL checks only at COMMIT. If the commit ran after
+    the response (FastAPI's default scope for a yield dependency), the client would get 200 here.
+    """
+    with psycopg.connect(db_url, autocommit=True) as conn:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS commit_order_test"
+            " (id int UNIQUE DEFERRABLE INITIALLY DEFERRED)"
+        )
+    try:
+        client = make_client()
+
+        @client.app.get("/test/fails-at-commit")
+        def fails_at_commit(conn: ConnDep):
+            conn.execute("INSERT INTO commit_order_test VALUES (1), (1)")  # fine until COMMIT
+            return {"saved": True}
+
+        response = client.get("/test/fails-at-commit")
+        assert response.status_code == 500
+        assert response.json()["error"]["code"] == "internal_error"
+    finally:
+        with psycopg.connect(db_url, autocommit=True) as conn:
+            conn.execute("DROP TABLE commit_order_test")
 
 
 @pytest.mark.db
