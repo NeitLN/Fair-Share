@@ -99,3 +99,28 @@ class Expense(BaseModel):
     split_type: Literal["equal", "custom"]
     # One per participant, in member id order; they always add up to `amount`.
     shares: list[Share]
+
+
+# --- Settlements (US-08) ------------------------------------------------------------------------
+
+
+class SettlementIn(BaseModel):
+    """Body of POST /api/households/{id}/settlements: "from paid to `amount` đồng"."""
+
+    from_member_id: int
+    to_member_id: int
+    amount: Amount
+    settled_at: date
+    # Optional; blank is stored as no note.
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+
+
+class Settlement(BaseModel):
+    id: int
+    household_id: int
+    from_member_id: int
+    to_member_id: int
+    amount: int
+    settled_at: date
+    note: str | None
+    created_at: datetime

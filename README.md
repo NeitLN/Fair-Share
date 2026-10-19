@@ -219,8 +219,10 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 
 | `GET` `POST` | `/api/households/{id}/expenses` | List (newest first) / add an expense with an equal or custom split → `201`; `422 split_mismatch` if custom shares do not add up |
 | `GET` `PUT` `DELETE` | `/api/expenses/{id}` | One expense with its shares; edit replaces it; delete → `204` |
+| `GET` `POST` | `/api/households/{id}/settlements` | List (newest first) / record "A paid B x đồng" → `201`; `422 same_member` if A = B |
+| `DELETE` | `/api/settlements/{id}` | Undo a mistaken settlement → `204` |
 
-Planned endpoints, all under `/api`: settlements, balances and
+Planned endpoints, all under `/api`: balances and
 `POST /api/households/{id}/ai/parse-expense`, which returns a draft and never saves it. Request/response
 shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-json-prefix-api).
 
@@ -307,7 +309,7 @@ Fair-Share/
 │   ├── errors.py         # ApiError and the {"error": {code, message}} format
 │   ├── migrate.py        # applies db/migrations at start-up (also: python -m app.migrate)
 │   ├── schemas.py        # request/response bodies (Pydantic), limits = the database's CHECKs
-│   ├── routers/          # system, households, members, expenses
+│   ├── routers/          # system, households, members, expenses, settlements
 │   └── services/         # pure logic, unit-tested: splitting.py
 ├── db/
 │   ├── migrations/       # 001_init.sql, ...: applied once each, never edited afterwards

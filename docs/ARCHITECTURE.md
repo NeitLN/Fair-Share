@@ -206,8 +206,8 @@ settlement must be members of the **same household** (composite foreign keys on
 | `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
 | `GET/POST /api/households/{id}/expenses` | List (newest first by `spent_at`) / create | Body below; `422 split_mismatch`, `unknown_member`, `duplicate_member` |
 | `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | `PUT` replaces it, same body as create; `404 expense_not_found` |
-| `GET/POST /api/households/{id}/settlements` | List / record a payment | |
-| `DELETE /api/settlements/{id}` | Undo a mistaken settlement | |
+| `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?}`; `422 same_member`, `unknown_member` |
+| `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found` |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | |
 | `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — returns a draft, saves nothing | See §6 |
 
