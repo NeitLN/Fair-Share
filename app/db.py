@@ -6,9 +6,11 @@ open and hands them out. The pool is opened at start-up without waiting, so the 
 """
 
 from collections.abc import Iterator
+from typing import Annotated, Any
 
-from fastapi import Request
+from fastapi import Depends, Request
 from psycopg import Connection
+from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from app.errors import ApiError
@@ -39,3 +41,17 @@ def get_conn(request: Request) -> Iterator[Connection]:
         raise ApiError(503, "database_not_configured", "The database is not configured")
     with pool.connection() as conn:
         yield conn
+
+
+# In a route: def list_things(conn: ConnDep): ...
+ConnDep = Annotated[Connection, Depends(get_conn)]
+
+
+def fetch_one(conn: Connection, sql: str, params: tuple = ()) -> dict[str, Any] | None:
+    """The first row as {column: value}, or None if there is none."""
+    return conn.cursor(row_factory=dict_row).execute(sql, params).fetchone()
+
+
+def fetch_all(conn: Connection, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
+    """Every row as {column: value}."""
+    return conn.cursor(row_factory=dict_row).execute(sql, params).fetchall()

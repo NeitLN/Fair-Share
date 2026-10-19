@@ -200,10 +200,10 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET /health` | Liveness for Render and the pipeline | Never touches the DB |
 | `GET /health/db` | Readiness: one query against PostgreSQL | 503 with a safe message on failure |
 | `GET /api/version` | App name, version, environment, `commit` (Render's `RENDER_GIT_COMMIT`) | The smoke test waits until `commit` equals the merged SHA |
-| `GET/POST /api/households` | List / create households | |
-| `GET/PATCH/DELETE /api/households/{id}` | One household | Delete cascades |
-| `GET/POST /api/households/{id}/members` | Members of a household | 409 on duplicate name |
-| `PATCH/DELETE /api/members/{id}` | Rename / remove member | 409 if referenced by an expense |
+| `GET/POST /api/households` | List (newest first) / create households | `201` on create |
+| `GET/PATCH/DELETE /api/households/{id}` | One household | `404 household_not_found`; delete removes everything in it, `204` |
+| `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive) |
+| `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
 | `GET/POST /api/households/{id}/expenses` | List (newest first) / create | Body: `split: {type: "equal" \| "custom", ...}` |
 | `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | |
 | `GET/POST /api/households/{id}/settlements` | List / record a payment | |
