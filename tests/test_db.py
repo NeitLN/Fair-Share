@@ -9,6 +9,7 @@ import psycopg
 import pytest
 
 from app.config import Settings
+from app.db import get_conn
 
 
 def _db_reachable() -> bool:
@@ -60,3 +61,18 @@ def test_health_db_without_database_url(make_client):
     response = client.get("/health/db")
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "database_not_configured"
+
+
+def test_health_db_reports_a_database_without_schema_as_not_ready(make_client):
+    """Reachable but empty (a new Supabase project): a safe 503, not a 500."""
+
+    class EmptyDatabase:
+        def execute(self, query):
+            raise psycopg.errors.UndefinedTable('relation "notes" does not exist')
+
+    client = make_client(database_url=None)
+    client.app.dependency_overrides[get_conn] = lambda: EmptyDatabase()
+    response = client.get("/health/db")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "database_not_initialized"
+    assert "notes" not in response.text

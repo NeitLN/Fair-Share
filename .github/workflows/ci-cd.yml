@@ -126,10 +126,9 @@ jobs:
           docker logs web
           exit 1
 
-      - name: The Compose stack starts from the repository and the web app reaches the API
+      # Exactly what a teammate or the lecturer does after `git clone`: no .env, no DB_PASSWORD
+      - name: The Compose stack starts from a clean clone and the web app reaches the API
         if: hashFiles('frontend/Dockerfile') != ''
-        env:
-          DB_PASSWORD: cionlynotasecret     # Compose reads it like the .env file a developer creates
         run: |
           docker rm -f api web              # free ports 8000 and 8080 used by the checks above
           if ! docker compose up -d --build --wait --wait-timeout 180; then

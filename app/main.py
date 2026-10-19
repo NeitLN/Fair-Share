@@ -7,6 +7,7 @@ Settings, so each test gets a fresh app without touching environment variables.
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import errors
 from app.config import APP_VERSION, Settings
@@ -33,6 +34,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title=settings.app_name, version=APP_VERSION, lifespan=lifespan)
     app.state.settings = settings
+    if settings.allowed_origins:
+        # Only the listed origins (never "*"); the SPA sends JSON, so Content-Type must be allowed
+        # for the browser's preflight. No cookies are used, so credentials stay off.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.allowed_origins),
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            allow_headers=["Content-Type"],
+            max_age=600,
+        )
     errors.install(app)
     app.include_router(system.router)
     return app
