@@ -204,8 +204,8 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET/PATCH/DELETE /api/households/{id}` | One household | `404 household_not_found`; delete removes everything in it, `204` |
 | `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive) |
 | `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
-| `GET/POST /api/households/{id}/expenses` | List (newest first) / create | Body: `split: {type: "equal" \| "custom", ...}` |
-| `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | |
+| `GET/POST /api/households/{id}/expenses` | List (newest first by `spent_at`) / create | Body below; `422 split_mismatch`, `unknown_member`, `duplicate_member` |
+| `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | `PUT` replaces it, same body as create; `404 expense_not_found` |
 | `GET/POST /api/households/{id}/settlements` | List / record a payment | |
 | `DELETE /api/settlements/{id}` | Undo a mistaken settlement | |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | |
@@ -213,6 +213,25 @@ settlement must be members of the **same household** (composite foreign keys on
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.
+
+**Expense body** (`POST` and `PUT`). Amounts are whole đồng; `spent_at` is the day it was spent.
+
+```jsonc
+{
+  "description": "Lẩu thứ sáu",          // 1-120 characters
+  "amount": 100000,                      // > 0
+  "payer_id": 2,                         // a member of this household
+  "spent_at": "2026-10-23",
+  "source": "manual",                    // optional; "ai" when saved from a Quick add draft
+  "split": {"type": "equal", "member_ids": [1, 2, 3]}
+  // or:   {"type": "custom", "shares": [{"member_id": 1, "amount": 60000},
+  //                                     {"member_id": 3, "amount": 40000}]}   // must sum to amount
+}
+```
+
+The response adds `id`, `household_id`, `created_at`, the stored `shares` (in member id order, always
+summing to `amount`; an equal split of 100 000 between members 1, 2, 3 is 33 334 / 33 333 / 33 333) and
+`split_type` (`"equal"` when the shares are exactly the equal split), so an edit form can be pre-filled.
 
 ## 6. AI integration — Quick add
 

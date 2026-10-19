@@ -45,6 +45,22 @@ def db_url() -> str:
 
 
 @pytest.fixture
+def cleanup(db_url, client):
+    """Remove the households a test created. API test modules use it with
+    `pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]`.
+
+    Depends on `client` so the app's start-up has applied the schema first.
+    """
+    with psycopg.connect(db_url) as conn:
+        before = conn.execute("SELECT coalesce(max(id), 0) FROM households").fetchone()[0]
+    yield
+    with psycopg.connect(db_url) as conn:
+        # Expenses first, as DELETE /api/households/{id} does (see db/migrations/001_init.sql).
+        conn.execute("DELETE FROM expenses WHERE household_id > %s", (before,))
+        conn.execute("DELETE FROM households WHERE id > %s", (before,))
+
+
+@pytest.fixture
 def make_client():
     """A started test client, optionally with other settings: make_client(database_url=None)."""
     clients = []
