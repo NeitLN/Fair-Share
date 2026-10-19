@@ -20,6 +20,8 @@ services:
       # uses this: Render's DATABASE_URL points at Supabase.
       DATABASE_URL: postgresql://app:${DB_PASSWORD:-fairshare_local}@db:5432/appdb
       APP_NAME: ${APP_NAME:-fair-share}
+      # The API applies db/migrations at start-up; this adds the demo household to an empty database.
+      SEED_DEMO_DATA: "true"
     depends_on:
       db:
         condition: service_healthy
@@ -38,7 +40,6 @@ services:
       POSTGRES_DB: appdb
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
       interval: 5s

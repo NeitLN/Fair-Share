@@ -35,8 +35,8 @@ jobs:
       - name: Install
         run: pip install -r requirements-dev.txt
 
-      - name: Prepare the database
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/init.sql
+      - name: Migrations apply to a fresh database
+        run: python -m app.migrate
 
       - name: Lint
         run: ruff check .

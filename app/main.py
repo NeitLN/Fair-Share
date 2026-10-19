@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import errors
 from app.config import APP_VERSION, Settings
 from app.db import create_pool
+from app.migrate import prepare_database
 from app.routers import system
 
 
@@ -20,7 +21,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # Start-up: open the pool without waiting, so a paused database cannot block start-up.
+        # Start-up: bring the schema up to date (skipped with a log line if the database is down).
+        prepare_database(settings)
+        # Then open the pool without waiting, so a paused database cannot block start-up.
         pool = None
         if settings.database_url:
             pool = create_pool(settings.database_url, settings.db_timeout)

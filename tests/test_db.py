@@ -1,45 +1,24 @@
 """/health/db against a real PostgreSQL, an unreachable one, and none at all.
 
-CI provides a database (the postgres service in .github/workflows/ci-cd.yml). Locally the first
-test is skipped when no database is reachable, so `pytest -q` still works without Docker.
+CI provides a database (the postgres service in .github/workflows/ci-cd.yml). Locally the tests
+marked `db` are skipped when no database is reachable, so `pytest -q` still works without Docker.
 """
-import os
-
 import psycopg
 import pytest
 
-from app.config import Settings
 from app.db import get_conn
+from app.migrate import MIGRATIONS_DIR
 
 
-def _db_reachable() -> bool:
-    url = Settings.from_env().database_url
-    if not url:
-        return False
-    try:
-        with psycopg.connect(url, connect_timeout=2):
-            return True
-    except psycopg.Error:
-        return False
-
-
-# In CI a missing database is a failure, never a silent skip.
-requires_db = pytest.mark.skipif(
-    not os.getenv("CI") and not _db_reachable(),
-    reason="no PostgreSQL reachable (runs in CI)",
-)
-
-
-@requires_db
-def test_health_db_reads_the_database(client):
+@pytest.mark.db
+def test_health_db_reports_the_latest_migration(client):
     response = client.get("/health/db")
     assert response.status_code == 200
-    body = response.json()
-    assert body["db"] == "ok"
-    assert body["notes"] >= 1
+    latest = max(path.stem for path in MIGRATIONS_DIR.glob("*.sql"))
+    assert response.json() == {"db": "ok", "schema": latest}
 
 
-@requires_db
+@pytest.mark.db
 def test_pool_survives_many_requests(client):
     """More requests than the pool has connections: each one must be returned to the pool."""
     for _ in range(12):
@@ -68,11 +47,11 @@ def test_health_db_reports_a_database_without_schema_as_not_ready(make_client):
 
     class EmptyDatabase:
         def execute(self, query):
-            raise psycopg.errors.UndefinedTable('relation "notes" does not exist')
+            raise psycopg.errors.UndefinedTable('relation "schema_migrations" does not exist')
 
     client = make_client(database_url=None)
     client.app.dependency_overrides[get_conn] = lambda: EmptyDatabase()
     response = client.get("/health/db")
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "database_not_initialized"
-    assert "notes" not in response.text
+    assert "schema_migrations" not in response.text
