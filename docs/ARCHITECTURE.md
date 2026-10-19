@@ -270,35 +270,35 @@ sequenceDiagram
    and treat the old value as compromised forever — rewriting does not un-leak it.
 5. Open an issue describing the incident and the prevention added.
 
-Preventive controls: `.env` git-ignored, `.env.example` with empty values, gitleaks job in CI, GitHub
-secret scanning + push protection enabled, screenshots checked before they go into the report.
+Preventive controls in place: `.env` git-ignored, `.env.example` with no real values, deploy hooks
+only in Actions secrets, screenshots checked before they go into the report. Added in Week 9 (T-29):
+a gitleaks job in CI and GitHub secret scanning + push protection.
 
-## 9. CI/CD pipeline (target)
+## 9. CI/CD pipeline
 
 ```mermaid
 flowchart LR
     PR["Pull request"] --> BE["backend<br/>ruff + pytest<br/>(postgres service)"]
-    PR --> FE["frontend<br/>eslint + vitest + vite build"]
+    PR --> FE["frontend<br/>oxlint + vitest + vite build"]
     PR --> IMG["images<br/>docker build api + web"]
-    PR --> SEC["secrets<br/>gitleaks"]
+    PR --> SEC["secrets (T-29, W9)<br/>gitleaks"]
     BE & FE & IMG & SEC --> GATE{"all green?<br/>+ 1 approval"}
     GATE -- "merge to main" --> DEP["deploy<br/>Render hooks API + web"]
-    DEP --> SMOKE["smoke test<br/>wait until /api/version = merged SHA<br/>+ web URL serves the SPA"]
+    DEP --> SMOKE["smoke test<br/>wait until /api/version = merged SHA<br/>(or a later commit containing it)"]
 ```
 
 | Job | Prevents from reaching `main` |
 |---|---|
 | `backend` | Python lint errors, broken endpoints, wrong split/balance maths, migrations that fail on a fresh DB |
-| `frontend` | TypeScript/ESLint errors, failing component tests, a SPA that does not build |
+| `frontend` | TypeScript errors (`tsc -b` in the build), oxlint errors, failing component tests, a SPA that does not build |
 | `images` | A Dockerfile that no longer builds (what Render would fail on after merge), a container that crashes on start, or a `compose.yml` whose stack does not come up with the web app reaching the API and the API reaching PostgreSQL |
-| `secrets` | A committed key or connection string |
-| `deploy` | Runs only on `push` to `main` after all checks; PRs never deploy |
+| `secrets` *(planned, T-29)* | A committed key or connection string |
+| `deploy` | Runs only on `push` to `main` after all checks; PRs never deploy. The hook is pinned to the tested commit (`ref=`) and refused if it belongs to another Render service |
 | `smoke` | A deploy hook only *queues* a deploy. This job proves the live API runs the exact merged commit and the web app loads — otherwise the run goes red |
 
 Branch protection on `main`: PR required, 1 approving review, required checks
-`backend`, `frontend`, `images`, `secrets`, enforced for administrators.
+`backend`, `frontend`, `images` (plus `secrets` once T-29 adds it), enforced for administrators.
 
-> **Renaming the required check safely (T-13):** today `check` is required. The PR that replaces it
-> runs the new jobs; once they are green on that PR, switch the required checks to the new names and
-> remove `check` in the same sitting, then merge. Otherwise every PR waits forever for a `check` that
-> no longer exists.
+> **Renaming a required check safely:** when the old Lab 4 `check` job was replaced by the three jobs
+> above (T-13, #61), the required checks were switched on the PR before merging. Do the same for any
+> future rename, or every PR waits forever for a check that no longer exists.

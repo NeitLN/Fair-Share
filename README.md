@@ -25,7 +25,7 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 |---|---|
 | 🌐 **Live API** | https://fair-share-4bu9.onrender.com · interactive docs at [`/docs`](https://fair-share-4bu9.onrender.com/docs) |
 | 🖥️ **Web app** | Render Static Site, URL added here in Week 7–8 (T-14) |
-| 📈 **Progress** | [Project board](https://github.com/users/NeitLN/projects/2) · [milestones](https://github.com/NeitLN/Fair-Share/milestones) · [weekly reports](https://github.com/NeitLN/Fair-Share/issues?q=label%3Aweekly-report) · [how to follow it](#project-status) |
+| 📈 **Progress** | [**Dashboard**](https://neitln.github.io/Fair-Share/) · [Project board](https://github.com/users/NeitLN/projects/2) · [milestones](https://github.com/NeitLN/Fair-Share/milestones) · [weekly reports](https://github.com/NeitLN/Fair-Share/issues?q=label%3Aweekly-report) · [how to follow it](#project-status) |
 | 📄 **Docs** | [Specification](docs/PROJECT_SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) |
 
 > The free Render instance sleeps after ~15 minutes without traffic. The first request after that can
@@ -109,15 +109,12 @@ Python and PostgreSQL run inside containers.
 ```bash
 git clone https://github.com/NeitLN/Fair-Share.git
 cd Fair-Share
-cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
-```
-
-Open `.env` and set `DB_PASSWORD` to any value made of **letters and digits only** (it is placed inside a
-URL, where symbols such as `@` or `:` would break it). Then:
-
-```bash
 docker compose up --build
 ```
+
+That is all: no `.env` is needed. The local database gets a throw-away default password. To use your
+own, copy `.env.example` to `.env` (PowerShell: `Copy-Item .env.example .env`) and set `DB_PASSWORD`
+to letters and digits only (it is placed inside a URL, where `@` or `:` would break it).
 
 This starts three containers, in this order: `db` (PostgreSQL) → `api` (FastAPI) once the database is
 healthy → `web` (nginx serving the React app) once the API is healthy. The first build takes a few
@@ -338,6 +335,7 @@ Fair-Share/
 
 | Where | What you see | Updated |
 |---|---|---|
+| [**Progress dashboard**](https://neitln.github.io/Fair-Share/) | One page: tasks done, milestones and pace, how the work is distributed per member, who reviews whom, tasks by sprint, pipeline and live checks. Every number links to its GitHub records | After every merge and daily |
 | [**Project board**](https://github.com/users/NeitLN/projects/2) | Every task `T-01…T-39` as a card: *Todo → In Progress → In Review → Done*. Views: **Board**, **This sprint**, **Roadmap** (W7–W10 timeline), **All tasks**, and one view per member | Live: a linked PR moves a card to *In Review*, a merge moves it to *Done* |
 | [**Project status updates**](https://github.com/users/NeitLN/projects/2) (top of the board) | The leader's weekly *On track / At risk* note: what was done, what is next | Every Friday |
 | [**Milestones**](https://github.com/NeitLN/Fair-Share/milestones) | % complete and due date of W7, W8, W9, W10 | Live |
