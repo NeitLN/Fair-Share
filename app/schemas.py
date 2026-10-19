@@ -124,3 +124,30 @@ class Settlement(BaseModel):
     settled_at: date
     note: str | None
     created_at: datetime
+
+
+# --- Balances (US-06, US-07) --------------------------------------------------------------------
+
+
+class MemberBalance(BaseModel):
+    member_id: int
+    name: str
+    paid: int  # total of the expenses this member paid for
+    owed: int  # total of this member's shares
+    sent: int  # settlements this member paid to others
+    received: int  # settlements others paid to this member
+    # paid - owed + sent - received. Positive: the household owes them; negative: they owe.
+    net: int
+
+
+class Transfer(BaseModel):
+    from_member_id: int
+    to_member_id: int
+    amount: int
+
+
+class Balances(BaseModel):
+    # Every member, in member id order; the nets add up to exactly 0.
+    balances: list[MemberBalance]
+    # Paying these settles everyone (at most one fewer than the members with a balance).
+    suggested: list[Transfer]
