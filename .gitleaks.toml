@@ -1,0 +1,12 @@
+# gitleaks configuration: the default rules, plus the few values we know are not secrets.
+# Every entry says why. Never add a real key here: rotate it instead (docs/ARCHITECTURE.md §8).
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secrets"
+regexes = [
+  # A Render service id names the service in deploy-hook URLs; without the hook's key it grants nothing.
+  '''srv-[a-z0-9]{20}''',
+]
