@@ -171,3 +171,51 @@ input[type='radio'] {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* Expense list: amount on the right, details and actions underneath */
+section h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.expense-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.expense-summary {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.expense-description {
+  flex: 1;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.expense-amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.expense-meta {
+  color: #57606a;
+  font-size: 0.9rem;
+}
+
+.expense-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.badge {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #ddf4ff;
+  color: #0969da;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
