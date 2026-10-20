@@ -151,3 +151,45 @@ class Balances(BaseModel):
     balances: list[MemberBalance]
     # Paying these settles everyone (at most one fewer than the members with a balance).
     suggested: list[Transfer]
+
+
+# --- AI Quick add (US-09, US-10) ----------------------------------------------------------------
+
+# Same limit as app/services/gemini.py: longer text is refused before Gemini is called.
+AiText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+
+
+class AiParseIn(BaseModel):
+    """Body of POST /api/households/{id}/ai/parse-expense."""
+
+    text: AiText
+
+
+class DraftSplit(BaseModel):
+    type: Literal["equal"]
+    member_ids: list[int]
+
+
+class ExpenseDraft(BaseModel):
+    """A pre-filled expense form. Nothing is saved: after checking it, the user sends it (fixed if
+    needed) to POST /api/households/{id}/expenses, which validates it like any other expense."""
+
+    description: str
+    amount: int | None  # None when the sentence had no usable amount: the user types it
+    payer_id: int | None  # None when the payer was missing or is not a member
+    spent_at: date
+    source: Literal["ai"]
+    split: DraftSplit
+
+
+class DraftWarning(BaseModel):
+    # unknown_member · no_payer · no_amount · participants_assumed
+    code: str
+    message: str
+    name: str | None = None  # the name as written, for unknown_member
+
+
+class AiDraft(BaseModel):
+    draft: ExpenseDraft
+    # What the user should look at before saving; empty when Gemini understood everything.
+    warnings: list[DraftWarning]

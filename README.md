@@ -208,20 +208,19 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | `GET` | `/health/db` | Readiness: runs one query against PostgreSQL; `503` with a safe message if it cannot (details in the server log) |
 | `GET` | `/` | Name, version and environment of the running app |
 | `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test |
-
 | `GET` `POST` | `/api/households` | List (newest first) / create a household: `{"name"}`, 1–60 characters → `201` |
 | `GET` `PATCH` `DELETE` | `/api/households/{id}` | One household; delete removes everything in it → `204` |
 | `GET` `POST` | `/api/households/{id}/members` | Members (oldest first) / add one: `{"name"}`, 1–40 characters → `201`; `409 member_name_taken` |
 | `PATCH` `DELETE` | `/api/members/{id}` | Rename / remove; `409 member_in_use` if they are in an expense or a settlement |
-
 | `GET` `POST` | `/api/households/{id}/expenses` | List (newest first) / add an expense with an equal or custom split → `201`; `422 split_mismatch` if custom shares do not add up |
 | `GET` `PUT` `DELETE` | `/api/expenses/{id}` | One expense with its shares; edit replaces it; delete → `204` |
 | `GET` `POST` | `/api/households/{id}/settlements` | List (newest first) / record "A paid B x đồng" → `201`; `422 same_member` if A = B |
 | `DELETE` | `/api/settlements/{id}` | Undo a mistaken settlement → `204` |
 | `GET` | `/api/households/{id}/balances` | Each member's paid / owed / net (nets sum to 0) and the suggested transfers that settle everyone |
+| `POST` | `/api/households/{id}/ai/parse-expense` | **AI quick add:** `{"text": "dinner 240k, Minh paid, split 3 ways"}` → a pre-filled expense draft plus warnings; saves nothing. `429 ai_rate_limited` / `503 ai_unavailable` mean "fill in the form by hand" |
 
-Still to come: `POST /api/households/{id}/ai/parse-expense`, which returns a draft and never saves it. Request/response
-shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-json-prefix-api).
+Request/response shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-json-prefix-api)
+and, for quick add, [§6](docs/ARCHITECTURE.md#6-ai-integration--quick-add).
 
 ## Testing and quality
 
