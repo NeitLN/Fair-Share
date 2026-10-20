@@ -367,9 +367,9 @@ and deploys a good one. Remaining milestones:
 | Milestone | Due | Goal |
 |---|---|---|
 | [W7 · Foundation & cloud database](https://github.com/NeitLN/Fair-Share/milestone/1) | 22 Oct 2026 | Supabase attached; households & members end to end on the live URL |
-| [W8 · Features & AI live](https://github.com/NeitLN/Fair-Share/milestone/2) | 29 Oct 2026 | All user stories live, including Quick add and its failure handling |
-| [W9 · Hardening, audit & report draft](https://github.com/NeitLN/Fair-Share/milestone/3) | 5 Nov 2026 | Secret audit, persistence drill, report draft |
-| [W10 · Demo ready](https://github.com/NeitLN/Fair-Share/milestone/4) | 11 Nov 2026 | Rehearsed demo; assessment on **12 Nov 2026** |
+| [W8 · Features & AI live](https://github.com/NeitLN/Fair-Share/milestone/2) | 28 Oct 2026 | All user stories live, including Quick add and its failure handling; secret audit |
+| [W9 · Hardening & freeze](https://github.com/NeitLN/Fair-Share/milestone/3) | 1 Nov 2026 | Peer review fixed, persistence drill, diagrams, report draft; **feature freeze** |
+| [W10 · Report & rehearsal](https://github.com/NeitLN/Fair-Share/milestone/4) | 11 Nov 2026 | Report PDF submitted 8 Nov; two rehearsals; assessment on **12 Nov 2026** |
 
 Week-by-week tasks and owners: [docs/ROADMAP.md](docs/ROADMAP.md).
 
