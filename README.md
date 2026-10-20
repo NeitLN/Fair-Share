@@ -214,7 +214,10 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | `GET` `POST` | `/api/households/{id}/members` | Members (oldest first) / add one: `{"name"}`, 1–40 characters → `201`; `409 member_name_taken` |
 | `PATCH` `DELETE` | `/api/members/{id}` | Rename / remove; `409 member_in_use` if they are in an expense or a settlement |
 
-Planned endpoints, all under `/api`: expenses, settlements, balances and
+| `GET` `POST` | `/api/households/{id}/expenses` | List (newest first) / add an expense with an equal or custom split → `201`; `422 split_mismatch` if custom shares do not add up |
+| `GET` `PUT` `DELETE` | `/api/expenses/{id}` | One expense with its shares; edit replaces it; delete → `204` |
+
+Planned endpoints, all under `/api`: settlements, balances and
 `POST /api/households/{id}/ai/parse-expense`, which returns a draft and never saves it. Request/response
 shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-json-prefix-api).
 
@@ -300,7 +303,9 @@ Fair-Share/
 │   ├── db.py             # psycopg connection pool + get_conn dependency
 │   ├── errors.py         # ApiError and the {"error": {code, message}} format
 │   ├── migrate.py        # applies db/migrations at start-up (also: python -m app.migrate)
-│   └── routers/          # system.py: /, /health, /health/db, /api/version
+│   ├── schemas.py        # request/response bodies (Pydantic), limits = the database's CHECKs
+│   ├── routers/          # system, households, members, expenses
+│   └── services/         # pure logic, unit-tested: splitting.py
 ├── db/
 │   ├── migrations/       # 001_init.sql, ...: applied once each, never edited afterwards
 │   └── seed.sql          # demo household for the local Compose stack

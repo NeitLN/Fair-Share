@@ -6,34 +6,9 @@ create, 204 on delete, {"error": {"code", "message"}} on failure.
 import psycopg
 import pytest
 
-pytestmark = pytest.mark.db
+from tests.api import error_code, household, member
 
-
-@pytest.fixture(autouse=True)
-def cleanup(db_url, client):
-    """Remove the households each test created (client first: its start-up applies the schema)."""
-    with psycopg.connect(db_url) as conn:
-        before = conn.execute("SELECT coalesce(max(id), 0) FROM households").fetchone()[0]
-    yield
-    with psycopg.connect(db_url) as conn:
-        conn.execute("DELETE FROM expenses WHERE household_id > %s", (before,))
-        conn.execute("DELETE FROM households WHERE id > %s", (before,))
-
-
-def household(client, name="Nhà trọ Q7") -> dict:
-    response = client.post("/api/households", json={"name": name})
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def member(client, household_id: int, name: str) -> dict:
-    response = client.post(f"/api/households/{household_id}/members", json={"name": name})
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def error_code(response) -> str:
-    return response.json()["error"]["code"]
+pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 
 
 # --- Households (US-01) -----------------------------------------------------------------------
