@@ -162,7 +162,7 @@ All configuration comes from **environment variables**; nothing environment-spec
 
 | Variable | For | Where it will live | Secret? |
 |---|---|---|---|
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | AI Quick add (Week 8) | Render env var; optional local `.env` (without it Quick add says "not configured") | key: **yes** |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | AI Quick add (`app/services/gemini.py`; default model `gemini-3.5-flash-lite`) | Render env var; optional local `.env` (without it Quick add says "not configured") | key: **yes** |
 | `ALLOWED_ORIGINS` | CORS: the web app's origin, `https://fair-share-web.onrender.com` | Render env var (API) | no |
 | `VITE_API_BASE_URL` | SPA build: the API's URL, baked into the JavaScript | Render static site env var | no, public |
 | `RENDER_DEPLOY_HOOK_API` / `_WEB` | deploy job | GitHub Actions secrets | **yes** |

@@ -20,6 +20,10 @@ services:
       # uses this: Render's DATABASE_URL points at Supabase.
       DATABASE_URL: postgresql://app:${DB_PASSWORD:-fairshare_local}@db:5432/appdb
       APP_NAME: ${APP_NAME:-fair-share}
+      # Optional: put a key in .env to try AI Quick add locally; without it the feature says
+      # "not available" and the manual form works.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       # The API applies db/migrations at start-up; this adds the demo household to an empty database.
       SEED_DEMO_DATA: "true"
     depends_on:

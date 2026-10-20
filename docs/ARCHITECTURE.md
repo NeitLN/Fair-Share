@@ -90,7 +90,7 @@ Fair-Share/
 │   ├── migrate.py            # applies db/migrations/*.sql once, at start-up
 │   ├── schemas.py            # Pydantic request/response models
 │   ├── routers/              # households, members, expenses, settlements, balances, ai
-│   └── services/             # splitting.py, balances.py, ai_parser.py (pure, unit-tested)
+│   └── services/             # splitting.py, balances.py, gemini.py (unit-tested, no database)
 ├── db/
 │   ├── migrations/001_init.sql
 │   └── seed.sql              # demo household for local Compose only
@@ -280,7 +280,8 @@ sequenceDiagram
     end
 ```
 
-* **Where the call happens:** only in `app/services/ai_parser.py` on the server, using `httpx`.
+* **Where the call happens:** only in `app/services/gemini.py` on the server (Python's `urllib`,
+  no extra dependency), through `generateContent` with a JSON schema for the answer.
 * **Key security:** `GEMINI_API_KEY` is read from the environment. It is never logged, never returned,
   never sent to the browser, never needed by CI (tests mock the HTTP call).
 * **Rate limits:** Gemini quotas apply **per project** (requests/min, tokens/min, requests/day) and differ
@@ -290,7 +291,7 @@ sequenceDiagram
 * **Prompt-injection stance:** the model output is treated as untrusted data — it is schema-validated,
   names are matched against real members, and nothing is written to the database without the user
   pressing *Save*.
-* **Model:** `GEMINI_MODEL` environment variable (default chosen in issue *AI client*), so a deprecated
+* **Model:** `GEMINI_MODEL` environment variable (default `gemini-3.5-flash-lite`, a stable Flash-Lite model), so a deprecated
   model is a configuration change, not a code change.
 
 ## 7. Platform selection and declared fallbacks (zero credit card)
