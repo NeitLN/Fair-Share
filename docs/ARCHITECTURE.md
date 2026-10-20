@@ -208,7 +208,7 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | `PUT` replaces it, same body as create; `404 expense_not_found` |
 | `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?}`; `422 same_member`, `unknown_member` |
 | `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found` |
-| `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | |
+| `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
 | `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — returns a draft, saves nothing | See §6 |
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
@@ -232,6 +232,23 @@ FastAPI's interactive docs at `/docs` are the living API reference.
 The response adds `id`, `household_id`, `created_at`, the stored `shares` (in member id order, always
 summing to `amount`; an equal split of 100 000 between members 1, 2, 3 is 33 334 / 33 333 / 33 333) and
 `split_type` (`"equal"` when the shares are exactly the equal split), so an edit form can be pre-filled.
+
+**Balances response** (Minh paid a 300 000 dinner for three, then Tiến paid him back 100 000):
+
+```jsonc
+{
+  "balances": [                          // every member, in member id order; nets sum to 0
+    {"member_id": 1, "name": "Tiến", "paid": 0, "owed": 100000, "sent": 100000, "received": 0, "net": 0},
+    {"member_id": 2, "name": "Minh", "paid": 300000, "owed": 100000, "sent": 0, "received": 100000, "net": 100000},
+    {"member_id": 3, "name": "Duy Anh", "paid": 0, "owed": 100000, "sent": 0, "received": 0, "net": -100000}
+  ],
+  "suggested": [                         // pay these and every net is 0; at most n - 1 of them
+    {"from_member_id": 3, "to_member_id": 2, "amount": 100000}
+  ]
+}
+```
+
+"Record this payment" on the dashboard is a normal `POST /settlements` with a suggested transfer.
 
 ## 6. AI integration — Quick add
 
