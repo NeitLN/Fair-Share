@@ -1,21 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 
-import { ApiError } from '../api/client'
 import { addMember, keys, listMembers, removeMember, renameMember } from '../api/households'
 import MemberAddForm from '../components/MemberAddForm'
 import MemberList from '../components/MemberList'
-
-/** A 409 means two different things here; say which in Vietnamese, else trust the server. */
-function memberError(error: Error | null): string | null {
-  if (!error) return null
-  if (error instanceof ApiError && error.status === 409) {
-    return error.code === 'member_in_use'
-      ? 'Không xoá được: người này đã có trong một khoản chi tiêu.'
-      : 'Nhà này đã có thành viên trùng tên.'
-  }
-  return error.message
-}
+import { errorMessage } from '../lib/errors'
 
 // US-02: add, rename and remove the members of one household
 function MembersPage() {
@@ -41,12 +30,12 @@ function MembersPage() {
       <MemberAddForm
         onAdd={add.mutateAsync}
         submitting={add.isPending}
-        error={memberError(add.error)}
+        error={errorMessage(add.error)}
       />
       <MemberList
         members={members.data ?? []}
         loading={members.isPending}
-        error={memberError(members.error ?? rename.error ?? remove.error)}
+        error={errorMessage(members.error ?? rename.error ?? remove.error)}
         onRename={(id, name) => {
           remove.reset()
           return rename.mutateAsync({ id, name })

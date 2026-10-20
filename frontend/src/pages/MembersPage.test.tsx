@@ -16,6 +16,11 @@ afterEach(() => {
 const household = { id: 7, name: 'Nhà 7', created_at: '2026-10-16T00:00:00Z' }
 const minh = { id: 1, household_id: 7, name: 'Minh', created_at: '2026-10-16T00:00:00Z' }
 const tien = { id: 2, household_id: 7, name: 'Tiến', created_at: '2026-10-16T00:00:00Z' }
+// What the API answers for a duplicate name (app/routers/households.py)
+const nameTaken: [number, unknown] = [
+  409,
+  { error: { code: 'member_name_taken', message: 'This household already has a member with that name' } },
+]
 
 function api(extra: Parameters<typeof mockApi>[0] = {}) {
   let members = [minh, tien]
@@ -54,7 +59,7 @@ test('adding a member shows them in the list', async () => {
 })
 
 test('a duplicate name is explained in Vietnamese and the text is kept', async () => {
-  api({ 'POST /api/households/7/members': [409, { detail: 'duplicate' }] })
+  api({ 'POST /api/households/7/members': nameTaken })
   renderApp('/households/7/members')
 
   await userEvent.type(await screen.findByLabelText('Tên thành viên'), 'Minh')
@@ -84,12 +89,12 @@ test('a member used by an expense cannot be removed, and the page says why', asy
 
   await userEvent.click(await screen.findByRole('button', { name: 'Xoá Minh' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('người này đã có trong một khoản chi tiêu')
+  expect(await screen.findByRole('alert')).toHaveTextContent('người này đã có trong một khoản chi hoặc khoản trả')
   expect(screen.getByText('Minh')).toBeInTheDocument()
 })
 
 test('renaming keeps edit mode open when the name is taken', async () => {
-  api({ 'PATCH /api/members/1': [409, { detail: 'duplicate' }] })
+  api({ 'PATCH /api/members/1': nameTaken })
   renderApp('/households/7/members')
 
   await userEvent.click((await screen.findAllByRole('button', { name: 'Đổi tên' }))[0])
