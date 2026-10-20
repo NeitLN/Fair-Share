@@ -29,11 +29,16 @@ function SettlementList({
     return members.find((member) => member.id === id)?.name ?? 'Thành viên đã xoá'
   }
 
+  // Who paid whom how much: unique enough to tell two payments by the same person apart
+  function describe(settlement: Settlement): string {
+    const from = memberName(settlement.from_member_id)
+    const to = memberName(settlement.to_member_id)
+    return `khoản ${from} trả ${to} ${formatVND(settlement.amount)}`
+  }
+
   // Deleting cannot be undone from the UI, so ask first
   function confirmDelete(settlement: Settlement) {
-    if (window.confirm(`Xoá khoản trả của ${memberName(settlement.from_member_id)}?`)) {
-      onDelete(settlement)
-    }
+    if (window.confirm(`Xoá ${describe(settlement)}?`)) onDelete(settlement)
   }
 
   return (
@@ -56,7 +61,7 @@ function SettlementList({
                 {settlement.note && <span className="settlement-note">{settlement.note}</span>}
                 <button
                   type="button"
-                  aria-label={`Xoá khoản trả của ${memberName(settlement.from_member_id)}`}
+                  aria-label={`Xoá ${describe(settlement)}`}
                   disabled={deleting}
                   onClick={() => confirmDelete(settlement)}
                 >

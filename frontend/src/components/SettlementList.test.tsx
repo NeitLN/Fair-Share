@@ -70,23 +70,23 @@ describe('SettlementList', () => {
     vi.stubGlobal('confirm', confirm)
     renderList({ onDelete })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Xoá khoản trả của Tiến' }))
-    expect(confirm).toHaveBeenCalledWith('Xoá khoản trả của Tiến?')
+    await userEvent.click(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 150\.000/ }))
+    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/^Xoá khoản Tiến trả Minh 150\.000\s₫\?$/))
     expect(onDelete).not.toHaveBeenCalled()
 
     confirm.mockReturnValue(true)
-    await userEvent.click(screen.getByRole('button', { name: 'Xoá khoản trả của Tiến' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 150\.000/ }))
     expect(onDelete).toHaveBeenCalledWith(settlements[0])
   })
 
   test('only the settlement being deleted has its button disabled', () => {
     renderList({ deletingId: 21 })
 
-    expect(screen.getByRole('button', { name: 'Xoá khoản trả của Tiến' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Xoá khoản trả của Tiến' })).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 150\.000/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 150\.000/ })).toHaveTextContent(
       'Đang xoá…',
     )
-    expect(screen.getByRole('button', { name: 'Xoá khoản trả của An' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Xoá khoản An trả Minh 50\.000/ })).toBeEnabled()
   })
 
   test('a member missing from the list is named as deleted', () => {
@@ -110,5 +110,12 @@ describe('SettlementList', () => {
     renderList({ loading: true })
     expect(screen.getByText('Đang tải các khoản trả…')).toBeInTheDocument()
     expect(screen.queryByText('Tiến')).not.toBeInTheDocument()
+  })
+
+  test('two payments by the same person get different delete labels', () => {
+    renderList({ settlements: [settlements[0], { ...settlements[0], id: 23, amount: 20000 }] })
+
+    expect(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 150\.000/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 20\.000/ })).toBeInTheDocument()
   })
 })
