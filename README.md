@@ -294,8 +294,9 @@ API or the database needs a look.
 * If a secret leaks: revoke it at the provider, issue a new one, update Render/GitHub, then clean the
   history. Full runbook in [ARCHITECTURE.md §8](docs/ARCHITECTURE.md#8-configuration-and-secrets).
 
-**How we check it:** a full-history secret scan (gitleaks) as a CI job, plus GitHub secret scanning and
-push protection, in Week 9 (T-29). The results will be recorded here.
+**How we check it:** the `secrets` CI job runs gitleaks on the whole history for every pull request and
+merge, and GitHub secret scanning with push protection blocks known provider keys on push. The full audit
+of 20 Oct 2026 (119 commits, all branches: no leaks) is in [docs/SECRET_AUDIT.md](docs/SECRET_AUDIT.md).
 
 Found a security problem? Open an issue **without** the secret in it, or tell the team leader directly.
 
@@ -387,7 +388,7 @@ The five live-demo criteria of the brief, and where the evidence is. Updated as 
 | Compose brings the full stack up from a clean clone (5) | [Quick start](#quick-start-docker-compose); clean clone done in Week 4 on a teammate's machine that never had the project | ✅ web + api + db (T-11) · 🚧 clean clone on a teammate's machine, final rehearsal T-34 |
 | CI pipeline green on pull requests (5) | [Actions history](https://github.com/NeitLN/Fair-Share/actions); a red PR was blocked in Lab 4 | ✅ lint, tests on PostgreSQL, image build |
 | Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ verified by the `smoke` job (live commit = merged commit) |
-| Configuration and secrets via the environment, none in the repository (4) | [Configuration](#configuration), `.gitignore`, `.env.example` | ✅ policy · 🚧 full-history audit (T-29) |
+| Configuration and secrets via the environment, none in the repository (4) | [Configuration](#configuration), `.gitignore`, `.env.example` | ✅ policy · ✅ [full-history audit](docs/SECRET_AUDIT.md) and gitleaks in CI |
 | Managed cloud PostgreSQL attached by one env var | `DATABASE_URL` on Render → Supabase; live [`/health/db`](https://fair-share-4bu9.onrender.com/health/db) | ✅ |
 | AI feature on the live URL, failure handled | Quick add + fallback | 🗓️ Week 8 (T-19, T-21, T-22) |
 

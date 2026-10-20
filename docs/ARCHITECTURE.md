@@ -328,8 +328,8 @@ sequenceDiagram
 5. Open an issue describing the incident and the prevention added.
 
 Preventive controls in place: `.env` git-ignored, `.env.example` with no real values, deploy hooks
-only in Actions secrets, screenshots checked before they go into the report. Added in Week 9 (T-29):
-a gitleaks job in CI and GitHub secret scanning + push protection.
+only in Actions secrets, screenshots checked before they go into the report. Since T-29:
+a gitleaks job in CI and GitHub secret scanning + push protection ([audit record](SECRET_AUDIT.md)).
 
 ## 9. CI/CD pipeline
 
@@ -338,7 +338,7 @@ flowchart LR
     PR["Pull request"] --> BE["backend<br/>ruff + pytest<br/>(postgres service)"]
     PR --> FE["frontend<br/>oxlint + vitest + vite build"]
     PR --> IMG["images<br/>docker build api + web"]
-    PR --> SEC["secrets (T-29, W9)<br/>gitleaks"]
+    PR --> SEC["secrets<br/>gitleaks, full history"]
     BE & FE & IMG & SEC --> GATE{"all green?<br/>+ 1 approval"}
     GATE -- "merge to main" --> DEP["deploy<br/>Render hooks API + web"]
     DEP --> SMOKE["smoke test<br/>wait until /api/version = merged SHA<br/>(or a later commit containing it)"]
@@ -349,12 +349,12 @@ flowchart LR
 | `backend` | Python lint errors, broken endpoints, wrong split/balance maths, migrations that fail on a fresh DB |
 | `frontend` | TypeScript errors (`tsc -b` in the build), oxlint errors, failing component tests, a SPA that does not build |
 | `images` | A Dockerfile that no longer builds (what Render would fail on after merge), a container that crashes on start, or a `compose.yml` whose stack does not come up with the web app reaching the API and the API reaching PostgreSQL |
-| `secrets` *(planned, T-29)* | A committed key or connection string |
+| `secrets` | A committed key or connection string, anywhere in the history (gitleaks, exceptions in `.gitleaks.toml`) |
 | `deploy` | Runs only on `push` to `main` after all checks; PRs never deploy. The hook is pinned to the tested commit (`ref=`) and refused if it belongs to another Render service |
 | `smoke` | A deploy hook only *queues* a deploy. This job proves the live API runs the exact merged commit and the web app loads — otherwise the run goes red |
 
 Branch protection on `main`: PR required, 1 approving review, required checks
-`backend`, `frontend`, `images` (plus `secrets` once T-29 adds it), enforced for administrators.
+`backend`, `frontend`, `images`, `secrets`, enforced for administrators.
 
 > **Renaming a required check safely:** when the old Lab 4 `check` job was replaced by the three jobs
 > above (T-13, #61), the required checks were switched on the PR before merging. Do the same for any
