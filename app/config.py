@@ -30,17 +30,22 @@ class Settings:
     gemini_api_key: str | None = None
     # A configuration value, so a retired model is a Render setting change, not a code change.
     gemini_model: str = "gemini-3.5-flash-lite"
-    # Seconds to wait for Gemini before giving up; the user then fills in the form by hand.
-    ai_timeout: float = 10.0
+    # Seconds to wait for Gemini before giving up; the user then fills in the form by hand. On the
+    # live server gemini-3.5-flash-lite answered in 7-9 s, so 10 s cut off answers that were coming.
+    ai_timeout: float = 20.0
     # How many proxies in front of the API each append one X-Forwarded-For entry; the visitor's
-    # address is that many entries from the end. Render: Cloudflare, then Render's load balancer
-    # (2). Docker Compose: nginx (1). 0 = ignore the header and use the connecting address.
+    # address is that many entries from the end. Render: 3 (Cloudflare adds the visitor, two more
+    # proxies follow; read from the "quick add:" log lines, where CF-Connecting-IP is entry -3).
+    # Docker Compose: nginx (1). 0 = ignore the header and use the connecting address.
     forwarded_hops: int = 1
 
     def __post_init__(self):
         # A negative value would quietly put every visitor on Render in one shared limit.
         if self.forwarded_hops < 0:
             raise ValueError("FORWARDED_HOPS must be 0 or more")
+        # 0 would make the socket non-blocking: every Gemini call would fail at once.
+        if self.ai_timeout <= 0:
+            raise ValueError("AI_TIMEOUT must be more than 0 seconds")
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -60,7 +65,7 @@ class Settings:
             gemini_model=os.getenv("GEMINI_MODEL") or cls.gemini_model,
             ai_timeout=float(os.getenv("AI_TIMEOUT") or cls.ai_timeout),
             # Render sets RENDER=true in every service, so the default needs no dashboard setting.
-            forwarded_hops=int(os.getenv("FORWARDED_HOPS") or (2 if os.getenv("RENDER") else 1)),
+            forwarded_hops=int(os.getenv("FORWARDED_HOPS") or (3 if os.getenv("RENDER") else 1)),
         )
 
     def __repr__(self) -> str:

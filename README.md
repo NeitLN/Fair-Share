@@ -163,7 +163,7 @@ All configuration comes from **environment variables**; nothing environment-spec
 | Variable | For | Where it will live | Secret? |
 |---|---|---|---|
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | AI Quick add (`app/services/gemini.py`; default model `gemini-3.5-flash-lite`) | Render env var; optional local `.env` (without it Quick add says "not configured") | key: **yes** |
-| `AI_TIMEOUT`, `FORWARDED_HOPS` | Seconds to wait for Gemini (default 10); proxies in front of the API, used to find the visitor's address for the Quick add limit (default 1, or 2 on Render) | Usually not set | no |
+| `AI_TIMEOUT`, `FORWARDED_HOPS` | Seconds to wait for Gemini (default 20); proxies in front of the API, used to find the visitor's address for the Quick add limit (default 1, or 3 on Render) | Usually not set | no |
 | `ALLOWED_ORIGINS` | CORS: the web app's origin, `https://fair-share-web.onrender.com` | Render env var (API) | no |
 | `VITE_API_BASE_URL` | SPA build: the API's URL, baked into the JavaScript | Render static site env var | no, public |
 | `RENDER_DEPLOY_HOOK_API` / `_WEB` | deploy job | GitHub Actions secrets | **yes** |

@@ -123,7 +123,7 @@ def _urllib_post(
 
 class GeminiClient:
     def __init__(
-        self, api_key: str | None, model: str, timeout: float = 10.0, post: Post = _urllib_post
+        self, api_key: str | None, model: str, timeout: float = 20.0, post: Post = _urllib_post
     ):
         self._api_key = api_key
         self.model = model
@@ -137,7 +137,11 @@ class GeminiClient:
     def configured(self) -> bool:
         return bool(self._api_key)
 
-    def parse_expense(self, text: str, member_names: list[str], today: dt.date) -> ExpenseDraft:
+    def parse_expense(
+        self, text: str, member_names: list[str], today: dt.date, timeout: float | None = None
+    ) -> ExpenseDraft:
+        """`timeout` shortens the wait for this one call (a retry gets only the time left)."""
+        timeout = self.timeout if timeout is None else timeout
         text = text.strip()
         if not text or len(text) > MAX_TEXT:
             raise ApiError(
@@ -168,14 +172,14 @@ class GeminiClient:
             return round((time.monotonic() - started) * 1000)
 
         try:
-            status, raw = self._post(url, headers, body, self.timeout)
+            status, raw = self._post(url, headers, body, timeout)
         except (TimeoutError, socket.timeout):
-            logger.warning("gemini: no answer within %.0f s (%s)", self.timeout, self.model)
+            logger.warning("gemini: no answer within %.0f s (%s)", timeout, self.model)
             raise ai_unavailable() from None
         except (urllib.error.URLError, OSError) as error:
             # urlopen wraps a timeout during connect in URLError
             if isinstance(getattr(error, "reason", None), (TimeoutError, socket.timeout)):
-                logger.warning("gemini: no answer within %.0f s (%s)", self.timeout, self.model)
+                logger.warning("gemini: no answer within %.0f s (%s)", timeout, self.model)
             else:
                 logger.warning("gemini: network error %s after %d ms", type(error).__name__, took())
             raise ai_unavailable() from None

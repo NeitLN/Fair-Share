@@ -195,7 +195,7 @@ def test_proxy_hops_default_to_render_when_running_there(monkeypatch):
     monkeypatch.delenv("RENDER", raising=False)
     assert Settings.from_env().forwarded_hops == 1  # nginx in Docker Compose
     monkeypatch.setenv("RENDER", "true")
-    assert Settings.from_env().forwarded_hops == 2  # Cloudflare + Render's load balancer
+    assert Settings.from_env().forwarded_hops == 3  # Cloudflare + two proxies, from the logs
     monkeypatch.setenv("FORWARDED_HOPS", "0")
     assert Settings.from_env().forwarded_hops == 0
     monkeypatch.setenv("AI_TIMEOUT", "15")
@@ -203,6 +203,19 @@ def test_proxy_hops_default_to_render_when_running_there(monkeypatch):
     monkeypatch.setenv("FORWARDED_HOPS", "-1")
     with pytest.raises(ValueError):
         Settings.from_env()
+    monkeypatch.setenv("FORWARDED_HOPS", "1")
+    for bad in ("0", "-5"):
+        monkeypatch.setenv("AI_TIMEOUT", bad)
+        with pytest.raises(ValueError):
+            Settings.from_env()
+
+
+def test_a_shorter_timeout_can_be_given_for_one_call():
+    fake = FakeGemini(body=gemini_answer({"description": "Rent", "amount": 5}))
+    gemini = client(fake)
+    gemini.parse_expense("rent", MEMBERS, TODAY)
+    gemini.parse_expense("rent", MEMBERS, TODAY, timeout=2.5)
+    assert [call["timeout"] for call in fake.calls] == [10, 2.5]
 
 
 def test_participants_given_as_a_string_are_ignored_not_split_into_letters():

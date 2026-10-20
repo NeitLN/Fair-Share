@@ -147,11 +147,12 @@ def test_more_people_than_one_expense_allows_is_a_clear_error():
 @pytest.mark.parametrize(
     "forwarded, peer, hops, expected",
     [
-        # Render: Cloudflare appends the visitor, Render's load balancer appends the edge.
+        # Render (from the live logs): the visitor, then two proxy entries that change every time.
+        ("198.51.100.7, 172.70.1.2, 10.201.3.4", "10.0.0.1", 3, "198.51.100.7"),
+        ("1.2.3.4, 198.51.100.7, 172.70.1.2, 10.201.3.4", "10.0.0.1", 3, "198.51.100.7"),
+        ("172.70.1.2, 10.201.3.4", "10.0.0.1", 3, UNRESOLVED),  # fewer entries than proxies
+        ("", "10.0.0.1", 3, UNRESOLVED),
         ("198.51.100.7, 172.70.1.2", "10.0.0.1", 2, "198.51.100.7"),
-        ("1.2.3.4, 198.51.100.7, 172.70.1.2", "10.0.0.1", 2, "198.51.100.7"),  # made-up prefix
-        ("172.70.1.2", "10.0.0.1", 2, UNRESOLVED),  # fewer entries than proxies
-        ("", "10.0.0.1", 2, UNRESOLVED),
         # Compose: nginx appends the browser's address.
         ("1.2.3.4, 192.168.1.20", "172.18.0.3", 1, "192.168.1.20"),
         ("not-an-ip, 172.70.1.2", "10.0.0.1", 2, UNRESOLVED),
