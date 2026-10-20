@@ -30,7 +30,8 @@ How we got here:
 ## 2. Five rules (read these before any CSS)
 
 1. **One loud place per screen.** Only the taro verdict block on Tổng quan is drenched. Everything else
-   sits on the near-white background as borderless surfaces. Yellow is only for the AI and the focus ring.
+   sits on the near-white background as borderless surfaces. Yellow means *attention*: the coin in the
+   logo, the AI and the focus ring, nothing else ([BRAND.md](BRAND.md)).
 2. **Hard shadows only on stickers and primary buttons.** Avatars, the two stamps, primary and AI buttons
    get the 2–3 px offset shadow; pressing a button moves it down by exactly its shadow. Cards never get a
    shadow or a border.

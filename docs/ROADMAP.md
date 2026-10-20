@@ -148,6 +148,7 @@ on it because the composer and both redesigned screens use its components.
 | T-41 | Design system "Sticker pop": [DESIGN.md](DESIGN.md) — rules, light/dark tokens with measured contrast, type, components, screen specs, copy | Việt Tiến | Duy Anh | P1 | Thu 22/10 |
 | T-42 | UI foundation: tokens, fonts, base CSS, shared components (avatar, money, chips, buttons, toast), "Bạn là ai?"; Danh sách nhà, household frame, Thành viên | Việt Tiến | Duy Anh | P1 | **Sat 24/10** |
 | T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | Wed 28/10 |
+| T-44 | Brand kit: [BRAND.md](BRAND.md) — tagline, logo and icon, colour and voice rules, OG image, README header, slide and report templates | Việt Tiến | Duy Anh | P1 | Fri 23/10 |
 | T-21 | Gemini client service: structured JSON output, 10 s timeout, 429/5xx mapping, key from env, never logged (key on Render by Wed 21/10) | Việt Tiến | Hoàng Minh | P0 | **Thu 22/10** |
 | T-22 | `POST /api/households/{id}/ai/parse-expense`: per-IP limit + global budget, name matching, tests with mocked Gemini | Việt Tiến | Hoàng Minh | P0 | **Sun 25/10** |
 | T-23 | Deploy job calls both hooks; CORS checked from the live SPA (done 20/10); first merge after #85 deploys both | Việt Tiến | Duy Anh | P0 | Thu 22/10 |
@@ -182,13 +183,13 @@ on it because the composer and both redesigned screens use its components.
 
 | Member | W7 left | W8 | W9 | W10 | Open total |
 |---|---|---|---|---|---|
-| Việt Tiến | 1 | 9 | 1 | 2 | 13 |
+| Việt Tiến | 1 | 10 | 1 | 2 | 14 |
 | Hoàng Minh | 1 | 4 | 2 | 2 | 9 |
 | Duy Anh | 0 | 3 | 2 | 2 | 7 |
 
 Hoàng Minh carries the critical path in W8, so his W9–W10 tasks are small and documentation-heavy. Việt
 Tiến takes T-26 (platform) and the takeover duty in §2. Shared tasks (T-30) are not counted. The UI
-redesign (T-41–T-43, added 21/10) goes to Việt Tiến because his W8 backend and platform tasks are done;
+redesign and brand (T-41–T-44, added 21/10) goes to Việt Tiến because his W8 backend and platform tasks are done;
 Duy Anh keeps T-19 and T-32 and reviews the redesign.
 
 ## 4. Report ownership (15% — section drafts Wed 28/10, full draft Sun 01/11, PDF submitted Sun 08/11)
