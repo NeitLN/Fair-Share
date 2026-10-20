@@ -25,6 +25,13 @@ class Settings:
     db_timeout: float = 5.0
     # Load db/seed.sql into an empty database at start-up. Set only by compose.yml, never on Render.
     seed_demo_data: bool = False
+    # AI Quick add (docs/ARCHITECTURE.md §6). No key = the feature answers "not available" and the
+    # manual form keeps working. The key is a secret: never log it, never return it.
+    gemini_api_key: str | None = None
+    # A configuration value, so a retired model is a Render setting change, not a code change.
+    gemini_model: str = "gemini-3.5-flash-lite"
+    # Seconds to wait for Gemini before giving up; the user then fills in the form by hand.
+    ai_timeout: float = 10.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -40,4 +47,12 @@ class Settings:
             ),
             commit=os.getenv("RENDER_GIT_COMMIT", cls.commit),
             seed_demo_data=os.getenv("SEED_DEMO_DATA", "").lower() in ("1", "true"),
+            gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
+            gemini_model=os.getenv("GEMINI_MODEL") or cls.gemini_model,
         )
+
+    def __repr__(self) -> str:
+        # A Settings object can end up in a log or a traceback: never show the AI key.
+        key = "set" if self.gemini_api_key else "not set"
+        return (f"Settings(app_name={self.app_name!r}, app_env={self.app_env!r}, "
+                f"gemini_api_key={key})")
