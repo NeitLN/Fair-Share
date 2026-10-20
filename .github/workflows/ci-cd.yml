@@ -144,7 +144,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0                  # the whole history, not just the last commit
+          fetch-depth: 0                  # this branch's whole history, not just the last commit
 
       - name: No key, password or connection string in any commit (gitleaks)
         # Default rules plus the documented exceptions in .gitleaks.toml; findings are printed

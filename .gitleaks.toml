@@ -10,3 +10,14 @@ regexes = [
   # A Render service id names the service in deploy-hook URLs; without the hook's key it grants nothing.
   '''srv-[a-z0-9]{20}''',
 ]
+
+# gitleaks has no default rule for database URLs, and DATABASE_URL is our most important secret.
+# (Suggested and tested by Hoàng Minh in the review of #93.)
+[[rules]]
+id = "postgres-url-with-password"
+description = "PostgreSQL connection string with a password"
+regex = '''postgres(?:ql)?://[^:@\s/]+:([^@\s]+)@'''
+secretGroup = 1
+  # The local and test passwords documented in docs/SECRET_AUDIT.md, plus placeholders.
+  [[rules.allowlists]]
+  regexes = ['''^(?:fairshare_local|ci-only-not-a-secret|devonly|testonly|test|pw|password|\$\{DB_PASSWORD(?::-fairshare_local)?\})$''']
