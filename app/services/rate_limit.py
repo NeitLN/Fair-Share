@@ -28,6 +28,13 @@ class SlidingWindow:
     def has_room(self, key: str, now: float) -> bool:
         return len(self._recent(key, now)) < self.limit
 
+    def forget_idle(self, now: float) -> None:
+        """Drop keys with no recent hits, so the dict does not keep every visitor ever seen."""
+        for key in [
+            key for key, hits in self.hits.items() if not hits or hits[-1] <= now - self.seconds
+        ]:
+            del self.hits[key]
+
     def record(self, key: str, now: float) -> None:
         self.hits[key].append(now)
 
@@ -47,12 +54,16 @@ class AiBudget:
         self.day = SlidingWindow(per_day, 24 * 3600)
         self.clock = clock
         self._lock = threading.Lock()
+        self._swept_at = clock()
 
     def try_spend(self, client_ip: str) -> bool:
         """Counts one request and returns True, or returns False (and counts nothing) if a limit
         is reached; a refused request must not eat into the budget."""
         with self._lock:
             now = self.clock()
+            if now - self._swept_at >= 60:
+                self.per_ip.forget_idle(now)
+                self._swept_at = now
             windows = ((self.per_ip, client_ip), (self.minute, "all"), (self.day, "all"))
             if not all(window.has_room(key, now) for window, key in windows):
                 return False

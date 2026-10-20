@@ -4,6 +4,7 @@ import datetime as dt
 
 import pytest
 
+from app.errors import ApiError
 from app.routers.ai import to_draft
 from app.services.gemini import ExpenseDraft as Found
 from app.services.names import match_member, normalize
@@ -107,3 +108,37 @@ def test_draft_with_nobody_named_is_split_between_everyone_with_a_warning():
     result = to_draft(found, MEMBERS, TODAY)
     assert result.draft.split.member_ids == [1, 2, 3]
     assert [w.code for w in result.warnings] == ["no_payer", "participants_assumed"]
+
+
+def test_idle_ips_are_forgotten():
+    clock = FakeClock()
+    budget = AiBudget(clock=clock)
+    for i in range(100):
+        budget.try_spend(f"10.1.0.{i}")
+    clock.now = 61
+    budget.try_spend("10.1.0.200")  # only try_spend, as in production
+    assert list(budget.per_ip.hits) == ["10.1.0.200"]
+
+
+def test_an_amount_the_api_would_refuse_is_left_for_the_user():
+    found = Found(description="Typo", amount=10**15, payer="Minh", everyone=True)
+    result = to_draft(found, MEMBERS, TODAY)
+    assert result.draft.amount is None
+    assert [w.code for w in result.warnings] == ["no_amount"]
+
+
+def test_one_unknown_name_gives_one_warning():
+    found = Found(
+        description="Cafe", amount=50_000, payer="Lan", participants=["Lan", "lan", "Tiến"]
+    )
+    result = to_draft(found, MEMBERS, TODAY)
+    assert [(w.code, w.name) for w in result.warnings] == [("unknown_member", "Lan")]
+    assert result.draft.split.member_ids == [1]
+
+
+def test_more_people_than_one_expense_allows_is_a_clear_error():
+    crowd = {i: f"Member {i}" for i in range(1, 52)}
+    found = Found(description="Party", amount=5_100_000, payer="Member 1", everyone=True)
+    with pytest.raises(ApiError) as error:
+        to_draft(found, crowd, TODAY)
+    assert error.value.status == 422 and error.value.code == "too_many_participants"

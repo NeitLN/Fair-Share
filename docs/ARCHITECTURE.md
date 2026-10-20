@@ -308,7 +308,7 @@ accents (`"tien"` → Tiến), and a single word matches when only one member ha
 | `participants_assumed` | Nobody was named, so the draft splits between everyone |
 
 **Errors:** `404 household_not_found`, `409 no_members` (add members first), `422 validation_error`
-(empty or over 300 characters), `422 ai_unparseable`, `429 ai_rate_limited`, `503 ai_unavailable`.
+(empty or over 300 characters), `422 ai_unparseable`, `422 too_many_participants` (over 50 people), `429 ai_rate_limited`, `503 ai_unavailable`.
 Every one of them leaves the manual form open with the text kept.
 
 * **Where the call happens:** only in `app/services/gemini.py` on the server (Python's `urllib`,

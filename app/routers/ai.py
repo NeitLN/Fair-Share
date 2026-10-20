@@ -6,7 +6,8 @@ POST /api/households/{id}/ai/parse-expense {"text": "dinner 240k, Minh paid, spl
 
 Nothing is saved here. The answer is a draft for the user to check; saving goes through the normal
 expenses endpoint. Every failure is an error code the UI answers by keeping the manual form open:
-404 household_not_found, 409 no_members, 422 validation_error / ai_unparseable,
+404 household_not_found, 409 no_members, 422 validation_error / ai_unparseable /
+too_many_participants,
 429 ai_rate_limited, 503 ai_unavailable / database_*.
 """
 
@@ -17,7 +18,16 @@ from fastapi import APIRouter, Depends, Request
 
 from app.errors import ApiError
 from app.routers.households import household_not_found
-from app.schemas import AiDraft, AiParseIn, DraftSplit, DraftWarning, ExpenseDraft, Id
+from app.schemas import (
+    MAX_AMOUNT,
+    MAX_PARTICIPANTS,
+    AiDraft,
+    AiParseIn,
+    DraftSplit,
+    DraftWarning,
+    ExpenseDraft,
+    Id,
+)
 from app.services.gemini import GeminiClient, ai_rate_limited, ai_unavailable
 from app.services.names import match_member
 from app.services.rate_limit import AiBudget
@@ -87,8 +97,12 @@ def parse_expense(
 def to_draft(found, members: dict[int, str], today: dt.date) -> AiDraft:
     """Turn Gemini's names into member ids, and say what the user should check."""
     warnings: list[DraftWarning] = []
+    reported: set[str] = set()
 
     def unknown(name: str) -> None:
+        if name.casefold() in reported:  # "Lan paid for Lan and me": one warning is enough
+            return
+        reported.add(name.casefold())
         warnings.append(
             DraftWarning(
                 code="unknown_member",
@@ -121,13 +135,22 @@ def to_draft(found, members: dict[int, str], today: dt.date) -> AiDraft:
                 )
             )
 
-    if found.amount is None:
+    if len(participant_ids) > MAX_PARTICIPANTS:  # the expense API would refuse the split
+        raise ApiError(
+            422,
+            "too_many_participants",
+            f"One expense can be shared by at most {MAX_PARTICIPANTS} people; choose them by hand",
+        )
+
+    # Above the expense API's limit the draft could never be saved, so the user types it instead.
+    amount = found.amount if found.amount is not None and found.amount <= MAX_AMOUNT else None
+    if amount is None:
         warnings.append(DraftWarning(code="no_amount", message="Type the amount"))
 
     return AiDraft(
         draft=ExpenseDraft(
             description=found.description,
-            amount=found.amount,
+            amount=amount,
             payer_id=payer_id,
             spent_at=dt.date.fromisoformat(found.spent_at) if found.spent_at else today,
             source="ai",
