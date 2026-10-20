@@ -1,0 +1,90 @@
+"""Households and the members inside them (US-01, US-02). docs/ARCHITECTURE.md §5."""
+
+from fastapi import APIRouter
+from psycopg import Connection, errors
+
+from app.db import ConnDep, fetch_all, fetch_one
+from app.errors import ApiError
+from app.schemas import Household, HouseholdIn, Id, Member, MemberIn
+
+router = APIRouter(prefix="/api", tags=["households"])
+
+HOUSEHOLD_COLUMNS = "id, name, created_at"
+MEMBER_COLUMNS = "id, household_id, name, created_at"
+
+
+def household_not_found() -> ApiError:
+    return ApiError(404, "household_not_found", "This household does not exist")
+
+
+def member_name_taken() -> ApiError:
+    return ApiError(409, "member_name_taken", "This household already has a member with that name")
+
+
+def require_household(conn: Connection, household_id: int) -> None:
+    if fetch_one(conn, "SELECT 1 FROM households WHERE id = %s", (household_id,)) is None:
+        raise household_not_found()
+
+
+@router.get("/households", response_model=list[Household])
+def list_households(conn: ConnDep):
+    """Newest first."""
+    return fetch_all(conn, f"SELECT {HOUSEHOLD_COLUMNS} FROM households ORDER BY id DESC")
+
+
+@router.post("/households", response_model=Household, status_code=201)
+def create_household(body: HouseholdIn, conn: ConnDep):
+    return fetch_one(
+        conn,
+        f"INSERT INTO households (name) VALUES (%s) RETURNING {HOUSEHOLD_COLUMNS}",
+        (body.name,),
+    )
+
+
+@router.get("/households/{household_id}", response_model=Household)
+def get_household(household_id: Id, conn: ConnDep):
+    sql = f"SELECT {HOUSEHOLD_COLUMNS} FROM households WHERE id = %s"
+    household = fetch_one(conn, sql, (household_id,))
+    if household is None:
+        raise household_not_found()
+    return household
+
+
+@router.patch("/households/{household_id}", response_model=Household)
+def rename_household(household_id: Id, body: HouseholdIn, conn: ConnDep):
+    sql = f"UPDATE households SET name = %s WHERE id = %s RETURNING {HOUSEHOLD_COLUMNS}"
+    household = fetch_one(conn, sql, (body.name, household_id))
+    if household is None:
+        raise household_not_found()
+    return household
+
+
+@router.delete("/households/{household_id}", status_code=204)
+def delete_household(household_id: Id, conn: ConnDep):
+    """Removes the household and everything in it, in one transaction.
+
+    Expenses (and with them their shares) go first: a single DELETE of the household would fail,
+    see the comment at the top of db/migrations/001_init.sql.
+    """
+    conn.execute("DELETE FROM expenses WHERE household_id = %s", (household_id,))
+    deleted = conn.execute("DELETE FROM households WHERE id = %s", (household_id,)).rowcount
+    if not deleted:
+        raise household_not_found()
+
+
+@router.get("/households/{household_id}/members", response_model=list[Member])
+def list_members(household_id: Id, conn: ConnDep):
+    """Oldest first: the equal split gives remainder đồng to the lowest member ids."""
+    require_household(conn, household_id)
+    sql = f"SELECT {MEMBER_COLUMNS} FROM members WHERE household_id = %s ORDER BY id"
+    return fetch_all(conn, sql, (household_id,))
+
+
+@router.post("/households/{household_id}/members", response_model=Member, status_code=201)
+def add_member(household_id: Id, body: MemberIn, conn: ConnDep):
+    require_household(conn, household_id)
+    sql = f"INSERT INTO members (household_id, name) VALUES (%s, %s) RETURNING {MEMBER_COLUMNS}"
+    try:
+        return fetch_one(conn, sql, (household_id, body.name))
+    except errors.UniqueViolation:
+        raise member_name_taken() from None

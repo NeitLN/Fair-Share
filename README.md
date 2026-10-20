@@ -209,7 +209,12 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | `GET` | `/` | Name, version and environment of the running app |
 | `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test |
 
-Planned endpoints, all under `/api`: households, members, expenses, settlements, balances and
+| `GET` `POST` | `/api/households` | List (newest first) / create a household: `{"name"}`, 1–60 characters → `201` |
+| `GET` `PATCH` `DELETE` | `/api/households/{id}` | One household; delete removes everything in it → `204` |
+| `GET` `POST` | `/api/households/{id}/members` | Members (oldest first) / add one: `{"name"}`, 1–40 characters → `201`; `409 member_name_taken` |
+| `PATCH` `DELETE` | `/api/members/{id}` | Rename / remove; `409 member_in_use` if they are in an expense or a settlement |
+
+Planned endpoints, all under `/api`: expenses, settlements, balances and
 `POST /api/households/{id}/ai/parse-expense`, which returns a draft and never saves it. Request/response
 shapes and error codes are in [ARCHITECTURE.md §5](docs/ARCHITECTURE.md#5-api-json-prefix-api).
 

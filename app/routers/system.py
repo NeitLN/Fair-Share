@@ -4,10 +4,9 @@ from typing import Annotated
 
 import psycopg
 from fastapi import APIRouter, Depends, Request
-from psycopg import Connection
 
 from app.config import APP_VERSION, Settings
-from app.db import get_conn
+from app.db import ConnDep
 from app.errors import ApiError
 
 router = APIRouter(tags=["system"])
@@ -42,7 +41,7 @@ def health():
 
 
 @router.get("/health/db")
-def health_db(conn: Annotated[Connection, Depends(get_conn)]):
+def health_db(conn: ConnDep):
     """Readiness: one query against PostgreSQL. Failures are a 503 with a safe message.
 
     `schema` is the latest migration applied, e.g. "001_init".

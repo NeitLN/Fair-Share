@@ -13,7 +13,7 @@ from app import errors
 from app.config import APP_VERSION, Settings
 from app.db import create_pool
 from app.migrate import prepare_database
-from app.routers import system
+from app.routers import households, members, system
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -49,6 +49,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     errors.install(app)
     app.include_router(system.router)
+    app.include_router(households.router)
+    app.include_router(members.router)
     return app
 
 

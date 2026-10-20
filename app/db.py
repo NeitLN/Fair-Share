@@ -6,9 +6,11 @@ open and hands them out. The pool is opened at start-up without waiting, so the 
 """
 
 from collections.abc import Iterator
+from typing import Annotated, Any
 
-from fastapi import Request
+from fastapi import Depends, Request
 from psycopg import Connection
+from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from app.errors import ApiError
@@ -33,9 +35,27 @@ def get_conn(request: Request) -> Iterator[Connection]:
 
     The transaction commits when the route returns and rolls back if it raises. A pool timeout or
     a dropped connection is turned into a safe 503 by the handlers in app/errors.py.
+    Always use it through ConnDep below, never a bare Depends(get_conn).
     """
     pool: ConnectionPool | None = request.app.state.pool
     if pool is None:
         raise ApiError(503, "database_not_configured", "The database is not configured")
     with pool.connection() as conn:
         yield conn
+
+
+# In a route: def list_things(conn: ConnDep): ...
+# scope="function": the code after `yield` (the COMMIT) runs as soon as the route returns, before
+# the response is sent. With the default scope ("request") it would run after the response, so a
+# client could read just after a write and miss it, or get a 201 for data whose commit failed.
+ConnDep = Annotated[Connection, Depends(get_conn, scope="function")]
+
+
+def fetch_one(conn: Connection, sql: str, params: tuple = ()) -> dict[str, Any] | None:
+    """The first row as {column: value}, or None if there is none."""
+    return conn.cursor(row_factory=dict_row).execute(sql, params).fetchone()
+
+
+def fetch_all(conn: Connection, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
+    """Every row as {column: value}."""
+    return conn.cursor(row_factory=dict_row).execute(sql, params).fetchall()
