@@ -219,3 +219,80 @@ section h2 {
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+/* Dashboard: balances table, suggested transfers, payments made */
+.balance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-table caption {
+  margin-bottom: 0.25rem;
+  color: #57606a;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.balance-table th,
+.balance-table td {
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid #d0d7de;
+  text-align: right;
+}
+
+.balance-table th[scope='row'],
+.balance-table thead th:first-child {
+  text-align: left;
+}
+
+.balance-table .net {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.balance-table .state {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* Colour plus words: the words carry the meaning for colour-blind users */
+.balance-table .positive .net {
+  color: #1a7f37;
+}
+
+.balance-table .negative .net {
+  color: #cf222e;
+}
+
+.balance-table .zero .net {
+  color: #57606a;
+}
+
+/* Narrow phones: drop the paid/owed detail, keep who and how much is left */
+@media (max-width: 400px) {
+  .balance-table th:nth-child(2),
+  .balance-table th:nth-child(3),
+  .balance-table td:nth-child(2),
+  .balance-table td:nth-child(3) {
+    display: none;
+  }
+}
+
+.transfer-row,
+.settlement-row {
+  justify-content: space-between;
+}
+
+.transfer-text,
+.settlement-text {
+  flex: 1 1 14rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-note {
+  flex-basis: 100%;
+  color: #57606a;
+  font-size: 0.9rem;
+}
