@@ -40,7 +40,8 @@ class SlidingWindow:
 
 
 class AiBudget:
-    """5 per minute per client IP, plus 10 per minute and 200 per day for everyone together."""
+    """5 per minute per client IP, plus 10 per minute and 200 per day for everyone together.
+    The global windows count calls to Gemini, so a retry is counted too."""
 
     def __init__(
         self,
@@ -65,6 +66,18 @@ class AiBudget:
                 self.per_ip.forget_idle(now)
                 self._swept_at = now
             windows = ((self.per_ip, client_ip), (self.minute, "all"), (self.day, "all"))
+            if not all(window.has_room(key, now) for window, key in windows):
+                return False
+            for window, key in windows:
+                window.record(key, now)
+            return True
+
+    def try_spend_retry(self) -> bool:
+        """A second call to Gemini for the same request: counts in the global windows only (the
+        quota is spent either way), never in the visitor's own limit."""
+        with self._lock:
+            now = self.clock()
+            windows = ((self.minute, "all"), (self.day, "all"))
             if not all(window.has_room(key, now) for window, key in windows):
                 return False
             for window, key in windows:

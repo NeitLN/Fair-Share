@@ -5,7 +5,7 @@ import datetime as dt
 import pytest
 
 from app.errors import ApiError
-from app.routers.ai import to_draft
+from app.routers.ai import UNRESOLVED, pick_client_ip, to_draft
 from app.services.gemini import ExpenseDraft as Found
 from app.services.names import match_member, normalize
 from app.services.rate_limit import AiBudget
@@ -142,3 +142,35 @@ def test_more_people_than_one_expense_allows_is_a_clear_error():
     with pytest.raises(ApiError) as error:
         to_draft(found, crowd, TODAY)
     assert error.value.status == 422 and error.value.code == "too_many_participants"
+
+
+@pytest.mark.parametrize(
+    "forwarded, peer, hops, expected",
+    [
+        # Render: Cloudflare appends the visitor, Render's load balancer appends the edge.
+        ("198.51.100.7, 172.70.1.2", "10.0.0.1", 2, "198.51.100.7"),
+        ("1.2.3.4, 198.51.100.7, 172.70.1.2", "10.0.0.1", 2, "198.51.100.7"),  # made-up prefix
+        ("172.70.1.2", "10.0.0.1", 2, UNRESOLVED),  # fewer entries than proxies
+        ("", "10.0.0.1", 2, UNRESOLVED),
+        # Compose: nginx appends the browser's address.
+        ("1.2.3.4, 192.168.1.20", "172.18.0.3", 1, "192.168.1.20"),
+        ("not-an-ip, 172.70.1.2", "10.0.0.1", 2, UNRESOLVED),
+        ("2001:DB8::0:1, 172.70.1.2", None, 2, "2001:db8::/64"),  # one key per /64
+        ("2001:db8::9:8:7:6, 172.70.1.2", None, 2, "2001:db8::/64"),  # same line, new address
+        ("::ffff:198.51.100.7, 172.70.1.2", None, 2, "198.51.100.7"),
+        ("1.2.3.4", "203.0.113.9", 0, "203.0.113.9"),  # 0 = the header is ignored
+        ("", None, 0, UNRESOLVED),
+    ],
+)
+def test_the_visitor_is_found_behind_the_configured_proxies(forwarded, peer, hops, expected):
+    assert pick_client_ip(forwarded, peer, hops) == expected
+
+
+def test_a_retry_counts_globally_but_not_against_the_visitor():
+    clock = FakeClock()
+    budget = AiBudget(per_ip_per_minute=2, per_minute=3, clock=clock)
+    assert budget.try_spend("a")
+    assert budget.try_spend_retry()
+    assert budget.try_spend("a")  # the retry did not use the visitor's own limit
+    assert not budget.try_spend_retry()  # but it did use the global one: 3 calls this minute
+    assert not budget.try_spend("b")

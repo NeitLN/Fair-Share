@@ -318,8 +318,21 @@ Every one of them leaves the manual form open with the text kept.
 * **Rate limits:** Gemini quotas apply **per project** (requests/min, tokens/min, requests/day) and differ
   by model — record the chosen model's current free numbers from AI Studio in the report. The API
   enforces two limits: per client IP (5/min) **and** a global budget set below the project quota
-  (10/min, 200/day), in `app/services/rate_limit.py`. Only requests that reach Gemini count; the client IP
-  is the last `X-Forwarded-For` entry, the one Render's proxy adds. We **do not auto-retry** on 429 — retrying burns quota and makes the user wait.
+  (10/min, 200/day), in `app/services/rate_limit.py`. Only requests that reach Gemini count.
+  **We do not auto-retry** on 429 or after a timeout — that burns quota and makes the user wait. A *fast*
+  5xx (Gemini overloaded, under 3 s) is retried **once** after a short pause, and only if the global
+  budget has room: the retry is counted there too, never in the visitor's own 5/min.
+* **Who is "one visitor":** each proxy in front of the API appends the address it saw to
+  `X-Forwarded-For`, so the visitor is `FORWARDED_HOPS` entries from the end and anything further left
+  (which a client can make up) is ignored. On Render a request passes Cloudflare, then Render's load
+  balancer, so it is 2 entries from the end — the last entry changes from request to request, which is
+  why using it let every call through. Behind nginx in Compose it is 1. A request whose address cannot
+  be read joins one shared bucket instead of getting a fresh limit, and an IPv6 visitor is counted
+  per /64 (a phone may switch address inside it on every call). Each Quick add request logs the
+  header *shape* (entry count, where Cloudflare's `CF-Connecting-IP` sits), never an address, so the
+  setting can be checked from the Render logs.
+* **Latency:** every call logs how long Gemini took (`gemini: answered in … ms`), so the 10 s timeout
+  (`AI_TIMEOUT`) can be tuned from real numbers.
 * **Prompt-injection stance:** the model output is treated as untrusted data — it is schema-validated,
   names are matched against real members, and nothing is written to the database without the user
   pressing *Save*.
@@ -344,6 +357,8 @@ Every one of them leaves the manual form open with the text kept.
 | `DATABASE_URL` | **yes** | built in `compose.yml` from `DB_PASSWORD` | throw-away URL to the job's own `postgres` service container | API service env var (Supabase pooler URL) |
 | `GEMINI_API_KEY` | **yes** | `.env`, optional | **never** — tests mock Gemini | API service env var |
 | `GEMINI_MODEL` | no | `.env.example` default | — | API service env var |
+| `AI_TIMEOUT` | no | default `10` (seconds) | — | not set (default) |
+| `FORWARDED_HOPS` | no | default `1` (nginx) | — | not set: `2` because Render sets `RENDER=true` |
 | `ALLOWED_ORIGINS` | no | not needed (same origin) | — | `https://<web>.onrender.com` |
 | `APP_ENV` | no | `development` | `test` | `production` |
 | `SEED_DEMO_DATA` | no | `true` (in `compose.yml`) | — | **not set** |

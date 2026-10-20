@@ -9,7 +9,7 @@ import pytest
 
 from app.config import Settings
 from app.errors import ApiError
-from app.services.gemini import MAX_TEXT, ExpenseDraft, GeminiClient
+from app.services.gemini import MAX_TEXT, ExpenseDraft, GeminiBusy, GeminiClient
 
 KEY = "test-key-never-logged"
 TODAY = dt.date(2026, 10, 20)
@@ -190,6 +190,21 @@ def test_settings_read_the_key_and_model_from_the_environment(monkeypatch):
     assert Settings.from_env().gemini_model == "gemini-3.5-flash-lite"
 
 
+def test_proxy_hops_default_to_render_when_running_there(monkeypatch):
+    monkeypatch.delenv("FORWARDED_HOPS", raising=False)
+    monkeypatch.delenv("RENDER", raising=False)
+    assert Settings.from_env().forwarded_hops == 1  # nginx in Docker Compose
+    monkeypatch.setenv("RENDER", "true")
+    assert Settings.from_env().forwarded_hops == 2  # Cloudflare + Render's load balancer
+    monkeypatch.setenv("FORWARDED_HOPS", "0")
+    assert Settings.from_env().forwarded_hops == 0
+    monkeypatch.setenv("AI_TIMEOUT", "15")
+    assert Settings.from_env().ai_timeout == 15.0
+    monkeypatch.setenv("FORWARDED_HOPS", "-1")
+    with pytest.raises(ValueError):
+        Settings.from_env()
+
+
 def test_participants_given_as_a_string_are_ignored_not_split_into_letters():
     fake = FakeGemini(
         body=gemini_answer({"description": "Rent", "amount": 5, "participants": "Minh"})
@@ -205,3 +220,15 @@ def test_a_boolean_amount_is_not_one_dong():
 def test_the_description_fits_the_expense_api_limit():
     fake = FakeGemini(body=gemini_answer({"description": "x" * 300, "amount": 5}))
     assert len(client(fake).parse_expense("rent", MEMBERS, TODAY).description) == 120
+
+
+@pytest.mark.parametrize(
+    "status, busy",
+    [(500, True), (502, True), (503, True), (504, True), (400, False), (403, False)],
+)
+def test_only_a_5xx_is_worth_another_try(status, busy):
+    fake = FakeGemini(status=status, body=b"{}")
+    with pytest.raises(ApiError) as caught:
+        client(fake).parse_expense("rent", MEMBERS, TODAY)
+    assert isinstance(caught.value, GeminiBusy) is busy
+    assert caught.value.code == "ai_unavailable"

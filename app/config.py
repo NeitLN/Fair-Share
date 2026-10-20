@@ -32,6 +32,15 @@ class Settings:
     gemini_model: str = "gemini-3.5-flash-lite"
     # Seconds to wait for Gemini before giving up; the user then fills in the form by hand.
     ai_timeout: float = 10.0
+    # How many proxies in front of the API each append one X-Forwarded-For entry; the visitor's
+    # address is that many entries from the end. Render: Cloudflare, then Render's load balancer
+    # (2). Docker Compose: nginx (1). 0 = ignore the header and use the connecting address.
+    forwarded_hops: int = 1
+
+    def __post_init__(self):
+        # A negative value would quietly put every visitor on Render in one shared limit.
+        if self.forwarded_hops < 0:
+            raise ValueError("FORWARDED_HOPS must be 0 or more")
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -49,6 +58,9 @@ class Settings:
             seed_demo_data=os.getenv("SEED_DEMO_DATA", "").lower() in ("1", "true"),
             gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
             gemini_model=os.getenv("GEMINI_MODEL") or cls.gemini_model,
+            ai_timeout=float(os.getenv("AI_TIMEOUT") or cls.ai_timeout),
+            # Render sets RENDER=true in every service, so the default needs no dashboard setting.
+            forwarded_hops=int(os.getenv("FORWARDED_HOPS") or (2 if os.getenv("RENDER") else 1)),
         )
 
     def __repr__(self) -> str:
