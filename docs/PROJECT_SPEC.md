@@ -62,6 +62,16 @@ that settles everything** (at most one fewer than the number of members).
 | PR-06 | AI call from our own server, key out of the repository | `GEMINI_API_KEY` only in Render env and local `.env` |
 | PR-07 | No key, connection string or `.env` in the files or the history | Repository search + gitleaks report in front of the room |
 
+### 3.2.1 Interface additions (agreed 21/10, frontend only)
+
+Part of the UI redesign in [DESIGN.md](DESIGN.md); no API change, so the MVP contract is untouched.
+
+| ID | Addition | Acceptance criteria |
+|---|---|---|
+| UX-01 | "Bạn là ai?": the user picks which member they are, per household, on this device | Stored only in the browser; the dashboard says "Bạn cần trả Minh 120.000đ"; the expense form preselects you as payer; can be changed any time |
+| UX-02 | Copy a reminder message with the open transfers for the group chat | One tap copies plain text (house, month, each transfer, link); if copying is blocked the text is shown to select by hand; no bank or payment data |
+| UX-03 | Light and dark themes that follow the phone | Every text pair ≥ 4.5:1 in both; no colour defined for one theme only |
+
 ### 3.3 Out of scope (deliberately)
 
 User accounts and login, multi-currency, receipts/images, notifications, real-time updates, payments
@@ -88,7 +98,7 @@ will not carry them and they add nothing to the assessed pipeline.
 | AI budget | Per-client limit (5 requests/min/IP) **and** a global budget below the project's Gemini quota (10/min, 200/day); 20 s timeout; no retry except once after a fast Gemini 5xx, counted in the global budget |
 | Security | Secrets only in environment variables; CI secret scan (gitleaks); parameterised SQL only |
 | Quality | Lint clean (ruff, ESLint); backend and frontend tests run on every PR; `main` always deployable |
-| Accessibility | Labelled form fields, keyboard usable, readable on a 360 px wide phone |
+| Accessibility | Labelled form fields, keyboard usable, readable on a 360 px wide phone; text contrast ≥ 4.5:1 in light and dark; touch targets ≥ 44 px; reduced motion respected ([DESIGN.md §8](DESIGN.md#8-accessibility-checklist)) |
 | Cost | **Zero.** No platform that requires a credit card. Fallbacks declared in ARCHITECTURE.md §7 |
 
 ## 5. Technology choices (summary — rationale in ARCHITECTURE.md)
