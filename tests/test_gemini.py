@@ -135,6 +135,11 @@ def test_timeout_or_network_failure_is_503(error):
         b'{"promptFeedback": {"blockReason": "SAFETY"}}',
         json.dumps({"candidates": [{"content": {"parts": [{"text": "not json"}]}}]}).encode(),
         gemini_answer({"description": "", "amount": 5}),
+        # valid JSON of the wrong shape: a 422 the form can fall back from, never a 500
+        b"[]",
+        b'{"promptFeedback": "x"}',
+        json.dumps({"candidates": [{"content": {"parts": [{"text": "[1, 2]"}]}}]}).encode(),
+        json.dumps({"candidates": [{"content": {"parts": [{"text": '"dinner"'}]}}]}).encode(),
     ],
 )
 def test_an_answer_we_cannot_use_is_422(body):
@@ -183,3 +188,20 @@ def test_settings_read_the_key_and_model_from_the_environment(monkeypatch):
     assert (settings.gemini_api_key, settings.gemini_model) == (KEY, "gemini-other")
     monkeypatch.delenv("GEMINI_MODEL")
     assert Settings.from_env().gemini_model == "gemini-3.5-flash-lite"
+
+
+def test_participants_given_as_a_string_are_ignored_not_split_into_letters():
+    fake = FakeGemini(
+        body=gemini_answer({"description": "Rent", "amount": 5, "participants": "Minh"})
+    )
+    assert client(fake).parse_expense("rent", MEMBERS, TODAY).participants == []
+
+
+def test_a_boolean_amount_is_not_one_dong():
+    fake = FakeGemini(body=gemini_answer({"description": "Rent", "amount": True}))
+    assert client(fake).parse_expense("rent", MEMBERS, TODAY).amount is None
+
+
+def test_the_description_fits_the_expense_api_limit():
+    fake = FakeGemini(body=gemini_answer({"description": "x" * 300, "amount": 5}))
+    assert len(client(fake).parse_expense("rent", MEMBERS, TODAY).description) == 120

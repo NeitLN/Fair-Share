@@ -29,6 +29,7 @@ logger = logging.getLogger("uvicorn.error")
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 MAX_TEXT = 300  # characters; longer input is refused before any call (it would only cost quota)
+MAX_DESCRIPTION = 120  # the expense API's limit (app/schemas.py)
 
 # What Gemini must return: JSON matching this schema (structured output), never free-form text.
 DRAFT_SCHEMA = {
@@ -174,24 +175,30 @@ class GeminiClient:
 def _read_draft(raw: bytes) -> ExpenseDraft:
     try:
         answer = json.loads(raw)
-        if answer.get("promptFeedback", {}).get("blockReason"):
+        feedback = answer.get("promptFeedback") or {}
+        if isinstance(feedback, dict) and feedback.get("blockReason"):
             raise ValueError("prompt blocked")
         fields = json.loads(answer["candidates"][0]["content"]["parts"][0]["text"])
-    except (ValueError, KeyError, IndexError, TypeError):
+        if not isinstance(fields, dict):  # e.g. a list or a bare string
+            raise ValueError("answer is not a JSON object")
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
         logger.warning("gemini: answer could not be read")
         raise ai_unparseable() from None
 
     amount = fields.get("amount")
-    description = str(fields.get("description") or "").strip()[:200]
+    participants = fields.get("participants")
+    # Same limit as the expense API (1-120 characters), so a draft can always be saved as it is.
+    description = str(fields.get("description") or "").strip()[:MAX_DESCRIPTION]
     if not description:
         raise ai_unparseable()
     return ExpenseDraft(
         description=description,
-        amount=amount if isinstance(amount, int) and amount > 0 else None,
+        # type() and not isinstance(): True is an int in Python and must not become 1 đồng
+        amount=amount if type(amount) is int and amount > 0 else None,
         payer=(str(fields.get("payer") or "").strip() or None),
-        participants=[
-            str(name).strip() for name in fields.get("participants") or [] if str(name).strip()
-        ],
+        participants=[str(name).strip() for name in participants if str(name).strip()]
+        if isinstance(participants, list)
+        else [],
         everyone=bool(fields.get("everyone")),
         spent_at=_valid_date(fields.get("spent_at")),
     )
