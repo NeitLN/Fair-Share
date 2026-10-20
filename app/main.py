@@ -13,7 +13,9 @@ from app import errors
 from app.config import APP_VERSION, Settings
 from app.db import create_pool
 from app.migrate import prepare_database
-from app.routers import balances, expenses, households, members, settlements, system
+from app.routers import ai, balances, expenses, households, members, settlements, system
+from app.services.gemini import GeminiClient
+from app.services.rate_limit import AiBudget
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -37,6 +39,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title=settings.app_name, version=APP_VERSION, lifespan=lifespan)
     app.state.settings = settings
+    # AI Quick add: one client and one request budget per app (tests get fresh ones per app).
+    app.state.gemini = GeminiClient(settings.gemini_api_key, settings.gemini_model,
+                                    settings.ai_timeout)
+    app.state.ai_budget = AiBudget()
     if settings.allowed_origins:
         # Only the listed origins (never "*"); the SPA sends JSON, so Content-Type must be allowed
         # for the browser's preflight. No cookies are used, so credentials stay off.
@@ -54,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(expenses.router)
     app.include_router(settlements.router)
     app.include_router(balances.router)
+    app.include_router(ai.router)
     return app
 
 

@@ -1,0 +1,137 @@
+"""AI Quick add (US-09, US-10): one sentence in, a pre-filled expense form out.
+
+Spec: docs/ARCHITECTURE.md §6.
+
+POST /api/households/{id}/ai/parse-expense {"text": "dinner 240k, Minh paid, split 3 ways"}
+
+Nothing is saved here. The answer is a draft for the user to check; saving goes through the normal
+expenses endpoint. Every failure is an error code the UI answers by keeping the manual form open:
+404 household_not_found, 409 no_members, 422 validation_error / ai_unparseable,
+429 ai_rate_limited, 503 ai_unavailable / database_*.
+"""
+
+import datetime as dt
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
+
+from app.errors import ApiError
+from app.routers.households import household_not_found
+from app.schemas import AiDraft, AiParseIn, DraftSplit, DraftWarning, ExpenseDraft, Id
+from app.services.gemini import GeminiClient, ai_rate_limited, ai_unavailable
+from app.services.names import match_member
+from app.services.rate_limit import AiBudget
+
+router = APIRouter(prefix="/api", tags=["ai"])
+
+# Vietnam has no daylight saving time; the server clock is UTC, so before 07:00 it is still
+# "yesterday" there and a sentence about "hôm nay" would get the wrong date.
+VIETNAM = dt.timezone(dt.timedelta(hours=7))
+
+
+def get_gemini(request: Request) -> GeminiClient:
+    return request.app.state.gemini
+
+
+def get_budget(request: Request) -> AiBudget:
+    return request.app.state.ai_budget
+
+
+def client_ip(request: Request) -> str:
+    """Render's proxy appends the address it saw as the last X-Forwarded-For entry; earlier entries
+    come from the client and could be made up, so they are ignored."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded.strip():
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def load_members(request: Request, household_id: int) -> dict[int, str]:
+    """{member_id: name} of the household. Uses its own short-lived connection instead of ConnDep:
+    the route then waits up to 10 s for Gemini, and the pool only has 5 connections."""
+    pool = getattr(request.app.state, "pool", None)
+    if pool is None:
+        raise ApiError(503, "database_not_configured", "The database is not configured")
+    with pool.connection() as conn:
+        exists = conn.execute("SELECT 1 FROM households WHERE id = %s", (household_id,))
+        if exists.fetchone() is None:
+            raise household_not_found()
+        rows = conn.execute(
+            "SELECT id, name FROM members WHERE household_id = %s ORDER BY id", (household_id,)
+        ).fetchall()
+    return {member_id: name for member_id, name in rows}
+
+
+@router.post("/households/{household_id}/ai/parse-expense", response_model=AiDraft)
+def parse_expense(
+    household_id: Id,
+    body: AiParseIn,
+    request: Request,
+    gemini: Annotated[GeminiClient, Depends(get_gemini)],
+    budget: Annotated[AiBudget, Depends(get_budget)],
+):
+    members = load_members(request, household_id)
+    if not members:
+        raise ApiError(409, "no_members", "Add the household's members before using quick add")
+    # Checked before the budget, so a missing key never uses it up.
+    if not gemini.configured:
+        raise ai_unavailable()
+    if not budget.try_spend(client_ip(request)):
+        raise ai_rate_limited()
+
+    today = dt.datetime.now(VIETNAM).date()
+    found = gemini.parse_expense(body.text, list(members.values()), today)
+    return to_draft(found, members, today)
+
+
+def to_draft(found, members: dict[int, str], today: dt.date) -> AiDraft:
+    """Turn Gemini's names into member ids, and say what the user should check."""
+    warnings: list[DraftWarning] = []
+
+    def unknown(name: str) -> None:
+        warnings.append(
+            DraftWarning(
+                code="unknown_member",
+                name=name,
+                message=f'"{name}" is not a member of this household',
+            )
+        )
+
+    payer_id = match_member(found.payer, members) if found.payer else None
+    if found.payer and payer_id is None:
+        unknown(found.payer)
+    elif not found.payer:
+        warnings.append(DraftWarning(code="no_payer", message="Choose who paid"))
+
+    participant_ids: list[int] = []
+    if not found.everyone:
+        for name in found.participants:
+            member_id = match_member(name, members)
+            if member_id is None:
+                unknown(name)
+            elif member_id not in participant_ids:
+                participant_ids.append(member_id)
+    if not participant_ids:
+        participant_ids = list(members)
+        if not found.everyone:
+            warnings.append(
+                DraftWarning(
+                    code="participants_assumed",
+                    message="Split between everyone; check who shares it",
+                )
+            )
+
+    if found.amount is None:
+        warnings.append(DraftWarning(code="no_amount", message="Type the amount"))
+
+    return AiDraft(
+        draft=ExpenseDraft(
+            description=found.description,
+            amount=found.amount,
+            payer_id=payer_id,
+            spent_at=dt.date.fromisoformat(found.spent_at) if found.spent_at else today,
+            source="ai",
+            split=DraftSplit(type="equal", member_ids=sorted(participant_ids)),
+        ),
+        warnings=warnings,
+    )

@@ -210,7 +210,7 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?}`; `422 same_member`, `unknown_member` |
 | `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found` |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
-| `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — returns a draft, saves nothing | See §6 |
+| `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — `{text}` (1–300 characters) in, a draft out; saves nothing | Response and error codes in §6 |
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.
@@ -269,7 +269,7 @@ sequenceDiagram
         API-->>SPA: 200 {draft, warnings}
         SPA-->>User: pre-filled form → user presses Save (normal POST /expenses)
     else 429 from Gemini or our limiter
-        API-->>SPA: 429 {error.code: "ai_rate_limited", retry_after}
+        API-->>SPA: 429 {error.code: "ai_rate_limited"}
         SPA-->>User: "AI is busy — fill in the form below" (text kept, form open)
     else timeout / 5xx / no key
         API-->>SPA: 503 {error.code: "ai_unavailable"}
@@ -280,6 +280,37 @@ sequenceDiagram
     end
 ```
 
+**Response** (`200`). `draft` has the same fields as the expense body in §5, so after the user has checked
+it the page can send it unchanged to `POST /expenses`. Names are matched to members ignoring case and
+accents (`"tien"` → Tiến), and a single word matches when only one member has it (`"Duy"` → Duy Anh).
+
+```jsonc
+{
+  "draft": {
+    "description": "Taxi",
+    "amount": 80000,                     // null when the sentence had no amount
+    "payer_id": null,                    // null when nobody, or nobody known, paid
+    "spent_at": "2026-10-20",            // today in Vietnam (UTC+7) if the sentence had no date
+    "source": "ai",
+    "split": {"type": "equal", "member_ids": [1, 3]}   // everyone when nobody was named
+  },
+  "warnings": [                          // what the form should highlight; empty when all is clear
+    {"code": "unknown_member", "name": "Hùng", "message": "\"Hùng\" is not a member of this household"}
+  ]
+}
+```
+
+| Warning `code` | When |
+|---|---|
+| `unknown_member` | A name in the sentence is not a member (or could be several); `name` says which |
+| `no_payer` | The sentence does not say who paid |
+| `no_amount` | The sentence has no amount |
+| `participants_assumed` | Nobody was named, so the draft splits between everyone |
+
+**Errors:** `404 household_not_found`, `409 no_members` (add members first), `422 validation_error`
+(empty or over 300 characters), `422 ai_unparseable`, `429 ai_rate_limited`, `503 ai_unavailable`.
+Every one of them leaves the manual form open with the text kept.
+
 * **Where the call happens:** only in `app/services/gemini.py` on the server (Python's `urllib`,
   no extra dependency), through `generateContent` with a JSON schema for the answer.
 * **Key security:** `GEMINI_API_KEY` is read from the environment. It is never logged, never returned,
@@ -287,7 +318,8 @@ sequenceDiagram
 * **Rate limits:** Gemini quotas apply **per project** (requests/min, tokens/min, requests/day) and differ
   by model — record the chosen model's current free numbers from AI Studio in the report. The API
   enforces two limits: per client IP (5/min) **and** a global budget set below the project quota
-  (e.g. 10/min, 200/day). We **do not auto-retry** on 429 — retrying burns quota and makes the user wait.
+  (10/min, 200/day), in `app/services/rate_limit.py`. Only requests that reach Gemini count; the client IP
+  is the last `X-Forwarded-For` entry, the one Render's proxy adds. We **do not auto-retry** on 429 — retrying burns quota and makes the user wait.
 * **Prompt-injection stance:** the model output is treated as untrusted data — it is schema-validated,
   names are matched against real members, and nothing is written to the database without the user
   pressing *Save*.
