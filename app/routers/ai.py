@@ -112,7 +112,7 @@ def log_forwarding(forwarded: str, cf_connecting_ip: str | None, hops: int) -> N
 
 def load_members(request: Request, household_id: int) -> dict[int, str]:
     """{member_id: name} of the household. Uses its own short-lived connection instead of ConnDep:
-    the route then waits up to 10 s for Gemini, and the pool only has 5 connections."""
+    the route then waits up to AI_TIMEOUT (20 s) for Gemini, and the pool only has 5 connections."""
     pool = getattr(request.app.state, "pool", None)
     if pool is None:
         raise ApiError(503, "database_not_configured", "The database is not configured")
@@ -153,7 +153,10 @@ def parse_expense(
         if time.monotonic() - started > RETRY_IF_FAILED_WITHIN or not budget.try_spend_retry():
             raise
         pause()
-        found = gemini.parse_expense(body.text, list(members.values()), today)
+        # Only the time left of the first call's timeout (at least 1 s), so the user never waits
+        # much longer than AI_TIMEOUT in total.
+        left = max(1.0, gemini.timeout - (time.monotonic() - started))
+        found = gemini.parse_expense(body.text, list(members.values()), today, timeout=left)
     return to_draft(found, members, today)
 
 

@@ -16,10 +16,13 @@ class FakeGemini:
 
     def __init__(self, answer=None, raises=None, configured=True):
         self.answer, self.raises, self.configured = answer, raises, configured
+        self.timeout = 20.0
         self.calls = []
 
-    def parse_expense(self, text, member_names, today):
-        self.calls.append({"text": text, "members": member_names, "today": today})
+    def parse_expense(self, text, member_names, today, timeout=None):
+        self.calls.append(
+            {"text": text, "members": member_names, "today": today, "timeout": timeout}
+        )
         error = self.raises
         if isinstance(error, list):
             error = error[len(self.calls) - 1] if len(self.calls) <= len(error) else None
@@ -160,6 +163,8 @@ def test_a_momentary_5xx_is_tried_once_more(client, house):
     response = parse(client, house["id"])
     assert response.status_code == 200, response.text
     assert len(fake.calls) == 2
+    # the retry only gets what is left of the 20 s, so the wait stays about AI_TIMEOUT
+    assert fake.calls[0]["timeout"] is None and 1.0 <= fake.calls[1]["timeout"] <= 20.0
 
 
 def test_never_more_than_one_retry(client, house):
@@ -193,12 +198,13 @@ def test_a_slow_5xx_is_not_retried(client, house, monkeypatch):
 
 
 def test_proxy_settings_decide_who_the_visitor_is(make_client):
-    client = make_client(forwarded_hops=2)
+    client = make_client(forwarded_hops=3)  # as on Render
     house = household(client)
     member(client, house["id"], "Minh")
     use(client, FakeGemini(DINNER))
-    for i in range(5):  # a different made-up prefix each time; same visitor behind Cloudflare
-        parse(client, house["id"], ip=f"10.9.9.{i}, 198.51.100.7, 172.70.1.{i}")
-    response = parse(client, house["id"], ip="10.9.9.99, 198.51.100.7, 172.70.1.99")
+    # a different made-up prefix and different proxy entries each time; same visitor
+    for i in range(5):
+        parse(client, house["id"], ip=f"10.9.9.{i}, 198.51.100.7, 172.70.1.{i}, 10.201.0.{i}")
+    response = parse(client, house["id"], ip="10.9.9.99, 198.51.100.7, 172.70.1.99, 10.201.0.99")
     assert response.status_code == 429
-    assert parse(client, house["id"], ip="198.51.100.8, 172.70.1.5").status_code == 200
+    assert parse(client, house["id"], ip="198.51.100.8, 172.70.1.5, 10.201.0.5").status_code == 200

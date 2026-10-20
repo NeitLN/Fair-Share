@@ -85,7 +85,7 @@ will not carry them and they add nothing to the assessed pipeline.
 |---|---|
 | Reliability of the demo | Clean clone → running stack with **one command**; live URL loads on mobile data |
 | Performance | API p95 < 500 ms on a warm instance (free tier cold start ~50 s is documented, not fought) |
-| AI budget | Per-client limit (5 requests/min/IP) **and** a global budget below the project's Gemini quota (e.g. 10/min, 200/day); 10 s timeout; no automatic retries |
+| AI budget | Per-client limit (5 requests/min/IP) **and** a global budget below the project's Gemini quota (10/min, 200/day); 20 s timeout; no retry except once after a fast Gemini 5xx, counted in the global budget |
 | Security | Secrets only in environment variables; CI secret scan (gitleaks); parameterised SQL only |
 | Quality | Lint clean (ruff, ESLint); backend and frontend tests run on every PR; `main` always deployable |
 | Accessibility | Labelled form fields, keyboard usable, readable on a 360 px wide phone |
