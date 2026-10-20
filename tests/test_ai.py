@@ -4,14 +4,15 @@ import pytest
 
 from app.routers.ai import get_gemini
 from app.services.gemini import ExpenseDraft as Found
-from app.services.gemini import ai_rate_limited, ai_unavailable, ai_unparseable
+from app.services.gemini import GeminiBusy, ai_rate_limited, ai_unavailable, ai_unparseable
 from tests.api import error_code, household, member
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 
 
 class FakeGemini:
-    """Stands in for GeminiClient: records the call, answers or raises."""
+    """Stands in for GeminiClient: records the call, answers or raises. `raises` is one error for
+    every call, or a list: one per call (None = answer), then the answer."""
 
     def __init__(self, answer=None, raises=None, configured=True):
         self.answer, self.raises, self.configured = answer, raises, configured
@@ -19,9 +20,17 @@ class FakeGemini:
 
     def parse_expense(self, text, member_names, today):
         self.calls.append({"text": text, "members": member_names, "today": today})
-        if self.raises:
-            raise self.raises
+        error = self.raises
+        if isinstance(error, list):
+            error = error[len(self.calls) - 1] if len(self.calls) <= len(error) else None
+        if error:
+            raise error
         return self.answer
+
+
+@pytest.fixture(autouse=True)
+def no_pause(monkeypatch):
+    monkeypatch.setattr("app.routers.ai.pause", lambda: None)
 
 
 DINNER = Found(
@@ -144,3 +153,52 @@ def test_empty_or_too_long_text_is_422_before_anything_else(client, house, text)
     response = client.post(f"/api/households/{house['id']}/ai/parse-expense", json={"text": text})
     assert response.status_code == 422 and error_code(response) == "validation_error"
     assert fake.calls == []
+
+
+def test_a_momentary_5xx_is_tried_once_more(client, house):
+    fake = use(client, FakeGemini(DINNER, raises=[GeminiBusy()]))
+    response = parse(client, house["id"])
+    assert response.status_code == 200, response.text
+    assert len(fake.calls) == 2
+
+
+def test_never_more_than_one_retry(client, house):
+    fake = use(client, FakeGemini(DINNER, raises=[GeminiBusy(), GeminiBusy()]))
+    response = parse(client, house["id"])
+    assert response.status_code == 503 and error_code(response) == "ai_unavailable"
+    assert len(fake.calls) == 2
+
+
+@pytest.mark.parametrize("error", [ai_unavailable(), ai_rate_limited(), ai_unparseable()])
+def test_timeouts_429s_and_bad_answers_are_not_retried(client, house, error):
+    fake = use(client, FakeGemini(DINNER, raises=[error]))
+    parse(client, house["id"])
+    assert len(fake.calls) == 1
+
+
+def test_a_retry_is_skipped_when_the_global_budget_is_spent(client, house):
+    fake = use(client, FakeGemini(DINNER, raises=[None] * 9 + [GeminiBusy(), GeminiBusy()]))
+    for i in range(9):  # 9 visitors answered: one slot of the global 10/min is left
+        assert parse(client, house["id"], ip=f"198.51.100.{i}").status_code == 200
+    response = parse(client, house["id"], ip="198.51.100.99")  # takes the last slot, then a 5xx
+    assert response.status_code == 503 and error_code(response) == "ai_unavailable"
+    assert len(fake.calls) == 10  # no retry: it would have been the 11th call this minute
+
+
+def test_a_slow_5xx_is_not_retried(client, house, monkeypatch):
+    monkeypatch.setattr("app.routers.ai.RETRY_IF_FAILED_WITHIN", -1.0)  # every failure is "slow"
+    fake = use(client, FakeGemini(DINNER, raises=[GeminiBusy()]))
+    assert parse(client, house["id"]).status_code == 503
+    assert len(fake.calls) == 1
+
+
+def test_proxy_settings_decide_who_the_visitor_is(make_client):
+    client = make_client(forwarded_hops=2)
+    house = household(client)
+    member(client, house["id"], "Minh")
+    use(client, FakeGemini(DINNER))
+    for i in range(5):  # a different made-up prefix each time; same visitor behind Cloudflare
+        parse(client, house["id"], ip=f"10.9.9.{i}, 198.51.100.7, 172.70.1.{i}")
+    response = parse(client, house["id"], ip="10.9.9.99, 198.51.100.7, 172.70.1.99")
+    assert response.status_code == 429
+    assert parse(client, house["id"], ip="198.51.100.8, 172.70.1.5").status_code == 200

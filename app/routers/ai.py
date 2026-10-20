@@ -7,11 +7,16 @@ POST /api/households/{id}/ai/parse-expense {"text": "dinner 240k, Minh paid, spl
 Nothing is saved here. The answer is a draft for the user to check; saving goes through the normal
 expenses endpoint. Every failure is an error code the UI answers by keeping the manual form open:
 404 household_not_found, 409 no_members, 422 validation_error / ai_unparseable /
-too_many_participants,
-429 ai_rate_limited, 503 ai_unavailable / database_*.
+too_many_participants, 429 ai_rate_limited, 503 ai_unavailable / database_*.
+
+A fast 5xx from Gemini is retried once, counted in the global budget.
 """
 
 import datetime as dt
+import ipaddress
+import logging
+import random
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -28,11 +33,17 @@ from app.schemas import (
     ExpenseDraft,
     Id,
 )
-from app.services.gemini import GeminiClient, ai_rate_limited, ai_unavailable
+from app.services.gemini import GeminiBusy, GeminiClient, ai_rate_limited, ai_unavailable
 from app.services.names import match_member
 from app.services.rate_limit import AiBudget
 
 router = APIRouter(prefix="/api", tags=["ai"])
+logger = logging.getLogger("uvicorn.error")
+
+# Requests whose visitor address cannot be read share one limit, rather than each getting its own.
+UNRESOLVED = "unresolved"
+# One retry, only when Gemini failed fast with a 5xx; a timeout has already made the user wait.
+RETRY_IF_FAILED_WITHIN = 3.0
 
 # Vietnam has no daylight saving time; the server clock is UTC, so before 07:00 it is still
 # "yesterday" there and a sentence about "hôm nay" would get the wrong date.
@@ -47,13 +58,56 @@ def get_budget(request: Request) -> AiBudget:
     return request.app.state.ai_budget
 
 
+def pick_client_ip(forwarded: str, peer: str | None, hops: int) -> str:
+    """The visitor's address: `hops` entries from the end of X-Forwarded-For.
+
+    Each trusted proxy appends the address it saw, so the last `hops` entries are theirs and the
+    one they received from is the visitor. Anything further left was sent by the client and may be
+    made up ("1.2.3.4, visitor, edge" on Render still gives the visitor).
+    """
+    if hops <= 0:
+        candidate = peer or ""
+    else:
+        entries = [entry.strip() for entry in forwarded.split(",")] if forwarded.strip() else []
+        if len(entries) < hops:
+            return UNRESOLVED
+        candidate = entries[-hops]
+    try:
+        address = ipaddress.ip_address(candidate)
+    except ValueError:
+        return UNRESOLVED
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped:  # ::ffff:1.2.3.4 is 1.2.3.4
+            return str(address.ipv4_mapped)
+        # One home line or phone owns a whole /64 and may switch address inside it on every call.
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
 def client_ip(request: Request) -> str:
-    """Render's proxy appends the address it saw as the last X-Forwarded-For entry; earlier entries
-    come from the client and could be made up, so they are ignored."""
     forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded.strip():
-        return forwarded.split(",")[-1].strip()
-    return request.client.host if request.client else "unknown"
+    peer = request.client.host if request.client else None
+    hops = request.app.state.settings.forwarded_hops
+    log_forwarding(forwarded, request.headers.get("cf-connecting-ip"), hops)
+    return pick_client_ip(forwarded, peer, hops)
+
+
+def log_forwarding(forwarded: str, cf_connecting_ip: str | None, hops: int) -> None:
+    """The shape of the proxy headers, never an address: enough to check FORWARDED_HOPS from the
+    Render logs (Cloudflare's CF-Connecting-IP should sit `hops` entries from the end)."""
+    entries = [entry.strip() for entry in forwarded.split(",")] if forwarded.strip() else []
+    if cf_connecting_ip is None:
+        cf = "absent"
+    elif cf_connecting_ip.strip() in entries:
+        cf = f"entry {entries.index(cf_connecting_ip.strip()) - len(entries)}"
+    else:
+        cf = "not in x-forwarded-for"
+    logger.info(
+        "quick add: x-forwarded-for has %d entries, forwarded_hops=%d, cf-connecting-ip: %s",
+        len(entries),
+        hops,
+        cf,
+    )
 
 
 def load_members(request: Request, household_id: int) -> dict[int, str]:
@@ -90,8 +144,21 @@ def parse_expense(
         raise ai_rate_limited()
 
     today = dt.datetime.now(VIETNAM).date()
-    found = gemini.parse_expense(body.text, list(members.values()), today)
+    started = time.monotonic()
+    try:
+        found = gemini.parse_expense(body.text, list(members.values()), today)
+    except GeminiBusy:
+        # Gemini's 5xx is often momentary. Only once, only if it failed fast, and only if the
+        # global budget still has room: the retry is another call against the project's quota.
+        if time.monotonic() - started > RETRY_IF_FAILED_WITHIN or not budget.try_spend_retry():
+            raise
+        pause()
+        found = gemini.parse_expense(body.text, list(members.values()), today)
     return to_draft(found, members, today)
+
+
+def pause() -> None:
+    time.sleep(random.uniform(0.3, 0.8))  # a little jitter, so two visitors do not retry together
 
 
 def to_draft(found, members: dict[int, str], today: dt.date) -> AiDraft:

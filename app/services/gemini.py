@@ -18,6 +18,7 @@ import datetime as dt
 import json
 import logging
 import socket
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -67,6 +68,14 @@ def ai_unavailable() -> ApiError:
         "ai_unavailable",
         "AI quick add is not available right now. Please fill in the form below.",
     )
+
+
+class GeminiBusy(ApiError):
+    """A 5xx from Gemini: the same 503 for the page, but one more try may work."""
+
+    def __init__(self):
+        error = ai_unavailable()
+        super().__init__(error.status, error.code, error.message)
 
 
 def ai_rate_limited() -> ApiError:
@@ -153,22 +162,35 @@ class GeminiClient:
         # The key goes in a header, not the URL, so it cannot end up in an access log or an error.
         headers = {"Content-Type": "application/json", "x-goog-api-key": self._api_key}
         url = ENDPOINT.format(model=self.model)
+        started = time.monotonic()
+
+        def took() -> int:
+            return round((time.monotonic() - started) * 1000)
+
         try:
             status, raw = self._post(url, headers, body, self.timeout)
         except (TimeoutError, socket.timeout):
-            logger.warning("gemini: no answer within %.0f s", self.timeout)
+            logger.warning("gemini: no answer within %.0f s (%s)", self.timeout, self.model)
             raise ai_unavailable() from None
         except (urllib.error.URLError, OSError) as error:
-            logger.warning("gemini: network error %s", type(error).__name__)
+            # urlopen wraps a timeout during connect in URLError
+            if isinstance(getattr(error, "reason", None), (TimeoutError, socket.timeout)):
+                logger.warning("gemini: no answer within %.0f s (%s)", self.timeout, self.model)
+            else:
+                logger.warning("gemini: network error %s after %d ms", type(error).__name__, took())
             raise ai_unavailable() from None
 
         if status == 429:
-            logger.warning("gemini: rate limited (429)")
+            logger.warning("gemini: rate limited (429) after %d ms", took())
             raise ai_rate_limited()
+        if status in (500, 502, 503, 504):
+            logger.warning("gemini: HTTP %s after %d ms (%s)", status, took(), self.model)
+            raise GeminiBusy()
         if status != 200:
             # Status only: the body could echo the request, and the request carries the user's text.
-            logger.warning("gemini: HTTP %s", status)
+            logger.warning("gemini: HTTP %s after %d ms (%s)", status, took(), self.model)
             raise ai_unavailable()
+        logger.info("gemini: answered in %d ms (%s)", took(), self.model)
         return _read_draft(raw)
 
 
