@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
+import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
 import { keys, listMembers } from '../api/households'
 import type { Expense, ExpenseInput } from '../api/types'
+import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
+import type { ExpenseFormHandle } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import { errorMessage } from '../lib/errors'
 
@@ -15,6 +18,9 @@ function ExpensesPage() {
   const queryClient = useQueryClient()
   const formRef = useRef<HTMLElement>(null)
   const [editing, setEditing] = useState<Expense | null>(null)
+  // The AI fills this form; a new key clears the composer after each saved expense
+  const expenseForm = useRef<ExpenseFormHandle>(null)
+  const [composerKey, setComposerKey] = useState(0)
 
   const members = useQuery({
     queryKey: keys.members(householdId),
@@ -29,7 +35,10 @@ function ExpensesPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
   const create = useMutation({
     mutationFn: (input: ExpenseInput) => createExpense(householdId, input),
-    onSuccess: refresh,
+    onSuccess: () => {
+      setComposerKey((key) => key + 1)
+      return refresh()
+    },
   })
   const update = useMutation({
     mutationFn: ({ id, input }: { id: number; input: ExpenseInput }) => updateExpense(id, input),
@@ -70,21 +79,43 @@ function ExpensesPage() {
       )}
 
       {members.isSuccess && !noMembers && (
-        <section ref={formRef} aria-labelledby="expense-form-title">
-          <h2 id="expense-form-title">{editing ? `Sửa: ${editing.description}` : 'Thêm khoản chi'}</h2>
-          <ExpenseForm
-            // A new key gives the form fresh state for each expense it edits
-            key={editing?.id ?? 'new'}
-            members={members.data}
-            initial={editing}
-            onSubmit={(input) =>
-              editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
-            }
-            onCancel={editing ? () => setEditing(null) : undefined}
-            submitting={form.isPending}
-            error={errorMessage(form.error)}
-          />
-        </section>
+        <>
+          {!editing && (
+            <AiComposer
+              // A new household or a saved expense starts a fresh composer; pending answers are dropped
+              key={`${householdId}-${composerKey}`}
+              members={members.data}
+              onParse={(text) => parseExpense(householdId, text)}
+              onDraft={(draft) =>
+                expenseForm.current?.fill({
+                  description: draft.description,
+                  amount: draft.amount,
+                  payer_id: draft.payer_id,
+                  spent_at: draft.spent_at,
+                  member_ids: draft.split.member_ids,
+                }) ?? { filled: [], kept: [], cleared: [] }
+              }
+              onUndo={() => expenseForm.current?.undoFill()}
+              onManual={() => expenseForm.current?.focusDescription()}
+            />
+          )}
+          <section ref={formRef} aria-labelledby="expense-form-title">
+            <h2 id="expense-form-title">{editing ? `Sửa: ${editing.description}` : 'Thêm khoản chi'}</h2>
+            <ExpenseForm
+              ref={expenseForm}
+              // A new key gives the form fresh state for each expense it edits
+              key={editing?.id ?? 'new'}
+              members={members.data}
+              initial={editing}
+              onSubmit={(input) =>
+                editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
+              }
+              onCancel={editing ? () => setEditing(null) : undefined}
+              submitting={form.isPending}
+              error={errorMessage(form.error)}
+            />
+          </section>
+        </>
       )}
 
       <section aria-labelledby="expense-list-title">

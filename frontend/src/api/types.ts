@@ -117,3 +117,33 @@ export interface Balances {
   /** Paying these settles everyone. */
   suggested: Transfer[]
 }
+
+// --- AI quick add (US-09, US-10) ---------------------------------------------------------------
+// Mirrors app/schemas.py. A draft is never saved: the user checks it and sends the normal
+// expense form.
+
+/** A pre-filled expense form. Nulls mean the sentence did not give that field. */
+export interface ExpenseDraft {
+  description: string
+  amount: number | null
+  payer_id: number | null
+  /** Plain date, "YYYY-MM-DD". */
+  spent_at: string
+  source: 'ai'
+  split: { type: 'equal'; member_ids: number[] }
+}
+
+/** Something the user should check before saving the draft. */
+export interface DraftWarning {
+  code: string
+  /** The server's English text, used only when the code has no Vietnamese wording. */
+  message: string
+  /** The name as written, for unknown_member. */
+  name?: string | null
+}
+
+export interface AiDraft {
+  draft: ExpenseDraft
+  /** Empty when the sentence was understood completely. */
+  warnings: DraftWarning[]
+}

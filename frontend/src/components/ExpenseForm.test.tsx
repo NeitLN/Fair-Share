@@ -1,9 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { createRef } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 
 import type { Expense, Member } from '../api/types'
 import ExpenseForm from './ExpenseForm'
+import type { ExpenseFormHandle } from './ExpenseForm'
 
 const members: Member[] = [
   { id: 1, household_id: 7, name: 'Tiến', created_at: '' },
@@ -216,3 +218,208 @@ describe('ExpenseForm, editing', () => {
     expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).not.toBeChecked()
   })
 })
+
+describe('ExpenseForm, filled by AI quick add', () => {
+  const draft = {
+    description: 'Lẩu',
+    amount: 240_000,
+    payer_id: 2,
+    spent_at: '2026-10-19',
+    member_ids: [1, 2],
+  }
+
+  function setupWithRef() {
+    const ref = createRef<ExpenseFormHandle>()
+    const result = setup({ ref })
+    return { ...result, form: () => ref.current as ExpenseFormHandle }
+  }
+
+  test('fills every field the user has not touched, and the expense is saved as AI', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+
+    let result
+    act(() => {
+      result = form().fill(draft)
+    })
+
+    expect(result).toEqual({
+      filled: ['description', 'amount', 'payer', 'date', 'split'],
+      kept: [],
+      cleared: [],
+    })
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Lẩu')
+    expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('240000')
+    expect(screen.getByLabelText('Người trả')).toHaveValue('2')
+    expect(screen.getByLabelText('Ngày')).toHaveValue('2026-10-19')
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).not.toBeChecked()
+    expect(screen.getByLabelText('Số tiền (đồng)')).toHaveClass('just-filled')
+
+    await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+    expect(onSubmit).toHaveBeenCalledWith({
+      description: 'Lẩu',
+      amount: 240_000,
+      payer_id: 2,
+      spent_at: '2026-10-19',
+      source: 'ai',
+      split: { type: 'equal', member_ids: [1, 2] },
+    })
+  })
+
+  test('never overwrites what the user already typed', async () => {
+    const { user, form } = setupWithRef()
+    await user.type(screen.getByLabelText('Số tiền (đồng)'), '200000')
+
+    let result
+    act(() => {
+      result = form().fill(draft)
+    })
+
+    expect(result).toEqual({
+      filled: ['description', 'payer', 'date', 'split'],
+      kept: ['amount'],
+      cleared: [],
+    })
+    expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('200000')
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Lẩu')
+  })
+
+  test('no amount or payer in the draft empties those fields instead of keeping a default', () => {
+    const { form } = setupWithRef()
+
+    let result
+    act(() => {
+      result = form().fill({ ...draft, amount: null, payer_id: null })
+    })
+
+    expect(result).toEqual({
+      filled: ['description', 'date', 'split'],
+      kept: [],
+      cleared: ['amount', 'payer'],
+    })
+    expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('')
+    // The default first member is not passed off as the AI's answer
+    expect(screen.getByLabelText('Người trả')).toHaveValue('')
+    expect(screen.getByRole('option', { name: 'Chọn người trả' })).toBeInTheDocument()
+  })
+
+  test('a payer the user chose is kept even when the draft has none', async () => {
+    const { user, form } = setupWithRef()
+    await user.selectOptions(screen.getByLabelText('Người trả'), 'Minh')
+
+    let result
+    act(() => {
+      result = form().fill({ ...draft, payer_id: null })
+    })
+
+    expect(result).toMatchObject({ cleared: [] })
+    expect(screen.getByLabelText('Người trả')).toHaveValue('2')
+  })
+
+  test('a payer or participant who is not in the household is ignored', () => {
+    const { form } = setupWithRef()
+
+    act(() => {
+      form().fill({ ...draft, payer_id: 99, member_ids: [3, 99] })
+    })
+
+    // An unknown payer is like no payer: the field is emptied for the user to choose
+    expect(screen.getByLabelText('Người trả')).toHaveValue('')
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Tiến' })).not.toBeChecked()
+  })
+
+  test('undo puts the form back as it was, and the expense is manual again', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    await user.type(screen.getByLabelText('Nội dung'), 'Ăn tối')
+
+    act(() => {
+      form().fill(draft)
+    })
+    act(() => {
+      form().undoFill()
+    })
+
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Ăn tối')
+    expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('')
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).toBeChecked()
+
+    await user.type(screen.getByLabelText('Số tiền (đồng)'), '50000')
+    await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+    expect(onSubmit.mock.calls[0][0].source).toBe('manual')
+  })
+
+  test('after saving, the next expense is manual and every field can be filled again', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    await user.type(screen.getByLabelText('Số tiền (đồng)'), '200000')
+    act(() => {
+      form().fill(draft)
+    })
+    await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ source: 'ai', amount: 200_000 })
+
+    let result
+    act(() => {
+      result = form().fill(draft)
+    })
+    expect(result).toEqual({
+      filled: ['description', 'amount', 'payer', 'date', 'split'],
+      kept: [],
+      cleared: [],
+    })
+  })
+
+  test('undo restores only the fields nobody edited after the fill', async () => {
+    const { user, form } = setupWithRef()
+    act(() => {
+      form().fill(draft)
+    })
+    const description = screen.getByLabelText('Nội dung')
+    await user.clear(description)
+    await user.type(description, 'Lẩu thứ Sáu')
+    act(() => {
+      form().undoFill()
+    })
+
+    // The edit survives; the fields the AI filled and nobody touched go back
+    expect(description).toHaveValue('Lẩu thứ Sáu')
+    expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('')
+    expect(screen.getByLabelText('Người trả')).toHaveValue('1')
+  })
+
+  test('filling the split replaces custom amounts too, and undo brings them back', async () => {
+    const { user, form } = setupWithRef()
+    await user.type(screen.getByLabelText('Số tiền (đồng)'), '240000')
+    await user.click(screen.getByRole('radio', { name: 'Chia riêng' }))
+    await user.type(screen.getByLabelText('Phần của Minh'), '240000')
+
+    let result
+    act(() => {
+      result = form().fill(draft)
+    })
+    // The user had changed the split, so the whole group is kept, amounts included
+    expect(result).toMatchObject({ kept: ['amount', 'split'] })
+    expect(screen.getByRole('radio', { name: 'Chia riêng' })).toBeChecked()
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('240000')
+  })
+
+  test('an untouched split is filled as one group: equal, these people, no custom amounts', async () => {
+    const { user, form, onSubmit } = setupWithRef()
+    act(() => {
+      form().fill(draft)
+    })
+    await user.click(screen.getByRole('radio', { name: 'Chia riêng' }))
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('')
+    await user.click(screen.getByRole('radio', { name: 'Chia đều' }))
+    await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+    expect(onSubmit.mock.calls[0][0].split).toEqual({ type: 'equal', member_ids: [1, 2] })
+  })
+
+  test('focusDescription puts the cursor in the description field ("Nhập tay")', () => {
+    const { form } = setupWithRef()
+    act(() => {
+      form().focusDescription()
+    })
+    expect(screen.getByLabelText('Nội dung')).toHaveFocus()
+  })
+})
+

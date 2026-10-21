@@ -191,3 +191,80 @@ test('every change refetches the household data, so balances follow', async () =
 
   await waitFor(() => expect(listCalls()).toBeGreaterThan(before))
 })
+
+// --- AI quick add (US-09, US-10) ----------------------------------------------------------------
+
+const lau = {
+  draft: {
+    description: 'Lẩu',
+    amount: 240_000,
+    payer_id: 2,
+    spent_at: '2026-10-21',
+    source: 'ai',
+    split: { type: 'equal', member_ids: [1, 2] },
+  },
+  warnings: [],
+}
+
+test('a sentence fills the form, saving records an AI expense and clears the box', async () => {
+  const fetchFn = api({ 'POST /api/households/7/ai/parse-expense': [200, lau] })
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
+  await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+  expect(await screen.findByText(/^Đã điền: Lẩu/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Nội dung')).toHaveValue('Lẩu')
+
+  await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+
+  expect(await list().findByText('Lẩu')).toBeInTheDocument()
+  const post = fetchFn.mock.calls.find(
+    ([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST',
+  )
+  expect(JSON.parse(post?.[1]?.body as string)).toMatchObject({
+    description: 'Lẩu',
+    amount: 240_000,
+    payer_id: 2,
+    source: 'ai',
+    split: { type: 'equal', member_ids: [1, 2] },
+  })
+  expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('')
+})
+
+test('when the AI is busy the sentence stays and the expense is saved by hand', async () => {
+  const fetchFn = api({
+    'POST /api/households/7/ai/parse-expense': [
+      429,
+      { error: { code: 'ai_rate_limited', message: 'AI quick add is busy right now' } },
+    ],
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
+  await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+  expect(await screen.findByText(/Gõ nhanh đang quá tải/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k Minh trả')
+
+  await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
+  await user.type(screen.getByLabelText('Số tiền (đồng)'), '240k')
+  await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+
+  expect(await list().findByText('Lẩu')).toBeInTheDocument()
+  const post = fetchFn.mock.calls.find(
+    ([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST',
+  )
+  expect(JSON.parse(post?.[1]?.body as string)).toMatchObject({ source: 'manual' })
+})
+
+test('the AI box is hidden while an expense is being edited', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  expect(await screen.findByLabelText('Câu mô tả khoản chi')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Sửa Tiền điện' }))
+  expect(screen.queryByLabelText('Câu mô tả khoản chi')).not.toBeInTheDocument()
+})
+
