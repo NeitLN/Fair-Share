@@ -136,6 +136,27 @@ describe('Toast', () => {
       expect(gone).toHaveBeenCalledTimes(1)
     })
 
+    test('however many leave in one batch, every owner is told once', () => {
+      const owners = Array.from({ length: MAX_TOASTS + 21 }, () => vi.fn())
+      function ShowMany() {
+        const show = useToast()
+        useEffect(() => {
+          owners.forEach((onGone, i) => show({ text: 'toast ' + i, onGone }))
+        }, [show])
+        return null
+      }
+      render(
+        <ToastProvider>
+          <ShowMany />
+        </ToastProvider>,
+      )
+      // All but the last MAX_TOASTS were pushed out
+      owners.slice(0, -MAX_TOASTS).forEach((onGone) => expect(onGone).toHaveBeenCalledTimes(1))
+      owners.slice(-MAX_TOASTS).forEach((onGone) => expect(onGone).not.toHaveBeenCalled())
+      act(() => vi.advanceTimersByTime(TOAST_MS))
+      owners.forEach((onGone) => expect(onGone).toHaveBeenCalledTimes(1))
+    })
+
     test('pushed out in the same batch, before its timer started', () => {
       const gone = vi.fn()
       function ShowMany() {

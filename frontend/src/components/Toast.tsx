@@ -8,29 +8,28 @@ interface Toast extends ToastInput {
   id: number
 }
 
-/** The toasts on screen, and the latest ones that left and have an owner to tell (DESIGN.md §5). */
+/** The toasts on screen, and those that left whose owner has not been told yet (DESIGN.md §5). */
 interface Toasts {
   shown: Toast[]
   left: Toast[]
 }
 
-// Enough to hold every departure between two commits; older ones were told already
-const KEEP_LEFT = 20
-
-const leave = (state: Toasts, shown: Toast[], gone: Toast[]): Toasts => ({
+// `told`: the departures whose owners had been told when the change was asked for. They are dropped
+// here, in the next change, so nothing is dropped before its owner hears it.
+const leave = (state: Toasts, shown: Toast[], gone: Toast[], told: Set<number>): Toasts => ({
   shown,
-  left: gone.some((toast) => toast.onGone) ? [...state.left, ...gone.filter((t) => t.onGone)].slice(-KEEP_LEFT) : state.left,
+  left: [...state.left.filter((toast) => !told.has(toast.id)), ...gone.filter((toast) => toast.onGone)],
 })
 
-function adding(state: Toasts, toast: Toast): Toasts {
+function adding(state: Toasts, toast: Toast, told: Set<number>): Toasts {
   const next = [...state.shown, toast]
   // The oldest are pushed out, possibly before they were ever on screen
-  return leave(state, next.slice(-MAX_TOASTS), next.slice(0, Math.max(0, next.length - MAX_TOASTS)))
+  return leave(state, next.slice(-MAX_TOASTS), next.slice(0, Math.max(0, next.length - MAX_TOASTS)), told)
 }
 
-function removing(state: Toasts, id: number): Toasts {
+function removing(state: Toasts, id: number, told: Set<number>): Toasts {
   const gone = state.shown.filter((toast) => toast.id === id)
-  return gone.length === 0 ? state : leave(state, state.shown.filter((toast) => toast.id !== id), gone)
+  return gone.length === 0 ? state : leave(state, state.shown.filter((toast) => toast.id !== id), gone, told)
 }
 
 /** Toasts at the bottom of the screen (DESIGN.md §5); show one with useToast() from lib/toast. */
@@ -44,12 +43,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   // Pure updates only: what changes on screen and who left are decided together, and acted on below
   // once React has committed them
-  const dismiss = useCallback((id: number) => setState((current) => removing(current, id)), [])
+  const dismiss = useCallback((id: number) => {
+    const done = new Set(told.current)
+    setState((current) => removing(current, id, done))
+  }, [])
 
   const show = useCallback(
     (input: ToastInput) => {
       const id = nextId.current++
-      setState((current) => adding(current, { ...input, id }))
+      const done = new Set(told.current)
+      setState((current) => adding(current, { ...input, id }, done))
       return () => dismiss(id)
     },
     [dismiss],
@@ -71,14 +74,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [toasts, dismiss])
 
   // However a toast left (timed out, pushed out, acted on, dismissed), its owner hears it once, from
-  // the committed state
+  // the committed state. It stays in `left` until the next change drops it, so none is lost untold.
   useEffect(() => {
     for (const toast of state.left) {
       if (told.current.has(toast.id)) continue
       told.current.add(toast.id)
       toast.onGone?.()
     }
-    // Ids that fell out of `left` can never come back
+    // Ids no longer in `left` can never come back
     for (const id of told.current) if (!state.left.some((toast) => toast.id === id)) told.current.delete(id)
   }, [state.left])
 
