@@ -165,8 +165,9 @@ Số dư từng người         đã chi · cần trả hoặc được nhận
 Lịch sử trả                      Ghi khoản trả khác
 ```
 * **Identity ("Bạn là ai?").** Stored per household in `localStorage` (`fair-share:me:<householdId>`),
-  never sent to the server. First visit to a household with members shows the chooser (pick chips). It
-  powers "Bạn…" sentences and the default payer. "Không phải bạn?" reopens the chooser.
+  never sent to the server. One line under the tabs, never in the way: "Bạn là ai trong nhà này? **Chọn**"
+  until someone is chosen, then "Bạn là Tiến · **Không phải bạn?**"; either button opens the chooser (pick
+  chips), Escape closes it. It powers "Bạn…" sentences and the default payer.
 * **Verdict sentence**, built from the suggested transfers that involve you (names, number of people and
   the big total all come from the same rows, which are always listed below):
 

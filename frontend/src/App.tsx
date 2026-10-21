@@ -1,7 +1,8 @@
 import { Link, Route, Routes } from 'react-router'
 
+import ThemeSwitch from './components/ThemeSwitch'
 import { ToastProvider } from './components/Toast'
-
+import { Wordmark } from './components/Wordmark'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
 import HouseholdLayout from './pages/HouseholdLayout'
@@ -14,7 +15,10 @@ function App() {
   return (
     <ToastProvider>
       <header className="app-header">
-        <Link to="/">Fair-Share</Link>
+        <Link to="/" className="home-link">
+          <Wordmark className="wordmark" />
+        </Link>
+        <ThemeSwitch />
       </header>
       <main>
         <Routes>

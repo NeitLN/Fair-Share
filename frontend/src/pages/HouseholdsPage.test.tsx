@@ -28,7 +28,7 @@ test('creating a household opens its members page', async () => {
   await userEvent.type(await screen.findByLabelText('Tên nhà'), 'Nhà 7')
   await userEvent.click(screen.getByRole('button', { name: 'Tạo nhà' }))
 
-  expect(await screen.findByRole('heading', { level: 1, name: 'Thành viên' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 2, name: 'Thành viên' })).toBeInTheDocument()
   expect(fetchFn).toHaveBeenCalledWith('/api/households', expect.objectContaining({ method: 'POST' }))
 })
 
@@ -50,4 +50,22 @@ test('says so when the API cannot be reached', async () => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
   renderApp('/')
   expect(await screen.findByRole('alert')).toHaveTextContent('Không kết nối được tới máy chủ')
+})
+
+test('with households the list comes first and creating a new one is folded away', async () => {
+  mockApi({ 'GET /api/households': [200, [nha7]] })
+  renderApp('/')
+  await screen.findByRole('link', { name: 'Nhà 7' })
+  const fold = screen.getByText('+ Tạo nhà mới').closest('details')
+  expect(fold).not.toHaveAttribute('open')
+  await userEvent.click(screen.getByText('+ Tạo nhà mới'))
+  expect(fold).toHaveAttribute('open')
+  expect(screen.getByLabelText('Tên nhà')).toBeVisible()
+})
+
+test('with no household yet the form is already open', async () => {
+  mockApi({ 'GET /api/households': [200, []] })
+  renderApp('/')
+  expect(await screen.findByText(/Chưa có nhà nào/)).toBeInTheDocument()
+  expect(screen.getByText('+ Tạo nhà mới').closest('details')).toHaveAttribute('open')
 })

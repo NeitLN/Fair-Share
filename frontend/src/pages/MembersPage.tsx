@@ -26,7 +26,7 @@ function MembersPage() {
 
   return (
     <>
-      <h1>Thành viên</h1>
+      <h2 className="visually-hidden">Thành viên</h2>
       <MemberAddForm
         onAdd={add.mutateAsync}
         submitting={add.isPending}
