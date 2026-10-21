@@ -1,12 +1,38 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useImperativeHandle, useRef, useState } from 'react'
+import type { FormEvent, Ref } from 'react'
 
 import type { Expense, ExpenseInput, Member, SplitType } from '../api/types'
 import { today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { equalSplit, parseAmount } from '../lib/split'
 
+/** The fields a quick-add draft can fill. */
+export type FillField = 'description' | 'amount' | 'payer' | 'date' | 'split'
+
+/** Values to put in the form; null or missing means "the draft has nothing for this field". */
+export interface FormFill {
+  description?: string | null
+  amount?: number | null
+  payer_id?: number | null
+  spent_at?: string | null
+  member_ids?: number[] | null
+}
+
+/** What fill() did: fields it filled, and fields it left alone because the user had typed in them. */
+export interface FillResult {
+  filled: FillField[]
+  kept: FillField[]
+}
+
+/** What the page can ask of the form (AI quick add, US-09). */
+export interface ExpenseFormHandle {
+  fill: (values: FormFill) => FillResult
+  undoFill: () => void
+  focusDescription: () => void
+}
+
 interface ExpenseFormProps {
+  ref?: Ref<ExpenseFormHandle>
   members: Member[]
   /** An existing expense to edit; without it the form adds a new one. */
   initial?: Expense | null
@@ -20,7 +46,15 @@ interface ExpenseFormProps {
 const MAX_DESCRIPTION = 120
 
 // US-03, US-04, US-05: one expense, split equally or by custom amounts
-function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }: ExpenseFormProps) {
+function ExpenseForm({
+  ref,
+  members,
+  initial,
+  onSubmit,
+  onCancel,
+  submitting,
+  error,
+}: ExpenseFormProps) {
   const editing = Boolean(initial)
   const initialShares = new Map(initial?.shares.map((s) => [s.member_id, s.amount]))
 
@@ -40,6 +74,82 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
       : {},
   )
   const [validation, setValidation] = useState<string | null>(null)
+
+  // AI quick add: what the user changed by hand is never overwritten, and a fill can be undone
+  const [touched, setTouched] = useState<Set<FillField>>(new Set())
+  const [justFilled, setJustFilled] = useState<Set<FillField>>(new Set())
+  const [fromAi, setFromAi] = useState(false)
+  const beforeFill = useRef<{
+    description: string
+    amountText: string
+    payerId: number | ''
+    spentAt: string
+    splitType: SplitType
+    selected: Set<number>
+  } | null>(null)
+  const descriptionInput = useRef<HTMLInputElement>(null)
+
+  function edited(field: FillField) {
+    setTouched((current) => new Set(current).add(field))
+    setJustFilled((current) => {
+      const next = new Set(current)
+      next.delete(field)
+      return next
+    })
+  }
+
+  useImperativeHandle(ref, () => ({
+    fill(values: FormFill): FillResult {
+      const memberIds = new Set(members.map((m) => m.id))
+      const offered: [FillField, boolean][] = [
+        ['description', Boolean(values.description?.trim())],
+        ['amount', values.amount != null && values.amount > 0],
+        ['payer', values.payer_id != null && memberIds.has(values.payer_id)],
+        ['date', Boolean(values.spent_at)],
+        ['split', Boolean(values.member_ids?.some((id) => memberIds.has(id)))],
+      ]
+      const result: FillResult = { filled: [], kept: [] }
+      for (const [field, available] of offered) {
+        if (!available) continue
+        if (touched.has(field)) result.kept.push(field)
+        else result.filled.push(field)
+      }
+      if (result.filled.length === 0) return result
+
+      beforeFill.current = { description, amountText, payerId, spentAt, splitType, selected }
+      const fill = new Set(result.filled)
+      if (fill.has('description')) setDescription((values.description as string).trim())
+      if (fill.has('amount')) setAmountText(String(values.amount))
+      if (fill.has('payer')) setPayerId(values.payer_id as number)
+      if (fill.has('date')) setSpentAt(values.spent_at as string)
+      if (fill.has('split')) {
+        setSplitType('equal')
+        setSelected(new Set((values.member_ids as number[]).filter((id) => memberIds.has(id))))
+      }
+      setJustFilled(fill)
+      setFromAi(true)
+      setValidation(null)
+      return result
+    },
+    undoFill() {
+      const before = beforeFill.current
+      if (!before) return
+      setDescription(before.description)
+      setAmountText(before.amountText)
+      setPayerId(before.payerId)
+      setSpentAt(before.spentAt)
+      setSplitType(before.splitType)
+      setSelected(before.selected)
+      setJustFilled(new Set())
+      setFromAi(false)
+      beforeFill.current = null
+    },
+    focusDescription() {
+      descriptionInput.current?.focus()
+    },
+  }))
+
+  const flash = (field: FillField) => (justFilled.has(field) ? 'just-filled' : undefined)
 
   const amount = parseAmount(amountText)
   const equalShares = equalSplit(amount ?? 0, [...selected])
@@ -75,7 +185,7 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
       amount: amount as number,
       payer_id: payerId as number,
       spent_at: spentAt,
-      source: initial?.source ?? 'manual',
+      source: initial?.source ?? (fromAi ? 'ai' : 'manual'),
     }
     if (splitType === 'equal') {
       return { ...base, split: { type: 'equal', member_ids: [...selected].sort((a, b) => a - b) } }
@@ -99,6 +209,11 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
         setDescription('')
         setAmountText('')
         setCustomText({})
+        // The next expense starts from scratch: nothing touched, nothing from the AI
+        setTouched(new Set())
+        setJustFilled(new Set())
+        setFromAi(false)
+        beforeFill.current = null
       }
     } catch {
       // The page shows the server's message through `error`; keep what the user typed
@@ -106,6 +221,7 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
   }
 
   function toggle(id: number) {
+    edited('split')
     setSelected((current) => {
       const next = new Set(current)
       if (next.has(id)) next.delete(id)
@@ -118,23 +234,32 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
     <form className="expense-form" onSubmit={handleSubmit} noValidate>
       <label htmlFor="expense-description">Nội dung</label>
       <input
+        ref={descriptionInput}
         id="expense-description"
+        className={flash('description')}
         type="text"
         value={description}
         maxLength={MAX_DESCRIPTION}
         placeholder="Tiền điện tháng 10"
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={(e) => {
+          edited('description')
+          setDescription(e.target.value)
+        }}
       />
 
       <label htmlFor="expense-amount">Số tiền (đồng)</label>
       <input
         id="expense-amount"
+        className={flash('amount')}
         type="text"
         inputMode="numeric"
         value={amountText}
         placeholder="240.000 hoặc 240k"
         aria-describedby="expense-amount-preview"
-        onChange={(e) => setAmountText(e.target.value)}
+        onChange={(e) => {
+          edited('amount')
+          setAmountText(e.target.value)
+        }}
       />
       <span id="expense-amount-preview" className="hint">
         {amount !== null && amount > 0 ? formatVND(amount) : ''}
@@ -143,8 +268,12 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
       <label htmlFor="expense-payer">Người trả</label>
       <select
         id="expense-payer"
+        className={flash('payer')}
         value={payerId}
-        onChange={(e) => setPayerId(e.target.value === '' ? '' : Number(e.target.value))}
+        onChange={(e) => {
+          edited('payer')
+          setPayerId(e.target.value === '' ? '' : Number(e.target.value))
+        }}
       >
         {members.map((m) => (
           <option key={m.id} value={m.id}>
@@ -156,19 +285,26 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
       <label htmlFor="expense-date">Ngày</label>
       <input
         id="expense-date"
+        className={flash('date')}
         type="date"
         value={spentAt}
-        onChange={(e) => setSpentAt(e.target.value)}
+        onChange={(e) => {
+          edited('date')
+          setSpentAt(e.target.value)
+        }}
       />
 
-      <fieldset className="split">
+      <fieldset className={['split', flash('split')].filter(Boolean).join(' ')}>
         <legend>Cách chia</legend>
         <label className="inline">
           <input
             type="radio"
             name="split-type"
             checked={splitType === 'equal'}
-            onChange={() => setSplitType('equal')}
+            onChange={() => {
+              edited('split')
+              setSplitType('equal')
+            }}
           />
           Chia đều
         </label>
@@ -177,7 +313,10 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
             type="radio"
             name="split-type"
             checked={splitType === 'custom'}
-            onChange={() => setSplitType('custom')}
+            onChange={() => {
+              edited('split')
+              setSplitType('custom')
+            }}
           />
           Chia riêng
         </label>
@@ -208,7 +347,10 @@ function ExpenseForm({ members, initial, onSubmit, onCancel, submitting, error }
                     inputMode="numeric"
                     value={customText[m.id] ?? ''}
                     placeholder="0"
-                    onChange={(e) => setCustomText({ ...customText, [m.id]: e.target.value })}
+                    onChange={(e) => {
+                      edited('split')
+                      setCustomText({ ...customText, [m.id]: e.target.value })
+                    }}
                   />
                 </li>
               ))}
