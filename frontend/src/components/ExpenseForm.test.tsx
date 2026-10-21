@@ -13,7 +13,7 @@ const members: Member[] = [
   { id: 3, household_id: 7, name: 'Duy Anh', created_at: '' },
 ]
 
-// Intl puts a non-breaking space before ₫
+// Amounts read "240.000đ" (lib/money.ts); plain() keeps the helper for any other spacing
 const plain = (text: string | null) => (text ?? '').replace(/[  ]/g, ' ')
 
 function setup(props: Partial<Parameters<typeof ExpenseForm>[0]> = {}) {
@@ -38,8 +38,8 @@ describe('ExpenseForm, equal split', () => {
       expect(screen.getByRole('checkbox', { name })).toBeChecked()
     }
     // 100 000 / 3: the leftover đồng goes to the lowest member id, like the API
-    const shares = screen.getAllByText(/₫/).map((el) => plain(el.textContent))
-    expect(shares).toEqual(['100.000 ₫', '33.334 ₫', '33.333 ₫', '33.333 ₫'])
+    const shares = screen.getAllByText(/^[\d.]+đ$/).map((el) => plain(el.textContent))
+    expect(shares).toEqual(['100.000đ', '33.334đ', '33.333đ', '33.333đ'])
   })
 
   test('saves the body the API expects', async () => {
@@ -87,7 +87,7 @@ describe('ExpenseForm, custom split', () => {
     await user.click(screen.getByRole('radio', { name: 'Chia riêng' }))
     await user.type(screen.getByLabelText('Phần của Minh'), '140000')
 
-    expect(plain(screen.getByText(/Còn lại/).textContent)).toBe('Còn lại: 100.000 ₫')
+    expect(plain(screen.getByText(/Còn lại/).textContent)).toBe('Còn lại: 100.000đ')
 
     await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
     expect(onSubmit).not.toHaveBeenCalled()
@@ -118,7 +118,7 @@ describe('ExpenseForm, custom split', () => {
     await user.click(screen.getByRole('radio', { name: 'Chia riêng' }))
     await user.type(screen.getByLabelText('Phần của Tiến'), '150000')
 
-    expect(plain(screen.getByText(/Vượt quá/).textContent)).toBe('Vượt quá: 50.000 ₫')
+    expect(plain(screen.getByText(/Vượt quá/).textContent)).toBe('Vượt quá: 50.000đ')
   })
 })
 

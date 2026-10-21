@@ -23,7 +23,7 @@ const answer: AiDraft = {
   warnings: [],
 }
 
-// Intl puts a non-breaking space before ₫
+// Amounts read "240.000đ" (lib/money.ts); plain() keeps the helper for any other spacing
 const plain = (text: string | null | undefined) => (text ?? '').replace(/[\u00A0\u202F]/g, ' ')
 
 const ALL = ['description', 'amount', 'payer', 'date', 'split']
@@ -62,7 +62,7 @@ describe('AiComposer', () => {
     expect(props.onParse).toHaveBeenCalledWith('lẩu 240k Minh trả chia đều')
     expect(props.onDraft).toHaveBeenCalledWith(answer.draft)
     const note = await screen.findByText(/^Đã điền:/)
-    expect(plain(note.textContent)).toBe('Đã điền: Lẩu · 240.000 ₫ · Minh trả · chia đều cả nhà (2 người).')
+    expect(plain(note.textContent)).toBe('Đã điền: Lẩu · 240.000đ · Minh trả · chia đều cả nhà (2 người).')
   })
 
   test('says which fields it left as the user typed them, and only lists what it filled', async () => {

@@ -349,6 +349,197 @@ button.ai:focus-visible {
   letter-spacing: -0.01em;
 }
 
+/* The đ is smaller and sits right after the number; nowrap on .money keeps them together */
+.money .cur {
+  font-size: 0.72em;
+  margin-left: 0.08em;
+}
+
+.credit-text {
+  color: var(--credit-text);
+}
+
+.debt-text {
+  color: var(--debt-text);
+}
+
+/* ---------------------------------------------------------------- stickers and chips (DESIGN.md §5) */
+
+.avatar {
+  --size: 32px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  border: 2px solid var(--edge);
+  box-shadow: 2px 2px 0 var(--sticker-shadow);
+  color: var(--on-fill);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--size) * 0.42);
+  line-height: 1;
+}
+
+.avatar-sm {
+  --size: 26px;
+  border-width: 1.5px;
+  box-shadow: 1.5px 1.5px 0 var(--sticker-shadow);
+}
+
+.avatar-lg {
+  --size: 44px;
+}
+
+.tint-1 { background: var(--tint-1); }
+.tint-2 { background: var(--tint-2); }
+.tint-3 { background: var(--tint-3); }
+.tint-4 { background: var(--tint-4); }
+.tint-5 { background: var(--tint-5); }
+.tint-6 { background: var(--tint-6); }
+.tint-7 { background: var(--tint-7); }
+.tint-8 { background: var(--tint-8); }
+
+.avatar-stack {
+  display: inline-flex;
+  flex: none;
+}
+
+.avatar-stack > * + * {
+  margin-left: -8px;
+}
+
+.avatar-more {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: var(--bg);
+  box-shadow: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  color: var(--on-fill);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip-credit { background: var(--credit); }
+.chip-debt { background: var(--debt); }
+.chip-ai { background: var(--ai); }
+.chip-zero { background: var(--surface-2); color: var(--muted); }
+
+/* "bạn": ink, the one chip whose text is not --on-fill (16:1 in both themes) */
+.chip-me {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.stamp {
+  display: inline-block;
+  padding: 5px 10px;
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  background: var(--credit);
+  box-shadow: 3px 3px 0 var(--sticker-shadow);
+  color: var(--on-fill);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  rotate: -8deg;
+}
+
+.stamp-settled {
+  padding: 2px 6px;
+  border-width: 2px;
+  border-radius: 7px;
+  box-shadow: 2px 2px 0 var(--sticker-shadow);
+  font-size: 11px;
+  rotate: -6deg;
+}
+
+/* ---------------------------------------------------------------- choosing (DESIGN.md §5) */
+
+/* Segmented control for two or three options, e.g. Chia đều / Chia riêng */
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.segmented button {
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--muted);
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* Pick chips: a radio group shown as avatar + name pills (Ai trả?, Bạn là ai?) */
+.pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pick input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.pick label {
+  display: inline-flex;
+  flex-basis: auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: var(--target);
+  padding: 4px 14px 4px 6px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pick label .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick input:checked + label {
+  border-color: var(--ink);
+  background: var(--surface-2);
+}
+
+.pick input:focus-visible + label {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--ai);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
