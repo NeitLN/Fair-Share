@@ -126,35 +126,35 @@ on it because the composer and both redesigned screens use its components.
 | T-05 | Supabase attached through `DATABASE_URL` (session pooler, TLS), `/health/db` on the live URL | Việt Tiến | Hoàng Minh | P0 | ✅ |
 | T-06 | Restructure backend: `config.py`, `db.py` pool, routers, error format, safe `/health/db` errors | Hoàng Minh | Việt Tiến | P0 | ✅ |
 | T-07 | Schema v1 (`001_init.sql`), start-up migration runner (transaction per file + advisory lock), `seed.sql` | Hoàng Minh | Việt Tiến | P0 | ✅ |
-| T-08 | Households & members API + tests (#84: commit before the response is sent) | Hoàng Minh | Duy Anh | P0 | **Wed 21/10** |
+| T-08 | Households & members API + tests (#84: commit before the response is sent) | Hoàng Minh | Duy Anh | P0 | ✅ |
 | T-09 | Scaffold `frontend/`: Vite + React + TS, React Router, lint, Vitest, typed API client | Duy Anh | Việt Tiến | P0 | ✅ |
 | T-10 | Web image: multi-stage `frontend/Dockerfile` (node build → nginx) + `nginx.conf` proxying `/api` | Duy Anh | Việt Tiến | P0 | ✅ |
 | T-11 | Compose: `db` + `api` + `web` with one command from a clean clone | Duy Anh | Hoàng Minh | P0 | ✅ |
 | T-12 | Households list/create page + members page (the W7 vertical slice) | Duy Anh | Hoàng Minh | P0 | ✅ |
 | T-13 | CI: `backend` job with a PostgreSQL service, `frontend` job, `images` job | Việt Tiến | Hoàng Minh | P0 | ✅ |
-| T-14 | Render Static Site for the SPA (rewrite rule, `VITE_API_BASE_URL`, `ALLOWED_ORIGINS`) | Việt Tiến | Duy Anh | P0 | **Wed 21/10** (#85) |
+| T-14 | Render Static Site for the SPA (rewrite rule, `VITE_API_BASE_URL`, `ALLOWED_ORIGINS`) | Việt Tiến | Duy Anh | P0 | ✅ |
 
 ### Week 8 · Features & AI live (Fri 23/10 → Wed 28/10) — some tasks start 20–22/10
 
 | ID | Task | Owner | Reviewer | Pri | Due |
 |---|---|---|---|---|---|
-| T-15 | Expenses API: equal & custom split, exact-remainder rule, edit/delete + tests | Hoàng Minh | Việt Tiến | P0 | **Sat 24/10** (PR open by Thu 22/10) |
-| T-16 | Settlements API + tests | Hoàng Minh | Duy Anh | P0 | **Sun 25/10** |
-| T-17 | Balances endpoint + suggested settlements (greedy, ≤ n−1 transfers) + property tests | Hoàng Minh | Việt Tiến | P0 | **Mon 26/10** |
-| T-25 | Validation & errors: one error JSON, 404/409/422 cases, input limits — the contract the pages rely on | Hoàng Minh | Duy Anh | P1 | Wed 28/10 |
-| T-18 | Expenses page: list, add/edit/delete form with equal/custom split | Duy Anh | Hoàng Minh | P0 | **Mon 26/10** (live by Tue 27/10) |
-| T-20 | Dashboard: balances, suggested settlements, "record this payment" | Duy Anh | Hoàng Minh | P0 | **Tue 27/10** |
-| T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form — built on the T-42 components, states in [DESIGN.md §6.3](DESIGN.md#63-chi-tiêu-householdsidexpenses); owns the form's AI-fill interface ([§9](DESIGN.md#9-implementation-plan)), shipped in #104 so T-43 builds on it | Duy Anh | Việt Tiến | P0 | **Wed 28/10** |
-| T-41 | Design system "Sticker pop": [DESIGN.md](DESIGN.md) — rules, light/dark tokens with measured contrast, type, components, screen specs, copy | Việt Tiến | Duy Anh | P1 | Thu 22/10 |
-| T-42 | UI foundation: tokens, fonts, base CSS, shared components (avatar, money, chips, buttons, toast), "Bạn là ai?"; Danh sách nhà, household frame, Thành viên | Việt Tiến | Duy Anh | P1 | **Sat 24/10** |
-| T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | Wed 28/10 |
-| T-44 | Brand kit: [BRAND.md](BRAND.md) — tagline, logo and icon, colour and voice rules, OG image, README header, slide and report templates | Việt Tiến | Duy Anh | P1 | Fri 23/10 |
-| T-21 | Gemini client service: structured JSON output, 10 s timeout, 429/5xx mapping, key from env, never logged (key on Render by Wed 21/10) | Việt Tiến | Hoàng Minh | P0 | **Thu 22/10** |
-| T-22 | `POST /api/households/{id}/ai/parse-expense`: per-IP limit + global budget, name matching, tests with mocked Gemini | Việt Tiến | Hoàng Minh | P0 | **Sun 25/10** |
-| T-23 | Deploy job calls both hooks; CORS checked from the live SPA (done 20/10); first merge after #85 deploys both | Việt Tiến | Duy Anh | P0 | Thu 22/10 |
+| T-15 | Expenses API: equal & custom split, exact-remainder rule, edit/delete + tests | Hoàng Minh | Việt Tiến | P0 | ✅ |
+| T-16 | Settlements API + tests | Hoàng Minh | Duy Anh | P0 | ✅ |
+| T-17 | Balances endpoint + suggested settlements (greedy, ≤ n−1 transfers) + property tests | Hoàng Minh | Việt Tiến | P0 | ✅ |
+| T-25 | Validation & errors: one error JSON, 404/409/422 cases, input limits — the contract the pages rely on | Hoàng Minh | Duy Anh | P1 | Wed 28/10 · 🚧 in review (#107) |
+| T-18 | Expenses page: list, add/edit/delete form with equal/custom split | Duy Anh | Hoàng Minh | P0 | ✅ |
+| T-20 | Dashboard: balances, suggested settlements, "record this payment" | Duy Anh | Hoàng Minh | P0 | ✅ |
+| T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form — built on the T-42 components, states in [DESIGN.md §6.3](DESIGN.md#63-chi-tiêu-householdsidexpenses); owns the form's AI-fill interface ([§9](DESIGN.md#9-implementation-plan)), shipped in #104 so T-43 builds on it | Duy Anh | Việt Tiến | P0 | ✅ |
+| T-41 | Design system "Sticker pop": [DESIGN.md](DESIGN.md) — rules, light/dark tokens with measured contrast, type, components, screen specs, copy | Việt Tiến | Duy Anh | P1 | ✅ |
+| T-42 | UI foundation: tokens, fonts, base CSS, shared components (avatar, money, chips, buttons, toast), "Bạn là ai?"; Danh sách nhà, household frame, Thành viên | Việt Tiến | Duy Anh | P1 | ✅ |
+| T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | Wed 28/10 · 🚧 in review (#108) |
+| T-44 | Brand kit: [BRAND.md](BRAND.md) — tagline, logo and icon, colour and voice rules, OG image, README header, slide and report templates | Việt Tiến | Duy Anh | P1 | ✅ |
+| T-21 | Gemini client service: structured JSON output, 10 s timeout, 429/5xx mapping, key from env, never logged (key on Render by Wed 21/10) | Việt Tiến | Hoàng Minh | P0 | ✅ |
+| T-22 | `POST /api/households/{id}/ai/parse-expense`: per-IP limit + global budget, name matching, tests with mocked Gemini | Việt Tiến | Hoàng Minh | P0 | ✅ |
+| T-23 | Deploy job calls both hooks; CORS checked from the live SPA (done 20/10); first merge after #85 deploys both | Việt Tiến | Duy Anh | P0 | ✅ |
 | T-24 | Post-deploy smoke job: live commit = merged SHA; web URL serves the SPA | Việt Tiến | Hoàng Minh | P0 | ✅ |
-| T-26 | Keep-alive: daily scheduled workflow querying the DB through `/health/db` *(moved to Việt Tiến, platform)* | Việt Tiến | Hoàng Minh | P1 | Sat 24/10 |
-| T-29 | Secret audit: gitleaks CI job, full-history scan, secret scanning + push protection, findings written up *(pulled forward)* | Việt Tiến | Duy Anh | P0 | Tue 27/10 |
+| T-26 | Keep-alive: daily scheduled workflow querying the DB through `/health/db` *(moved to Việt Tiến, platform)* | Việt Tiến | Hoàng Minh | P1 | ✅ |
+| T-29 | Secret audit: gitleaks CI job, full-history scan, secret scanning + push protection, findings written up *(pulled forward)* | Việt Tiến | Duy Anh | P0 | ✅ |
 
 ### Week 9 · Hardening & freeze (Thu 29/10 → Sun 01/11)
 
