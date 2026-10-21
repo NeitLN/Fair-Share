@@ -5,6 +5,7 @@ import type { Member, MemberBalance } from '../api/types'
 import { formatVND } from '../lib/money'
 import { memberLooks } from '../lib/names'
 import type { MemberLook } from '../lib/names'
+import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
 
@@ -36,8 +37,7 @@ function Standing({ balance }: { balance?: MemberBalance }) {
   if (!balance) return null
   if (balance.net > 0) return <Chip kind="credit">được nhận {formatVND(balance.net)}</Chip>
   if (balance.net < 0) return <Chip kind="debt">cần trả {formatVND(-balance.net)}</Chip>
-  const tookPart = balance.paid > 0 || balance.owed > 0 || balance.sent > 0 || balance.received > 0
-  return tookPart ? <Stamp kind="settled" decorative={false} /> : null
+  return tookPart(balance) ? <Stamp kind="settled" decorative={false} /> : null
 }
 
 /** Props-only list. Rename/remove are callbacks; the page does the API calls. */

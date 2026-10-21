@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import type { Settlement, SettlementInput } from '../api/types'
+import { today } from '../lib/date'
 import { mockApi, renderApp } from '../test/renderApp'
 
 beforeEach(() => {
@@ -12,6 +13,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 const household = { id: 7, name: 'Nhà 7', created_at: '' }
@@ -20,8 +22,20 @@ const members = [
   { id: 2, household_id: 7, name: 'Minh', created_at: '' },
   { id: 3, household_id: 7, name: 'An', created_at: '' },
 ]
-// Tiến paid 300 000 for the three of them: Minh and An each owe him 100 000
+// Tiến paid 300 000 for the three of them this month: Minh and An each owe him 100 000
 const startNets: Record<number, number> = { 1: 200_000, 2: -100_000, 3: -100_000 }
+const expense = {
+  id: 50,
+  household_id: 7,
+  description: 'Lẩu',
+  amount: 300_000,
+  payer_id: 1,
+  spent_at: today(),
+  source: 'manual',
+  created_at: '',
+  split_type: 'equal',
+  shares: [],
+}
 
 /** A fake API whose balances follow the settlements, like the real one. */
 function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
@@ -37,6 +51,7 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
   return mockApi({
     'GET /api/households/7': [200, household],
     'GET /api/households/7/members': [200, memberList],
+    'GET /api/households/7/expenses': [200, [expense]],
     'GET /api/households/7/balances': () => {
       const net = nets()
       return [
@@ -47,8 +62,8 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
             name: m.name,
             paid: m.id === 1 ? 300_000 : 0,
             owed: 100_000,
-            sent: 0,
-            received: 0,
+            sent: settlements.filter((s) => s.from_member_id === m.id).reduce((t, s) => t + s.amount, 0),
+            received: settlements.filter((s) => s.to_member_id === m.id).reduce((t, s) => t + s.amount, 0),
             net: net[m.id] ?? 0,
           })),
           suggested: [2, 3]
@@ -78,76 +93,113 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
   })
 }
 
+const iAm = (memberId: number) => localStorage.setItem('fair-share:me:7', String(memberId))
+const transfers = () => screen.findByRole('list', { name: 'Các lần trả gợi ý' })
 const region = (name: string) => within(screen.getByRole('region', { name }))
+const month = Number(today().slice(5, 7))
 
-test('shows who owes whom and how to settle it', async () => {
+test('without an identity the block counts the transfers left, and lists them all', async () => {
   api()
   renderApp('/households/7')
 
-  const table = await screen.findByRole('table', { name: 'Số dư của mọi người' })
-  expect(within(table).getByRole('row', { name: /Tiến.*được nhận/ })).toBeInTheDocument()
-  expect(within(table).getByRole('row', { name: /Minh.*còn nợ/ })).toBeInTheDocument()
-
-  const suggestions = region('Gợi ý chuyển khoản')
-  expect(await suggestions.findAllByRole('button', { name: 'Ghi nhận khoản này' })).toHaveLength(2)
-  expect(suggestions.getByText(/Minh/).closest('li')).toHaveTextContent(/Minh trả Tiến 100\.000/)
+  expect(await screen.findByRole('heading', { name: 'Còn 2 lần trả là cả nhà về 0đ' })).toBeInTheDocument()
+  expect(await screen.findByText(`Tháng ${month}`, { exact: false })).toHaveTextContent(
+    `Tháng ${month} · cả nhà đã chi 300.000đ`,
+  )
+  const rows = within(await transfers()).getAllByRole('listitem')
+  expect(rows.map((row) => row.querySelector('.transfer-text')?.textContent)).toEqual([
+    'Minh trả Tiến 100.000đ',
+    'An trả Tiến 100.000đ',
+  ])
+  expect(within(rows[0]).getByRole('button', { name: 'Đã trả' })).toHaveAccessibleDescription(
+    'Minh trả Tiến 100.000đ',
+  )
 })
 
-test('"Ghi nhận khoản này" records the suggested transfer, paid today', async () => {
+test('someone who owes sees who to pay and how much, as "Bạn"', async () => {
+  iAm(2)
+  api()
+  renderApp('/households/7')
+
+  const sentence = await screen.findByRole('heading', { name: 'Bạn cần trả Tiến' })
+  expect(sentence.nextElementSibling).toHaveTextContent('100.000đ')
+  expect(within(await transfers()).getByText(/^Bạn trả Tiến/)).toBeInTheDocument()
+})
+
+test('someone who is owed sees who pays them, and the total', async () => {
+  iAm(1)
+  api()
+  renderApp('/households/7')
+
+  const sentence = await screen.findByRole('heading', { name: 'Bạn được nhận từ Minh và An' })
+  expect(sentence.nextElementSibling).toHaveTextContent('200.000đ')
+  expect(within(await transfers()).getByText(/^Minh trả bạn/)).toBeInTheDocument()
+})
+
+test('every member has a row with where they stand, in words and with a sign', async () => {
+  iAm(1)
+  api()
+  renderApp('/households/7')
+
+  const rows = await within(screen.getByRole('region', { name: 'Số dư từng người' })).findAllByRole('listitem')
+  expect(rows[0]).toHaveTextContent(/Tiếnbạnđã chi 300\.000đ\+200\.000đđược nhận$/)
+  expect(rows[1]).toHaveTextContent(/Minh−100\.000đcần trả$/)
+  expect(rows[2]).toHaveTextContent(/An−100\.000đcần trả$/)
+})
+
+test('"Đã trả" records the suggested transfer, paid today', async () => {
   const fetchFn = api()
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  const suggestions = region('Gợi ý chuyển khoản')
-  await user.click((await suggestions.findAllByRole('button', { name: 'Ghi nhận khoản này' }))[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
 
-  // One suggestion left, and the payment is on the list
-  await waitFor(() =>
-    expect(suggestions.getAllByRole('button', { name: 'Ghi nhận khoản này' })).toHaveLength(1),
-  )
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1))
   expect(
-    await region('Các khoản đã trả').findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }),
+    await region('Lịch sử trả').findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }),
   ).toBeInTheDocument()
   const post = fetchFn.mock.calls.find(([, init]) => init?.method === 'POST')
   expect(JSON.parse(post?.[1]?.body as string)).toEqual({
     from_member_id: 2,
     to_member_id: 1,
     amount: 100_000,
-    settled_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    settled_at: today(),
   })
 })
 
-test('after the last suggested payment everyone is settled', async () => {
+test('after the last suggested payment the household is settled, and everyone gets the stamp', async () => {
   api()
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  const suggestions = region('Gợi ý chuyển khoản')
-  await user.click((await suggestions.findAllByRole('button', { name: 'Ghi nhận khoản này' }))[0])
-  await waitFor(() =>
-    expect(suggestions.getAllByRole('button', { name: 'Ghi nhận khoản này' })).toHaveLength(1),
-  )
-  await user.click(suggestions.getByRole('button', { name: 'Ghi nhận khoản này' }))
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1))
+  await user.click(screen.getByRole('button', { name: 'Đã trả' }))
 
-  expect(await suggestions.findByText('Mọi người đã cân bằng, không ai nợ ai.')).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Cả nhà sạch nợ. Nhà trọ bình yên.' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' })).not.toBeInTheDocument()
+  expect(region('Số dư từng người').getAllByText('SẠCH NỢ')).toHaveLength(3)
 })
 
-test('a payment that is not a suggestion is recorded with the form', async () => {
+test('a payment that is not a suggestion is recorded with the folded form', async () => {
   api()
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  // The form appears once the members are loaded
-  const form = within(await screen.findByRole('region', { name: 'Ghi nhận khoản trả' }))
-  await user.selectOptions(form.getByLabelText('Người trả'), 'An')
-  await user.selectOptions(form.getByLabelText('Người nhận'), 'Tiến')
-  await user.type(form.getByLabelText('Số tiền (đồng)'), '40k')
-  await user.click(form.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+  const history = region('Lịch sử trả')
+  await user.click(await history.findByText('Ghi khoản trả khác'))
+  await user.selectOptions(history.getByLabelText('Người trả'), 'An')
+  await user.selectOptions(history.getByLabelText('Người nhận'), 'Tiến')
+  await user.type(history.getByLabelText('Số tiền (đồng)'), '40k')
+  await user.click(history.getByRole('button', { name: 'Ghi nhận khoản trả' }))
 
-  const list = region('Các khoản đã trả')
-  expect(await list.findByText(/40\.000/)).toBeInTheDocument()
+  expect(await history.findByText(/40\.000/)).toBeInTheDocument()
   // An still owes 60 000
-  expect(region('Gợi ý chuyển khoản').getByText(/An/).closest('li')).toHaveTextContent(/60\.000/)
+  await waitFor(() =>
+    expect(within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getByText(/^An trả Tiến/)).toHaveTextContent(
+      'An trả Tiến 60.000đ',
+    ),
+  )
 })
 
 test('a mistaken payment can be deleted, and the debt comes back', async () => {
@@ -155,30 +207,64 @@ test('a mistaken payment can be deleted, and the debt comes back', async () => {
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  const suggestions = region('Gợi ý chuyển khoản')
-  await user.click((await suggestions.findAllByRole('button', { name: 'Ghi nhận khoản này' }))[0])
-  const list = region('Các khoản đã trả')
-  await user.click(await list.findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }))
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  const history = region('Lịch sử trả')
+  await user.click(await history.findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }))
 
-  expect(await list.findByText('Chưa ghi nhận khoản trả nào.')).toBeInTheDocument()
-  await waitFor(() =>
-    expect(suggestions.getAllByRole('button', { name: 'Ghi nhận khoản này' })).toHaveLength(2),
-  )
+  expect(await history.findByText(/^Chưa có khoản trả nào/)).toBeInTheDocument()
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
 })
 
-test('a failed balances load says so instead of "everyone is settled"', async () => {
-  api({
-    'GET /api/households/7/balances': [
-      503,
-      { error: { code: 'database_unavailable', message: 'The database is not reachable right now' } },
-    ],
-  })
+test('the reminder goes to the clipboard, ready for the group chat', async () => {
+  api()
+  const user = userEvent.setup()
   renderApp('/households/7')
 
-  expect(await region('Ai nợ ai').findByRole('alert')).toHaveTextContent(
-    'Máy chủ tạm thời không kết nối được dữ liệu.',
+  await user.click(await screen.findByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' }))
+
+  expect(await navigator.clipboard.readText()).toBe(
+    [
+      `Nhà 7 chốt sổ tháng ${month} nè:`,
+      '• Minh trả Tiến 100.000đ',
+      '• An trả Tiến 100.000đ',
+      `Xem chi tiết: ${window.location.origin}/households/7`,
+    ].join('\n'),
   )
-  expect(screen.queryByText(/Mọi người đã cân bằng/)).not.toBeInTheDocument()
+  expect(await screen.findByRole('status')).toHaveTextContent('Đã sao chép. Dán vào nhóm chat của nhà nhé.')
+})
+
+test('when copying is not possible the reminder is shown, selected, to copy by hand', async () => {
+  api()
+  const user = userEvent.setup()
+  vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('NotAllowedError'))
+  renderApp('/households/7')
+
+  await user.click(await screen.findByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' }))
+
+  const text = await screen.findByLabelText(/^Không sao chép được/)
+  expect((text as HTMLTextAreaElement).value).toMatch(/^Nhà 7 chốt sổ tháng \d+ nè:\n• Minh trả Tiến 100\.000đ/)
+  expect(text).toHaveFocus()
+  expect(screen.getByRole('status')).toBeEmptyDOMElement()
+})
+
+test('a failed balances load says so in the block, and Thử lại tries again', async () => {
+  let fail = true
+  api({
+    'GET /api/households/7/balances': () =>
+      fail
+        ? [503, { error: { code: 'database_unavailable', message: 'The database is not reachable right now' } }]
+        : [200, { balances: [], suggested: [] }],
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  expect(await screen.findByRole('heading', { name: 'Chưa tính được ai trả ai' })).toBeInTheDocument()
+  expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Máy chủ tạm thời không kết nối được dữ liệu.')
+  expect(screen.queryByText(/sạch nợ/i)).not.toBeInTheDocument()
+
+  fail = false
+  await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+  expect(await screen.findByRole('heading', { name: /^Chưa có khoản chi nào/ })).toBeInTheDocument()
 })
 
 test('a household without members is sent to the members tab', async () => {
@@ -189,5 +275,15 @@ test('a household without members is sent to the members tab', async () => {
   expect(screen.getByRole('link', { name: 'Thêm thành viên' })).toHaveAttribute(
     'href',
     '/households/7/members',
+  )
+})
+
+test('"+ Ghi khoản chi" leads to the expenses tab', async () => {
+  api()
+  renderApp('/households/7')
+
+  expect(await screen.findByRole('link', { name: '+ Ghi khoản chi' })).toHaveAttribute(
+    'href',
+    '/households/7/expenses',
   )
 })

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import type { Member, Settlement } from '../api/types'
+import { memberLooks } from '../lib/names'
 import SettlementList from './SettlementList'
 
 const members: Member[] = [
@@ -36,7 +37,7 @@ const settlements: Settlement[] = [
 
 function renderList(overrides: Partial<Parameters<typeof SettlementList>[0]> = {}) {
   return render(
-    <SettlementList settlements={settlements} members={members} onDelete={vi.fn()} {...overrides} />,
+    <SettlementList settlements={settlements} looks={memberLooks(members)} onDelete={vi.fn()} {...overrides} />,
   )
 }
 
@@ -45,7 +46,7 @@ afterEach(() => {
 })
 
 describe('SettlementList', () => {
-  test('each row says who paid whom, how much, when, and shows the note', () => {
+  test('each row says who paid whom, how much, on which day, and shows the note', () => {
     renderList()
 
     const rows = screen.getAllByRole('listitem')
@@ -55,13 +56,12 @@ describe('SettlementList', () => {
     expect(first.getByText('Tiến')).toBeInTheDocument()
     expect(first.getByText('Minh')).toBeInTheDocument()
     expect(first.getByText(/150\.000/)).toBeInTheDocument()
-    expect(first.getByText(/18\/10\/2026/)).toBeInTheDocument()
-    expect(first.getByText('Trả tiền điện tháng 10')).toBeInTheDocument()
+    expect(first.getByText(/18\/10 · Trả tiền điện tháng 10$/)).toBeInTheDocument()
 
     const second = within(rows[1])
     expect(second.getByText('An')).toBeInTheDocument()
     expect(second.getByText(/50\.000/)).toBeInTheDocument()
-    expect(second.getByText(/19\/10\/2026/)).toBeInTheDocument()
+    expect(second.getByText(/19\/10$/)).toBeInTheDocument()
   })
 
   test('deleting asks first, and cancel leaves the settlement alone', async () => {
@@ -98,12 +98,12 @@ describe('SettlementList', () => {
 
   test('shows the empty message only when there is no error', () => {
     const { unmount } = renderList({ settlements: [] })
-    expect(screen.getByText('Chưa ghi nhận khoản trả nào.')).toBeInTheDocument()
+    expect(screen.getByText(/^Chưa có khoản trả nào/)).toBeInTheDocument()
     unmount()
 
     renderList({ settlements: [], error: 'Không kết nối được tới máy chủ.' })
     expect(screen.getByRole('alert')).toHaveTextContent('Không kết nối được tới máy chủ.')
-    expect(screen.queryByText('Chưa ghi nhận khoản trả nào.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Chưa có khoản trả nào/)).not.toBeInTheDocument()
   })
 
   test('shows a loading message instead of the list', () => {

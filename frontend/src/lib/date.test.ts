@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { formatDate, today } from './date'
+import { dayLabel, formatDate, today } from './date'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -18,4 +18,17 @@ test.each([
   ['not a date', 'not a date'],
 ])('formatDate(%s) is %s', (iso, shown) => {
   expect(formatDate(iso)).toBe(shown)
+})
+
+test.each([
+  ['2026-10-21', 'Hôm nay, 21/10'],
+  ['2026-10-20', 'Hôm qua, 20/10'],
+  ['2026-10-18', 'Chủ nhật, 18/10'],
+  ['2026-10-17', 'Thứ bảy, 17/10'],
+  ['2026-10-22', 'Thứ năm, 22/10'],
+  ['2026-01-01', 'Thứ năm, 01/01'],
+  ['2025-12-31', '31/12/2025'],
+  ['not a date', 'not a date'],
+])('dayLabel(%s) on Wed 21/10/2026 is %s', (iso, shown) => {
+  expect(dayLabel(iso, new Date(2026, 9, 21, 23, 50))).toBe(shown)
 })
