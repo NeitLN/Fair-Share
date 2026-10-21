@@ -1,148 +1,347 @@
-:root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5;
-  color: #1f2328;
-  background: #ffffff;
+/* Base styles for the Sticker pop design (docs/DESIGN.md). Colours come from styles/tokens.css.
+
+   Element rules sit inside :where(), so they have zero specificity: any class (.btn-primary, a
+   component's own class) wins without !important or longer selectors. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.47;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(h1, h2, h3) {
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* House name and page titles (DESIGN.md §4) */
+:where(h1) {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.07;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+:where(h2) {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+:where(p) {
+  margin: 0;
+}
+
+:where(a) {
+  color: var(--primary-text);
+  text-underline-offset: 3px;
+}
+
+/* One focus ring everywhere: ink, with a yellow halo that stays visible on every surface */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--ai);
+}
+
+/* ---------------------------------------------------------------- page frame */
+
+.app-header {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 4px max(16px, env(safe-area-inset-left, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app-header a {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
 }
 
 main {
-  max-width: 960px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 4px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px));
+  display: grid;
+  gap: 16px;
 }
 
-.app-header {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #d0d7de;
-  font-weight: 600;
-}
-
-.tabs {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.tabs a[aria-current='page'] {
-  font-weight: 600;
+:where(section) {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .household-name {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.07;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
 }
 
-/* Forms and lists: usable with a thumb on a 360 px wide phone (PROJECT_SPEC §4) */
-form {
+/* Household tabs as a segmented control (DESIGN.md §5) */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.tabs a {
+  display: grid;
+  place-items: center;
+  min-height: var(--target);
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tabs a[aria-current='page'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* ---------------------------------------------------------------- forms */
+
+:where(form) {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 8px 10px;
   align-items: center;
-  margin-bottom: 1rem;
 }
 
-form label {
+:where(form label) {
   flex-basis: 100%;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14px;
 }
 
-input[type='text'] {
-  flex: 1 1 12rem;
-  min-width: 0;
-  padding: 0.5rem 0.75rem;
-  font: inherit;
-  border: 1px solid #8c959f;
-  border-radius: 6px;
-}
-
-button {
-  min-height: 2.75rem;
-  padding: 0 1rem;
-  font: inherit;
-  border: 1px solid #8c959f;
-  border-radius: 6px;
-  background: #f6f8fa;
-  cursor: pointer;
-}
-
-button[type='submit'] {
-  background: #1f6feb;
-  border-color: #1f6feb;
-  color: #ffffff;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-ul {
+:where(fieldset) {
+  margin: 0;
   padding: 0;
-  list-style: none;
+  border: 0;
+  min-width: 0;
 }
 
-li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #d0d7de;
+:where(legend) {
+  padding: 0;
+  margin-bottom: 6px;
+  font-weight: 700;
+  font-size: 14px;
 }
 
-li label {
-  flex-basis: 100%;
-}
-
-[role='alert'] {
-  flex-basis: 100%;
-  margin: 0.25rem 0;
-  color: #cf222e;
-}
-
-/* Expense form: one column on a phone; the split is a list of people with their share */
-select,
-input[type='date'] {
+:where(input:not([type]), input[type='text'], input[type='date'], input[type='number'], select, textarea) {
   flex: 1 1 12rem;
   min-width: 0;
-  min-height: 2.75rem;
-  padding: 0.5rem 0.75rem;
+  min-height: 48px;
+  padding: 10px 14px;
   font: inherit;
-  border: 1px solid #8c959f;
-  border-radius: 6px;
-  background: #ffffff;
+  font-size: 16px; /* 16 px stops iOS zooming into the field */
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-control);
 }
 
-.expense-form fieldset {
-  flex-basis: 100%;
-  margin: 0.5rem 0;
-  padding: 0.75rem;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
+:where(input:not([type]), input[type='text'], input[type='date'], select, textarea):hover {
+  border-color: var(--muted);
 }
 
-.expense-form legend {
-  font-weight: 600;
+:where([aria-invalid='true']) {
+  border-color: var(--debt-text);
+}
+
+:where(input[type='checkbox'], input[type='radio']) {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
 }
 
 label.inline {
   display: inline-flex;
   flex-basis: auto;
-  gap: 0.4rem;
+  gap: 8px;
   align-items: center;
-  margin-right: 1rem;
-  font-weight: 400;
+  min-height: var(--target);
+  margin-right: 12px;
+  font-weight: 500;
 }
 
-input[type='checkbox'],
-input[type='radio'] {
-  width: 1.25rem;
-  height: 1.25rem;
+/* ---------------------------------------------------------------- buttons (DESIGN.md §5) */
+
+:where(button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--target);
+  padding: 0 16px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition:
+    translate var(--press) ease-out,
+    box-shadow var(--press) ease-out;
+}
+
+/* A form's submit button is primary unless it says otherwise */
+:where(button[type='submit']),
+.btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--edge);
+  box-shadow: 3px 3px 0 var(--sticker-shadow);
+}
+
+.btn-ai,
+button.ai {
+  background: var(--ai);
+  color: var(--on-fill);
+  border-color: var(--edge);
+  box-shadow: 3px 3px 0 var(--sticker-shadow);
+}
+
+/* Pressing moves the button down by exactly its shadow */
+:where(button[type='submit']):active,
+.btn-primary:active,
+.btn-ai:active,
+button.ai:active {
+  translate: 3px 3px;
+  box-shadow: 0 0 0 var(--sticker-shadow);
+}
+
+.btn-secondary,
+button.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.btn-ghost,
+button.ghost {
+  background: none;
+  border-color: transparent;
+  color: var(--primary-text);
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+.btn-danger {
+  background: none;
+  border-color: transparent;
+  color: var(--debt-text);
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  translate: none;
+}
+
+/* ---------------------------------------------------------------- lists and messages */
+
+:where(ul) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Rows until each list gets its own component (T-42/T-43); any class overrides this */
+:where(li) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+:where(li label) {
+  flex-basis: 100%;
+}
+
+[role='alert'] {
+  flex-basis: 100%;
+  color: var(--debt-text);
+  font-weight: 500;
+}
+
+.hint,
+.share {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  flex-basis: 100%;
+}
+
+.money {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- expense form and list (restyled in T-43) */
+
+.expense-form fieldset {
+  flex-basis: 100%;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
 }
 
 .split-rows li {
@@ -150,32 +349,14 @@ input[type='radio'] {
 }
 
 .split-rows input[type='text'] {
-  flex: 0 1 10rem;
+  flex: 0 1 8rem;
   text-align: right;
-}
-
-.share,
-.hint {
-  color: #57606a;
-  font-variant-numeric: tabular-nums;
-}
-
-.hint {
-  flex-basis: 100%;
-  margin: -0.25rem 0 0.25rem;
-  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .remainder {
-  margin: 0.5rem 0 0;
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-
-/* Expense list: amount on the right, details and actions underneath */
-section h2 {
-  margin: 1.5rem 0 0.5rem;
-  font-size: 1.1rem;
 }
 
 .expense-row {
@@ -185,42 +366,44 @@ section h2 {
 
 .expense-summary {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
   align-items: baseline;
 }
 
 .expense-description {
   flex: 1;
-  font-weight: 600;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .expense-amount {
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .expense-meta {
-  color: #57606a;
-  font-size: 0.9rem;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .expense-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
+/* The "✦ AI" chip on expenses made with Quick add */
 .badge {
-  padding: 0 0.4rem;
-  border-radius: 999px;
-  background: #ddf4ff;
-  color: #0969da;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--ai);
+  color: var(--on-fill);
+  font-size: 12px;
+  font-weight: 700;
 }
 
-/* Dashboard: balances table, suggested transfers, payments made */
+/* ---------------------------------------------------------------- dashboard (restyled in T-43) */
+
 .balance-table {
   width: 100%;
   border-collapse: collapse;
@@ -228,16 +411,16 @@ section h2 {
 }
 
 .balance-table caption {
-  margin-bottom: 0.25rem;
-  color: #57606a;
-  font-size: 0.9rem;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 13px;
   text-align: left;
 }
 
 .balance-table th,
 .balance-table td {
-  padding: 0.5rem 0.25rem;
-  border-bottom: 1px solid #d0d7de;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
   text-align: right;
 }
 
@@ -247,30 +430,29 @@ section h2 {
 }
 
 .balance-table .net {
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .balance-table .state {
   display: block;
-  font-size: 0.8rem;
-  font-weight: 400;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* Colour plus words: the words carry the meaning for colour-blind users */
 .balance-table .positive .net {
-  color: #1a7f37;
+  color: var(--credit-text);
 }
 
 .balance-table .negative .net {
-  color: #cf222e;
+  color: var(--debt-text);
 }
 
 .balance-table .zero .net {
-  color: #57606a;
+  color: var(--muted);
 }
 
-/* Narrow phones: drop the paid/owed detail, keep who and how much is left */
 @media (max-width: 400px) {
   .balance-table th:nth-child(2),
   .balance-table th:nth-child(3),
@@ -293,64 +475,44 @@ section h2 {
 
 .settlement-note {
   flex-basis: 100%;
-  color: #57606a;
-  font-size: 0.9rem;
+  color: var(--muted);
+  font-size: 13px;
 }
 
-/* AI quick add (DESIGN.md §6.3). Literal colours until the T-42 tokens land */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
+/* ---------------------------------------------------------------- AI quick add (DESIGN.md §6.3, T-19) */
 
 .ai-composer {
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  border: 2px solid #17132b;
-  border-radius: 16px;
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--ink);
 }
 
 .ai-composer h2 {
-  margin: 0 0 0.5rem;
+  font-size: 16px;
 }
 
 .ai-composer textarea {
   flex: 1 1 100%;
-  min-height: 3.5rem;
-  padding: 0.5rem 0.75rem;
-  font: inherit;
-  font-size: 16px; /* 16 px stops iOS zooming into the field */
-  border: 1px solid #8c959f;
-  border-radius: 12px;
+  min-height: 72px;
+  line-height: 1.4;
   resize: vertical;
 }
 
-button.ai {
-  background: #ffe14d;
-  border-color: #17132b;
-  color: #17132b;
-  font-weight: 700;
-}
-
-button.ghost {
-  min-height: 2.75rem;
-  border: none;
-  background: none;
-  color: #5a3cf0;
-  font-weight: 600;
-  text-decoration: underline;
+.ai-reading {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .ai-progress {
-  height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #ffe14d 40%, #f1edfe 40%);
-  background-size: 250% 100%;
-  animation: ai-progress 1.4s linear infinite;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--surface-2) 0 30%, var(--ai) 45% 55%, var(--surface-2) 70%);
+  background-size: 260% 100%;
+  animation: ai-progress 1.3s linear infinite;
 }
 
 @keyframes ai-progress {
@@ -358,27 +520,48 @@ button.ghost {
     background-position: 100% 0;
   }
   to {
-    background-position: 0 0;
+    background-position: -60% 0;
   }
 }
 
+/* A note says what happened; the dot says whether it went well (mint) or needs a look (pink) */
 .note {
-  margin: 0.5rem 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 12px;
-  background: #f1edfe;
+  position: relative;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-top: 10px;
+  padding: 10px 12px 10px 30px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  font-size: 14px;
 }
 
-.note p {
-  margin: 0.25rem 0;
+.note::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 16px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--debt);
 }
 
-.note.ok {
-  border-left: 4px solid #3ddc97;
+.note.ok::before {
+  background: var(--credit);
 }
 
-.note.attention {
-  border-left: 4px solid #ff5c8a;
+/* A warning inside a filled note: same dot language, no second box */
+.note .note {
+  margin: 0;
+  padding: 0 0 0 18px;
+  background: none;
+}
+
+.note .note::before {
+  left: 0;
+  top: 6px;
 }
 
 /* Fields the AI just filled flash yellow once */
@@ -388,20 +571,25 @@ button.ghost {
 
 @keyframes just-filled {
   from {
-    background-color: #ffe14d;
+    background-color: var(--ai);
   }
   to {
     background-color: transparent;
   }
 }
 
+/* ---------------------------------------------------------------- motion */
+
 @media (prefers-reduced-motion: reduce) {
-  .ai-progress,
-  .just-filled {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
   }
 
   .ai-progress {
-    background: #ffe14d;
+    background: var(--ai);
   }
 }
