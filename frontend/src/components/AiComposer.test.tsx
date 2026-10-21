@@ -85,8 +85,8 @@ describe('AiComposer', () => {
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'Hùng trả tiền lẩu')
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
-    expect(await screen.findByText('“Hùng” không có trong nhà. Chọn người ở form.')).toBeInTheDocument()
-    expect(screen.getByText('AI chưa thấy số tiền, hãy nhập số tiền.')).toBeInTheDocument()
+    expect(await screen.findByText('“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu.')).toBeInTheDocument()
+    expect(screen.getByText('Nhập số tiền.')).toBeInTheDocument()
   })
 
   test('"Hoàn tác điền" asks the form to undo the fill', async () => {

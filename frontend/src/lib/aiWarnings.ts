@@ -8,14 +8,14 @@ export function warningMessage(warning: DraftWarning): string {
   switch (warning.code) {
     case 'unknown_member':
       return warning.name
-        ? `“${warning.name}” không có trong nhà. Chọn người ở form.`
+        ? `“${warning.name}” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu.`
         : warning.message
     case 'no_payer':
-      return 'AI chưa biết ai trả, hãy chọn người trả.'
+      return 'Chọn người trả.'
     case 'no_amount':
-      return 'AI chưa thấy số tiền, hãy nhập số tiền.'
+      return 'Nhập số tiền.'
     case 'participants_assumed':
-      return 'AI chia đều cho cả nhà, kiểm tra lại người cùng chia.'
+      return 'AI chia cho cả nhà, bạn kiểm tra lại.'
     default:
       return warning.message
   }
