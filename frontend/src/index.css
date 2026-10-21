@@ -296,3 +296,112 @@ section h2 {
   color: #57606a;
   font-size: 0.9rem;
 }
+
+/* AI quick add (DESIGN.md §6.3). Literal colours until the T-42 tokens land */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ai-composer {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 2px solid #17132b;
+  border-radius: 16px;
+}
+
+.ai-composer h2 {
+  margin: 0 0 0.5rem;
+}
+
+.ai-composer textarea {
+  flex: 1 1 100%;
+  min-height: 3.5rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 16px; /* 16 px stops iOS zooming into the field */
+  border: 1px solid #8c959f;
+  border-radius: 12px;
+  resize: vertical;
+}
+
+button.ai {
+  background: #ffe14d;
+  border-color: #17132b;
+  color: #17132b;
+  font-weight: 700;
+}
+
+button.ghost {
+  min-height: 2.75rem;
+  border: none;
+  background: none;
+  color: #5a3cf0;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.ai-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffe14d 40%, #f1edfe 40%);
+  background-size: 250% 100%;
+  animation: ai-progress 1.4s linear infinite;
+}
+
+@keyframes ai-progress {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+.note {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  background: #f1edfe;
+}
+
+.note p {
+  margin: 0.25rem 0;
+}
+
+.note.ok {
+  border-left: 4px solid #3ddc97;
+}
+
+.note.attention {
+  border-left: 4px solid #ff5c8a;
+}
+
+/* Fields the AI just filled flash yellow once */
+.just-filled {
+  animation: just-filled 1.2s ease-out 1;
+}
+
+@keyframes just-filled {
+  from {
+    background-color: #ffe14d;
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-progress,
+  .just-filled {
+    animation: none;
+  }
+
+  .ai-progress {
+    background: #ffe14d;
+  }
+}
