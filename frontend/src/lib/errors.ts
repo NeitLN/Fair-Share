@@ -18,6 +18,11 @@ const MESSAGES: Record<string, string> = {
   database_not_configured: 'Máy chủ chưa được cấu hình cơ sở dữ liệu.',
   database_not_initialized: 'Cơ sở dữ liệu chưa sẵn sàng. Thử lại sau ít phút.',
   internal_error: 'Máy chủ gặp lỗi. Thử lại sau ít phút.',
+  ai_rate_limited: 'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
+  ai_unavailable: 'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
+  ai_unparseable: 'AI chưa hiểu câu này. Câu bạn gõ vẫn còn, điền form bên dưới nhé.',
+  no_members: 'Nhà chưa có thành viên, hãy thêm thành viên trước.',
+  too_many_participants: 'Khoản này có quá nhiều người, hãy chọn người chia ở form.',
 }
 
 /** A message safe and readable for the user, for any error a query or mutation can throw. */

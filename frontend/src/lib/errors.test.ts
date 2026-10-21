@@ -29,4 +29,20 @@ describe('errorMessage', () => {
   test('anything that is not an ApiError gets a generic message, never a stack trace', () => {
     expect(errorMessage(new TypeError('x is undefined'))).toBe('Đã có lỗi xảy ra. Thử lại sau ít phút.')
   })
+
+  test.each([
+    [
+      'ai_rate_limited',
+      'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
+    ],
+    [
+      'ai_unavailable',
+      'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
+    ],
+    ['ai_unparseable', 'AI chưa hiểu câu này. Câu bạn gõ vẫn còn, điền form bên dưới nhé.'],
+    ['no_members', 'Nhà chưa có thành viên, hãy thêm thành viên trước.'],
+    ['too_many_participants', 'Khoản này có quá nhiều người, hãy chọn người chia ở form.'],
+  ])('the quick-add code (%s) is shown in Vietnamese', (code, message) => {
+    expect(errorMessage(new ApiError(503, code, 'English text for developers'))).toBe(message)
+  })
 })
