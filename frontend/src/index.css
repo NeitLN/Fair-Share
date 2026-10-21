@@ -791,6 +791,51 @@ button.ai:focus-visible {
   }
 }
 
+/* ---------------------------------------------------------------- toast (DESIGN.md §5) */
+
+.toasts {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-section);
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  box-shadow: 0 12px 32px rgb(15 8 40 / 30%);
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: auto;
+  animation: toast-in 200ms ease-out both;
+}
+
+.toast .toast-action {
+  flex: none;
+  color: var(--toast-action);
+}
+
+@keyframes toast-in {
+  from {
+    translate: 0 14px;
+    opacity: 0;
+  }
+}
+
 /* ---------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {

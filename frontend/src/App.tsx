@@ -1,5 +1,7 @@
 import { Link, Route, Routes } from 'react-router'
 
+import { ToastProvider } from './components/Toast'
+
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
 import HouseholdLayout from './pages/HouseholdLayout'
@@ -10,7 +12,7 @@ import NotFoundPage from './pages/NotFoundPage'
 // The router and the query client are provided in main.tsx, so tests can supply their own
 function App() {
   return (
-    <>
+    <ToastProvider>
       <header className="app-header">
         <Link to="/">Fair-Share</Link>
       </header>
@@ -25,7 +27,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-    </>
+    </ToastProvider>
   )
 }
 

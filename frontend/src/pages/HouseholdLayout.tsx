@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
 
 import { ApiError } from '../api/client'
-import { getHousehold, keys } from '../api/households'
+import { getHousehold, keys, listMembers } from '../api/households'
+import { IdentityProvider } from '../components/IdentityProvider'
 
 // Shared frame for one household: its name, then tabs to its dashboard, expenses and members
 function HouseholdLayout() {
@@ -10,6 +11,12 @@ function HouseholdLayout() {
   const household = useQuery({
     queryKey: keys.household(householdId),
     queryFn: () => getHousehold(householdId),
+    enabled: Number.isInteger(householdId),
+  })
+  // The same query the pages use, so the cache serves both; it also lets "Bạn là ai?" check its choice
+  const members = useQuery({
+    queryKey: keys.members(householdId),
+    queryFn: () => listMembers(householdId),
     enabled: Number.isInteger(householdId),
   })
 
@@ -40,7 +47,9 @@ function HouseholdLayout() {
         <NavLink to="expenses">Chi tiêu</NavLink>
         <NavLink to="members">Thành viên</NavLink>
       </nav>
-      <Outlet />
+      <IdentityProvider householdId={householdId} members={members.data}>
+        <Outlet />
+      </IdentityProvider>
     </>
   )
 }
