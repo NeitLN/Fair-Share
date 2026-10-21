@@ -6,7 +6,8 @@ members and the user confirms the draft before anything is saved.
 
 Failures become ApiErrors the frontend already knows how to show (the manual form stays open):
 
-    no key, timeout, network error, Gemini 5xx  →  503 ai_unavailable
+    no key on this server                        →  503 ai_not_configured (retrying cannot help)
+    timeout, network error, Gemini 5xx           →  503 ai_unavailable
     Gemini 429 (quota)                           →  429 ai_rate_limited
     blocked prompt, empty or invalid answer      →  422 ai_unparseable
 
@@ -60,6 +61,15 @@ Rules:
 - spent_at: today is {today}; "hôm qua"/"yesterday" is the day before. Default: today.
 - description: 1 to 5 words, the same language as the sentence.
 Sentence: {text}"""
+
+
+def ai_not_configured() -> ApiError:
+    """No GEMINI_API_KEY: a setting, not an outage, so the page disables Quick add (no retry)."""
+    return ApiError(
+        503,
+        "ai_not_configured",
+        "AI quick add is not set up on this server. Please fill in the form below.",
+    )
 
 
 def ai_unavailable() -> ApiError:
@@ -148,7 +158,7 @@ class GeminiClient:
                 422, "validation_error", f"Write the expense in 1 to {MAX_TEXT} characters."
             )
         if not self._api_key:
-            raise ai_unavailable()
+            raise ai_not_configured()
 
         prompt = PROMPT.format(
             members=", ".join(member_names) or "(none yet)", today=today.isoformat(), text=text
