@@ -31,8 +31,7 @@ interface VerdictBlockProps {
   /** Refreshing failed: what is shown is the last known state, with a retry. */
   refreshError?: string | null
   onRetry?: () => void
-  /** `before` is the key of the card after it, so its stamped card stays in place. */
-  onPaid: (transfer: Transfer, before: string | null) => void
+  onPaid: (transfer: Transfer) => void
   onUndo: (paymentId: number) => void
   /** A focus move asked for by the last Đã trả or Hoàn tác, and how to say it is done. */
   focusIntent?: () => FocusIntent | null
@@ -181,7 +180,7 @@ function VerdictBlock({
 
       {cards.length > 0 && (
         <ul ref={list} className="transfer-list" aria-label="Các lần trả gợi ý">
-          {cards.map((card, index) => {
+          {cards.map((card) => {
             const { transfer } = card
             const textId = `${id}-${card.key}`
             const done = card.state === 'paid' || card.state === 'undoing'
@@ -214,7 +213,7 @@ function VerdictBlock({
                     aria-describedby={textId}
                     data-action="pay"
                     disabled={card.state === 'paying'}
-                    onClick={() => onPaid(transfer, cards[index + 1]?.key ?? null)}
+                    onClick={() => onPaid(transfer)}
                   >
                     {card.state === 'paying' ? 'Đang ghi…' : 'Đã trả'}
                   </button>

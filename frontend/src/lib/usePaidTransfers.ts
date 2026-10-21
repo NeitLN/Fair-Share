@@ -34,10 +34,6 @@ interface Payment {
   id: number
   /** What was pressed, as it was then: the card shows this, not a refetched amount. */
   transfer: Transfer
-  /** The card that came after it when pressed: it stays in front of that card (or at the end). */
-  before: string | null
-  /** The suggestion card it replaced, so a later press can be placed relative to it. */
-  replaces: string
   state: 'paying' | 'paid' | 'undoing'
   settlementId: number | null
   /** Balances fetched up to this count were asked for before the payment existed. */
@@ -74,6 +70,9 @@ export function usePaidTransfers(
   const finished = useRef(new Set<number>())
   const deletedSettlements = useRef(new Set<number>())
   const dismissers = useRef(new Set<() => void>())
+  // The order cards were last shown in, by key. A press takes the place of the suggestion it replaces,
+  // so stamped cards stay where they were whatever order they are paid or answered in.
+  const [layout, setLayout] = useState<string[]>([])
 
   useEffect(() => {
     describeNow.current = describe
@@ -92,16 +91,11 @@ export function usePaidTransfers(
 
   const say = (text: string, action?: { label: string; onAction: () => void }) => {
     if (!alive.current) return
-    let dismiss: () => void = () => {}
-    dismiss = toast({
+    const dismiss = toast({
       text,
-      action: action && {
-        label: action.label,
-        onAction: () => {
-          dismissers.current.delete(dismiss)
-          action.onAction()
-        },
-      },
+      action,
+      // Gone by any way (timed out, pushed out, acted on): nothing to take away on unmount
+      onGone: action && (() => dismissers.current.delete(dismiss)),
     })
     if (action) dismissers.current.add(dismiss)
   }
@@ -115,7 +109,7 @@ export function usePaidTransfers(
   }
 
   /** Records `transfer`; returns the new card's payment id (null when this pair is already being recorded). */
-  function pay(transfer: Transfer, before: string | null): number | null {
+  function pay(transfer: Transfer): number | null {
     const pair = pairKey(transfer)
     if (recording.current.has(pair)) return null
     recording.current.add(pair)
@@ -126,14 +120,14 @@ export function usePaidTransfers(
       {
         id,
         transfer,
-        before,
-        replaces: `open-${pair}`,
         state: 'paying',
         settlementId: null,
         recordedAtFetch: Number.POSITIVE_INFINITY,
       },
     ])
     intent.current = { card: `pay-${id}`, then: 'undo' }
+    // From the cards as the user saw them when pressing (this render's), not the last effect's copy
+    setLayout(shown.map((c) => (c.key === `open-${pair}` ? `pay-${id}` : c.key)))
     void record(id, transfer, pair)
     return id
   }
@@ -190,8 +184,9 @@ export function usePaidTransfers(
     }
   }
 
-  // A suggestion is still the paid transfer itself until balances asked for after the payment arrive
-  const fetched = balances?.fetchCount ?? Number.POSITIVE_INFINITY
+  // A suggestion is still the paid transfer itself until balances asked for after the payment arrive.
+  // Balances whose request is unknown count as old: a paid transfer stays hidden rather than payable twice
+  const fetched = balances?.fetchCount ?? Number.NEGATIVE_INFINITY
   const consumed = new Set(
     payments
       .filter((p) => p.state === 'paying' || fetched <= p.recordedAtFetch)
@@ -199,32 +194,23 @@ export function usePaidTransfers(
   )
   const outstanding = (balances?.suggested ?? []).filter((t) => !consumed.has(pairKey(t)))
 
-  // The open suggestions, then each press put back in front of the card that followed it. Placing a
-  // press can wait for the press it was in front of, so repeat until nothing moves.
-  const cards: TransferCard[] = outstanding.map((transfer) => ({
-    key: `open-${pairKey(transfer)}`,
-    transfer,
-    state: 'open',
-  }))
-  const card = (p: Payment): TransferCard => ({ key: `pay-${p.id}`, transfer: p.transfer, state: p.state, paymentId: p.id })
-  const positionOf = (key: string) =>
-    cards.findIndex((c) => c.key === key || payments.some((p) => `pay-${p.id}` === c.key && p.replaces === key))
-  let waiting = [...payments].sort((a, b) => b.id - a.id)
-  for (let moved = true; moved; ) {
-    moved = false
-    for (const p of [...waiting]) {
-      const at = p.before === null ? -1 : positionOf(p.before)
-      if (at === -1) continue
-      cards.splice(at, 0, card(p))
-      waiting = waiting.filter((w) => w !== p)
-      moved = true
-    }
+  // Every card on screen: the open suggestions and each press, built from what was pressed
+  const byKey = new Map<string, TransferCard>()
+  for (const transfer of outstanding) {
+    const key = `open-${pairKey(transfer)}`
+    byKey.set(key, { key, transfer, state: 'open' })
   }
-  // Pressed last in the list, or in front of a card that is gone: at the end, in the order pressed
-  for (const p of waiting.reverse()) cards.push(card(p))
+  for (const p of payments) {
+    byKey.set(`pay-${p.id}`, { key: `pay-${p.id}`, transfer: p.transfer, state: p.state, paymentId: p.id })
+  }
+  const cards = arrange(layout, outstanding.map((t) => `open-${pairKey(t)}`)).filter((key) => byKey.has(key))
+  for (const key of byKey.keys()) if (!cards.includes(key)) cards.push(key)
+  const shown = cards.map((key) => byKey.get(key) as TransferCard)
+  // Remember this order for the next render; arranging it again gives the same order, so this settles
+  if (cards.length !== layout.length || cards.some((key, i) => key !== layout[i])) setLayout(cards)
 
   return {
-    cards,
+    cards: shown,
     /** The suggestions still to pay: the verdict sentence and the reminder use these. */
     outstanding,
     /** Recording a transfer failed. */
@@ -245,4 +231,18 @@ export function usePaidTransfers(
       intent.current = null
     },
   }
+}
+
+/**
+ * The keys in the order last shown, plus new suggestion keys placed after the suggestion that comes
+ * before them in the API's order (or first). Keys no longer on screen are dropped by the caller.
+ */
+function arrange(previous: string[], suggestionKeys: string[]): string[] {
+  const order = [...previous]
+  suggestionKeys.forEach((key, index) => {
+    if (order.includes(key)) return
+    const after = suggestionKeys.slice(0, index).reverse().find((k) => order.includes(k))
+    order.splice(after === undefined ? 0 : order.indexOf(after) + 1, 0, key)
+  })
+  return order
 }

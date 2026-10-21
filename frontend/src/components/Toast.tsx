@@ -13,6 +13,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const nextId = useRef(1)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
+  // Toasts whose owner wants to hear when they leave, by id
+  const watchers = useRef(new Map<number, () => void>())
 
   const dismiss = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
@@ -22,6 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (input: ToastInput) => {
       const id = nextId.current++
+      if (input.onGone) watchers.current.set(id, input.onGone)
       setToasts((current) => [...current, { ...input, id }].slice(-MAX_TOASTS))
       return () => dismiss(id)
     },
@@ -39,6 +42,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       if (!toasts.some((toast) => toast.id === id)) {
         clearTimeout(timer)
         running.delete(id)
+      }
+    }
+    // However a toast left (even pushed out before it was ever shown), its owner hears it once
+    for (const [id, gone] of watchers.current) {
+      if (!toasts.some((toast) => toast.id === id)) {
+        watchers.current.delete(id)
+        gone()
       }
     }
   }, [toasts, dismiss])

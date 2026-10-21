@@ -9,6 +9,8 @@ export interface ToastInput {
   text: string
   /** One action, e.g. "Hoàn tác". It belongs to this toast only, even when others appear after it. */
   action?: ToastAction
+  /** Called once when the toast leaves: timed out, pushed out by newer ones, acted on or dismissed. */
+  onGone?: () => void
 }
 
 /** How long a toast stays (DESIGN.md §5): long enough to reach "Hoàn tác" with one hand. */
