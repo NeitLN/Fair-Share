@@ -18,11 +18,13 @@ const MESSAGES: Record<string, string> = {
   database_not_configured: 'Máy chủ chưa được cấu hình cơ sở dữ liệu.',
   database_not_initialized: 'Cơ sở dữ liệu chưa sẵn sàng. Thử lại sau ít phút.',
   internal_error: 'Máy chủ gặp lỗi. Thử lại sau ít phút.',
-  ai_rate_limited: 'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
-  ai_unavailable: 'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
-  ai_unparseable: 'AI chưa hiểu câu này. Câu bạn gõ vẫn còn, điền form bên dưới nhé.',
-  no_members: 'Nhà chưa có thành viên, hãy thêm thành viên trước.',
-  too_many_participants: 'Khoản này có quá nhiều người, hãy chọn người chia ở form.',
+  // AI Quick add (docs/DESIGN.md §6.3): every one leaves the typed sentence and the manual form usable
+  no_members: 'Nhà chưa có thành viên. Thêm thành viên trước khi ghi khoản chi.',
+  too_many_participants: 'Một khoản chi chia được cho tối đa 50 người. Chọn người cùng chia ở biểu mẫu.',
+  ai_unparseable: 'AI chưa hiểu câu này. Bạn sửa câu rồi thử lại, hoặc điền biểu mẫu bên dưới.',
+  ai_rate_limited: 'Gõ nhanh đang quá tải. Đợi một phút rồi thử lại, hoặc điền biểu mẫu bên dưới.',
+  ai_unavailable: 'AI đang bận. Câu bạn gõ vẫn còn, điền biểu mẫu bên dưới là lưu được ngay.',
+  ai_not_configured: 'Gõ nhanh chưa được bật trên máy chủ này. Bạn điền biểu mẫu bên dưới nhé.',
 }
 
 /** A message safe and readable for the user, for any error a query or mutation can throw. */

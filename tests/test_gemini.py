@@ -95,7 +95,9 @@ def test_the_key_goes_in_a_header_never_in_the_url():
 def test_without_a_key_nothing_is_sent():
     fake = FakeGemini()
     expect_error(
-        lambda: client(fake, key=None).parse_expense("rent", MEMBERS, TODAY), 503, "ai_unavailable"
+        lambda: client(fake, key=None).parse_expense("rent", MEMBERS, TODAY),
+        503,
+        "ai_not_configured",
     )
     assert fake.calls == []
 
