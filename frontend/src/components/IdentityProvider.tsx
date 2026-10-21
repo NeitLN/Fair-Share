@@ -12,18 +12,25 @@ interface IdentityProviderProps {
 }
 
 export function IdentityProvider({ householdId, members, children }: IdentityProviderProps) {
-  // The stored choice for whichever household is shown; read again when the household changes
   const [state, setState] = useState(() => ({ householdId, me: readMe(householdId) }))
-  const current = state.householdId === householdId ? state.me : readMe(householdId)
-  if (state.householdId !== householdId) setState({ householdId, me: current })
 
-  // Only a loaded member list can prove the choice wrong (someone removed): never while loading
-  const known = members === undefined || current === null || members.some((m) => m.id === current)
-  const me = known ? current : null
+  // Adjusted while rendering, so no render ever shows a stale value:
+  // another household → read its own choice; a loaded member list that does not contain the choice
+  // (someone removed) → forget it in memory too, so a later reload cannot bring it back. A list that is
+  // still loading, or failed to load, proves nothing and keeps the choice.
+  let next = state.householdId === householdId ? state : { householdId, me: readMe(householdId) }
+  if (members !== undefined && next.me !== null && !members.some((m) => m.id === next.me)) {
+    next = { householdId, me: null }
+  }
+  if (next !== state) setState(next)
+  const me = next.me
 
+  // Storage follows: drop a saved choice the loaded members disprove (the external system only)
   useEffect(() => {
-    if (!known) writeMe(householdId, null)
-  }, [known, householdId])
+    if (me !== null || members === undefined) return
+    const saved = readMe(householdId)
+    if (saved !== null && !members.some((m) => m.id === saved)) writeMe(householdId, null)
+  }, [me, members, householdId])
 
   const setMe = useCallback(
     (memberId: number | null) => {

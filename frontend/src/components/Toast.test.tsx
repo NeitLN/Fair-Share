@@ -1,3 +1,4 @@
+import { StrictMode, useEffect } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -66,6 +67,24 @@ describe('Toast', () => {
     const status = screen.getByRole('status')
     expect(status).not.toHaveTextContent('một')
     expect(status).toHaveTextContent('haibabốn')
+  })
+
+  test('a toast shown while mounting under StrictMode still goes away (dev double effects)', () => {
+    function ShowOnMount() {
+      const show = useToast()
+      useEffect(() => show({ text: 'Đã ghi' }), [show])
+      return null
+    }
+    render(
+      <StrictMode>
+        <ToastProvider>
+          <ShowOnMount />
+        </ToastProvider>
+      </StrictMode>,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Đã ghi')
+    act(() => vi.advanceTimersByTime(TOAST_MS))
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   test('leaving the page cancels pending timers', () => {

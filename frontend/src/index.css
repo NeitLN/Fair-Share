@@ -944,6 +944,11 @@ button.ai:active:focus-visible {
   animation: just-filled 1.2s ease-out 1;
 }
 
+/* The flash uses box-shadow too: on the focused field the focus halo wins */
+.just-filled:focus-visible {
+  animation: none;
+}
+
 @keyframes just-filled {
   from {
     box-shadow: 0 0 0 4px var(--ai);

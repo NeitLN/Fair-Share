@@ -86,6 +86,22 @@ describe('identity', () => {
     expect(localStorage.getItem(identityKey(1))).toBeNull()
   })
 
+  test('a choice proven wrong stays dropped even if the members are loading again', () => {
+    localStorage.setItem(identityKey(1), '99')
+    const { rerender } = render(
+      <IdentityProvider householdId={1} members={HOUSE}>
+        <Probe />
+      </IdentityProvider>,
+    )
+    expect(screen.getByRole('button')).toHaveTextContent('probe: none')
+    rerender(
+      <IdentityProvider householdId={1} members={undefined}>
+        <Probe />
+      </IdentityProvider>,
+    )
+    expect(screen.getByRole('button')).toHaveTextContent('probe: none')
+  })
+
   test('blocked storage: the choice still works for this visit', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked')

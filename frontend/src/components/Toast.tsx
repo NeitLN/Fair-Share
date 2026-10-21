@@ -15,37 +15,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
 
   const dismiss = useCallback((id: number) => {
-    clearTimeout(timers.current.get(id))
-    timers.current.delete(id)
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }, [])
 
-  const show = useCallback(
-    (input: ToastInput) => {
-      const id = nextId.current++
-      timers.current.set(
-        id,
-        setTimeout(() => dismiss(id), TOAST_MS),
-      )
-      setToasts((current) => {
-        const next = [...current, { ...input, id }]
-        // Over the limit: drop the oldest and its timer
-        for (const old of next.slice(0, Math.max(0, next.length - MAX_TOASTS))) {
-          clearTimeout(timers.current.get(old.id))
-          timers.current.delete(old.id)
-        }
-        return next.slice(-MAX_TOASTS)
-      })
-    },
-    [dismiss],
-  )
+  // Pure: only the list changes here; the timers follow the list in the effect below
+  const show = useCallback((input: ToastInput) => {
+    const id = nextId.current++
+    setToasts((current) => [...current, { ...input, id }].slice(-MAX_TOASTS))
+  }, [])
+
+  // One timer per toast on screen: start the missing ones, cancel those whose toast is gone. Running
+  // after every change also restores the timers after StrictMode's unmount/remount in development.
+  useEffect(() => {
+    const running = timers.current
+    for (const toast of toasts) {
+      if (!running.has(toast.id)) running.set(toast.id, setTimeout(() => dismiss(toast.id), TOAST_MS))
+    }
+    for (const [id, timer] of running) {
+      if (!toasts.some((toast) => toast.id === id)) {
+        clearTimeout(timer)
+        running.delete(id)
+      }
+    }
+  }, [toasts, dismiss])
 
   // Leaving the app: no timer may fire into an unmounted provider
   useEffect(() => {
-    const pending = timers.current
+    const running = timers.current
     return () => {
-      pending.forEach(clearTimeout)
-      pending.clear()
+      running.forEach(clearTimeout)
+      running.clear()
     }
   }, [])
 
