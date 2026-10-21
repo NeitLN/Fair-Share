@@ -1,24 +1,62 @@
 """Request and response bodies (Pydantic). Field names match frontend/src/api/types.ts exactly.
 
 Limits mirror the CHECK constraints in db/migrations/001_init.sql, so a bad value is a 422 with the
-field named, never a database error. Names are trimmed first: "  Minh " is stored as "Minh".
+field named, never a database error (docs/ARCHITECTURE.md §5, "Input limits"):
+
+* Text is trimmed ("  Minh " is stored as "Minh"), put in one Unicode form (NFC) and may not contain
+  control characters.
+* Numbers in a body must be JSON numbers: `true`, `"1000"` and `1000.5` are refused, not converted.
+* Dates must fall between 2000 and 2099.
 """
 
+import unicodedata
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import Path
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, BeforeValidator, Field, StrictInt, StringConstraints
+
+BIGINT_MAX = 2**63 - 1
 
 # A bigint primary key in a URL. Larger numbers cannot exist, so they are a 422, not a 500.
-Id = Annotated[int, Path(ge=1, le=2**63 - 1)]
+Id = Annotated[int, Path(ge=1, le=BIGINT_MAX)]
 
-HouseholdName = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)
-]
-MemberName = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)
-]
+# A member id inside a body: a real JSON number (`true` would otherwise become member 1).
+MemberId = Annotated[StrictInt, Field(ge=1, le=BIGINT_MAX)]
+
+# The day an expense was spent or a settlement paid. Anything outside this range is a typo
+# (year 0001 or 9999) that would sort the lists and the balances history in odd places.
+Day = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2099, 12, 31))]
+
+
+def clean_text(value: Any) -> Any:
+    """Runs before the length limits on every text field.
+
+    * NFC: Vietnamese letters can arrive as one character ("ế") or as a letter plus combining
+      marks (some keyboards, copy-paste). Both look identical; storing one form keeps "Tiến" and
+      "Tiến" from becoming two members and lets the length limits count what the user sees.
+    * Control characters (NUL, bell, line breaks inside a name, ...) and broken UTF-8 (a lone
+      surrogate) are refused: PostgreSQL cannot store NUL or invalid UTF-8, which used to be a 500.
+    """
+    if not isinstance(value, str):
+        return value  # not text: the str type check reports it
+    value = value.strip()
+    if any(unicodedata.category(ch) in ("Cc", "Cs") for ch in value):
+        raise ValueError("must not contain control characters")
+    return unicodedata.normalize("NFC", value)
+
+
+def text(max_length: int, min_length: int = 1):
+    """A text field of `min_length`-`max_length` characters, cleaned by clean_text()."""
+    return Annotated[
+        str,
+        BeforeValidator(clean_text),
+        StringConstraints(strip_whitespace=True, min_length=min_length, max_length=max_length),
+    ]
+
+
+HouseholdName = text(60)
+MemberName = text(40)
 
 
 class HouseholdIn(BaseModel):
@@ -49,22 +87,20 @@ MAX_AMOUNT = 1_000_000_000_000
 # One expense is shared by at most this many people (a household is 2-6 in practice).
 MAX_PARTICIPANTS = 50
 
-Amount = Annotated[int, Field(gt=0, le=MAX_AMOUNT)]
-Description = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
-]
+Amount = Annotated[StrictInt, Field(gt=0, le=MAX_AMOUNT)]
+Description = text(120)
 
 
 class EqualSplit(BaseModel):
     """Everyone listed pays the same; leftover đồng go to the lowest member ids."""
 
     type: Literal["equal"]
-    member_ids: list[int] = Field(min_length=1, max_length=MAX_PARTICIPANTS)
+    member_ids: list[MemberId] = Field(min_length=1, max_length=MAX_PARTICIPANTS)
 
 
 class Share(BaseModel):
-    member_id: int
-    amount: Annotated[int, Field(ge=0, le=MAX_AMOUNT)]
+    member_id: MemberId
+    amount: Annotated[StrictInt, Field(ge=0, le=MAX_AMOUNT)]
 
 
 class CustomSplit(BaseModel):
@@ -79,8 +115,8 @@ class ExpenseIn(BaseModel):
 
     description: Description
     amount: Amount
-    payer_id: int
-    spent_at: date
+    payer_id: MemberId
+    spent_at: Day
     # "ai" when the form was pre-filled by Quick add and then saved by the user.
     source: Literal["manual", "ai"] = "manual"
     split: Annotated[EqualSplit | CustomSplit, Field(discriminator="type")]
@@ -107,12 +143,12 @@ class Expense(BaseModel):
 class SettlementIn(BaseModel):
     """Body of POST /api/households/{id}/settlements: "from paid to `amount` đồng"."""
 
-    from_member_id: int
-    to_member_id: int
+    from_member_id: MemberId
+    to_member_id: MemberId
     amount: Amount
-    settled_at: date
+    settled_at: Day
     # Optional; blank is stored as no note.
-    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    note: text(200, min_length=0) | None = None
 
 
 class Settlement(BaseModel):
@@ -156,7 +192,7 @@ class Balances(BaseModel):
 # --- AI Quick add (US-09, US-10) ----------------------------------------------------------------
 
 # Same limit as app/services/gemini.py: longer text is refused before Gemini is called.
-AiText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+AiText = text(300)
 
 
 class AiParseIn(BaseModel):

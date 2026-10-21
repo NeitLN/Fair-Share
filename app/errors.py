@@ -10,7 +10,6 @@ import logging
 
 import psycopg
 from fastapi import FastAPI, Request
-from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from psycopg_pool import PoolTimeout
@@ -61,8 +60,13 @@ def install(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        # `details` lists each bad field, so a form can highlight it.
-        details = jsonable_encoder(exc.errors())
+        # `details` lists each bad field, so a form can highlight it: where (`loc`), what kind of
+        # problem (`type`) and a readable `msg`. Never the rejected `input`: it can be megabytes
+        # long, or text that cannot even be encoded as JSON (that used to turn a 422 into a 500).
+        details = [
+            {"loc": list(error["loc"]), "type": error["type"], "msg": error["msg"]}
+            for error in exc.errors()
+        ]
         return error_response(422, "validation_error", "The request is not valid", details=details)
 
     @app.exception_handler(PoolTimeout)

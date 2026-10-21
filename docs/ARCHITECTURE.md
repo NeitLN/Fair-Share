@@ -215,6 +215,26 @@ settlement must be members of the **same household** (composite foreign keys on
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.
 
+* `code` is stable, for the page to branch on; `message` is safe to show. Internal details (SQL, hosts,
+  stack traces) only go to the server log.
+* A `422 validation_error` adds `details`: one `{"loc", "type", "msg"}` per bad field, e.g.
+  `"loc": ["body", "name"]`, so a form can highlight it. It never echoes the rejected input.
+* Errors the framework raises use the same shape: `404 not_found` (unknown route),
+  `405 method_not_allowed`, `413 payload_too_large`, `500 internal_error`, `503 database_unavailable`.
+
+**Input limits** (T-25). Every limit is checked before the database is touched, so bad input is a
+`422` naming the field, never a `500`:
+
+| Input | Rule |
+|---|---|
+| Household name · member name · expense description · settlement note · AI text | 1–60 · 1–40 · 1–120 · 0–200 · 1–300 characters, after trimming |
+| Any text | Stored in one Unicode form (NFC), so "Tiến" typed with combining accents is the same member as "Tiến"; control characters (NUL, line breaks, …) and broken UTF-8 are refused |
+| Amounts, member ids in a body | JSON numbers only: `true`, `"1000"` and `1000.5` are refused, not converted |
+| Amount | 1 to 1 000 000 000 000 đồng (custom shares may be 0) |
+| `spent_at`, `settled_at` | 2000-01-01 to 2099-12-31 |
+| Participants in one split | 1 to 50 |
+| Request body | At most 64 KB, otherwise `413 payload_too_large` (`app/limits.py`) |
+
 **Expense body** (`POST` and `PUT`). Amounts are whole đồng; `spent_at` is the day it was spent.
 
 ```jsonc
