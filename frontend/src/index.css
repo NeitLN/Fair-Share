@@ -302,6 +302,16 @@ button.ai:focus-visible {
     0 0 0 5px var(--ai);
 }
 
+/* Pressed with the keyboard: down by its shadow like a click, the halo stays */
+button:where([type='submit']:not(.btn-secondary, .btn-ghost, .btn-danger, .secondary, .ghost)):active:focus-visible,
+button.btn-primary:active:focus-visible,
+button.btn-ai:active:focus-visible,
+button.ai:active:focus-visible {
+  box-shadow:
+    0 0 0 var(--sticker-shadow),
+    0 0 0 5px var(--ai);
+}
+
 /* ---------------------------------------------------------------- lists and messages */
 
 :where(ul) {
@@ -491,6 +501,11 @@ button.ai:focus-visible {
 .segmented button[aria-pressed='true'] {
   background: var(--ink);
   color: var(--bg);
+}
+
+/* The reset above removes shadows; focus still needs its halo */
+.segmented button:focus-visible {
+  box-shadow: 0 0 0 5px var(--ai);
 }
 
 /* Pick chips: a radio group shown as avatar + name pills (Ai trả?, Bạn là ai?) */
@@ -786,8 +801,10 @@ button.ai:focus-visible {
 
 @keyframes just-filled {
   from {
-    background-color: var(--ai);
-    color: var(--on-fill);
+    box-shadow: 0 0 0 4px var(--ai);
+  }
+  to {
+    box-shadow: 0 0 0 4px transparent;
   }
 }
 
