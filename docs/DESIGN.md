@@ -272,7 +272,7 @@ Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm q
 |---|---|---|---|
 | **T-41** | This document; tokens agreed; contrast table | Việt Tiến → Duy Anh | Thu 22/10 |
 | **T-42** | `styles/tokens.css`, fonts, base CSS, `Avatar`, `Money`, chips, buttons, segmented, toast, `lib/names.ts` (short name, initial, tint), identity hook; Danh sách nhà and Thành viên screens; household frame | Việt Tiến → Duy Anh | **Sat 24/10** |
-| **T-19** | Composer on the T-42 components, states in §6.3, **and the form's AI-fill interface** (below) | Duy Anh → Việt Tiến | fill interface **Mon 26/10** (proposed), composer Wed 28/10 |
+| **T-19** | Composer on the T-42 components, states in §6.3, **and the form's AI-fill interface** (below) | Duy Anh → Việt Tiến | fill interface and composer in #104 (22/10) |
 | **T-43** | Tổng quan (verdict block, Đã trả + stamp + undo, copy message, Số dư từng người, history), Chi tiêu form behaviour and look (defaults, folds, sticky save, inline errors) on top of the fill interface, and the list | Việt Tiến → Duy Anh | Wed 28/10 |
 | **T-32** | Loading / empty / error states (§6.5), 360 px and 200% zoom pass, dark-mode pass | Duy Anh → Việt Tiến | Sat 31/10 |
 
@@ -280,13 +280,26 @@ Order matters: **T-42 → T-19's fill interface → T-43**. T-42 lands first so 
 components and do not edit the same CSS. Existing tests are updated in the same PR as the copy they check
 (§7 renames several strings).
 
-**AI-fill interface of `ExpenseForm` (owned by T-19, used by T-43).** Both PRs code against this:
+**AI-fill interface of `ExpenseForm` (owned by T-19, used by T-43).** Shipped in #104 as a ref handle,
+so the page drives it and the form keeps its own state; T-43 restyles the form around it:
 
 ```ts
-aiFill?: { key: string; householdId: number; draft: ExpenseDraft } | null
+type FillField = 'description' | 'amount' | 'payer' | 'date' | 'split'
+interface ExpenseFormHandle {
+  fill(values: { description?; amount?; payer_id?; spent_at?; member_ids? }):
+    { filled: FillField[]; kept: FillField[]; cleared: FillField[] }
+  undoFill(): void          // Hoàn tác điền
+  focusDescription(): void  // Nhập tay
+}
+// <ExpenseForm ref={formRef} … />; the page maps AiDraft.draft to fill()
 ```
 
-1. Each `key` is applied once per form session, and only to fields the user has not changed. Defaults
+The form records which fields the user changed; `fill()` reports what it filled, what it kept because
+the user had changed it, and what it emptied. The rules below are what it guarantees; each has a test in
+`ExpenseForm.test.tsx` or `AiComposer.test.tsx`. If T-43 changes how a field is edited (pick chips for
+the payer, the date and split folds), the new control must still mark that field as changed.
+
+1. A fill applies only to fields the user has not changed. Defaults
    (payer = you, date = today, equal split) and earlier AI fills do not count as user changes.
 2. The split is one atomic group: `splitType`, the selected members and the custom amounts are filled
    together or not at all.
@@ -294,7 +307,8 @@ aiFill?: { key: string; householdId: number; draft: ExpenseDraft } | null
    so); it never silently keeps a default payer.
 4. **Hoàn tác điền** undoes the latest fill only, and only for fields or groups not edited since.
 5. A save, a reset, **Nhập tay**, switching household or a newer request makes a pending response stale:
-   it is dropped, never applied to a new expense.
+   it is dropped, never applied to a new expense. (The composer numbers its requests and is keyed by
+   household and saved expense, so a remount drops anything pending.)
 6. The "Đã điền: …" note describes what was actually applied, not the raw draft.
 
 Tests for T-19: a missing key spends no budget and calls nothing; edits during the wait survive; the split
