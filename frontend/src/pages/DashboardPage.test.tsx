@@ -452,3 +452,46 @@ test('deleting the recorded payment from the history removes its stamped card', 
   await waitFor(() => expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument())
   expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2)
 })
+
+test('Hoàn tác from the toast puts keyboard focus on the verdict once the card is gone', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' }))
+
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
+  expect(screen.getByRole('heading', { name: 'Còn 2 lần trả là cả nhà về 0đ' })).toHaveFocus()
+})
+
+test('if the balances cannot be refreshed after "Đã trả", the paid transfer is not offered again', async () => {
+  let posted = false
+  api({
+    'POST /api/households/7/settlements': (body) => {
+      posted = true
+      const input = body as SettlementInput
+      return [201, { id: 30, household_id: 7, note: null, created_at: '', ...input }]
+    },
+  })
+  const fetchFn = vi.mocked(fetch)
+  const real = fetchFn.getMockImplementation()
+  fetchFn.mockImplementation(async (url, init) =>
+    posted && String(url).endsWith('/balances')
+      ? new Response(JSON.stringify({ error: { code: 'database_unavailable', message: 'down' } }), { status: 503 })
+      : real!(url as string, init),
+  )
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+
+  expect(await screen.findByText('ĐÃ TRẢ')).toBeInTheDocument()
+  await waitFor(() => expect(fetchFn.mock.calls.filter(([u]) => String(u).endsWith('/balances')).length).toBeGreaterThan(1))
+  // The last verdict stays, says it is not up to date, and Minh's transfer is not payable twice
+  expect(await screen.findByText(/^Chưa cập nhật được số dư mới nhất/)).toBeInTheDocument()
+  const rows = within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getAllByRole('listitem')
+  expect(rows).toHaveLength(2)
+  expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1)
+  expect(within(rows[1]).getByText(/^An trả Tiến/)).toBeInTheDocument()
+})

@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { Transfer } from '../api/types'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
-import type { TransferCard } from '../lib/usePaidTransfers'
+import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
 import { transferText, verdict } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Stamp } from './Chip'
@@ -28,9 +28,15 @@ interface VerdictBlockProps {
   /** The balances are loading, or could not be loaded (with a retry). */
   loading?: boolean
   loadError?: string | null
+  /** Refreshing failed: what is shown is the last known state, with a retry. */
+  refreshError?: string | null
   onRetry?: () => void
-  onPaid: (transfer: Transfer, index: number) => void
+  /** `before` is the key of the card after it, so its stamped card stays in place. */
+  onPaid: (transfer: Transfer, before: string | null) => void
   onUndo: (paymentId: number) => void
+  /** A focus move asked for by the last Đã trả or Hoàn tác, and how to say it is done. */
+  focusIntent?: () => FocusIntent | null
+  onFocusDone?: () => void
   /** Recording a transfer failed. */
   error?: string | null
   /** The text "Sao chép tin nhắn nhắc nợ" copies; only offered while there is something to settle. */
@@ -55,9 +61,12 @@ function VerdictBlock({
   started,
   loading = false,
   loadError = null,
+  refreshError = null,
   onRetry,
   onPaid,
   onUndo,
+  focusIntent,
+  onFocusDone,
   error = null,
   reminder,
   onCopied,
@@ -66,9 +75,7 @@ function VerdictBlock({
   const [showText, setShowText] = useState(false)
   const fallback = useRef<HTMLTextAreaElement>(null)
   const list = useRef<HTMLUListElement>(null)
-  // Where keyboard focus should land once a card changes under it: Đã trả turns into the stamped card's
-  // Hoàn tác, and Hoàn tác back into Đã trả. Only when focus was lost with the button, never stolen.
-  const focusNext = useRef<{ pair: string; action: 'undo' | 'pay' } | null>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
   const lookOf = (memberId: number) => looks.get(memberId) ?? REMOVED_MEMBER
   const nameOf = (memberId: number) => lookOf(memberId).short
 
@@ -81,16 +88,24 @@ function VerdictBlock({
     if (showText) selectFallback()
   }, [showText])
 
+  // Keyboard focus follows a press when the pressed button goes away with its card: Đã trả → that
+  // card's Hoàn tác once it is recorded; Hoàn tác (on the card or in the toast) → the block's heading
+  // once the card is gone, or back to Hoàn tác if undoing failed. Never taken from where the user put it.
   useEffect(() => {
-    const wanted = focusNext.current
+    const wanted = focusIntent?.()
     if (!wanted) return
-    const button = list.current?.querySelector<HTMLButtonElement>(
-      `button[data-pair="${wanted.pair}"][data-action="${wanted.action}"]:not(:disabled)`,
-    )
-    if (!button) return
-    focusNext.current = null
-    const active = document.activeElement
-    if (!active || active === document.body) button.focus()
+    const lost = () => !document.activeElement || document.activeElement === document.body
+    const card = list.current?.querySelector(`[data-card="${wanted.card}"]`)
+    if (!card) {
+      // Gone: undone (focus the heading), or a failed Đã trả whose card left (nothing to follow)
+      if (wanted.then === 'gone' && lost()) heading.current?.focus()
+      onFocusDone?.()
+      return
+    }
+    const undo = card.querySelector<HTMLButtonElement>('button[data-action="undo"]:not(:disabled)')
+    if (!undo) return
+    if (lost()) undo.focus()
+    onFocusDone?.()
   })
 
   async function copy() {
@@ -145,7 +160,7 @@ function VerdictBlock({
   return (
     <section className="verdict" aria-labelledby={`${id}-title`}>
       {monthLine}
-      <h2 id={`${id}-title`} className="verdict-sentence">
+      <h2 id={`${id}-title`} ref={heading} className="verdict-sentence" tabIndex={-1}>
         {sentence}
       </h2>
       {total !== null && (
@@ -153,16 +168,25 @@ function VerdictBlock({
           <Money amount={total} />
         </p>
       )}
+      {refreshError && (
+        <div className="note" role="alert">
+          Chưa cập nhật được số dư mới nhất. {refreshError}
+          {onRetry && (
+            <button type="button" className="btn-secondary" onClick={onRetry}>
+              Thử lại
+            </button>
+          )}
+        </div>
+      )}
 
       {cards.length > 0 && (
         <ul ref={list} className="transfer-list" aria-label="Các lần trả gợi ý">
           {cards.map((card, index) => {
             const { transfer } = card
-            const pair = `${transfer.from_member_id}-${transfer.to_member_id}`
             const textId = `${id}-${card.key}`
             const done = card.state === 'paid' || card.state === 'undoing'
             return (
-              <li key={card.key} className={`transfer-card${done ? ' paid' : ''}`}>
+              <li key={card.key} data-card={card.key} className={`transfer-card${done ? ' paid' : ''}`}>
                 <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
                 <span id={textId} className="transfer-text">
                   {transferText(transfer, me, nameOf)} <Money amount={transfer.amount} />
@@ -174,11 +198,9 @@ function VerdictBlock({
                       type="button"
                       className="btn-ghost"
                       aria-describedby={textId}
-                      data-pair={pair}
                       data-action="undo"
                       disabled={card.state === 'undoing'}
                       onClick={() => {
-                        focusNext.current = { pair, action: 'pay' }
                         if (card.paymentId !== undefined) onUndo(card.paymentId)
                       }}
                     >
@@ -190,13 +212,9 @@ function VerdictBlock({
                     type="button"
                     className="btn-primary"
                     aria-describedby={textId}
-                    data-pair={pair}
                     data-action="pay"
                     disabled={card.state === 'paying'}
-                    onClick={() => {
-                      focusNext.current = { pair, action: 'undo' }
-                      onPaid(transfer, index)
-                    }}
+                    onClick={() => onPaid(transfer, cards[index + 1]?.key ?? null)}
                   >
                     {card.state === 'paying' ? 'Đang ghi…' : 'Đã trả'}
                   </button>

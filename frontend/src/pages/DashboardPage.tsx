@@ -27,6 +27,11 @@ import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/ve
 // US-06, US-07, US-08: who pays whom, marking it paid, and the payments already made (DESIGN.md §6.2)
 function DashboardPage() {
   const householdId = Number(useParams().householdId)
+  // One household per mount: the payments just recorded and their toasts never leak into another one
+  return <Dashboard key={householdId} householdId={householdId} />
+}
+
+function Dashboard({ householdId }: { householdId: number }) {
   const queryClient = useQueryClient()
   const { me } = useMe()
   const toast = useToast()
@@ -79,9 +84,10 @@ function DashboardPage() {
     }))
     return memberLooks(fromBalances)
   }, [members.data, balances.data, householdId])
-  const suggested = balances.data?.suggested ?? []
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
-  const paid = usePaidTransfers(householdId, suggested, (transfer) => transferText(transfer, me, nameOf))
+  const paid = usePaidTransfers(householdId, balances.data, (transfer) => transferText(transfer, me, nameOf))
+  // Without the transfers already marked paid, even before the refetched balances arrive
+  const suggested = paid.outstanding
 
   if (members.isSuccess && memberList.length === 0) {
     return (
@@ -127,10 +133,14 @@ function DashboardPage() {
         looks={looks}
         started={balances.data?.balances.some(tookPart) ?? false}
         loading={balances.isPending}
-        loadError={errorMessage(balances.error)}
+        // A failed first load replaces the verdict; a failed refresh keeps the last one and says so
+        loadError={balances.data ? null : errorMessage(balances.error)}
+        refreshError={balances.data ? errorMessage(balances.error) : null}
         onRetry={() => balances.refetch()}
         onPaid={paid.pay}
         onUndo={paid.undo}
+        focusIntent={paid.focusIntent}
+        onFocusDone={paid.clearFocusIntent}
         error={paid.error}
         reminder={reminder}
         onCopied={() => toast({ text: 'Đã sao chép. Dán vào nhóm chat của nhà nhé.' })}
@@ -151,7 +161,7 @@ function DashboardPage() {
           me={me}
           loading={balances.isPending}
           // The verdict block above already says why and offers Thử lại
-          unavailable={balances.isError}
+          unavailable={balances.isError && !balances.data}
         />
       </section>
 

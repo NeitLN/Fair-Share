@@ -1,10 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '../api/client'
 import { keys } from '../api/households'
-import { createSettlement, deleteSettlement } from '../api/settlements'
-import type { Transfer } from '../api/types'
+import { balancesFetchCount, createSettlement, deleteSettlement } from '../api/settlements'
+import type { Balances, Transfer } from '../api/types'
 import { today } from './date'
 import { errorMessage } from './errors'
 import { formatVND } from './money'
@@ -12,141 +12,221 @@ import { useToast } from './toast'
 
 /** One transfer card in the verdict block, as the block shows it. */
 export interface TransferCard {
-  /** Stable for React: the pair for an open suggestion, the payment for a recorded one. */
+  /** "open-<from>-<to>" for a suggestion, "pay-<id>" for a press of Đã trả. Stable for React and focus. */
   key: string
   transfer: Transfer
   /** open: "Đã trả"; paying: being recorded; paid: stamped, can be undone; undoing: being deleted. */
   state: 'open' | 'paying' | 'paid' | 'undoing'
-  /** The payment behind a paid card, for undoing it. */
+  /** The press behind a paying, paid or undoing card. */
   paymentId?: number
 }
 
+/** Where keyboard focus should go once the card it follows changes (see VerdictBlock). */
+export interface FocusIntent {
+  card: string
+  /** "undo": that card's Hoàn tác once it is enabled. "gone": the block's heading once the card is gone. */
+  then: 'undo' | 'gone'
+}
+
 // One press of "Đã trả", from the request to the undo. Kept apart from the suggestions, which are
-// refetched (and lose the paid transfer) as soon as it is recorded.
+// refetched (and lose the paid transfer) after it is recorded.
 interface Payment {
   id: number
+  /** What was pressed, as it was then: the card shows this, not a refetched amount. */
   transfer: Transfer
-  /** Where its card was, so the stamped card stays in place. */
-  index: number
+  /** The card that came after it when pressed: it stays in front of that card (or at the end). */
+  before: string | null
+  /** The suggestion card it replaced, so a later press can be placed relative to it. */
+  replaces: string
   state: 'paying' | 'paid' | 'undoing'
   settlementId: number | null
+  /** Balances fetched up to this count were asked for before the payment existed. */
+  recordedAtFetch: number
 }
 
 const pairKey = (t: Transfer) => `${t.from_member_id}-${t.to_member_id}`
 
 /**
- * "Đã trả", the ĐÃ TRẢ stamp and Hoàn tác (DESIGN.md §6.2). A recorded transfer keeps its card, stamped,
- * after the suggestions are refetched without it; Hoàn tác deletes exactly the settlement that press
- * created. A double click records once and an undo runs once.
+ * "Đã trả", the ĐÃ TRẢ stamp and Hoàn tác (DESIGN.md §6.2). Each press keeps its own card, built from
+ * what was pressed, until it is undone or its settlement deleted. A suggestion for the same pair stays
+ * hidden until balances fetched after the payment arrive, so the paid transfer can never be pressed
+ * twice; a new debt between the same two people shows up once those balances say so. Hoàn tác deletes
+ * exactly the settlement that press created. The hook belongs to one household: the page remounts it
+ * for another one, and nothing from a request that finishes later reaches the screen.
  */
 export function usePaidTransfers(
   householdId: number,
-  suggested: Transfer[],
-  /** "Bạn trả Minh": how the toasts name a transfer. */
+  balances: Balances | undefined,
+  /** "Bạn trả Minh": how the toasts name a transfer, read when each toast is shown. */
   describe: (transfer: Transfer) => string,
 ) {
   const queryClient = useQueryClient()
   const toast = useToast()
-  const [store, setStore] = useState<{ householdId: number; payments: Payment[] }>({ householdId, payments: [] })
+  const [payments, setPayments] = useState<Payment[]>([])
   const [error, setError] = useState<string | null>(null)
   const nextId = useRef(1)
-  // Synchronous guards: state updates are not visible to a second click in the same tick
+  const alive = useRef(true)
+  const describeNow = useRef(describe)
+  const intent = useRef<FocusIntent | null>(null)
+  // Synchronous guards: state is not visible to a second click in the same tick
   const recording = useRef(new Set<string>())
   const undoing = useRef(new Set<number>())
-  const undone = useRef(new Set<number>())
+  const finished = useRef(new Set<number>())
+  const deletedSettlements = useRef(new Set<number>())
+  const dismissers = useRef(new Set<() => void>())
 
-  // Another household: its payments are not this one's
-  let payments = store.payments
-  if (store.householdId !== householdId) {
-    payments = []
-    setStore({ householdId, payments })
-    setError(null)
+  useEffect(() => {
+    describeNow.current = describe
+  })
+
+  // Leaving the household: its toasts and their actions go with it
+  useEffect(() => {
+    alive.current = true
+    const open = dismissers.current
+    return () => {
+      alive.current = false
+      open.forEach((dismiss) => dismiss())
+      open.clear()
+    }
+  }, [])
+
+  const say = (text: string, action?: { label: string; onAction: () => void }) => {
+    if (!alive.current) return
+    let dismiss: () => void = () => {}
+    dismiss = toast({
+      text,
+      action: action && {
+        label: action.label,
+        onAction: () => {
+          dismissers.current.delete(dismiss)
+          action.onAction()
+        },
+      },
+    })
+    if (action) dismissers.current.add(dismiss)
+  }
+  const named = (transfer: Transfer) => `${describeNow.current(transfer)} ${formatVND(transfer.amount)}`
+  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
+  const change = (id: number, next: Partial<Payment> | null) => {
+    if (!alive.current) return
+    setPayments((current) =>
+      next === null ? current.filter((p) => p.id !== id) : current.map((p) => (p.id === id ? { ...p, ...next } : p)),
+    )
   }
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
-  const change = (id: number, next: Partial<Payment> | null) =>
-    setStore((current) => ({
-      ...current,
-      payments:
-        next === null
-          ? current.payments.filter((p) => p.id !== id)
-          : current.payments.map((p) => (p.id === id ? { ...p, ...next } : p)),
-    }))
-
-  async function pay(transfer: Transfer, index: number) {
+  /** Records `transfer`; returns the new card's payment id (null when this pair is already being recorded). */
+  function pay(transfer: Transfer, before: string | null): number | null {
     const pair = pairKey(transfer)
-    if (recording.current.has(pair)) return
+    if (recording.current.has(pair)) return null
     recording.current.add(pair)
     const id = nextId.current++
     setError(null)
-    setStore((current) => ({
+    setPayments((current) => [
       ...current,
-      payments: [...current.payments, { id, transfer, index, state: 'paying', settlementId: null }],
-    }))
+      {
+        id,
+        transfer,
+        before,
+        replaces: `open-${pair}`,
+        state: 'paying',
+        settlementId: null,
+        recordedAtFetch: Number.POSITIVE_INFINITY,
+      },
+    ])
+    intent.current = { card: `pay-${id}`, then: 'undo' }
+    void record(id, transfer, pair)
+    return id
+  }
+
+  async function record(id: number, transfer: Transfer, pair: string) {
     try {
       const settlement = await createSettlement(householdId, { ...transfer, settled_at: today() })
-      // Stamp the card once the new suggestions are in, so the paid transfer is never shown twice
-      await refresh()
-      change(id, { state: 'paid', settlementId: settlement.id })
-      toast({
-        text: `Đã ghi: ${describe(transfer)} ${formatVND(transfer.amount)}`,
-        action: { label: 'Hoàn tác', onAction: () => undo(id, settlement.id, transfer) },
-      })
+      if (deletedSettlements.current.has(settlement.id)) {
+        // Deleted from Lịch sử trả before this answer arrived: nothing to stamp or undo
+        change(id, null)
+      } else {
+        change(id, { state: 'paid', settlementId: settlement.id, recordedAtFetch: balancesFetchCount() })
+        say(`Đã ghi: ${named(transfer)}`, {
+          label: 'Hoàn tác',
+          onAction: () => undo(id, settlement.id, transfer),
+        })
+      }
+      void refresh()
     } catch (failure) {
       change(id, null)
-      setError(errorMessage(failure))
+      if (alive.current) setError(errorMessage(failure))
     } finally {
       recording.current.delete(pair)
     }
   }
 
   async function undo(id: number, settlementId: number, transfer: Transfer) {
-    if (undoing.current.has(id) || undone.current.has(id)) return
+    if (undoing.current.has(id) || finished.current.has(id)) return
     undoing.current.add(id)
+    intent.current = { card: `pay-${id}`, then: 'gone' }
     change(id, { state: 'undoing' })
     try {
       await deleteSettlement(settlementId)
-      undone.current.add(id)
+      finished.current.add(id)
+      deletedSettlements.current.add(settlementId)
       change(id, null)
-      await refresh()
-      toast({ text: `Đã hoàn tác: ${describe(transfer)} ${formatVND(transfer.amount)}` })
+      say(`Đã hoàn tác: ${named(transfer)}`)
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 404) {
         // Deleted already (from Lịch sử trả, or on another phone): nothing left to undo
-        undone.current.add(id)
+        finished.current.add(id)
         change(id, null)
-        await refresh()
-        toast({ text: 'Khoản trả này đã được xoá trước đó.' })
+        say('Khoản trả này đã được xoá trước đó.')
       } else {
         change(id, { state: 'paid' })
-        toast({
-          text: `Chưa hoàn tác được. ${errorMessage(failure)}`,
-          action: { label: 'Thử lại', onAction: () => undo(id, settlementId, transfer) },
+        say(`Chưa hoàn tác được. ${errorMessage(failure)}`, {
+          label: 'Thử lại',
+          onAction: () => undo(id, settlementId, transfer),
         })
       }
     } finally {
       undoing.current.delete(id)
+      void refresh()
     }
   }
 
-  // The open suggestions, with the stamped cards put back where they were
-  const busy = new Set(payments.filter((p) => p.state === 'paying').map((p) => pairKey(p.transfer)))
-  const cards: TransferCard[] = suggested.map((transfer) => ({
+  // A suggestion is still the paid transfer itself until balances asked for after the payment arrive
+  const fetched = balances?.fetchCount ?? Number.POSITIVE_INFINITY
+  const consumed = new Set(
+    payments
+      .filter((p) => p.state === 'paying' || fetched <= p.recordedAtFetch)
+      .map((p) => pairKey(p.transfer)),
+  )
+  const outstanding = (balances?.suggested ?? []).filter((t) => !consumed.has(pairKey(t)))
+
+  // The open suggestions, then each press put back in front of the card that followed it. Placing a
+  // press can wait for the press it was in front of, so repeat until nothing moves.
+  const cards: TransferCard[] = outstanding.map((transfer) => ({
     key: `open-${pairKey(transfer)}`,
     transfer,
-    state: busy.has(pairKey(transfer)) ? 'paying' : 'open',
+    state: 'open',
   }))
-  for (const payment of payments.filter((p) => p.state !== 'paying').sort((a, b) => a.index - b.index)) {
-    cards.splice(Math.min(payment.index, cards.length), 0, {
-      key: `paid-${payment.id}`,
-      transfer: payment.transfer,
-      state: payment.state === 'undoing' ? 'undoing' : 'paid',
-      paymentId: payment.id,
-    })
+  const card = (p: Payment): TransferCard => ({ key: `pay-${p.id}`, transfer: p.transfer, state: p.state, paymentId: p.id })
+  const positionOf = (key: string) =>
+    cards.findIndex((c) => c.key === key || payments.some((p) => `pay-${p.id}` === c.key && p.replaces === key))
+  let waiting = [...payments].sort((a, b) => b.id - a.id)
+  for (let moved = true; moved; ) {
+    moved = false
+    for (const p of [...waiting]) {
+      const at = p.before === null ? -1 : positionOf(p.before)
+      if (at === -1) continue
+      cards.splice(at, 0, card(p))
+      waiting = waiting.filter((w) => w !== p)
+      moved = true
+    }
   }
+  // Pressed last in the list, or in front of a card that is gone: at the end, in the order pressed
+  for (const p of waiting.reverse()) cards.push(card(p))
 
   return {
     cards,
+    /** The suggestions still to pay: the verdict sentence and the reminder use these. */
+    outstanding,
     /** Recording a transfer failed. */
     error,
     pay,
@@ -156,10 +236,13 @@ export function usePaidTransfers(
     },
     /** The settlement was deleted from Lịch sử trả: its card goes, there is nothing to undo. */
     forget(settlementId: number) {
-      setStore((current) => ({
-        ...current,
-        payments: current.payments.filter((p) => p.settlementId !== settlementId),
-      }))
+      deletedSettlements.current.add(settlementId)
+      setPayments((current) => current.filter((p) => p.settlementId !== settlementId))
+    },
+    /** The focus move the block should make after this render, if any; it clears it once done. */
+    focusIntent: () => intent.current,
+    clearFocusIntent: () => {
+      intent.current = null
     },
   }
 }

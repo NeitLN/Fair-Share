@@ -19,10 +19,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Pure: only the list changes here; the timers follow the list in the effect below
-  const show = useCallback((input: ToastInput) => {
-    const id = nextId.current++
-    setToasts((current) => [...current, { ...input, id }].slice(-MAX_TOASTS))
-  }, [])
+  const show = useCallback(
+    (input: ToastInput) => {
+      const id = nextId.current++
+      setToasts((current) => [...current, { ...input, id }].slice(-MAX_TOASTS))
+      return () => dismiss(id)
+    },
+    [dismiss],
+  )
 
   // One timer per toast on screen: start the missing ones, cancel those whose toast is gone. Running
   // after every change also restores the timers after StrictMode's unmount/remount in development.
