@@ -104,6 +104,14 @@ main {
   overflow-wrap: anywhere;
 }
 
+/* DESIGN.md §4: titles step down on the narrowest phones */
+@media (max-width: 380px) {
+  :where(h1),
+  .household-name {
+    font-size: 24px;
+  }
+}
+
 /* Household tabs as a segmented control (DESIGN.md §5) */
 .tabs {
   display: grid;
@@ -178,7 +186,8 @@ main {
   border-color: var(--muted);
 }
 
-:where([aria-invalid='true']) {
+/* After the hover rule and with a real attribute selector, so an invalid field stays red on hover */
+[aria-invalid='true'] {
   border-color: var(--debt-text);
 }
 
@@ -221,8 +230,8 @@ label.inline {
     box-shadow var(--press) ease-out;
 }
 
-/* A form's submit button is primary unless it says otherwise */
-:where(button[type='submit']),
+/* A form's submit button is primary unless it chose another look */
+:where(button[type='submit']:not(.btn-secondary, .btn-ghost, .btn-danger, .btn-ai, .secondary, .ghost, .ai)),
 .btn-primary {
   background: var(--primary);
   color: var(--on-primary);
@@ -239,7 +248,7 @@ button.ai {
 }
 
 /* Pressing moves the button down by exactly its shadow */
-:where(button[type='submit']):active,
+:where(button[type='submit']:not(.btn-secondary, .btn-ghost, .btn-danger, .secondary, .ghost)):active,
 .btn-primary:active,
 .btn-ai:active,
 button.ai:active {
@@ -277,6 +286,20 @@ button:disabled {
   cursor: not-allowed;
   box-shadow: none;
   translate: none;
+}
+
+/* Focus after every variant: the yellow halo is added to the button's own shadow, never replaced */
+button:focus-visible {
+  box-shadow: 0 0 0 5px var(--ai);
+}
+
+button:where([type='submit']:not(.btn-secondary, .btn-ghost, .btn-danger, .secondary, .ghost)):focus-visible,
+button.btn-primary:focus-visible,
+button.btn-ai:focus-visible,
+button.ai:focus-visible {
+  box-shadow:
+    3px 3px 0 var(--sticker-shadow),
+    0 0 0 5px var(--ai);
 }
 
 /* ---------------------------------------------------------------- lists and messages */
@@ -564,7 +587,8 @@ button:disabled {
   top: 6px;
 }
 
-/* Fields the AI just filled flash yellow once */
+/* Fields the AI just filled flash yellow once. The text turns --on-fill for the flash, so it stays
+   readable on yellow in dark mode too (13.9:1); both ease back to the field's own colours. */
 .just-filled {
   animation: just-filled 1.2s ease-out 1;
 }
@@ -572,9 +596,7 @@ button:disabled {
 @keyframes just-filled {
   from {
     background-color: var(--ai);
-  }
-  to {
-    background-color: transparent;
+    color: var(--on-fill);
   }
 }
 

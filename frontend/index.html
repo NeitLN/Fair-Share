@@ -28,7 +28,13 @@
       // Apply a forced light/dark choice before the first paint, so the page never flashes (lib/theme.ts)
       try {
         var theme = localStorage.getItem('fair-share:theme')
-        if (theme === 'light' || theme === 'dark') document.documentElement.setAttribute('data-theme', theme)
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme)
+          var bar = theme === 'dark' ? '#110e1c' : '#f3f0fc'
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+            meta.content = bar
+          })
+        }
       } catch (e) {}
     </script>
   </head>

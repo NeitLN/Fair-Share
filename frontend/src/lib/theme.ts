@@ -20,11 +20,20 @@ export function readTheme(): ThemeChoice {
   }
 }
 
+// The browser bar colour per theme: the same values as --bg in tokens.css
+const BAR_COLOUR: Record<'light' | 'dark', string> = { light: '#f3f0fc', dark: '#110e1c' }
+
 /** data-theme on <html> is what tokens.css reads; no attribute means "follow the phone". */
 export function applyTheme(choice: ThemeChoice): void {
   const root = document.documentElement
   if (choice === 'system') root.removeAttribute('data-theme')
   else root.setAttribute('data-theme', choice)
+
+  // index.html has one theme-color per colour scheme; a forced theme makes both say the same
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"][media]').forEach((meta) => {
+    const scheme = (meta.getAttribute('media') ?? '').includes('dark') ? 'dark' : 'light'
+    meta.content = BAR_COLOUR[choice === 'system' ? scheme : choice]
+  })
 }
 
 /** Apply and remember; the theme still changes when storage is blocked, it just is not kept. */
