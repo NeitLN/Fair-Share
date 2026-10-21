@@ -82,7 +82,8 @@ function ExpensesPage() {
         <>
           {!editing && (
             <AiComposer
-              key={composerKey}
+              // A new household or a saved expense starts a fresh composer; pending answers are dropped
+              key={`${householdId}-${composerKey}`}
               members={members.data}
               onParse={(text) => parseExpense(householdId, text)}
               onDraft={(draft) =>

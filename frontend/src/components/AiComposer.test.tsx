@@ -26,11 +26,14 @@ const answer: AiDraft = {
 // Intl puts a non-breaking space before ₫
 const plain = (text: string | null | undefined) => (text ?? '').replace(/[\u00A0\u202F]/g, ' ')
 
+const ALL = ['description', 'amount', 'payer', 'date', 'split']
+
+// The form fills every field except the ones the user had changed (`kept`)
 function setup(onParse: (text: string) => Promise<AiDraft>, kept: string[] = []) {
   const props = {
     members,
     onParse: vi.fn(onParse),
-    onDraft: vi.fn(() => ({ filled: [], kept }) as never),
+    onDraft: vi.fn(() => ({ filled: ALL.filter((f) => !kept.includes(f)), kept, cleared: [] }) as never),
     onUndo: vi.fn(),
     onManual: vi.fn(),
   }
@@ -62,13 +65,80 @@ describe('AiComposer', () => {
     expect(plain(note.textContent)).toBe('Đã điền: Lẩu · 240.000 ₫ · Minh trả · chia đều cả nhà (2 người).')
   })
 
-  test('says which fields it left as the user typed them', async () => {
+  test('says which fields it left as the user typed them, and only lists what it filled', async () => {
     setup(() => Promise.resolve(answer), ['amount'])
     const user = userEvent.setup()
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k')
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
     expect(await screen.findByText('Giữ nguyên số tiền bạn đã nhập.')).toBeInTheDocument()
+    // The kept amount is the user's, so the summary does not claim the AI's 240.000
+    expect(screen.getByText(/^Đã điền:/)).toHaveTextContent(
+      'Đã điền: Lẩu · Minh trả · chia đều cả nhà (2 người).',
+    )
+  })
+
+  test('when every field was already set, it says nothing was filled', async () => {
+    setup(() => Promise.resolve(answer), ALL)
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+
+    expect(await screen.findByText(/^Không điền thêm gì/)).toBeInTheDocument()
+  })
+
+  test('without a key on the server, Quick add turns off: no "Thử lại", the button stays disabled', async () => {
+    const props = setup(() =>
+      Promise.reject(new ApiError(503, 'ai_not_configured', 'not set up on this server')),
+    )
+    const user = userEvent.setup()
+    const box = screen.getByLabelText('Câu mô tả khoản chi')
+    await user.type(box, 'lẩu 240k')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Gõ nhanh chưa được bật trên máy chủ này.',
+    )
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument()
+    await user.type(box, ' nữa{Enter}')
+    expect(screen.getByRole('button', { name: 'Điền giúp' })).toBeDisabled()
+    expect(props.onParse).toHaveBeenCalledOnce()
+  })
+
+  test('a sentence the AI did not understand can be retried only after it is edited', async () => {
+    const props = setup(() =>
+      Promise.reject(new ApiError(422, 'ai_unparseable', 'could not understand')),
+    )
+    const user = userEvent.setup()
+    const box = screen.getByLabelText('Câu mô tả khoản chi')
+    await user.type(box, 'abc')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('AI chưa hiểu câu này.')
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument()
+
+    await user.type(box, ' lẩu 240k')
+    await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(props.onParse).toHaveBeenLastCalledWith('abc lẩu 240k')
+  })
+
+  test('an answer that arrives after the box is gone (expense saved) is dropped', async () => {
+    let answerNow: (value: AiDraft) => void = () => {}
+    const props = {
+      members,
+      onParse: vi.fn(() => new Promise<AiDraft>((resolve) => (answerNow = resolve))),
+      onDraft: vi.fn(() => ({ filled: [], kept: [], cleared: [] }) as never),
+      onUndo: vi.fn(),
+      onManual: vi.fn(),
+    }
+    const { unmount } = render(<AiComposer {...props} />)
+    const user = userEvent.setup()
+    await user.type(screen.getAllByLabelText('Câu mô tả khoản chi')[0], 'lẩu 240k')
+    await user.click(screen.getAllByRole('button', { name: 'Điền giúp' })[0])
+
+    unmount()
+    await act(async () => answerNow(answer))
+    expect(props.onDraft).not.toHaveBeenCalled()
   })
 
   test('warnings from the API are shown in Vietnamese', async () => {
@@ -100,7 +170,7 @@ describe('AiComposer', () => {
     expect(screen.queryByText(/^Đã điền:/)).not.toBeInTheDocument()
   })
 
-  test('when the AI is busy the sentence stays, and "Thử lại" asks again', async () => {
+  test('when Quick add is over its limit the sentence stays, and "Thử lại" asks again', async () => {
     let calls = 0
     const props = setup(() => {
       calls += 1
@@ -113,7 +183,7 @@ describe('AiComposer', () => {
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay.',
+      'Gõ nhanh đang quá tải. Đợi một phút rồi thử lại, hoặc điền biểu mẫu bên dưới.',
     )
     expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k')
     expect(props.onDraft).not.toHaveBeenCalled()

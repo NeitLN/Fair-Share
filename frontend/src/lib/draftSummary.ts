@@ -18,12 +18,17 @@ export function draftSummary(draft: ExpenseDraft, members: Member[]): string {
     parts.push(`${payer?.name ?? 'Thành viên đã xoá'} trả`)
   }
 
+  // No ids: the split was not filled (the user had set it), so it is not mentioned
   const ids = draft.split.member_ids
-  const everyone =
-    members.length > 0 &&
-    ids.length === members.length &&
-    members.every((member) => ids.includes(member.id))
-  parts.push(everyone ? `chia đều cả nhà (${members.length} người)` : `chia đều ${ids.length} người`)
+  if (ids.length > 0) {
+    const everyone =
+      members.length > 0 &&
+      ids.length === members.length &&
+      members.every((member) => ids.includes(member.id))
+    parts.push(
+      everyone ? `chia đều cả nhà (${members.length} người)` : `chia đều ${ids.length} người`,
+    )
+  }
 
-  return `Đã điền: ${parts.join(' · ')}.`
+  return parts.length > 0 ? `Đã điền: ${parts.join(' · ')}.` : ''
 }

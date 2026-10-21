@@ -21,6 +21,17 @@ const draft: ExpenseDraft = {
 }
 
 describe('draftSummary', () => {
+  test('a split that was not applied is not mentioned', () => {
+    expect(draftSummary({ ...draft, split: { type: 'equal', member_ids: [] } }, members)).toBe(
+      `Đã điền: Lẩu · ${formatVND(240000)} · Minh trả.`,
+    )
+  })
+
+  test('nothing applied gives an empty summary', () => {
+    const nothing = { ...draft, description: '', amount: null, payer_id: null }
+    expect(draftSummary({ ...nothing, split: { type: 'equal', member_ids: [] } }, members)).toBe('')
+  })
+
   test('describes a complete draft for the whole household', () => {
     expect(draftSummary(draft, members)).toBe(
       `Đã điền: Lẩu · ${formatVND(240000)} · Minh trả · chia đều cả nhà (4 người).`,

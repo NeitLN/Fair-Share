@@ -244,7 +244,7 @@ test('when the AI is busy the sentence stays and the expense is saved by hand', 
 
   await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
   await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
-  expect(await screen.findByText(/AI đang bận/)).toBeInTheDocument()
+  expect(await screen.findByText(/Gõ nhanh đang quá tải/)).toBeInTheDocument()
   expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k Minh trả')
 
   await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
