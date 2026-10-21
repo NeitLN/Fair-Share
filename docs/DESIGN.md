@@ -234,8 +234,9 @@ Hôm qua, 20/10
 ### 6.4 Thành viên `/households/:id/members`
 
 A list, not a card grid (it scales to 6 long names). Each row: large avatar, **full name**, "gọi là
-*Anh*", the net chip or SẠCH NỢ, the *bạn* chip for you, and a 44 px *Sửa* that opens rename / remove in
-place. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
+*Anh*" (left out when it is the whole name), the net chip or SẠCH NỢ, the *bạn* chip for you, and two 44 px
+buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (asks first). One tap fewer than a *Sửa* menu,
+and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
 field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…". If two members share a last word,
 both are shown by their last two words ("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
 

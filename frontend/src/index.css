@@ -196,6 +196,78 @@ body {
   text-align: center;
 }
 
+/* ---------------------------------------------------------------- members (DESIGN.md §6.4) */
+
+.member-add {
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.member-list {
+  border-radius: var(--radius-section);
+  background: var(--surface);
+  padding: 0 14px;
+}
+
+.member-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px 0;
+}
+
+.member-row:last-child {
+  border-bottom: 0;
+}
+
+.member-row .who {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.member-row .who strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.member-row .who small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.member-row .standing:not(:empty) {
+  margin-top: 4px;
+}
+
+/* Under the name, aligned with it: room for long names and two 44 px buttons at 360 px */
+.member-row .row-actions,
+.member-row .row-note,
+.member-row .member-edit {
+  grid-column: 2;
+}
+
+.member-row .row-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: -10px;
+}
+
+.member-row .row-note {
+  margin-top: 4px;
+}
+
+.member-edit {
+  gap: 8px;
+}
+
 /* A fold: a summary that looks like a secondary button, opening its form in place */
 .fold > summary {
   list-style: none;

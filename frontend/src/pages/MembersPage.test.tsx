@@ -97,7 +97,7 @@ test('renaming keeps edit mode open when the name is taken', async () => {
   api({ 'PATCH /api/members/1': nameTaken })
   renderApp('/households/7/members')
 
-  await userEvent.click((await screen.findAllByRole('button', { name: 'Đổi tên' }))[0])
+  await userEvent.click(await screen.findByRole('button', { name: 'Đổi tên Minh' }))
   const input = screen.getByLabelText('Tên mới cho Minh')
   await userEvent.clear(input)
   await userEvent.type(input, 'Tiến')
