@@ -103,7 +103,7 @@ def test_unknown_names_are_reported_not_guessed(client, house):
 def test_no_key_is_503_and_gemini_is_not_called(client, house):
     fake = use(client, FakeGemini(configured=False))
     response = parse(client, house["id"])
-    assert response.status_code == 503 and error_code(response) == "ai_unavailable"
+    assert response.status_code == 503 and error_code(response) == "ai_not_configured"
     assert fake.calls == []
 
 

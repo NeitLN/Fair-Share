@@ -88,7 +88,7 @@ gantt
 `#84 fix (T-08)` → `T-15 expenses` → `T-16 settlements` → `T-17 balances` → `T-18/T-20 pages wired to the
 real API` → live check → freeze. The AI path runs beside it: `Gemini key` → `T-21` → `T-22` (needs T-08
 merged for member names) → `T-19`. Anything late on these two chains moves the freeze; everything else has
-slack. The UI work is a third, short chain: `T-41` → `T-42` (by Sat 24/10) → `T-19` and `T-43`; T-42 is
+slack. The UI work is a third, short chain: `T-41` → `T-42` (by Sat 24/10) → `T-19`'s form interface (Mon 26/10) → `T-43`; T-42 is
 on it because the composer and both redesigned screens use its components.
 
 ### Rules that make the acceleration work
@@ -144,7 +144,7 @@ on it because the composer and both redesigned screens use its components.
 | T-25 | Validation & errors: one error JSON, 404/409/422 cases, input limits — the contract the pages rely on | Hoàng Minh | Duy Anh | P1 | Wed 28/10 |
 | T-18 | Expenses page: list, add/edit/delete form with equal/custom split | Duy Anh | Hoàng Minh | P0 | **Mon 26/10** (live by Tue 27/10) |
 | T-20 | Dashboard: balances, suggested settlements, "record this payment" | Duy Anh | Hoàng Minh | P0 | **Tue 27/10** |
-| T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form — built on the T-42 components, states in [DESIGN.md §6.3](DESIGN.md#63-chi-tiêu-householdsidexpenses) | Duy Anh | Việt Tiến | P0 | **Wed 28/10** |
+| T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form — built on the T-42 components, states in [DESIGN.md §6.3](DESIGN.md#63-chi-tiêu-householdsidexpenses); owns the form's AI-fill interface ([§9](DESIGN.md#9-implementation-plan)), proposed by Mon 26/10 so T-43 builds on it | Duy Anh | Việt Tiến | P0 | **Wed 28/10** |
 | T-41 | Design system "Sticker pop": [DESIGN.md](DESIGN.md) — rules, light/dark tokens with measured contrast, type, components, screen specs, copy | Việt Tiến | Duy Anh | P1 | Thu 22/10 |
 | T-42 | UI foundation: tokens, fonts, base CSS, shared components (avatar, money, chips, buttons, toast), "Bạn là ai?"; Danh sách nhà, household frame, Thành viên | Việt Tiến | Duy Anh | P1 | **Sat 24/10** |
 | T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | Wed 28/10 |

@@ -272,7 +272,7 @@ sequenceDiagram
         API-->>SPA: 429 {error.code: "ai_rate_limited"}
         SPA-->>User: "AI is busy — fill in the form below" (text kept, form open)
     else timeout / 5xx / no key
-        API-->>SPA: 503 {error.code: "ai_unavailable"}
+        API-->>SPA: 503 {error.code: "ai_unavailable" or "ai_not_configured"}
         SPA-->>User: same fallback, manual form
     else unusable answer
         API-->>SPA: 422 {error.code: "ai_unparseable"}
@@ -308,7 +308,7 @@ accents (`"tien"` → Tiến), and a single word matches when only one member ha
 | `participants_assumed` | Nobody was named, so the draft splits between everyone |
 
 **Errors:** `404 household_not_found`, `409 no_members` (add members first), `422 validation_error`
-(empty or over 300 characters), `422 ai_unparseable`, `422 too_many_participants` (over 50 people), `429 ai_rate_limited`, `503 ai_unavailable`.
+(empty or over 300 characters), `422 ai_unparseable`, `422 too_many_participants` (over 50 people), `429 ai_rate_limited`, `503 ai_unavailable` (Gemini slow or down: retry may work), `503 ai_not_configured` (no key on this server: the page disables Quick add).
 Every one of them leaves the manual form open with the text kept.
 
 * **Where the call happens:** only in `app/services/gemini.py` on the server (Python's `urllib`,

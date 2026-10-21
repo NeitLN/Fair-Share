@@ -13,6 +13,8 @@ describe('errorMessage', () => {
     ['member_in_use', 'Không xoá được: người này đã có trong một khoản chi hoặc khoản trả.'],
     ['same_member', 'Một người không thể tự trả cho chính mình.'],
     ['database_unavailable', 'Máy chủ tạm thời không kết nối được dữ liệu. Thử lại sau ít phút.'],
+    ['ai_not_configured', 'Gõ nhanh chưa được bật trên máy chủ này. Bạn điền biểu mẫu bên dưới nhé.'],
+    ['ai_unavailable', 'AI đang bận. Câu bạn gõ vẫn còn, điền biểu mẫu bên dưới là lưu được ngay.'],
   ])('a known code (%s) is shown in Vietnamese', (code, message) => {
     expect(errorMessage(new ApiError(422, code, 'English text for developers'))).toBe(message)
   })

@@ -7,7 +7,7 @@ POST /api/households/{id}/ai/parse-expense {"text": "dinner 240k, Minh paid, spl
 Nothing is saved here. The answer is a draft for the user to check; saving goes through the normal
 expenses endpoint. Every failure is an error code the UI answers by keeping the manual form open:
 404 household_not_found, 409 no_members, 422 validation_error / ai_unparseable /
-too_many_participants, 429 ai_rate_limited, 503 ai_unavailable / database_*.
+too_many_participants, 429 ai_rate_limited, 503 ai_not_configured / ai_unavailable / database_*.
 
 A fast 5xx from Gemini is retried once, counted in the global budget.
 """
@@ -33,7 +33,7 @@ from app.schemas import (
     ExpenseDraft,
     Id,
 )
-from app.services.gemini import GeminiBusy, GeminiClient, ai_rate_limited, ai_unavailable
+from app.services.gemini import GeminiBusy, GeminiClient, ai_not_configured, ai_rate_limited
 from app.services.names import match_member
 from app.services.rate_limit import AiBudget
 
@@ -139,7 +139,7 @@ def parse_expense(
         raise ApiError(409, "no_members", "Add the household's members before using quick add")
     # Checked before the budget, so a missing key never uses it up.
     if not gemini.configured:
-        raise ai_unavailable()
+        raise ai_not_configured()
     if not budget.try_spend(client_ip(request)):
         raise ai_rate_limited()
 

@@ -69,14 +69,17 @@ never a literal colour. Dark values apply under `prefers-color-scheme: dark` unl
 | `--sticker-shadow` | `#17132B` | `#6A52E8` | sticker and primary-button shadow |
 | `--toast-bg` / `--toast-fg` / `--toast-action` | `#17132B` / `#FFFFFF` / `#FFE14D` | `#F3F0FF` / `#17132B` / `#5A3CF0` | toast |
 
-**Avatar tints** (same in both themes, ink initial, every one ≥ 12:1): `#FFB5C9` `#FFD27A` `#B8F0D4`
-`#BFD8FF` `#D9C7FF` `#FFC9A8` `#A8EDEA` `#E6F27A`. A member gets tint *n* by the order they joined
-(`members` sorted by id, index mod 8), so a house of up to 8 never repeats a colour.
+**Avatar tints** (same in both themes): `#FFB5C9` `#FFD27A` `#B8F0D4` `#BFD8FF` `#D9C7FF` `#FFC9A8`
+`#A8EDEA` `#E6F27A`. Initials use **`--on-fill`** (light `#17132B`, dark `#0E0A1F`), never `--ink`, which
+is light in dark mode and gives 1.08–1.47:1 on these tints. A member's tint is chosen once and stays put:
+take the members in id order; each one's preferred tint is `id mod 8`, and if an earlier member already
+has it, the next free tint. Adding someone never recolours anyone; removing someone recolours only a
+member who had been pushed off a taken tint. Houses of up to 8 never repeat a colour.
 
-**Measured contrast** (WCAG 2.1, all text pairs ≥ 4.5:1): ink on bg 16.5 · muted on surface-2 5.9 (light)
+**Measured contrast** (WCAG 2.1, all text pairs ≥ 4.5:1): ink on bg 16.04 (light) / 16.96 (dark) · muted on surface-2 5.9 (light)
 / 7.0 (dark) · white on primary 6.3 · `#120C33` on dark primary 5.4 · credit text on surface-2 5.7 ·
 debt text on surface-2 4.8 · white on the dark verdict block 7.8 · `#E4DCFF` on the light block 4.8 ·
-ink on every avatar tint ≥ 12.4. Surface vs. bg is 1.12 (light) and 1.10 (dark), enough for borderless
+`--on-fill` on the avatar tints ≥ 10.91 (light) / 11.74 (dark). Surface vs. bg is 1.12 (light) and 1.10 (dark), enough for borderless
 sections on cheap screens. The dark sticker shadow is 3.6:1 against bg so stickers stay visible on OLED.
 
 **Shape and space.** Radii: sections 16 px, transfer cards 14 px, buttons and inputs 12 px, chips and
@@ -105,9 +108,9 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 
 | Component | Spec |
 |---|---|
-| **Avatar** | Circle, 32 px (26 small, 44 large). Background tint by join order, initial of the **last word** of the name, 2 px `--edge` ring, 2 px `--sticker-shadow` offset. `title` and accessible name = full name. A stack shows at most 3, then `+n` |
+| **Avatar** | Circle, 32 px (26 small, 44 large). Background tint per §3 (stable, no repeats up to 8), initial of the **last word** of the name in `--on-fill`, 2 px `--edge` ring, 2 px `--sticker-shadow` offset. `title` and accessible name = full name. A stack shows at most 3, then `+n` |
 | **Money** | `<Money amount={n} />` → `120.000<span class="cur">đ</span>`; sign variants `+` (credit text) and `−` (debt text, a real minus `U+2212`). Replaces `formatVND`'s "₫" everywhere |
-| **Chip** | 12 px 700, pill. `credit` mint, `debt` pink, `ai` yellow (`✦ AI`), `me` ink (*bạn*). Text is always `--on-fill` |
+| **Chip** | 12 px 700, pill. `credit` mint, `debt` pink, `ai` yellow (`✦ AI`): text `--on-fill`. `me` (*bạn*) is the exception: background `--ink`, text `--bg` (16:1 both themes) |
 | **Stamp ĐÃ TRẢ** | Mint sticker, 3 px edge, −8°, on a transfer the moment it is recorded; animation: scale 1.7 → 1 in 240 ms with a slight overshoot (the one deliberate bounce in the app; instant under reduce motion). The card turns `--surface-2`, never faded |
 | **Stamp SẠCH NỢ** | Small mint sticker, −6°, next to a member whose net is 0 **and** who has at least one expense or settlement (a brand-new house is not "settled") |
 | **Buttons** | `primary` (taro, edge, hard shadow), `ai` (yellow, same), `secondary` (surface + line border), `ghost` (primary text), `danger` (debt text). Height 44, radius 12. Press: translate by the shadow, shadow to 0, 120 ms. Disabled: 60% opacity, no shadow |
@@ -160,9 +163,19 @@ Lịch sử trả                      Ghi khoản trả khác
 * **Identity ("Bạn là ai?").** Stored per household in `localStorage` (`fair-share:me:<householdId>`),
   never sent to the server. First visit to a household with members shows the chooser (pick chips). It
   powers "Bạn…" sentences and the default payer. "Không phải bạn?" reopens the chooser.
-* **Verdict sentence:** "Bạn cần trả Minh" + total you owe · "Bạn sắp nhận về" + total owed to you ·
-  "Bạn không nợ ai. Còn 2 lần trả trong nhà." · "Cả nhà sạch nợ. Nhà trọ bình yên." (no transfers left).
-  Without an identity: "Còn 2 lần trả là cả nhà về 0đ".
+* **Verdict sentence**, built from the suggested transfers that involve you (names, number of people and
+  the big total all come from the same rows, which are always listed below):
+
+  | You… | Sentence (+ the total in the big number) |
+  |---|---|
+  | owe 1 / 2 / 3+ people | "Bạn cần trả Minh" · "Bạn cần trả Minh và Lan" · "Bạn cần trả 3 người" |
+  | are owed by 1 / 2 / 3+ | "Bạn được nhận từ Minh" · "Bạn được nhận từ Minh và Lan" · "Bạn được nhận từ 3 người" |
+  | are not in any transfer | "Bạn không nợ ai. Còn 2 lần trả trong nhà." (no big number) |
+  | — no transfers left | "Cả nhà sạch nợ. Nhà trọ bình yên." |
+  | — no identity chosen | "Còn 2 lần trả là cả nhà về 0đ" |
+
+  Names are the display short names (§6.4, collision-aware). "được nhận từ" and not "sẽ trả": the app
+  suggests transfers, nobody has promised them.
 * **Đã trả** records the suggested transfer for today (existing API), slaps the stamp and shows the toast
   "Đã ghi: Bạn trả Minh 120.000đ · Hoàn tác" (*Hoàn tác* deletes that settlement).
 * **Sao chép tin nhắn nhắc nợ** copies plain text for the household's Zalo group (below); on failure the
@@ -209,8 +222,9 @@ Hôm qua, 20/10
   | Idle | Textarea + "Điền giúp" (AI button) + hint "AI điền form bên dưới, bạn duyệt rồi mới lưu." |
   | Reading | Full-width yellow progress bar, "AI đang đọc… 6 giây · thường mất 10–20 giây", link **Nhập tay** (stops waiting, focuses *Nội dung*). The form stays editable |
   | Filled | Mint note "Đã điền: Lẩu · 240.000đ · Minh trả · chia đều 4 người.", fields that were filled flash yellow once; **only fields the user has not touched are filled** ("Giữ nguyên số tiền bạn đã nhập."); button **Hoàn tác điền** restores the form |
-  | Warnings | Pink note per API warning: `unknown_member` "“Hùng” không có trong nhà. Chọn người trả ở form." · `no_payer` · `no_amount` · `participants_assumed` |
-  | Failed | 429 / 503 / 422: pink note "AI đang bận. Câu bạn gõ vẫn còn, điền form bên dưới là lưu được ngay." + **Thử lại**; the sentence is kept |
+  | Warnings | Pink note per API warning. `unknown_member` (payer **or** a participant): "“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu." · `no_payer`: "Chọn người trả." · `no_amount`: "Nhập số tiền." · `participants_assumed`: shown beside the split fold, "AI chia cho cả nhà, bạn kiểm tra lại." |
+  | Failed | The typed sentence is always kept and the form stays usable; the note depends on the code (wording in `lib/errors.ts`): `ai_unavailable` (503) → "AI đang bận…" + **Thử lại** · `ai_rate_limited` (429) → "…đợi một phút rồi thử lại" + **Thử lại** · `ai_unparseable` / `too_many_participants` (422) → fix the sentence or use the form, **Thử lại** after an edit |
+  | Not set up | `ai_not_configured` (503, no Gemini key on this server): "Gõ nhanh chưa được bật trên máy chủ này. Bạn điền biểu mẫu bên dưới nhé." **Điền giúp** is disabled until the page is reloaded; no **Thử lại** |
 
 ### 6.4 Thành viên `/households/:id/members`
 
@@ -258,12 +272,34 @@ Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm q
 |---|---|---|---|
 | **T-41** | This document; tokens agreed; contrast table | Việt Tiến → Duy Anh | Thu 22/10 |
 | **T-42** | `styles/tokens.css`, fonts, base CSS, `Avatar`, `Money`, chips, buttons, segmented, toast, `lib/names.ts` (short name, initial, tint), identity hook; Danh sách nhà and Thành viên screens; household frame | Việt Tiến → Duy Anh | **Sat 24/10** |
-| **T-43** | Tổng quan (verdict block, Đã trả + stamp + undo, copy message, Số dư từng người, history), Chi tiêu form (defaults, folds, sticky save, inline errors) and list | Việt Tiến → Duy Anh | Wed 28/10 |
-| **T-19** | Composer on the T-42 components, states in §6.3 | Duy Anh → Việt Tiến | Wed 28/10 |
+| **T-19** | Composer on the T-42 components, states in §6.3, **and the form's AI-fill interface** (below) | Duy Anh → Việt Tiến | fill interface **Mon 26/10** (proposed), composer Wed 28/10 |
+| **T-43** | Tổng quan (verdict block, Đã trả + stamp + undo, copy message, Số dư từng người, history), Chi tiêu form behaviour and look (defaults, folds, sticky save, inline errors) on top of the fill interface, and the list | Việt Tiến → Duy Anh | Wed 28/10 |
 | **T-32** | Loading / empty / error states (§6.5), 360 px and 200% zoom pass, dark-mode pass | Duy Anh → Việt Tiến | Sat 31/10 |
 
-Order matters: T-42 lands first so T-19 and T-43 build on the same components and do not edit the same
-CSS. Existing tests are updated in the same PR as the copy they check (§7 renames several strings).
+Order matters: **T-42 → T-19's fill interface → T-43**. T-42 lands first so T-19 and T-43 build on the same
+components and do not edit the same CSS. Existing tests are updated in the same PR as the copy they check
+(§7 renames several strings).
+
+**AI-fill interface of `ExpenseForm` (owned by T-19, used by T-43).** Both PRs code against this:
+
+```ts
+aiFill?: { key: string; householdId: number; draft: ExpenseDraft } | null
+```
+
+1. Each `key` is applied once per form session, and only to fields the user has not changed. Defaults
+   (payer = you, date = today, equal split) and earlier AI fills do not count as user changes.
+2. The split is one atomic group: `splitType`, the selected members and the custom amounts are filled
+   together or not at all.
+3. A `null` amount or payer clears that field if untouched and leaves it for the user (the warning says
+   so); it never silently keeps a default payer.
+4. **Hoàn tác điền** undoes the latest fill only, and only for fields or groups not edited since.
+5. A save, a reset, **Nhập tay**, switching household or a newer request makes a pending response stale:
+   it is dropped, never applied to a new expense.
+6. The "Đã điền: …" note describes what was actually applied, not the raw draft.
+
+Tests for T-19: a missing key spends no budget and calls nothing; edits during the wait survive; the split
+stays atomic; undo keeps later edits; a stale response cannot fill a new expense; a null payer does not
+keep the default.
 
 ## 10. Changes from the first mock-up
 
@@ -277,3 +313,6 @@ CSS. Existing tests are updated in the same PR as the copy they check (§7 renam
 * Form: folded date and split, sticky save, errors under fields; list rows reveal actions on tap.
 * Fixed: 8 contrast failures, sub-44 px targets, a 180 px toast, and layout breaks with long names and
   8-digit amounts.
+* After the T-41 review (22/10): the AI-fill interface and the order T-42 → T-19 → T-43; `ai_not_configured`
+  as its own state; avatar initials and the *bạn* chip use the right tokens; verdict sentences for owing
+  or being owed by several people; stable avatar tints.

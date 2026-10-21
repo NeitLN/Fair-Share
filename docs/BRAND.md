@@ -90,7 +90,9 @@ and the demo. Stickers are the only things that are rotated or get the hard shad
 | Celebrate the end: *"Cả nhà sạch nợ."* | Sound like a bank or a wallet: *thanh toán an toàn, giao dịch* |
 | Say what the AI does: *"Gõ nhanh dùng Gemini, bạn kiểm tra lại trước khi lưu"* | Promise what we have not measured: *xong trong 10 giây, an toàn tuyệt đối* |
 
-Link previews and anything that can be forwarded never show names or balances.
+Link-preview metadata (the OG image, the page title and description) never includes member names or
+balances. The reminder message is different on purpose: the user copies it for the household's own chat,
+so it lists who pays whom and how much.
 
 ## 7. Files
 
