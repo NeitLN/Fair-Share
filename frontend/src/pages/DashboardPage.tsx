@@ -61,7 +61,7 @@ function DashboardPage() {
   if (members.isSuccess && memberList.length === 0) {
     return (
       <>
-        <h1>Tổng quan</h1>
+        <h2 className="visually-hidden">Tổng quan</h2>
         <p>
           Nhà chưa có thành viên. <Link to="members">Thêm thành viên</Link>, rồi ghi các khoản chi
           để xem ai nợ ai.
@@ -72,7 +72,7 @@ function DashboardPage() {
 
   return (
     <>
-      <h1>Tổng quan</h1>
+      <h2 className="visually-hidden">Tổng quan</h2>
       {members.error && <p role="alert">{errorMessage(members.error)}</p>}
 
       <section aria-labelledby="balances-title">

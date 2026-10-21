@@ -1,27 +1,30 @@
 import { describe, expect, test } from 'vitest'
 
-import { formatVND } from './money'
-
-// Intl inserts a non-breaking (sometimes narrow) space before ₫;
-// normalize it so the assertions read plainly.
-function plain(amount: number): string {
-  return formatVND(amount).replace(/[\u00A0\u202F]/g, ' ')
-}
+import { formatSignedVND, formatVND } from './money'
 
 describe('formatVND', () => {
   test('zero', () => {
-    expect(plain(0)).toBe('0 ₫')
+    expect(formatVND(0)).toBe('0đ')
   })
 
-  test('a typical expense', () => {
-    expect(plain(240000)).toBe('240.000 ₫')
+  test('a typical expense: dot thousands, đ right after the number', () => {
+    expect(formatVND(240000)).toBe('240.000đ')
   })
 
-  test('a negative amount', () => {
-    expect(plain(-50000)).toBe('-50.000 ₫')
+  test('a negative amount uses a real minus sign', () => {
+    expect(formatVND(-50000)).toBe('−50.000đ')
   })
 
   test('a very large amount', () => {
-    expect(plain(1000000000)).toBe('1.000.000.000 ₫')
+    expect(formatVND(12500000)).toBe('12.500.000đ')
+    expect(formatVND(1000000000)).toBe('1.000.000.000đ')
+  })
+})
+
+describe('formatSignedVND', () => {
+  test('credit gets a plus, debt a minus, zero neither', () => {
+    expect(formatSignedVND(200000)).toBe('+200.000đ')
+    expect(formatSignedVND(-120000)).toBe('−120.000đ')
+    expect(formatSignedVND(0)).toBe('0đ')
   })
 })

@@ -67,7 +67,7 @@ function ExpensesPage() {
 
   return (
     <>
-      <h1>Chi tiêu</h1>
+      <h2 className="visually-hidden">Chi tiêu</h2>
 
       {members.isPending && <p>Đang tải thành viên…</p>}
       {members.error && <p role="alert">{errorMessage(members.error)}</p>}

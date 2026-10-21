@@ -1,0 +1,103 @@
+/* Design tokens for the Sticker pop design (docs/DESIGN.md §3). Components use these, never a literal
+   colour. Light values first; dark follows the phone unless the user forced a theme (lib/theme.ts sets
+   data-theme on <html>). Every text pair is ≥ 4.5:1 in both themes (table in DESIGN.md §3). */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f3f0fc;
+  --surface: #ffffff;
+  --surface-2: #f1edfe;
+  --ink: #17132b;
+  --muted: #5b5675;
+  --line: #e4def7;
+
+  --primary: #5a3cf0;
+  --on-primary: #ffffff;
+  --primary-text: #5a3cf0;
+  --block: #5a3cf0;
+  --on-block: #ffffff;
+  --on-block-muted: #e4dcff;
+
+  --credit: #3ddc97;
+  --credit-text: #05694a;
+  --debt: #ff5c8a;
+  --debt-text: #c2255c;
+  --ai: #ffe14d;
+  /* Text on mint, pink, yellow and the avatar tints: dark in both themes */
+  --on-fill: #17132b;
+
+  --edge: #ffffff;
+  --sticker-shadow: #17132b;
+  --toast-bg: #17132b;
+  --toast-fg: #ffffff;
+  --toast-action: #ffe14d;
+
+  /* Avatar tints: the same in both themes, chosen per member by lib/names.ts */
+  --tint-1: #ffb5c9;
+  --tint-2: #ffd27a;
+  --tint-3: #b8f0d4;
+  --tint-4: #bfd8ff;
+  --tint-5: #d9c7ff;
+  --tint-6: #ffc9a8;
+  --tint-7: #a8edea;
+  --tint-8: #e6f27a;
+
+  --font-display: 'Bricolage Grotesque', 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --radius-block: 24px;
+  --radius-section: 16px;
+  --radius-card: 14px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --target: 44px;
+  --press: 120ms;
+}
+
+/* The dark palette, written once and used by both selectors below */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #110e1c;
+    --surface: #1b1730;
+    --surface-2: #251f42;
+    --ink: #f3f0ff;
+    --muted: #b1a9d4;
+    --line: #382f63;
+    --primary: #8c74ff;
+    --on-primary: #120c33;
+    --primary-text: #a996ff;
+    --block: #4b33d1;
+    --credit-text: #5ee9ae;
+    --debt-text: #ff8fb0;
+    --on-fill: #0e0a1f;
+    --edge: #f3f0ff;
+    --sticker-shadow: #6a52e8;
+    --toast-bg: #f3f0ff;
+    --toast-fg: #17132b;
+    --toast-action: #5a3cf0;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #110e1c;
+  --surface: #1b1730;
+  --surface-2: #251f42;
+  --ink: #f3f0ff;
+  --muted: #b1a9d4;
+  --line: #382f63;
+  --primary: #8c74ff;
+  --on-primary: #120c33;
+  --primary-text: #a996ff;
+  --block: #4b33d1;
+  --credit-text: #5ee9ae;
+  --debt-text: #ff8fb0;
+  --on-fill: #0e0a1f;
+  --edge: #f3f0ff;
+  --sticker-shadow: #6a52e8;
+  --toast-bg: #f3f0ff;
+  --toast-fg: #17132b;
+  --toast-action: #5a3cf0;
+}

@@ -39,8 +39,8 @@ How we got here:
    (*cần trả*, *được nhận*), never colour alone. The *đ* is smaller and never wraps away from its number.
 4. **No uppercase except the two stamps.** Secondary labels are 13 px sentence case. People are shown by
    the **last word of their name** (how students address each other); the full name lives on Thành viên.
-5. **Every target ≥ 44 px, three animations at most** (the stamp, the AI progress bar, the toast). With
-   *reduce motion* on, all of them become instant.
+5. **Every target ≥ 44 px, four animations at most**: the stamp, the AI progress bar, the one-time
+   yellow flash on fields the AI filled, and the toast. With *reduce motion* on, all of them become instant.
 
 ## 3. Tokens
 
@@ -138,6 +138,10 @@ Nhà của bạn                          ← page title, Bricolage 28
 List first, create second (returning users far outnumber new ones). Empty state: "Chưa có nhà nào. Tạo
 nhà đầu tiên rồi thêm bạn cùng phòng."
 
+**Shipped in T-42: the name only.** `GET /api/households` returns `{id, name, created_at}`; the second line
+and the avatar stack would need one more request per house. If it is added later, one
+`GET /households/{id}/balances` per row already has the names, the count and your net.
+
 ### 6.2 Khung một nhà + Tổng quan `/households/:id`
 
 ```
@@ -161,8 +165,9 @@ Số dư từng người         đã chi · cần trả hoặc được nhận
 Lịch sử trả                      Ghi khoản trả khác
 ```
 * **Identity ("Bạn là ai?").** Stored per household in `localStorage` (`fair-share:me:<householdId>`),
-  never sent to the server. First visit to a household with members shows the chooser (pick chips). It
-  powers "Bạn…" sentences and the default payer. "Không phải bạn?" reopens the chooser.
+  never sent to the server. One line under the tabs, never in the way: "Bạn là ai trong nhà này? **Chọn**"
+  until someone is chosen, then "Bạn là Tiến · **Không phải bạn?**"; either button opens the chooser (pick
+  chips), Escape closes it. It powers "Bạn…" sentences and the default payer.
 * **Verdict sentence**, built from the suggested transfers that involve you (names, number of people and
   the big total all come from the same rows, which are always listed below):
 
@@ -229,10 +234,11 @@ Hôm qua, 20/10
 ### 6.4 Thành viên `/households/:id/members`
 
 A list, not a card grid (it scales to 6 long names). Each row: large avatar, **full name**, "gọi là
-*Anh*", the net chip or SẠCH NỢ, the *bạn* chip for you, and a 44 px *Sửa* that opens rename / remove in
-place. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
+*Anh*" (left out when it is the whole name), the net chip or SẠCH NỢ, the *bạn* chip for you, and two 44 px
+buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (asks first). One tap fewer than a *Sửa* menu,
+and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
 field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…". If two members share a last word,
-both are shown by their last two words ("Duy Anh", "Tuấn Anh").
+both are shown by their last two words ("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
 
 ### 6.5 States on every screen
 

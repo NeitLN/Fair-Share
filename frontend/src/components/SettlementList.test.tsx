@@ -71,7 +71,7 @@ describe('SettlementList', () => {
     renderList({ onDelete })
 
     await userEvent.click(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 150\.000/ }))
-    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/^Xoá khoản Tiến trả Minh 150\.000\s₫\?$/))
+    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/^Xoá khoản Tiến trả Minh 150\.000đ\?$/))
     expect(onDelete).not.toHaveBeenCalled()
 
     confirm.mockReturnValue(true)

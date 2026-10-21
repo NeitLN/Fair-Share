@@ -30,20 +30,27 @@ function MemberAddForm({ onAdd, submitting, error }: MemberAddFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="member-add" onSubmit={handleSubmit}>
       <label htmlFor="member-name">Tên thành viên</label>
       <input
         id="member-name"
         type="text"
         value={name}
+        maxLength={40}
+        placeholder="Họ tên, ví dụ: Trần Thị Thanh Hương"
+        aria-describedby="member-name-hint"
+        aria-invalid={validation || error ? true : undefined}
         disabled={submitting}
         onChange={(event) => setName(event.target.value)}
       />
-      {validation && <p role="alert">{validation}</p>}
-      {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={submitting}>
         {submitting ? 'Đang thêm…' : 'Thêm thành viên'}
       </button>
+      <p id="member-name-hint" className="hint">
+        App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…
+      </p>
+      {validation && <p role="alert">{validation}</p>}
+      {error && <p role="alert">{error}</p>}
     </form>
   )
 }
