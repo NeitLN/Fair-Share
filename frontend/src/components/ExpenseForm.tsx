@@ -18,10 +18,15 @@ export interface FormFill {
   member_ids?: number[] | null
 }
 
-/** What fill() did: fields it filled, and fields it left alone because the user had typed in them. */
+/**
+ * What fill() did: fields it filled; fields it left alone because the user had changed them; and
+ * fields it emptied because the draft had nothing for them (no amount, no payer), so a default or an
+ * earlier fill is never passed off as the AI's answer.
+ */
 export interface FillResult {
   filled: FillField[]
   kept: FillField[]
+  cleared: FillField[]
 }
 
 /** What the page can ask of the form (AI quick add, US-09). */
@@ -79,17 +84,24 @@ function ExpenseForm({
   const [touched, setTouched] = useState<Set<FillField>>(new Set())
   const [justFilled, setJustFilled] = useState<Set<FillField>>(new Set())
   const [fromAi, setFromAi] = useState(false)
-  const beforeFill = useRef<{
-    description: string
-    amountText: string
-    payerId: number | ''
-    spentAt: string
-    splitType: SplitType
-    selected: Set<number>
+  // The latest fill: the fields it changed (minus those the user has edited since) and their old values
+  const lastFill = useRef<{
+    fields: Set<FillField>
+    before: {
+      description: string
+      amountText: string
+      payerId: number | ''
+      spentAt: string
+      splitType: SplitType
+      selected: Set<number>
+      customText: Record<number, string>
+    }
   } | null>(null)
   const descriptionInput = useRef<HTMLInputElement>(null)
 
   function edited(field: FillField) {
+    // A field edited after a fill is the user's now: undo must not take it back
+    lastFill.current?.fields.delete(field)
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -108,41 +120,58 @@ function ExpenseForm({
         ['date', Boolean(values.spent_at)],
         ['split', Boolean(values.member_ids?.some((id) => memberIds.has(id)))],
       ]
-      const result: FillResult = { filled: [], kept: [] }
+      const result: FillResult = { filled: [], kept: [], cleared: [] }
       for (const [field, available] of offered) {
-        if (!available) continue
-        if (touched.has(field)) result.kept.push(field)
-        else result.filled.push(field)
+        if (available) {
+          if (touched.has(field)) result.kept.push(field)
+          else result.filled.push(field)
+        } else if ((field === 'amount' || field === 'payer') && !touched.has(field)) {
+          // No amount or payer in the draft: empty the field so the user sees it needs them
+          result.cleared.push(field)
+        }
       }
-      if (result.filled.length === 0) return result
-
-      beforeFill.current = { description, amountText, payerId, spentAt, splitType, selected }
       const fill = new Set(result.filled)
+      const clear = new Set(result.cleared)
+      if (fill.size === 0 && clear.size === 0) return result
+
+      lastFill.current = {
+        fields: new Set([...fill, ...clear]),
+        before: { description, amountText, payerId, spentAt, splitType, selected, customText },
+      }
       if (fill.has('description')) setDescription((values.description as string).trim())
       if (fill.has('amount')) setAmountText(String(values.amount))
+      if (clear.has('amount')) setAmountText('')
       if (fill.has('payer')) setPayerId(values.payer_id as number)
+      if (clear.has('payer')) setPayerId('')
       if (fill.has('date')) setSpentAt(values.spent_at as string)
       if (fill.has('split')) {
+        // The split is one group: type, who takes part and any custom amounts change together
         setSplitType('equal')
         setSelected(new Set((values.member_ids as number[]).filter((id) => memberIds.has(id))))
+        setCustomText({})
       }
       setJustFilled(fill)
-      setFromAi(true)
+      if (fill.size > 0) setFromAi(true)
       setValidation(null)
       return result
     },
     undoFill() {
-      const before = beforeFill.current
-      if (!before) return
-      setDescription(before.description)
-      setAmountText(before.amountText)
-      setPayerId(before.payerId)
-      setSpentAt(before.spentAt)
-      setSplitType(before.splitType)
-      setSelected(before.selected)
+      // Only the latest fill, and only the fields nobody has edited since
+      const last = lastFill.current
+      if (!last) return
+      const { fields, before } = last
+      if (fields.has('description')) setDescription(before.description)
+      if (fields.has('amount')) setAmountText(before.amountText)
+      if (fields.has('payer')) setPayerId(before.payerId)
+      if (fields.has('date')) setSpentAt(before.spentAt)
+      if (fields.has('split')) {
+        setSplitType(before.splitType)
+        setSelected(before.selected)
+        setCustomText(before.customText)
+      }
       setJustFilled(new Set())
       setFromAi(false)
-      beforeFill.current = null
+      lastFill.current = null
     },
     focusDescription() {
       descriptionInput.current?.focus()
@@ -213,7 +242,7 @@ function ExpenseForm({
         setTouched(new Set())
         setJustFilled(new Set())
         setFromAi(false)
-        beforeFill.current = null
+        lastFill.current = null
       }
     } catch {
       // The page shows the server's message through `error`; keep what the user typed
@@ -275,6 +304,11 @@ function ExpenseForm({
           setPayerId(e.target.value === '' ? '' : Number(e.target.value))
         }}
       >
+        {payerId === '' && (
+          <option value="" disabled>
+            Chọn người trả
+          </option>
+        )}
         {members.map((m) => (
           <option key={m.id} value={m.id}>
             {m.name}

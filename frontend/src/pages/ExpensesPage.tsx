@@ -92,7 +92,7 @@ function ExpensesPage() {
                   payer_id: draft.payer_id,
                   spent_at: draft.spent_at,
                   member_ids: draft.split.member_ids,
-                }) ?? { filled: [], kept: [] }
+                }) ?? { filled: [], kept: [], cleared: [] }
               }
               onUndo={() => expenseForm.current?.undoFill()}
               onManual={() => expenseForm.current?.focusDescription()}
