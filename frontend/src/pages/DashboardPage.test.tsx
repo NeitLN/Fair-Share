@@ -241,10 +241,19 @@ test('when copying is not possible the reminder is shown, selected, to copy by h
 
   await user.click(await screen.findByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' }))
 
-  const text = await screen.findByLabelText(/^Không sao chép được/)
-  expect((text as HTMLTextAreaElement).value).toMatch(/^Nhà 7 chốt sổ tháng \d+ nè:\n• Minh trả Tiến 100\.000đ/)
+  const text = (await screen.findByLabelText(/^Không sao chép được/)) as HTMLTextAreaElement
+  expect(text.value).toMatch(/^Nhà 7 chốt sổ tháng \d+ nè:\n• Minh trả Tiến 100\.000đ/)
+  const selectedAll = () =>
+    expect([text.selectionStart, text.selectionEnd]).toEqual([0, text.value.length])
   expect(text).toHaveFocus()
+  selectedAll()
   expect(screen.getByRole('status')).toBeEmptyDOMElement()
+
+  // Trying again and failing again goes back to the text, selected again
+  text.setSelectionRange(0, 0)
+  await user.click(screen.getByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' }))
+  await waitFor(() => expect(text).toHaveFocus())
+  selectedAll()
 })
 
 test('a failed balances load says so in the block, and Thử lại tries again', async () => {
@@ -259,7 +268,9 @@ test('a failed balances load says so in the block, and Thử lại tries again',
   renderApp('/households/7')
 
   expect(await screen.findByRole('heading', { name: 'Chưa tính được ai trả ai' })).toBeInTheDocument()
-  expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Máy chủ tạm thời không kết nối được dữ liệu.')
+  // One message, where the retry is: the balance rows only say they are not loaded
+  expect(screen.getByRole('alert')).toHaveTextContent('Máy chủ tạm thời không kết nối được dữ liệu.')
+  expect(region('Số dư từng người').getByText('Chưa tải được số dư.')).toBeInTheDocument()
   expect(screen.queryByText(/sạch nợ/i)).not.toBeInTheDocument()
 
   fail = false
@@ -286,4 +297,44 @@ test('"+ Ghi khoản chi" leads to the expenses tab', async () => {
     'href',
     '/households/7/expenses',
   )
+})
+
+test('names come from the balances while the members are still loading or failed', async () => {
+  api({
+    'GET /api/households/7/members': [
+      503,
+      { error: { code: 'database_unavailable', message: 'The database is not reachable right now' } },
+    ],
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  const rows = within(await transfers()).getAllByRole('listitem')
+  expect(rows[0]).toHaveTextContent('Minh trả Tiến 100.000đ')
+  expect(screen.queryByText(/Thành viên đã xoá/)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' }))
+  expect(await navigator.clipboard.readText()).toContain('• Minh trả Tiến 100.000đ')
+  expect(screen.getAllByRole('button', { name: 'Thử lại' }).length).toBeGreaterThan(0)
+})
+
+test('the month line says when this month\'s total could not be loaded', async () => {
+  api({ 'GET /api/households/7/expenses': [503, { error: { code: 'database_unavailable', message: 'x' } }] })
+  renderApp('/households/7')
+
+  expect(await screen.findByText(/chưa tải được tổng chi/)).toHaveTextContent(
+    `Tháng ${month} · chưa tải được tổng chi`,
+  )
+})
+
+test('"Ghi khoản trả khác" opens and closes again from its own summary', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  const summary = await region('Lịch sử trả').findByText('Ghi khoản trả khác')
+  const fold = summary.closest('details') as HTMLDetailsElement
+  await user.click(summary)
+  expect(fold.open).toBe(true)
+  await user.click(summary)
+  expect(fold.open).toBe(false)
 })

@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { Member, Settlement } from '../api/types'
 import { memberLooks } from '../lib/names'
@@ -41,7 +41,14 @@ function renderList(overrides: Partial<Parameters<typeof SettlementList>[0]> = {
   )
 }
 
+// Day labels depend on today: "Chủ nhật, 18/10" only reads like that in October 2026
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 21, 12))
+})
+
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -56,12 +63,12 @@ describe('SettlementList', () => {
     expect(first.getByText('Tiến')).toBeInTheDocument()
     expect(first.getByText('Minh')).toBeInTheDocument()
     expect(first.getByText(/150\.000/)).toBeInTheDocument()
-    expect(first.getByText(/18\/10 · Trả tiền điện tháng 10$/)).toBeInTheDocument()
+    expect(first.getByText('Chủ nhật, 18/10 · Trả tiền điện tháng 10')).toBeInTheDocument()
 
     const second = within(rows[1])
     expect(second.getByText('An')).toBeInTheDocument()
     expect(second.getByText(/50\.000/)).toBeInTheDocument()
-    expect(second.getByText(/19\/10$/)).toBeInTheDocument()
+    expect(second.getByText('Thứ hai, 19/10')).toBeInTheDocument()
   })
 
   test('deleting asks first, and cancel leaves the settlement alone', async () => {

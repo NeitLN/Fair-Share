@@ -1046,6 +1046,11 @@ button.ai:active:focus-visible {
   gap: 10px;
 }
 
+/* Unlike creating a household, this form is secondary: it stays closable, by its own summary */
+.fold.other-payment[open] > summary {
+  display: flex;
+}
+
 .other-payment form {
   padding: 14px;
   border-radius: var(--radius-section);

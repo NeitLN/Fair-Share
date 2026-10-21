@@ -1,4 +1,5 @@
 import type { MemberBalance } from '../api/types'
+import { initialOf } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
@@ -11,31 +12,34 @@ interface BalanceRowsProps {
   looks: Map<number, MemberLook>
   me?: number | null
   loading?: boolean
-  error?: string | null
+  /** The balances could not be loaded: the verdict block explains it, so the rows say nothing more. */
+  unavailable?: boolean
 }
 
 /**
  * "Số dư từng người" (DESIGN.md §6.2): who has paid what, and where each person stands. The sign and the
  * words carry the meaning, the colour only repeats it. Props only.
  */
-function BalanceRows({ balances, looks, me = null, loading = false, error = null }: BalanceRowsProps) {
+function BalanceRows({ balances, looks, me = null, loading = false, unavailable = false }: BalanceRowsProps) {
   if (loading) {
     return <p className="hint">Đang tải số dư…</p>
+  }
+  // Nothing is known, which is not the same as nobody owing anything
+  if (unavailable) {
+    return <p className="hint">Chưa tải được số dư.</p>
   }
 
   return (
     <div>
-      {error && <p role="alert">{error}</p>}
-      {/* An empty list after an error means "could not load", not "nobody owes anything" */}
       {balances.length === 0 ? (
-        !error && <p className="empty">Chưa có dữ liệu số dư.</p>
+        <p className="empty">Chưa có dữ liệu số dư.</p>
       ) : (
         <ul className="balance-list">
           {balances.map((balance) => {
             const look = looks.get(balance.member_id) ?? {
               full: balance.name,
               short: balance.name,
-              initial: balance.name.slice(0, 1).toLocaleUpperCase('vi'),
+              initial: initialOf(balance.name),
               tint: 1,
             }
             return (

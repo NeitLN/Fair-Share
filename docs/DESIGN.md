@@ -177,6 +177,7 @@ Lịch sử trả                      Ghi khoản trả khác
   | are owed by 1 / 2 / 3+ | "Bạn được nhận từ Minh" · "Bạn được nhận từ Minh và Lan" · "Bạn được nhận từ 3 người" |
   | are not in any transfer | "Bạn không nợ ai. Còn 2 lần trả trong nhà." (no big number) |
   | — no transfers left | "Cả nhà sạch nợ. Nhà trọ bình yên." |
+  | — nobody has spent anything yet | "Chưa có khoản chi nào. Ghi khoản đầu tiên để xem ai trả ai." (a new house is not "sạch nợ", same rule as the stamp) |
   | — no identity chosen | "Còn 2 lần trả là cả nhà về 0đ" |
 
   Names are the display short names (§6.4, collision-aware). "được nhận từ" and not "sẽ trả": the app
@@ -191,7 +192,7 @@ Lịch sử trả                      Ghi khoản trả khác
   • Anh trả Minh 80.000đ
   Xem chi tiết: https://fair-share-web.onrender.com/households/1
   ```
-* **Ghi khoản trả khác** opens the existing settlement form (different amount, cash) in place.
+* **Ghi khoản trả khác** opens the existing settlement form (different amount, cash) in place; its summary stays, so it closes again.
 * The old balance table (Đã trả / Phải trả columns) becomes the "Số dư từng người" rows; *đã chi* is the
   only breakdown shown, the rest is in the expense list.
 

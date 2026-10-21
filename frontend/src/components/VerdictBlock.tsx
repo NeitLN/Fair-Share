@@ -12,6 +12,8 @@ interface VerdictBlockProps {
   month: number
   /** What the household spent this month; null while it is unknown (the line then names only the month). */
   spent: number | null
+  /** The expenses could not be loaded, so this month's total is unknown. */
+  spentUnavailable?: boolean
   /** The suggested transfers, in the order the API gives them. */
   suggested: Transfer[]
   /** The member using this device ("Bạn là ai?"), or null. */
@@ -42,6 +44,7 @@ interface VerdictBlockProps {
 function VerdictBlock({
   month,
   spent,
+  spentUnavailable = false,
   suggested,
   me,
   looks,
@@ -62,10 +65,12 @@ function VerdictBlock({
   const nameOf = (memberId: number) => lookOf(memberId).short
 
   // Copying failed: the text is shown instead, focused and selected so it can be copied by hand
-  useEffect(() => {
-    if (!showText) return
+  function selectFallback() {
     fallback.current?.focus()
     fallback.current?.select()
+  }
+  useEffect(() => {
+    if (showText) selectFallback()
   }, [showText])
 
   async function copy() {
@@ -74,8 +79,10 @@ function VerdictBlock({
       setShowText(false)
       onCopied()
     } catch {
-      // No clipboard (an old browser, or the page not on https) or permission refused
-      setShowText(true)
+      // No clipboard (an old browser, or the page not on https) or permission refused. Already shown
+      // after an earlier failure: take the user back to it.
+      if (showText) selectFallback()
+      else setShowText(true)
     }
   }
 
@@ -88,6 +95,7 @@ function VerdictBlock({
           · cả nhà đã chi <Money amount={spent} />
         </>
       )}
+      {spent === null && spentUnavailable && ' · chưa tải được tổng chi'}
     </p>
   )
 

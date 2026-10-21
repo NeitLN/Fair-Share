@@ -32,3 +32,10 @@ test.each([
 ])('dayLabel(%s) on Wed 21/10/2026 is %s', (iso, shown) => {
   expect(dayLabel(iso, new Date(2026, 9, 21, 23, 50))).toBe(shown)
 })
+
+test('across New Year, "today" and "yesterday" win over the year', () => {
+  const newYear = new Date(2027, 0, 1, 8)
+  expect(dayLabel('2027-01-01', newYear)).toBe('Hôm nay, 01/01')
+  expect(dayLabel('2026-12-31', newYear)).toBe('Hôm qua, 31/12')
+  expect(dayLabel('2026-12-30', newYear)).toBe('30/12/2026')
+})

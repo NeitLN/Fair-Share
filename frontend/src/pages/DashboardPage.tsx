@@ -68,7 +68,18 @@ function DashboardPage() {
   })
 
   const memberList = useMemo(() => members.data ?? [], [members.data])
-  const looks = useMemo(() => memberLooks(memberList), [memberList])
+  // Names come from the members; until they load (or if they fail) the balances carry the same names,
+  // so a transfer is never shown as "Thành viên đã xoá" just because its member is not loaded yet
+  const looks = useMemo(() => {
+    if (members.data) return memberLooks(members.data)
+    const fromBalances = (balances.data?.balances ?? []).map((b) => ({
+      id: b.member_id,
+      household_id: householdId,
+      name: b.name,
+      created_at: '',
+    }))
+    return memberLooks(fromBalances)
+  }, [members.data, balances.data, householdId])
   const suggested = balances.data?.suggested ?? []
   const payingIndex = recordSuggested.isPending ? suggested.indexOf(recordSuggested.variables) : null
 
@@ -98,11 +109,19 @@ function DashboardPage() {
   return (
     <>
       <h2 className="visually-hidden">Tổng quan</h2>
-      {members.error && <p role="alert">{errorMessage(members.error)}</p>}
+      {members.error && (
+        <div className="note" role="alert">
+          {errorMessage(members.error)}
+          <button type="button" className="btn-secondary" onClick={() => members.refetch()}>
+            Thử lại
+          </button>
+        </div>
+      )}
 
       <VerdictBlock
         month={month}
         spent={expenses.isSuccess ? spentInMonth(expenses.data, now) : null}
+        spentUnavailable={expenses.isError}
         suggested={suggested}
         me={me}
         looks={looks}
@@ -131,7 +150,8 @@ function DashboardPage() {
           looks={looks}
           me={me}
           loading={balances.isPending}
-          error={errorMessage(balances.error)}
+          // The verdict block above already says why and offers Thử lại
+          unavailable={balances.isError}
         />
       </section>
 
