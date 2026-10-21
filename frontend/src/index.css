@@ -11,6 +11,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* A field focused from the keyboard scrolls clear of the sticky Lưu khoản chi bar */
+  scroll-padding-bottom: 88px;
 }
 
 body {
@@ -784,11 +786,103 @@ button.ai:active:focus-visible {
 
 /* ---------------------------------------------------------------- expense form and list (restyled in T-43) */
 
-.expense-form fieldset {
-  flex-basis: 100%;
+/* The form is a column of fields on a surface; each field owns its label, control and problem */
+.expense-form {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.expense-form .field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.amount-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.amount-preview {
+  flex: none;
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Under its field, in words; the field's red border repeats it */
+.field-problem {
+  color: var(--debt-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.payer .pick label {
+  max-width: 100%;
+}
+
+.payer .you {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* A fold row (DESIGN.md §5): "Ngày  Hôm nay, 21/10  Đổi", opening the full control in place */
+.fold-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 4px 4px 4px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.fold-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.fold-value {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.fold-value b {
+  color: var(--ink);
+}
+
+.fold-control {
+  display: grid;
+  gap: 10px;
+}
+
+.expense-form .split {
   padding: 12px;
   border-radius: var(--radius-control);
   background: var(--surface-2);
+}
+
+/* Lưu khoản chi stays in reach of the thumb while the form scrolls */
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  margin: 0 -14px -14px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-radius: 0 0 var(--radius-section) var(--radius-section);
+  background: var(--surface);
+}
+
+.form-actions button[type='submit'] {
+  flex: 1;
 }
 
 .split-rows li {
