@@ -106,6 +106,33 @@ describe('ExpenseList', () => {
     expect(row('Ăn tối')).toHaveTextContent('Tiến trả · chia riêng 2 người')
   })
 
+  test('old expenses are described by who shared them, not by how many members there are today', () => {
+    // Lan has left since; Tiến, Minh and Lan shared the electricity
+    const today = members.filter((m) => m.id !== 3)
+    renderList([electricity], { members: today })
+    expect(screen.getByText(/^Minh trả/)).toHaveTextContent('Minh trả · chia đều 3 người')
+  })
+
+  test('the same number of people is not "the whole house" when they are not today\'s members', () => {
+    // Lan left and Hương joined: three members today, but not the three who shared
+    const today = [...members.filter((m) => m.id !== 3), { id: 4, household_id: 7, name: 'Hương', created_at: '' }]
+    renderList([{ ...tea, shares: [{ member_id: 2, amount: 30000 }, { member_id: 3, amount: 30000 }] }], {
+      members: today,
+    })
+    expect(screen.getByText(/trả ·/)).toHaveTextContent('chia đều 2 người')
+  })
+
+  test('inside a day, the expense entered last comes first, whatever the timestamp precision', () => {
+    renderList([
+      { ...electricity, id: 21, description: 'Sáng', created_at: '2026-10-20T08:00:00.900Z' },
+      { ...electricity, id: 20, description: 'Trưa', created_at: '2026-10-20T15:00:00+07:00' },
+      { ...electricity, id: 22, description: 'Tối', created_at: '2026-10-20T09:00:00Z' },
+    ])
+    const order = screen.getAllByRole('listitem').map((row) => row.querySelector('.expense-description')?.textContent)
+    // 15:00 in Vietnam is 08:00 UTC: Tối (09:00Z), then Sáng (08:00:00.9Z), then Trưa (08:00Z)
+    expect(order).toEqual(['Tối', 'Sáng', 'Trưa'])
+  })
+
   test('expenses made with Quick add keep the ✦ AI chip', () => {
     renderList([electricity, dinner])
     expect(within(screen.getByText('Ăn tối').closest('li') as HTMLElement).getByText('✦ AI')).toBeInTheDocument()

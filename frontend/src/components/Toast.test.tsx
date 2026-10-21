@@ -120,6 +120,22 @@ describe('Toast', () => {
       expect(gone).toHaveBeenCalledTimes(1)
     })
 
+    test('under StrictMode, where React runs each state update twice, the owner still hears it once', () => {
+      const gone = vi.fn()
+      render(
+        <StrictMode>
+          <ToastProvider>
+            <Trigger toasts={[{ text: 'một', onGone: gone }, { text: 'hai' }, { text: 'ba' }, { text: 'bốn' }]} />
+          </ToastProvider>
+        </StrictMode>,
+      )
+      for (let i = 0; i < 4; i++) fireEvent.click(screen.getByText(`show ${i}`))
+      expect(screen.getByRole('status')).not.toHaveTextContent('một')
+      expect(gone).toHaveBeenCalledTimes(1)
+      act(() => vi.advanceTimersByTime(TOAST_MS))
+      expect(gone).toHaveBeenCalledTimes(1)
+    })
+
     test('pushed out in the same batch, before its timer started', () => {
       const gone = vi.fn()
       function ShowMany() {

@@ -8,35 +8,48 @@ interface Toast extends ToastInput {
   id: number
 }
 
+/** The toasts on screen, and the latest ones that left and have an owner to tell (DESIGN.md §5). */
+interface Toasts {
+  shown: Toast[]
+  left: Toast[]
+}
+
+// Enough to hold every departure between two commits; older ones were told already
+const KEEP_LEFT = 20
+
+const leave = (state: Toasts, shown: Toast[], gone: Toast[]): Toasts => ({
+  shown,
+  left: gone.some((toast) => toast.onGone) ? [...state.left, ...gone.filter((t) => t.onGone)].slice(-KEEP_LEFT) : state.left,
+})
+
+function adding(state: Toasts, toast: Toast): Toasts {
+  const next = [...state.shown, toast]
+  // The oldest are pushed out, possibly before they were ever on screen
+  return leave(state, next.slice(-MAX_TOASTS), next.slice(0, Math.max(0, next.length - MAX_TOASTS)))
+}
+
+function removing(state: Toasts, id: number): Toasts {
+  const gone = state.shown.filter((toast) => toast.id === id)
+  return gone.length === 0 ? state : leave(state, state.shown.filter((toast) => toast.id !== id), gone)
+}
+
 /** Toasts at the bottom of the screen (DESIGN.md §5); show one with useToast() from lib/toast. */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([])
+  const [state, setState] = useState<Toasts>({ shown: [], left: [] })
+  const toasts = state.shown
   const nextId = useRef(1)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
-  // Toasts that have just left the list and whose owner wants to hear it, by id. Filled where the list
-  // changes (by id, so a repeated updater in StrictMode records the same entry) and emptied after it.
-  const left = useRef(new Map<number, () => void>())
-  const leaving = (gone: Toast[]) => {
-    for (const toast of gone) if (toast.onGone) left.current.set(toast.id, toast.onGone)
-  }
+  // Owners already told: a departure is in `left` for a while, its owner hears it once
+  const told = useRef(new Set<number>())
 
-  const dismiss = useCallback((id: number) => {
-    setToasts((current) => {
-      leaving(current.filter((toast) => toast.id === id))
-      return current.filter((toast) => toast.id !== id)
-    })
-  }, [])
+  // Pure updates only: what changes on screen and who left are decided together, and acted on below
+  // once React has committed them
+  const dismiss = useCallback((id: number) => setState((current) => removing(current, id)), [])
 
-  // Only the list changes here; the timers and the owners' callbacks follow it in the effect below
   const show = useCallback(
     (input: ToastInput) => {
       const id = nextId.current++
-      setToasts((current) => {
-        const next = [...current, { ...input, id }]
-        // The oldest are pushed out, possibly before they were ever on screen
-        leaving(next.slice(0, Math.max(0, next.length - MAX_TOASTS)))
-        return next.slice(-MAX_TOASTS)
-      })
+      setState((current) => adding(current, { ...input, id }))
       return () => dismiss(id)
     },
     [dismiss],
@@ -55,12 +68,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         running.delete(id)
       }
     }
-    // However a toast left (timed out, pushed out, acted on, dismissed), its owner hears it once
-    for (const [id, gone] of left.current) {
-      left.current.delete(id)
-      gone()
-    }
   }, [toasts, dismiss])
+
+  // However a toast left (timed out, pushed out, acted on, dismissed), its owner hears it once, from
+  // the committed state
+  useEffect(() => {
+    for (const toast of state.left) {
+      if (told.current.has(toast.id)) continue
+      told.current.add(toast.id)
+      toast.onGone?.()
+    }
+    // Ids that fell out of `left` can never come back
+    for (const id of told.current) if (!state.left.some((toast) => toast.id === id)) told.current.delete(id)
+  }, [state.left])
 
   // Leaving the app: no timer may fire into an unmounted provider
   useEffect(() => {

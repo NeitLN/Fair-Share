@@ -176,6 +176,20 @@ test('two presses in one batch both keep their place, before and after reversed 
   ])
 })
 
+test('presses in one batch right after a new suggestion appeared keep every card in place', () => {
+  const { result, rerender } = setup(balances([a, c]))
+  rerender({ data: balances([a, b, c], true), name: (t) => String(t.amount) })
+  act(() => {
+    result.current.pay(c)
+    result.current.pay(b)
+  })
+  expect(result.current.cards.map((card) => [card.transfer, card.state])).toEqual([
+    [a, 'open'],
+    [b, 'paying'],
+    [c, 'paying'],
+  ])
+})
+
 test('a new suggestion appears after the one before it in the API order', () => {
   const { result, rerender } = setup(balances([a, c]))
   rerender({ data: balances([a, b, c], true), name: (t) => String(t.amount) })

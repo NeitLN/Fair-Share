@@ -491,6 +491,24 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(payer()).toBe('3')
   })
 
+  test('"Bạn là ai?" changed between a fill and its undo: undo gives the payer to the new default', () => {
+    const ref = createRef<ExpenseFormHandle>()
+    const { view } = setup({ ref })
+    act(() => {
+      ref.current?.fill(draft)
+    })
+    view.rerender(
+      <ExpenseForm ref={ref} members={members} me={3} defaultPayer={3} onSubmit={vi.fn()} submitting={false} error={null} />,
+    )
+    // The AI's payer is kept while the identity changes...
+    expect(payer()).toBe('2')
+    act(() => {
+      ref.current?.undoFill()
+    })
+    // ...and undoing returns it to today's default, not the one from before the fill
+    expect(payer()).toBe('3')
+  })
+
   test('a fill and its undo work on the folded split; the fold row says what it holds', async () => {
     const { user, form } = setupWithRef()
     act(() => {

@@ -126,12 +126,11 @@ export function usePaidTransfers(
       },
     ])
     intent.current = { card: `pay-${id}`, then: 'undo' }
-    // Applied to the latest layout, so two presses in one batch both keep their place; the cards as
-    // the user saw them when pressing stand in if the layout has not caught up with them yet
-    setLayout((current) => {
-      const base = current.includes(`open-${pair}`) ? current : shown.map((c) => c.key)
-      return base.map((key) => (key === `open-${pair}` ? `pay-${id}` : key))
-    })
+    // Applied to the latest layout, so two presses in one batch both keep their place; cards the user
+    // saw that the layout has not caught up with are merged in, never put in its place
+    setLayout((current) =>
+      arrange(current, shown.map((c) => c.key)).map((key) => (key === `open-${pair}` ? `pay-${id}` : key)),
+    )
     void record(id, transfer, pair)
     return id
   }
@@ -238,14 +237,14 @@ export function usePaidTransfers(
 }
 
 /**
- * The keys in the order last shown, plus new suggestion keys placed after the suggestion that comes
- * before them in the API's order (or first). Keys no longer on screen are dropped by the caller.
+ * The keys in the order last shown, plus the missing ones from `keys`, each placed after the key that
+ * comes before it there (or first). Keys no longer on screen are dropped by the caller.
  */
-function arrange(previous: string[], suggestionKeys: string[]): string[] {
+function arrange(previous: string[], keys: string[]): string[] {
   const order = [...previous]
-  suggestionKeys.forEach((key, index) => {
+  keys.forEach((key, index) => {
     if (order.includes(key)) return
-    const after = suggestionKeys.slice(0, index).reverse().find((k) => order.includes(k))
+    const after = keys.slice(0, index).reverse().find((k) => order.includes(k))
     order.splice(after === undefined ? 0 : order.indexOf(after) + 1, 0, key)
   })
   return order

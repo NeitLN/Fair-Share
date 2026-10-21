@@ -21,17 +21,27 @@ interface ExpenseListProps {
   deletingId?: number | null
 }
 
-/** "chia đều 4 người", "chia đều 3/4 người", "chia riêng 2 người" */
-function splitText(expense: Expense, householdSize: number): string {
+/**
+ * "chia đều 4 người", "chia riêng 2 người", and "chia đều 3/4 người" only when the people sharing are
+ * some of today's members. Members come and go, so an old expense is compared by who, not by how many.
+ */
+function splitText(expense: Expense, memberIds: Set<number>): string {
   const people = expense.shares.length
   if (expense.split_type === 'custom') return `chia riêng ${people} người`
-  return people === householdSize ? `chia đều ${people} người` : `chia đều ${people}/${householdSize} người`
+  const someOfToday =
+    people < memberIds.size && expense.shares.every((share) => memberIds.has(share.member_id))
+  return someOfToday ? `chia đều ${people}/${memberIds.size} người` : `chia đều ${people} người`
 }
+
+const instant = (timestamp: string) => Date.parse(timestamp) || 0
 
 /** Newest day first; inside a day, the one entered last first. */
 function byDay(expenses: Expense[]): [string, Expense[]][] {
   const sorted = [...expenses].sort(
-    (a, b) => b.spent_at.localeCompare(a.spent_at) || b.created_at.localeCompare(a.created_at) || b.id - a.id,
+    (a, b) =>
+      b.spent_at.slice(0, 10).localeCompare(a.spent_at.slice(0, 10)) ||
+      instant(b.created_at) - instant(a.created_at) ||
+      b.id - a.id,
   )
   const days = new Map<string, Expense[]>()
   for (const expense of sorted) {
@@ -56,6 +66,7 @@ function ExpenseList({
   deletingId = null,
 }: ExpenseListProps) {
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
+  const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
 
   if (loading) {
     return <p className="hint">Đang tải danh sách khoản chi…</p>
@@ -95,7 +106,7 @@ function ExpenseList({
                             {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
                           </span>
                           <small>
-                            {payer.short} trả · {splitText(expense, members.length)}
+                            {payer.short} trả · {splitText(expense, memberIds)}
                           </small>
                         </span>
                         <Money amount={expense.amount} className="expense-amount" />

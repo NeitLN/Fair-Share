@@ -222,7 +222,8 @@ function ExpenseForm({
       if (fields.has('description')) setDescription(before.description)
       if (fields.has('amount')) setAmountText(before.amountText)
       if (fields.has('payer')) {
-        setPayerId(before.payerId)
+        // Back to the default means today's default: "Bạn là ai?" may have changed since the fill
+        setPayerId(before.payerIsDefault ? validPayer(defaultPayer) : before.payerId)
         setPayerIsDefault(before.payerIsDefault)
       }
       if (fields.has('date')) setSpentAt(before.spentAt)
