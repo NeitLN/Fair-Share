@@ -129,10 +129,14 @@ function ExpensesPage() {
       )}
 
       <section aria-labelledby="expense-list-title">
-        <h2 id="expense-list-title">Các khoản chi</h2>
+        <div className="section-head">
+          <h2 id="expense-list-title">Các khoản chi</h2>
+          <span className="section-note">chạm để sửa hoặc xoá</span>
+        </div>
         <ExpenseList
           expenses={expenses.data ?? []}
           members={members.data ?? []}
+          looks={looks}
           loading={expenses.isPending}
           error={errorMessage(expenses.error ?? remove.error)}
           onEdit={startEditing}

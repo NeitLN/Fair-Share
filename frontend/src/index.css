@@ -900,47 +900,80 @@ button.ai:active:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.expense-row {
-  flex-direction: column;
-  align-items: stretch;
+/* Các khoản chi (DESIGN.md §6.3): days as small titles, rows that open to Sửa / Xoá */
+.expense-days {
+  display: grid;
+  gap: 14px;
 }
 
-.expense-summary {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
+.expense-day {
+  gap: 6px;
+}
+
+.expense-day-title {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.expense-list {
+  padding: 0 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.expense-row {
+  display: block;
+  padding: 0;
+}
+
+.expense-row:last-child {
+  border-bottom: 0;
+}
+
+.expense-row summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.expense-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.expense-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
 .expense-description {
-  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.expense-amount {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.expense-meta {
+.expense-main small {
   color: var(--muted);
   font-size: 13px;
+}
+
+.expense-amount {
+  text-align: right;
 }
 
 .expense-actions {
   display: flex;
   gap: 8px;
-}
-
-/* The "✦ AI" chip on expenses made with Quick add */
-.badge {
-  padding: 2px 9px;
-  border-radius: var(--radius-pill);
-  background: var(--ai);
-  color: var(--on-fill);
-  font-size: 12px;
-  font-weight: 700;
+  padding: 0 0 12px 44px;
 }
 
 /* ---------------------------------------------------------------- Tổng quan (DESIGN.md §6.2) */
@@ -1195,6 +1228,15 @@ button.ai:active:focus-visible {
   min-height: 72px;
   line-height: 1.4;
   resize: vertical;
+}
+
+/* Two lines to start, growing with the sentence where the browser can size a field to its content */
+@supports (field-sizing: content) {
+  .ai-composer textarea {
+    field-sizing: content;
+    max-height: 9lh;
+    resize: none;
+  }
 }
 
 .ai-reading {

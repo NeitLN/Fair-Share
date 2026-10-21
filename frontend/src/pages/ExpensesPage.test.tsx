@@ -85,7 +85,7 @@ test('lists the expenses with who paid', async () => {
   api()
   renderApp('/households/7/expenses')
   expect(await list().findByText('Tiền điện')).toBeInTheDocument()
-  expect(list().getByText('Tiến')).toBeInTheDocument()
+  expect(list().getByText(/^Tiến trả · chia đều 2 người/)).toBeInTheDocument()
 })
 
 test('adding an expense puts it on the list and clears the form', async () => {
