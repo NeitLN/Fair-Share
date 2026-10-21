@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Member, MemberBalance } from '../api/types'
@@ -58,6 +58,21 @@ function MemberList({
   const [validation, setValidation] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
+  // Keyboard focus follows the edit: into the field when it opens, back to that row's button after
+  const renameButtons = useRef(new Map<number, HTMLButtonElement>())
+  const editInput = useRef<HTMLInputElement>(null)
+  const returnFocusTo = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (editingId !== null) {
+      editInput.current?.focus()
+      return
+    }
+    if (returnFocusTo.current !== null) {
+      renameButtons.current.get(returnFocusTo.current)?.focus()
+      returnFocusTo.current = null
+    }
+  }, [editingId])
 
   if (loading) {
     return <p className="hint">Đang tải danh sách thành viên…</p>
@@ -66,6 +81,13 @@ function MemberList({
   // Removing cannot be undone from the UI, so ask first
   function confirmRemove(member: Member) {
     if (window.confirm(`Xoá ${member.name} khỏi nhà?`)) onRemove(member.id)
+  }
+
+  // While a rename is being saved nothing else may open or close an editor: its answer belongs to it
+  function stopEditing() {
+    if (saving) return
+    returnFocusTo.current = editingId
+    setEditingId(null)
   }
 
   function startEditing(member: Member) {
@@ -86,6 +108,7 @@ function MemberList({
     setSaving(true)
     try {
       await onRename(id, trimmed)
+      returnFocusTo.current = id
       setEditingId(null)
     } catch {
       // e.g. 409 duplicate name: the page shows the message under this row; the draft is kept
@@ -113,6 +136,7 @@ function MemberList({
                   <form className="member-edit" onSubmit={(e) => saveEditing(e, member.id)} noValidate>
                     <label htmlFor={`member-name-${member.id}`}>Tên mới cho {member.name}</label>
                     <input
+                      ref={editInput}
                       id={`member-name-${member.id}`}
                       type="text"
                       value={draft}
@@ -121,13 +145,13 @@ function MemberList({
                       aria-describedby={validation || note ? `member-note-${member.id}` : undefined}
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={(event) => {
-                        if (event.key === 'Escape') setEditingId(null)
+                        if (event.key === 'Escape') stopEditing()
                       }}
                     />
                     <button type="submit" disabled={saving}>
                       {saving ? 'Đang lưu…' : 'Lưu'}
                     </button>
-                    <button type="button" className="btn-secondary" onClick={() => setEditingId(null)}>
+                    <button type="button" className="btn-secondary" disabled={saving} onClick={stopEditing}>
                       Hủy
                     </button>
                   </form>
@@ -146,10 +170,14 @@ function MemberList({
                 {editingId !== member.id && (
                   <div className="row-actions">
                     <button
+                      ref={(button) => {
+                        if (button) renameButtons.current.set(member.id, button)
+                        else renameButtons.current.delete(member.id)
+                      }}
                       type="button"
                       className="btn-ghost"
                       aria-label={`Đổi tên ${member.name}`}
-                      disabled={removing}
+                      disabled={removing || saving}
                       onClick={() => startEditing(member)}
                     >
                       Đổi tên
@@ -158,6 +186,7 @@ function MemberList({
                       type="button"
                       className="btn-danger"
                       aria-label={`Xoá ${member.name}`}
+                      aria-describedby={note ? `member-note-${member.id}` : undefined}
                       disabled={removing}
                       onClick={() => confirmRemove(member)}
                     >

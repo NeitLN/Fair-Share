@@ -147,10 +147,8 @@ body {
   background: var(--surface);
 }
 
-.chooser legend {
-  float: left; /* keeps the legend inside the padded box */
-  width: 100%;
-  margin: 0;
+.chooser-title {
+  font-weight: 700;
   font-size: 16px;
 }
 
@@ -739,7 +737,8 @@ button.ai:active:focus-visible {
   height: 1px;
 }
 
-.pick label {
+.pick label,
+.pick button {
   display: inline-flex;
   flex-basis: auto;
   align-items: center;
@@ -755,13 +754,15 @@ button.ai:active:focus-visible {
   cursor: pointer;
 }
 
-.pick label .name {
+.pick label .name,
+.pick button .name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pick input:checked + label {
+.pick input:checked + label,
+.pick button[aria-pressed='true'] {
   border-color: var(--ink);
   background: var(--surface-2);
 }

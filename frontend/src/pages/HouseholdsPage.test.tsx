@@ -69,3 +69,23 @@ test('with no household yet the form is already open', async () => {
   expect(await screen.findByText(/Chưa có nhà nào/)).toBeInTheDocument()
   expect(screen.getByText('+ Tạo nhà mới').closest('details')).toHaveAttribute('open')
 })
+
+test('a failed create keeps the form open through the retry', async () => {
+  let attempts = 0
+  mockApi({
+    'GET /api/households': [200, [nha7]],
+    'POST /api/households': () =>
+      ++attempts === 1
+        ? [503, { error: { code: 'database_unavailable', message: 'down' } }]
+        : [503, { error: { code: 'database_unavailable', message: 'still down' } }],
+  })
+  renderApp('/')
+  await userEvent.click(await screen.findByText('+ Tạo nhà mới'))
+  const fold = screen.getByText('+ Tạo nhà mới').closest('details')
+  await userEvent.type(screen.getByLabelText('Tên nhà'), 'Nhà mới')
+  await userEvent.click(screen.getByRole('button', { name: 'Tạo nhà' }))
+  expect(await screen.findByRole('alert')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Tạo nhà' }))
+  expect(fold).toHaveAttribute('open')
+  expect(screen.getByLabelText('Tên nhà')).toHaveValue('Nhà mới')
+})

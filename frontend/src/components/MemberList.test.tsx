@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
@@ -165,5 +165,30 @@ describe('MemberList', () => {
     expect(onRename).toHaveBeenCalledTimes(1)
     expect(onRename).toHaveBeenCalledWith(3, 'Lan Anh')
     finish()
+  })
+
+  test('keyboard focus goes into the rename field and back to that row after cancelling', async () => {
+    render(<MemberList members={people} loading={false} error={null} onRename={vi.fn()} onRemove={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Đổi tên Lan' }))
+    expect(screen.getByLabelText('Tên mới cho Lan')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'Đổi tên Lan' })).toHaveFocus()
+  })
+
+  test('while a rename is saving, no other editor can open or this one close', async () => {
+    let finish: () => void = () => {}
+    const onRename = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)))
+    render(<MemberList members={people} loading={false} error={null} onRename={onRename} onRemove={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Đổi tên Lan' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Lưu' }))
+
+    expect(screen.getByRole('button', { name: 'Đổi tên Hương' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Hủy' })).toBeDisabled()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.getByLabelText('Tên mới cho Lan')).toBeInTheDocument()
+
+    await act(async () => finish())
+    expect(screen.queryByLabelText('Tên mới cho Lan')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đổi tên Lan' })).toHaveFocus()
   })
 })

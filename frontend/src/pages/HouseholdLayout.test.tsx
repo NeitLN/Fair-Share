@@ -60,17 +60,24 @@ test('"Bạn là ai?": choosing a member is remembered for this household and ca
   mockApi(house)
   renderApp('/households/7')
   await userEvent.click(await screen.findByRole('button', { name: 'Chọn' }))
-  await userEvent.click(screen.getByRole('radio', { name: 'Anh' }))
+  // Moving through the people with the keyboard does not choose anyone
+  expect(screen.getByRole('button', { name: 'Tiến' })).toHaveFocus()
+  await userEvent.tab()
+  expect(screen.getByRole('button', { name: 'Minh' })).toHaveFocus()
+  expect(localStorage.getItem('fair-share:me:7')).toBeNull()
 
+  await userEvent.click(screen.getByRole('button', { name: 'Anh' }))
   expect(screen.getByText('Anh', { selector: '.who-am-i b' })).toBeInTheDocument()
   expect(localStorage.getItem('fair-share:me:7')).toBe('13')
-  expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Bạn là ai trong nhà này?' })).not.toBeInTheDocument()
 
-  // Change it, then Escape keeps the current choice
+  // Reopening starts on the current choice; Escape keeps it and returns to the button
   await userEvent.click(screen.getByRole('button', { name: 'Không phải bạn?' }))
-  expect(screen.getByRole('radio', { name: 'Anh' })).toBeChecked()
+  const anh = screen.getByRole('button', { name: 'Anh' })
+  expect(anh).toHaveAttribute('aria-pressed', 'true')
+  expect(anh).toHaveFocus()
   await userEvent.keyboard('{Escape}')
-  expect(screen.getByRole('button', { name: 'Không phải bạn?' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Không phải bạn?' })).toHaveFocus()
 })
 
 test('a saved choice greets you on the next visit', async () => {

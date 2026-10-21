@@ -12,33 +12,30 @@ interface WhoAmIProps {
 
 /**
  * "Bạn là ai?" (UX-01, DESIGN.md §6.2). One line, never in the way: "Bạn là ai trong nhà này? Chọn"
- * until someone is chosen, then "Bạn là Tiến · Không phải bạn?". Either button opens the chooser.
+ * until someone is chosen, then "Bạn là Tiến · Không phải bạn?". Either button opens the chooser: one
+ * button per member, a tap chooses. Buttons rather than radios, so moving with the keyboard never
+ * chooses by accident.
  */
 function WhoAmI({ members, looks }: WhoAmIProps) {
   const { me, setMe } = useMe()
-  const [changing, setChanging] = useState(false)
-  const open = changing
-  const group = useRef<HTMLFieldSetElement>(null)
-  const changeButton = useRef<HTMLButtonElement>(null)
-  // Focus moves into the chooser only when the user asked to change, not when the page first loads
-  const askedToChange = useRef(false)
+  const [open, setOpen] = useState(false)
+  const chooser = useRef<HTMLDivElement>(null)
+  const toggle = useRef<HTMLButtonElement>(null)
+  // Focus moves into the chooser only when the user opened it, never on page load
+  const openedByUser = useRef(false)
 
   useEffect(() => {
-    if (changing && askedToChange.current) {
-      group.current?.querySelector<HTMLInputElement>('input:checked, input')?.focus()
-      askedToChange.current = false
-    }
-  }, [changing])
+    if (!open || !openedByUser.current) return
+    openedByUser.current = false
+    const buttons = chooser.current?.querySelectorAll<HTMLButtonElement>('button')
+    const current = chooser.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
+    ;(current ?? buttons?.[0])?.focus()
+  }, [open])
 
   function close() {
-    setChanging(false)
+    setOpen(false)
     // Back to the button that opened the chooser, so keyboard users do not lose their place
-    requestAnimationFrame(() => changeButton.current?.focus())
-  }
-
-  function choose(id: number) {
-    setMe(id)
-    close()
+    requestAnimationFrame(() => toggle.current?.focus())
   }
 
   if (!open) {
@@ -47,13 +44,12 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
       <p className="who-am-i">
         <span>{name ? <>Bạn là <b>{name}</b></> : 'Bạn là ai trong nhà này?'}</span>
         <button
-          ref={changeButton}
+          ref={toggle}
           type="button"
           className="btn-ghost"
-          aria-expanded="false"
           onClick={() => {
-            askedToChange.current = true
-            setChanging(true)
+            openedByUser.current = true
+            setOpen(true)
           }}
         >
           {name ? 'Không phải bạn?' : 'Chọn'}
@@ -63,38 +59,40 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
   }
 
   return (
-    <fieldset
-      ref={group}
+    <div
+      ref={chooser}
       className="chooser"
+      role="group"
+      aria-labelledby="chooser-title"
       onKeyDown={(event) => {
         if (event.key === 'Escape') close()
       }}
     >
-      <legend>Bạn là ai trong nhà này?</legend>
+      <p id="chooser-title" className="chooser-title">
+        Bạn là ai trong nhà này?
+      </p>
       <div className="pick">
         {members.map((member) => {
           const look = looks.get(member.id)
           if (!look) return null
-          const id = `me-${member.id}`
           return (
-            <span key={member.id}>
-              <input
-                type="radio"
-                name="me"
-                id={id}
-                checked={me === member.id}
-                onChange={() => choose(member.id)}
-              />
-              <label htmlFor={id}>
-                <Avatar look={look} size="sm" decorative />
-                <span className="name">{look.short}</span>
-              </label>
-            </span>
+            <button
+              key={member.id}
+              type="button"
+              aria-pressed={me === member.id}
+              onClick={() => {
+                setMe(member.id)
+                close()
+              }}
+            >
+              <Avatar look={look} size="sm" decorative />
+              <span className="name">{look.short}</span>
+            </button>
           )
         })}
       </div>
       <p className="hint">Chỉ lưu trên máy này, để app nói “bạn” và chọn sẵn người trả.</p>
-    </fieldset>
+    </div>
   )
 }
 
