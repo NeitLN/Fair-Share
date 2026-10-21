@@ -126,8 +126,12 @@ export function usePaidTransfers(
       },
     ])
     intent.current = { card: `pay-${id}`, then: 'undo' }
-    // From the cards as the user saw them when pressing (this render's), not the last effect's copy
-    setLayout(shown.map((c) => (c.key === `open-${pair}` ? `pay-${id}` : c.key)))
+    // Applied to the latest layout, so two presses in one batch both keep their place; the cards as
+    // the user saw them when pressing stand in if the layout has not caught up with them yet
+    setLayout((current) => {
+      const base = current.includes(`open-${pair}`) ? current : shown.map((c) => c.key)
+      return base.map((key) => (key === `open-${pair}` ? `pay-${id}` : key))
+    })
     void record(id, transfer, pair)
     return id
   }

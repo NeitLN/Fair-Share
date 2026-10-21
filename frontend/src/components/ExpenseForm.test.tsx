@@ -101,6 +101,37 @@ describe('ExpenseForm, the 90% case', () => {
     expect(payer()).toBe('3')
   })
 
+  test('after a save the next expense starts from the default payer again', async () => {
+    const { user, onSubmit } = setup({ me: 3, defaultPayer: 3 })
+    await fillBasics(user)
+    await user.click(payerRadio('Minh'))
+    await save(user)
+    expect(onSubmit.mock.calls[0][0].payer_id).toBe(2)
+    expect(payer()).toBe('3')
+  })
+
+  test('the folded controls are always there for aria-controls, hidden while folded', () => {
+    setup()
+    for (const name of ['Đổi ngày', 'Sửa cách chia']) {
+      const button = screen.getByRole('button', { name })
+      const target = document.getElementById(button.getAttribute('aria-controls') as string)
+      expect(target).not.toBeNull()
+      expect(target).toHaveAttribute('hidden')
+    }
+  })
+
+  test('choosing "Bạn là ai?" fills a missing payer and takes its message away', async () => {
+    const { user, view } = setup({ me: null, defaultPayer: null })
+    await fillBasics(user)
+    await save(user)
+    expect(screen.getByText('Chọn người trả.')).toBeInTheDocument()
+    view.rerender(
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+    )
+    expect(payer()).toBe('2')
+    expect(screen.queryByText('Chọn người trả.')).not.toBeInTheDocument()
+  })
+
   test('the date is folded as "Hôm nay"; Đổi opens the field in place', async () => {
     const { user, onSubmit } = setup()
     await fillBasics(user)
@@ -248,7 +279,10 @@ describe('ExpenseForm, checks and outcomes', () => {
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
 
     expect(screen.getByText('Tổng các phần phải bằng đúng số tiền của khoản chi.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveFocus()
+    // The way of splitting in use gets focus, and its button carries the message
+    const custom = screen.getByRole('button', { name: 'Chia riêng' })
+    expect(custom).toHaveFocus()
+    expect(custom).toHaveAccessibleDescription('Tổng các phần phải bằng đúng số tiền của khoản chi.')
   })
 
   test('after saving, the form is ready for the next expense', async () => {
@@ -420,6 +454,61 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(screen.getByLabelText('Ngày')).toHaveValue('2026-10-17')
   })
 
+  test('a payer the AI filled stays when "Bạn là ai?" changes, even if it was the default person', () => {
+    const { form, view } = setupWithRef()
+    act(() => {
+      form().fill({ ...draft, payer_id: 1 })
+    })
+    view.rerender(
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+    )
+    expect(payer()).toBe('1')
+  })
+
+  test('a payer the AI cleared stays empty when "Bạn là ai?" changes', () => {
+    const { form, view } = setupWithRef()
+    act(() => {
+      form().fill({ ...draft, payer_id: null })
+    })
+    view.rerender(
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+    )
+    expect(payer()).toBe('')
+  })
+
+  test('undoing the fill gives the payer back to the default, which follows "Bạn là ai?" again', () => {
+    const ref = createRef<ExpenseFormHandle>()
+    const { view } = setup({ ref })
+    act(() => {
+      ref.current?.fill(draft)
+    })
+    act(() => {
+      ref.current?.undoFill()
+    })
+    view.rerender(
+      <ExpenseForm ref={ref} members={members} me={3} defaultPayer={3} onSubmit={vi.fn()} submitting={false} error={null} />,
+    )
+    expect(payer()).toBe('3')
+  })
+
+  test('a fill and its undo work on the folded split; the fold row says what it holds', async () => {
+    const { user, form } = setupWithRef()
+    act(() => {
+      form().fill(draft)
+    })
+    expect(screen.getByText('Chia đều (2/3 người)')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều (2/3 người)').closest('.fold-field')).toHaveClass('just-filled')
+    act(() => {
+      form().undoFill()
+    })
+    expect(screen.getByText('Chia đều cả nhà (3 người)')).toBeInTheDocument()
+    await openSplit(user)
+    expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveAttribute('aria-pressed', 'true')
+    for (const name of ['Tiến', 'Minh', 'Anh']) {
+      expect(screen.getByRole('checkbox', { name })).toBeChecked()
+    }
+  })
+
   test('opening a fold is not a change: the split can still be filled', async () => {
     const { user, form } = setupWithRef()
     await openSplit(user)
@@ -536,7 +625,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(payer()).toBe('1')
   })
 
-  test('filling the split replaces custom amounts too, and undo brings them back', async () => {
+  test('a split the user changed is kept whole by a fill, custom amounts included', async () => {
     const { user, form } = setupWithRef()
     await user.type(screen.getByLabelText('Số tiền'), '240000')
     await openSplit(user)

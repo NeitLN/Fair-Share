@@ -215,7 +215,8 @@ Hôm qua, 20/10
  (T) Tiền điện tháng 10            450.000đ
      Tiến trả · chia đều 4 người
 ```
-* **Defaults:** payer = you (else the last payer used on this device); date = today; split = equal
+* **Defaults:** payer = you (else the last payer saved on this device, else nobody: the form asks rather than
+  guess); every new expense starts from that default again; date = today; split = equal
   between everyone. The 90% case needs only *Nội dung*, *Số tiền* and *Lưu*.
 * **Errors** appear under the field (`aria-invalid`, `aria-describedby`) and the first invalid field gets
   focus; the server's message stays above the button.

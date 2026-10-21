@@ -289,11 +289,19 @@ test('you are the default payer; without an identity, whoever paid last on this 
 
 test('with no identity, the last payer on this device is chosen for the next expense', async () => {
   localStorage.removeItem('fair-share:me:7')
-  localStorage.setItem('fair-share:last-payer:7', '2')
+  localStorage.setItem('fair-share:last-payer:7', '1')
   api()
+  const user = userEvent.setup()
   renderApp('/households/7/expenses')
 
-  expect(await screen.findByRole('radio', { name: /^Minh/ })).toBeChecked()
+  expect(await screen.findByRole('radio', { name: /^Tiến/ })).toBeChecked()
+  // Minh pays this one: the next expense starts with Minh
+  await user.type(screen.getByLabelText('Nội dung'), 'Trà sữa')
+  await user.type(screen.getByLabelText('Số tiền'), '60k')
+  await user.click(screen.getByRole('radio', { name: /^Minh/ }))
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+  await list().findByText('Trà sữa')
+  await waitFor(() => expect(screen.getByRole('radio', { name: /^Minh/ })).toBeChecked())
 })
 
 test('with no identity and no last payer, nobody is chosen and saving asks who paid', async () => {

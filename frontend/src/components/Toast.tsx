@@ -13,19 +13,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const nextId = useRef(1)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
-  // Toasts whose owner wants to hear when they leave, by id
-  const watchers = useRef(new Map<number, () => void>())
+  // Toasts that have just left the list and whose owner wants to hear it, by id. Filled where the list
+  // changes (by id, so a repeated updater in StrictMode records the same entry) and emptied after it.
+  const left = useRef(new Map<number, () => void>())
+  const leaving = (gone: Toast[]) => {
+    for (const toast of gone) if (toast.onGone) left.current.set(toast.id, toast.onGone)
+  }
 
   const dismiss = useCallback((id: number) => {
-    setToasts((current) => current.filter((toast) => toast.id !== id))
+    setToasts((current) => {
+      leaving(current.filter((toast) => toast.id === id))
+      return current.filter((toast) => toast.id !== id)
+    })
   }, [])
 
-  // Pure: only the list changes here; the timers follow the list in the effect below
+  // Only the list changes here; the timers and the owners' callbacks follow it in the effect below
   const show = useCallback(
     (input: ToastInput) => {
       const id = nextId.current++
-      if (input.onGone) watchers.current.set(id, input.onGone)
-      setToasts((current) => [...current, { ...input, id }].slice(-MAX_TOASTS))
+      setToasts((current) => {
+        const next = [...current, { ...input, id }]
+        // The oldest are pushed out, possibly before they were ever on screen
+        leaving(next.slice(0, Math.max(0, next.length - MAX_TOASTS)))
+        return next.slice(-MAX_TOASTS)
+      })
       return () => dismiss(id)
     },
     [dismiss],
@@ -44,12 +55,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         running.delete(id)
       }
     }
-    // However a toast left (even pushed out before it was ever shown), its owner hears it once
-    for (const [id, gone] of watchers.current) {
-      if (!toasts.some((toast) => toast.id === id)) {
-        watchers.current.delete(id)
-        gone()
-      }
+    // However a toast left (timed out, pushed out, acted on, dismissed), its owner hears it once
+    for (const [id, gone] of left.current) {
+      left.current.delete(id)
+      gone()
     }
   }, [toasts, dismiss])
 

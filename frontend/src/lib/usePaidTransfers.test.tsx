@@ -155,6 +155,27 @@ test.each(permutations([0, 1, 2]))(
   },
 )
 
+test('two presses in one batch both keep their place, before and after reversed answers', async () => {
+  const { result, rerender } = setup(balances([a, b, c]))
+  act(() => {
+    result.current.pay(a)
+    result.current.pay(b)
+  })
+  expect(result.current.cards.map((card) => [card.transfer, card.state])).toEqual([
+    [a, 'paying'],
+    [b, 'paying'],
+    [c, 'open'],
+  ])
+  await answer(requests('POST')[1], 201, settlement(31, b))
+  await answer(requests('POST')[0], 201, settlement(30, a))
+  rerender({ data: balances([c], true), name: (t) => String(t.amount) })
+  expect(result.current.cards.map((card) => [card.transfer, card.state])).toEqual([
+    [a, 'paid'],
+    [b, 'paid'],
+    [c, 'open'],
+  ])
+})
+
 test('a new suggestion appears after the one before it in the API order', () => {
   const { result, rerender } = setup(balances([a, c]))
   rerender({ data: balances([a, b, c], true), name: (t) => String(t.amount) })
@@ -259,7 +280,7 @@ test('leaving the household takes its Hoàn tác toasts away, and a late answer 
   expect(screen.queryByText(/^Đã ghi/)).not.toBeInTheDocument()
 })
 
-test('with the real balances query: a refetch that started before the payment answered does not bring it back', async () => {
+test('with the real balances query: a request that started before the payment never brings it back', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   let hook: ReturnType<typeof usePaidTransfers> | undefined
   function Dashboard() {
@@ -284,17 +305,25 @@ test('with the real balances query: a refetch that started before the payment an
   act(() => {
     hook?.pay(a)
   })
-  // Something else refetches the balances while the payment is on its way, and answers first
+  // Something else refetches the balances while the payment is on its way, without cancelling
   act(() => {
-    void client.refetchQueries({ queryKey: settlementKeys.balances(7) })
+    void client.refetchQueries({ queryKey: settlementKeys.balances(7) }, { cancelRefetch: false })
   })
-  await answer(gets()[1], 200, { balances: [], suggested: [a, b] })
+  const early = gets()[1]
   await answer(requests('POST')[0], 201, settlement(30, a))
+  // That earlier request answers only now, still listing the paid transfer
+  await answer(early, 200, { balances: [], suggested: [a, b] })
   await waitFor(() => expect(hook?.cards.map((card) => card.state)).toEqual(['paid', 'open']))
   expect(hook?.outstanding).toEqual([b])
 
-  // The refetch the payment itself started is the first to count
-  await answer(gets().at(-1) as Pending, 200, { balances: [], suggested: [b] })
-  await waitFor(() => expect(hook?.outstanding).toEqual([b]))
-  expect(hook?.cards.map((card) => card.state)).toEqual(['paid', 'open'])
+  // A request started after the payment is the first to count; c makes its arrival visible
+  const late = gets().at(-1) as Pending
+  expect(late).not.toBe(early)
+  await answer(late, 200, { balances: [], suggested: [b, c] })
+  await waitFor(() => expect(hook?.outstanding).toEqual([b, c]))
+  expect(hook?.cards.map((card) => [card.transfer, card.state])).toEqual([
+    [a, 'paid'],
+    [b, 'open'],
+    [c, 'open'],
+  ])
 })
