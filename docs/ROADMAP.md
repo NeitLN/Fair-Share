@@ -40,6 +40,11 @@ R = does the work · A = accountable · C = consulted · I = informed
 **Accelerated plan (agreed 20/10).** Feature freeze moves from Sat 07/11 to **Sun 01/11**, so the last
 ten days are for the report, rehearsals and recovery, not for code. Scope is unchanged.
 
+**UI redesign (agreed 21/10).** The web app gets one visual design, *Sticker pop*, specified in
+[DESIGN.md](DESIGN.md): light and dark themes, a Tổng quan that opens with "who pays whom", a device-only
+"Bạn là ai?" choice and a copyable reminder message for the group chat. It is frontend only (no API
+change) and lands before the freeze as T-41 → T-42 → T-43, with T-19 and T-32 built on top.
+
 | Milestone (GitHub) | Dates | Brief requirement | Exit criteria |
 |---|---|---|---|
 | **W7 · Foundation & cloud database** | Fri 16/10 → **Thu 22/10** | Managed cloud DB attached by one env var | Vertical slice live: households and members in the React app → API → Supabase, over HTTPS. Compose runs `db` + `api` + `web` from a clean clone. CI has `backend` (real PostgreSQL), `frontend`, `images` jobs |
@@ -67,6 +72,9 @@ gantt
     Gemini key + T-21 client          :crit, a1, 2026-10-20, 3d
     T-22 AI endpoint                  :crit, a2, 2026-10-23, 3d
     T-26 keep-alive, T-29 secret audit:p1, 2026-10-23, 5d
+    T-41 design system                :d1, 2026-10-21, 2d
+    T-42 UI foundation                :crit, d2, 2026-10-22, 3d
+    T-43 Tổng quan + Chi tiêu UI      :d3, 2026-10-25, 4d
     T-31 report draft assembled       :r1, 2026-10-29, 4d
     section Freeze, report, rehearsal
     Feature freeze                    :milestone, 2026-11-01, 0d
@@ -80,7 +88,8 @@ gantt
 `#84 fix (T-08)` → `T-15 expenses` → `T-16 settlements` → `T-17 balances` → `T-18/T-20 pages wired to the
 real API` → live check → freeze. The AI path runs beside it: `Gemini key` → `T-21` → `T-22` (needs T-08
 merged for member names) → `T-19`. Anything late on these two chains moves the freeze; everything else has
-slack.
+slack. The UI work is a third, short chain: `T-41` → `T-42` (by Sat 24/10) → `T-19` and `T-43`; T-42 is
+on it because the composer and both redesigned screens use its components.
 
 ### Rules that make the acceleration work
 
@@ -135,7 +144,11 @@ slack.
 | T-25 | Validation & errors: one error JSON, 404/409/422 cases, input limits — the contract the pages rely on | Hoàng Minh | Duy Anh | P1 | Wed 28/10 |
 | T-18 | Expenses page: list, add/edit/delete form with equal/custom split | Duy Anh | Hoàng Minh | P0 | **Mon 26/10** (live by Tue 27/10) |
 | T-20 | Dashboard: balances, suggested settlements, "record this payment" | Duy Anh | Hoàng Minh | P0 | **Tue 27/10** |
-| T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form | Duy Anh | Việt Tiến | P0 | **Wed 28/10** |
+| T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form — built on the T-42 components, states in [DESIGN.md §6.3](DESIGN.md#63-chi-tiêu-householdsidexpenses) | Duy Anh | Việt Tiến | P0 | **Wed 28/10** |
+| T-41 | Design system "Sticker pop": [DESIGN.md](DESIGN.md) — rules, light/dark tokens with measured contrast, type, components, screen specs, copy | Việt Tiến | Duy Anh | P1 | Thu 22/10 |
+| T-42 | UI foundation: tokens, fonts, base CSS, shared components (avatar, money, chips, buttons, toast), "Bạn là ai?"; Danh sách nhà, household frame, Thành viên | Việt Tiến | Duy Anh | P1 | **Sat 24/10** |
+| T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | Wed 28/10 |
+| T-44 | Brand kit: [BRAND.md](BRAND.md) — tagline, logo and icon, colour and voice rules, OG image, README header, slide and report templates | Việt Tiến | Duy Anh | P1 | Fri 23/10 |
 | T-21 | Gemini client service: structured JSON output, 10 s timeout, 429/5xx mapping, key from env, never logged (key on Render by Wed 21/10) | Việt Tiến | Hoàng Minh | P0 | **Thu 22/10** |
 | T-22 | `POST /api/households/{id}/ai/parse-expense`: per-IP limit + global budget, name matching, tests with mocked Gemini | Việt Tiến | Hoàng Minh | P0 | **Sun 25/10** |
 | T-23 | Deploy job calls both hooks; CORS checked from the live SPA (done 20/10); first merge after #85 deploys both | Việt Tiến | Duy Anh | P0 | Thu 22/10 |
@@ -150,7 +163,7 @@ slack.
 | T-30 | Peer review session in class: each member reviews another's area; every finding becomes an issue labelled `peer-review` | **All** | — | P0 | **Thu 29/10** |
 | T-27 | Persistence drill: `pg_dump` of Supabase, restore into local Compose, restart and redeploy the Render API → data still there; written up for report §5 | Hoàng Minh | Việt Tiến | P0 | Sat 31/10 |
 | T-28 | Architecture & ER diagrams exported for the report, checked against Render and Supabase | Hoàng Minh | Việt Tiến | P0 | Fri 30/10 |
-| T-32 | UI polish: mobile layout, loading / empty / error states, VND formatting, one UI language | Duy Anh | Việt Tiến | P1 | Sat 31/10 |
+| T-32 | UI polish: loading / empty / error states ([DESIGN.md §6.5](DESIGN.md#65-states-on-every-screen)), 360 px and 200% zoom pass, dark-mode pass, one UI language | Duy Anh | Việt Tiến | P1 | Sat 31/10 |
 | T-33 | Browser smoke test (Playwright) of the main flow against the live URL | Duy Anh | Việt Tiến | P2 | Sun 01/11 |
 | T-31 | Report draft — all 8 sections assembled (section drafts due Wed 28/10, owners in §4) | Việt Tiến (editor) | All | P0 | **Sun 01/11** |
 
@@ -170,12 +183,14 @@ slack.
 
 | Member | W7 left | W8 | W9 | W10 | Open total |
 |---|---|---|---|---|---|
-| Việt Tiến | 1 | 6 | 1 | 2 | 10 |
+| Việt Tiến | 1 | 10 | 1 | 2 | 14 |
 | Hoàng Minh | 1 | 4 | 2 | 2 | 9 |
 | Duy Anh | 0 | 3 | 2 | 2 | 7 |
 
 Hoàng Minh carries the critical path in W8, so his W9–W10 tasks are small and documentation-heavy. Việt
-Tiến takes T-26 (platform) and the takeover duty in §2. Shared tasks (T-30) are not counted.
+Tiến takes T-26 (platform) and the takeover duty in §2. Shared tasks (T-30) are not counted. The UI
+redesign and brand (T-41–T-44, added 21/10) goes to Việt Tiến because his W8 backend and platform tasks are done;
+Duy Anh keeps T-19 and T-32 and reviews the redesign.
 
 ## 4. Report ownership (15% — section drafts Wed 28/10, full draft Sun 01/11, PDF submitted Sun 08/11)
 
@@ -230,6 +245,7 @@ Tiến takes T-26 (platform) and the takeover duty in §2. Shared tasks (T-30) a
 | A secret is committed | Low | High | gitleaks in CI, push protection, `.env` git-ignored, runbook in ARCHITECTURE §8 | Việt Tiến |
 | Unequal or unexplainable contributions | Medium | High | Issues assigned evenly; every PR explained in its description; defense table above | Việt Tiến |
 | Scope creep | Medium | Medium | MVP fixed in PROJECT_SPEC §3.1; stretch goals only after W8 is green; freeze Sun 01/11 | Việt Tiến |
+| The redesign (T-42/T-43) and T-19/T-32 edit the same pages and CSS | Medium | Medium | T-42 merges first (Sat 24/10); one design spec ([DESIGN.md](DESIGN.md)); Duy Anh reviews the redesign PRs, Việt Tiến reviews T-19/T-32; tests updated with the copy they check | Việt Tiến |
 | The backend chain (T-08 → T-15 → T-16 → T-17) slips and moves the freeze | Medium | High | Dated checkpoints and takeover triggers in §2; Duy Anh builds pages against the §5 contract meanwhile | Việt Tiến |
 | Stacked backend PRs merged out of order or onto the wrong base | Medium | Medium | Merge one at a time and wait for the next PR to show base `main` (§2, rule 1) | Hoàng Minh |
 | Takeovers make the contribution table hard to explain | Low | Medium | Pair first, take over only a bounded part, note it in the issue; each member keeps the code they defend | Việt Tiến |

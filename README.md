@@ -1,5 +1,7 @@
 # Fair-Share
 
+![Fair-Share — Rõ ai trả ai.](docs/brand/readme-header.png)
+
 [![CI/CD](https://github.com/NeitLN/Fair-Share/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/NeitLN/Fair-Share/actions/workflows/ci-cd.yml)
 [![Live API](https://img.shields.io/website?url=https%3A%2F%2Ffair-share-4bu9.onrender.com%2Fhealth&label=live%20API)](https://fair-share-4bu9.onrender.com/health)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
@@ -26,7 +28,7 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | 🌐 **Live API** | https://fair-share-4bu9.onrender.com · interactive docs at [`/docs`](https://fair-share-4bu9.onrender.com/docs) |
 | 🖥️ **Web app** | **https://fair-share-web.onrender.com** (Render Static Site) |
 | 📈 **Progress** | [**Dashboard**](https://neitln.github.io/Fair-Share/) · [Project board](https://github.com/users/NeitLN/projects/2) · [milestones](https://github.com/NeitLN/Fair-Share/milestones) · [weekly reports](https://github.com/NeitLN/Fair-Share/issues?q=label%3Aweekly-report) · [how to follow it](#project-status) |
-| 📄 **Docs** | [Specification](docs/PROJECT_SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) |
+| 📄 **Docs** | [Specification](docs/PROJECT_SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Design](docs/DESIGN.md) · [Brand](docs/BRAND.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) |
 
 > The free Render instance sleeps after ~15 minutes without traffic. The first request after that can
 > take about 50 seconds; later requests are fast.
@@ -321,7 +323,7 @@ Fair-Share/
 │   ├── src/              # api/ (client), pages/, lib/
 │   ├── Dockerfile        # web image: node build → nginx (Compose only)
 │   └── nginx.conf        # SPA fallback, /api proxy, asset caching
-├── docs/                 # specification, architecture, roadmap
+├── docs/                 # specification, architecture, design system, brand, roadmap
 ├── .github/
 │   ├── workflows/ci-cd.yml
 │   ├── ISSUE_TEMPLATE/
