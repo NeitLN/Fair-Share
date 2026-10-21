@@ -338,3 +338,117 @@ test('"Ghi khoản trả khác" opens and closes again from its own summary', as
   await user.click(summary)
   expect(fold.open).toBe(false)
 })
+
+test('"Đã trả" stamps the card, keeps it in place and offers Hoàn tác, in the card and in a toast', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+
+  const status = screen.getByRole('status')
+  expect(await within(status).findByText('Đã ghi: Minh trả Tiến 100.000đ')).toBeInTheDocument()
+  const rows = within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getAllByRole('listitem')
+  expect(rows).toHaveLength(2)
+  expect(rows[0]).toHaveTextContent('Minh trả Tiến 100.000đ')
+  expect(within(rows[0]).getByText('ĐÃ TRẢ')).toBeInTheDocument()
+  // Keyboard focus moved from the pressed button to this card's Hoàn tác
+  expect(within(rows[0]).getByRole('button', { name: 'Hoàn tác' })).toHaveFocus()
+  expect(within(rows[1]).getByRole('button', { name: 'Đã trả' })).toBeInTheDocument()
+})
+
+test('Hoàn tác in the toast deletes exactly the payment that was recorded', async () => {
+  const fetchFn = api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  const status = screen.getByRole('status')
+  await user.click(await within(status).findByRole('button', { name: 'Hoàn tác' }))
+
+  expect(await within(status).findByText('Đã hoàn tác: Minh trả Tiến 100.000đ')).toBeInTheDocument()
+  const deletes = fetchFn.mock.calls.filter(([, init]) => init?.method === 'DELETE')
+  expect(deletes.map(([url]) => url)).toEqual(['/api/settlements/30'])
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
+  expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument()
+})
+
+test('a double click records the transfer once', async () => {
+  const fetchFn = api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  const button = within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0]
+  await user.dblClick(button)
+
+  expect(await screen.findByText('ĐÃ TRẢ')).toBeInTheDocument()
+  expect(fetchFn.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+})
+
+test('undoing twice, from the card and the toast, deletes once', async () => {
+  const fetchFn = api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  const toastUndo = await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' })
+  const cardUndo = within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getByRole('button', {
+    name: 'Hoàn tác',
+  })
+  await user.click(cardUndo)
+  await user.click(toastUndo)
+
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
+  expect(fetchFn.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(1)
+})
+
+test('undoing a payment that was already deleted says so and drops the stamp', async () => {
+  api({ 'DELETE /api/settlements/30': [404, { error: { code: 'settlement_not_found', message: 'gone' } }] })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' }))
+
+  expect(await screen.findByText('Khoản trả này đã được xoá trước đó.')).toBeInTheDocument()
+  expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument()
+})
+
+test('a failed undo keeps the stamp and offers Thử lại', async () => {
+  api({ 'DELETE /api/settlements/30': [503, { error: { code: 'database_unavailable', message: 'down' } }] })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' }))
+
+  const status = screen.getByRole('status')
+  expect(await within(status).findByText(/^Chưa hoàn tác được\. Máy chủ tạm thời/)).toBeInTheDocument()
+  expect(within(status).getByRole('button', { name: 'Thử lại' })).toBeInTheDocument()
+  expect(screen.getByText('ĐÃ TRẢ')).toBeInTheDocument()
+})
+
+test('a failed "Đã trả" says why and leaves the card to try again', async () => {
+  api({ 'POST /api/households/7/settlements': [503, { error: { code: 'database_unavailable', message: 'down' } }] })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('Máy chủ tạm thời không kết nối được dữ liệu.')
+  expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2)
+  expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument()
+})
+
+test('deleting the recorded payment from the history removes its stamped card', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  expect(await screen.findByText('ĐÃ TRẢ')).toBeInTheDocument()
+  await user.click(await region('Lịch sử trả').findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }))
+
+  await waitFor(() => expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument())
+  expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2)
+})

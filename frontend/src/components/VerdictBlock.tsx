@@ -3,8 +3,10 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { Transfer } from '../api/types'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
+import type { TransferCard } from '../lib/usePaidTransfers'
 import { transferText, verdict } from '../lib/verdict'
 import { Avatar } from './Avatar'
+import { Stamp } from './Chip'
 import { Money } from './Money'
 
 interface VerdictBlockProps {
@@ -14,8 +16,10 @@ interface VerdictBlockProps {
   spent: number | null
   /** The expenses could not be loaded, so this month's total is unknown. */
   spentUnavailable?: boolean
-  /** The suggested transfers, in the order the API gives them. */
+  /** The suggested transfers, in the order the API gives them: the sentence and the reminder. */
   suggested: Transfer[]
+  /** The cards to show: the suggestions plus the transfers just recorded (lib/usePaidTransfers.ts). */
+  cards: TransferCard[]
   /** The member using this device ("Bạn là ai?"), or null. */
   me: number | null
   looks: Map<number, MemberLook>
@@ -25,9 +29,8 @@ interface VerdictBlockProps {
   loading?: boolean
   loadError?: string | null
   onRetry?: () => void
-  onPaid: (transfer: Transfer) => void
-  /** Index of the transfer being recorded: its button is disabled so a double click sends one request. */
-  payingIndex?: number | null
+  onPaid: (transfer: Transfer, index: number) => void
+  onUndo: (paymentId: number) => void
   /** Recording a transfer failed. */
   error?: string | null
   /** The text "Sao chép tin nhắn nhắc nợ" copies; only offered while there is something to settle. */
@@ -46,6 +49,7 @@ function VerdictBlock({
   spent,
   spentUnavailable = false,
   suggested,
+  cards,
   me,
   looks,
   started,
@@ -53,7 +57,7 @@ function VerdictBlock({
   loadError = null,
   onRetry,
   onPaid,
-  payingIndex = null,
+  onUndo,
   error = null,
   reminder,
   onCopied,
@@ -61,6 +65,10 @@ function VerdictBlock({
   const id = useId()
   const [showText, setShowText] = useState(false)
   const fallback = useRef<HTMLTextAreaElement>(null)
+  const list = useRef<HTMLUListElement>(null)
+  // Where keyboard focus should land once a card changes under it: Đã trả turns into the stamped card's
+  // Hoàn tác, and Hoàn tác back into Đã trả. Only when focus was lost with the button, never stolen.
+  const focusNext = useRef<{ pair: string; action: 'undo' | 'pay' } | null>(null)
   const lookOf = (memberId: number) => looks.get(memberId) ?? REMOVED_MEMBER
   const nameOf = (memberId: number) => lookOf(memberId).short
 
@@ -72,6 +80,18 @@ function VerdictBlock({
   useEffect(() => {
     if (showText) selectFallback()
   }, [showText])
+
+  useEffect(() => {
+    const wanted = focusNext.current
+    if (!wanted) return
+    const button = list.current?.querySelector<HTMLButtonElement>(
+      `button[data-pair="${wanted.pair}"][data-action="${wanted.action}"]:not(:disabled)`,
+    )
+    if (!button) return
+    focusNext.current = null
+    const active = document.activeElement
+    if (!active || active === document.body) button.focus()
+  })
 
   async function copy() {
     try {
@@ -134,26 +154,53 @@ function VerdictBlock({
         </p>
       )}
 
-      {suggested.length > 0 && (
-        <ul className="transfer-list" aria-label="Các lần trả gợi ý">
-          {suggested.map((transfer, index) => {
-            const paying = payingIndex === index
-            const textId = `${id}-transfer-${index}`
+      {cards.length > 0 && (
+        <ul ref={list} className="transfer-list" aria-label="Các lần trả gợi ý">
+          {cards.map((card, index) => {
+            const { transfer } = card
+            const pair = `${transfer.from_member_id}-${transfer.to_member_id}`
+            const textId = `${id}-${card.key}`
+            const done = card.state === 'paid' || card.state === 'undoing'
             return (
-              <li key={`${transfer.from_member_id}-${transfer.to_member_id}`} className="transfer-card">
+              <li key={card.key} className={`transfer-card${done ? ' paid' : ''}`}>
                 <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
                 <span id={textId} className="transfer-text">
                   {transferText(transfer, me, nameOf)} <Money amount={transfer.amount} />
                 </span>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  aria-describedby={textId}
-                  disabled={paying}
-                  onClick={() => onPaid(transfer)}
-                >
-                  {paying ? 'Đang ghi…' : 'Đã trả'}
-                </button>
+                {done ? (
+                  <span className="transfer-done">
+                    <Stamp kind="paid" decorative={false} />
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      aria-describedby={textId}
+                      data-pair={pair}
+                      data-action="undo"
+                      disabled={card.state === 'undoing'}
+                      onClick={() => {
+                        focusNext.current = { pair, action: 'pay' }
+                        if (card.paymentId !== undefined) onUndo(card.paymentId)
+                      }}
+                    >
+                      {card.state === 'undoing' ? 'Đang hoàn tác…' : 'Hoàn tác'}
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    aria-describedby={textId}
+                    data-pair={pair}
+                    data-action="pay"
+                    disabled={card.state === 'paying'}
+                    onClick={() => {
+                      focusNext.current = { pair, action: 'undo' }
+                      onPaid(transfer, index)
+                    }}
+                  >
+                    {card.state === 'paying' ? 'Đang ghi…' : 'Đã trả'}
+                  </button>
+                )}
               </li>
             )
           })}

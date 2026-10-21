@@ -11,7 +11,7 @@ import {
   listSettlements,
   settlementKeys,
 } from '../api/settlements'
-import type { Settlement, SettlementInput, Transfer } from '../api/types'
+import type { Settlement, SettlementInput } from '../api/types'
 import BalanceRows from '../components/BalanceRows'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
@@ -21,7 +21,8 @@ import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import { useToast } from '../lib/toast'
-import { reminderMessage, spentInMonth, tookPart } from '../lib/verdict'
+import { usePaidTransfers } from '../lib/usePaidTransfers'
+import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/verdict'
 
 // US-06, US-07, US-08: who pays whom, marking it paid, and the payments already made (DESIGN.md §6.2)
 function DashboardPage() {
@@ -56,15 +57,13 @@ function DashboardPage() {
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
     onSuccess: refresh,
   })
-  const recordSuggested = useMutation({
-    // "Đã trả": the suggested transfer, paid today
-    mutationFn: (transfer: Transfer) =>
-      createSettlement(householdId, { ...transfer, settled_at: today() }),
-    onSuccess: refresh,
-  })
   const remove = useMutation({
     mutationFn: (settlement: Settlement) => deleteSettlement(settlement.id),
-    onSuccess: refresh,
+    onSuccess: (_result, settlement) => {
+      // Deleted from the history: a stamped card for it has nothing left to undo
+      paid.forget(settlement.id)
+      return refresh()
+    },
   })
 
   const memberList = useMemo(() => members.data ?? [], [members.data])
@@ -81,7 +80,8 @@ function DashboardPage() {
     return memberLooks(fromBalances)
   }, [members.data, balances.data, householdId])
   const suggested = balances.data?.suggested ?? []
-  const payingIndex = recordSuggested.isPending ? suggested.indexOf(recordSuggested.variables) : null
+  const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
+  const paid = usePaidTransfers(householdId, suggested, (transfer) => transferText(transfer, me, nameOf))
 
   if (members.isSuccess && memberList.length === 0) {
     return (
@@ -97,7 +97,6 @@ function DashboardPage() {
 
   const now = today()
   const month = Number(now.slice(5, 7))
-  const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
   const reminder = reminderMessage(
     household.data?.name ?? 'Nhà mình',
     month,
@@ -123,15 +122,16 @@ function DashboardPage() {
         spent={expenses.isSuccess ? spentInMonth(expenses.data, now) : null}
         spentUnavailable={expenses.isError}
         suggested={suggested}
+        cards={paid.cards}
         me={me}
         looks={looks}
         started={balances.data?.balances.some(tookPart) ?? false}
         loading={balances.isPending}
         loadError={errorMessage(balances.error)}
         onRetry={() => balances.refetch()}
-        onPaid={(transfer) => recordSuggested.mutate(transfer)}
-        payingIndex={payingIndex}
-        error={errorMessage(recordSuggested.error)}
+        onPaid={paid.pay}
+        onUndo={paid.undo}
+        error={paid.error}
         reminder={reminder}
         onCopied={() => toast({ text: 'Đã sao chép. Dán vào nhóm chat của nhà nhé.' })}
       />
