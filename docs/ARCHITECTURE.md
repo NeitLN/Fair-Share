@@ -26,7 +26,7 @@ flowchart LR
         API["<b>Web Service</b> fair-share-4bu9<br/>Docker image from ./Dockerfile<br/>FastAPI + Uvicorn, non-root"]
     end
 
-    DB[("<b>Supabase</b> PostgreSQL 16<br/>session pooler, TLS<br/>RLS on every table")]
+    DB[("<b>Supabase</b> PostgreSQL<br/>session pooler, TLS<br/>RLS on every table")]
     AI["<b>Google Gemini API</b><br/>generateContent<br/>gemini-3.5-flash-lite"]
 
     subgraph GH["GitHub Actions"]
