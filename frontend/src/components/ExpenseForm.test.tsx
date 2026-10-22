@@ -143,6 +143,21 @@ describe('ExpenseForm, the 90% case', () => {
     await save(user)
     expect(onSubmit.mock.calls[0][0].spent_at).toBe('2026-10-18')
   })
+
+  test('a year outside 2000-2099 is refused under the date, before the API (T-25)', async () => {
+    const { user, onSubmit } = setup()
+    await fillBasics(user)
+    await openDate(user)
+    const date = screen.getByLabelText('Ngày')
+    expect(date).toHaveAttribute('min', '2000-01-01')
+    expect(date).toHaveAttribute('max', '2099-12-31')
+    await user.clear(date)
+    await user.type(date, '1999-12-31')
+    await save(user)
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByText('Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.')).toBeInTheDocument()
+  })
 })
 
 describe('ExpenseForm, equal split', () => {

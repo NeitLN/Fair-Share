@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react
 import type { FormEvent, Ref } from 'react'
 
 import type { Expense, ExpenseInput, Member, SplitType } from '../api/types'
-import { dayLabel, today } from '../lib/date'
+import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
@@ -270,6 +270,8 @@ function ExpenseForm({
     if (amount === null || amount <= 0) found.amount = 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000 hoặc 240k.'
     if (payerId === '') found.payer = 'Chọn người trả.'
     if (!spentAt) found.date = 'Hãy chọn ngày.'
+    // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
+    else if (!isDayInRange(spentAt)) found.date = 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.'
     if (splitType === 'equal') {
       if (selected.size === 0) found.split = 'Hãy chọn ít nhất một người cùng chia.'
     } else if (customInvalid) {
@@ -473,6 +475,8 @@ function ExpenseForm({
               id="expense-date"
               data-field="date"
               type="date"
+              min={MIN_DAY}
+              max={MAX_DAY}
               value={spentAt}
               aria-labelledby="expense-date-label"
               {...invalid('date')}

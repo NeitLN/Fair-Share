@@ -70,4 +70,18 @@ describe('SettlementForm', () => {
     expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('50000')
     expect(screen.getByRole('alert')).toHaveTextContent('tự trả cho chính mình')
   })
+
+  test('a year outside 2000-2099 is refused before the API (T-25)', async () => {
+    const { user, onSubmit } = setup()
+    const date = screen.getByLabelText('Ngày')
+    expect(date).toHaveAttribute('min', '2000-01-01')
+    await user.type(screen.getByLabelText('Số tiền (đồng)'), '50000')
+    await user.clear(date)
+    await user.type(date, '2100-01-01')
+    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.')
+  })
 })
+
