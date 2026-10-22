@@ -110,3 +110,29 @@ test('a failed load says so in Vietnamese, and Thử lại loads the list', asyn
   expect(await screen.findByRole('link', { name: /Nhà 7/ })).toBeInTheDocument()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
+
+test('Escape closes "+ Tạo nhà mới" and focuses it again', async () => {
+  mockApi({ 'GET /api/households': [200, [{ id: 7, name: 'Nhà 7', created_at: '' }]] })
+  renderApp('/')
+  const user = userEvent.setup()
+  await screen.findByRole('link', { name: /Nhà 7/ })
+  const fold = screen.getByText('+ Tạo nhà mới').closest('details') as HTMLDetailsElement
+  await user.click(screen.getByText('+ Tạo nhà mới'))
+  await user.click(screen.getByLabelText('Tên nhà'))
+
+  await user.keyboard('{Escape}')
+
+  expect(fold.open).toBe(false)
+  expect(screen.getByText('+ Tạo nhà mới')).toHaveFocus()
+})
+
+test('with no household yet, Escape leaves the create form open: it is the only thing to do', async () => {
+  mockApi({ 'GET /api/households': [200, []] })
+  renderApp('/')
+  const user = userEvent.setup()
+  await user.click(await screen.findByLabelText('Tên nhà'))
+
+  await user.keyboard('{Escape}')
+
+  expect(screen.getByText('+ Tạo nhà mới').closest('details')).toHaveAttribute('open')
+})

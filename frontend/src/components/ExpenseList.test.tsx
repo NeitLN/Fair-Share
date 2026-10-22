@@ -225,3 +225,19 @@ describe('ExpenseList', () => {
     expect(screen.queryByText(/Chưa có khoản chi nào/)).not.toBeInTheDocument()
   })
 })
+
+describe('ExpenseList, keyboard', () => {
+  test('Escape closes an opened row and focuses its summary', async () => {
+    renderList([electricity])
+    const user = userEvent.setup()
+    const row = screen.getByText('Tiền điện').closest('details') as HTMLDetailsElement
+    await user.click(screen.getByText('Tiền điện'))
+    expect(row.open).toBe(true)
+    screen.getByRole('button', { name: 'Sửa Tiền điện' }).focus()
+
+    await user.keyboard('{Escape}')
+
+    expect(row.open).toBe(false)
+    expect(row.querySelector('summary')).toHaveFocus()
+  })
+})

@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import type { FormEvent, Ref } from 'react'
+import type { FormEvent, KeyboardEvent, Ref } from 'react'
 
 import type { Expense, ExpenseInput, Member, SplitType } from '../api/types'
 import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
@@ -108,6 +108,17 @@ function ExpenseForm({
   // The date and the split are folded: the 90% case is "today, everyone, equally"
   const [dateOpen, setDateOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
+  const dateToggle = useRef<HTMLButtonElement>(null)
+  const splitToggle = useRef<HTMLButtonElement>(null)
+
+  // DESIGN.md §8: Escape inside an open fold closes it and gives the focus back to its button
+  function closeOnEscape(event: KeyboardEvent, open: boolean, close: () => void, toggle: HTMLButtonElement | null) {
+    if (event.key !== 'Escape' || !open) return
+    event.preventDefault()
+    event.stopPropagation()
+    close()
+    toggle?.focus()
+  }
 
   // AI quick add: what the user changed by hand is never overwritten, and a fill can be undone
   const [touched, setTouched] = useState<Set<FillField>>(new Set())
@@ -449,7 +460,9 @@ function ExpenseForm({
         {problemText('payer')}
       </fieldset>
 
-      <div className={`field fold-field${flash('date')}`}>
+      <div className={`field fold-field${flash('date')}`}
+        onKeyDown={(event) => closeOnEscape(event, dateOpen, () => setDateOpen(false), dateToggle.current)}
+      >
         <div className="fold-row">
           <span className="fold-label" id="expense-date-label">
             Ngày
@@ -461,6 +474,7 @@ function ExpenseForm({
           <button
             type="button"
             className="btn-ghost"
+            ref={dateToggle}
             aria-label={dateOpen ? 'Xong, đóng ngày' : 'Đổi ngày'}
             aria-expanded={dateOpen}
             aria-controls="expense-date-control"
@@ -490,13 +504,16 @@ function ExpenseForm({
         {problemText('date')}
       </div>
 
-      <div className={`field fold-field${flash('split')}`}>
+      <div className={`field fold-field${flash('split')}`}
+        onKeyDown={(event) => closeOnEscape(event, splitOpen, () => setSplitOpen(false), splitToggle.current)}
+      >
         <div className="fold-row">
           <span className="fold-label">Cách chia</span>
           <span className="fold-value">{splitSummary}</span>
           <button
             type="button"
             className="btn-ghost"
+            ref={splitToggle}
             aria-label={splitOpen ? 'Xong, đóng cách chia' : 'Sửa cách chia'}
             aria-expanded={splitOpen}
             aria-controls="expense-split-control"

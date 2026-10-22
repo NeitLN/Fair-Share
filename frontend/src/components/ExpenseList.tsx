@@ -9,6 +9,7 @@ import { Chip } from './Chip'
 import { Money } from './Money'
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
+import { closeFoldOnEscape } from '../lib/fold'
 
 interface ExpenseListProps {
   expenses: Expense[]
@@ -105,7 +106,7 @@ function ExpenseList({
                 const payer = lookOf(expense.payer_id)
                 return (
                   <li key={expense.id} className="expense-row">
-                    <details>
+                    <details onKeyDown={closeFoldOnEscape}>
                       <summary>
                         <Avatar look={payer} decorative />
                         <span className="expense-main">

@@ -495,3 +495,18 @@ test('if the balances cannot be refreshed after "Đã trả", the paid transfer 
   expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1)
   expect(within(rows[1]).getByText(/^An trả Tiến/)).toBeInTheDocument()
 })
+
+test('Escape closes "Ghi khoản trả khác" and focuses its summary', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7')
+  const summary = await region('Lịch sử trả').findByText('Ghi khoản trả khác')
+  const fold = summary.closest('details') as HTMLDetailsElement
+  await user.click(summary)
+  await user.click(region('Lịch sử trả').getByLabelText('Số tiền (đồng)'))
+
+  await user.keyboard('{Escape}')
+
+  expect(fold.open).toBe(false)
+  expect(summary).toHaveFocus()
+})
