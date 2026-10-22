@@ -113,9 +113,9 @@ describe('SettlementList', () => {
     expect(screen.queryByText(/^Chưa có khoản trả nào/)).not.toBeInTheDocument()
   })
 
-  test('shows a loading message instead of the list', () => {
+  test('shows skeleton rows instead of the list while loading', () => {
     renderList({ loading: true })
-    expect(screen.getByText('Đang tải các khoản trả…')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải các khoản trả')
     expect(screen.queryByText('Tiến')).not.toBeInTheDocument()
   })
 

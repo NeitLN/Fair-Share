@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react
 import type { FormEvent, Ref } from 'react'
 
 import type { Expense, ExpenseInput, Member, SplitType } from '../api/types'
-import { dayLabel, today } from '../lib/date'
+import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
@@ -19,6 +19,8 @@ export interface FormFill {
   payer_id?: number | null
   spent_at?: string | null
   member_ids?: number[] | null
+  /** A remark about the split, shown beside Cách chia while the filled split stands (§6.3). */
+  splitNote?: string | null
 }
 
 /**
@@ -111,6 +113,8 @@ function ExpenseForm({
   const [touched, setTouched] = useState<Set<FillField>>(new Set())
   const [justFilled, setJustFilled] = useState<Set<FillField>>(new Set())
   const [fromAi, setFromAi] = useState(false)
+  // e.g. "AI chia cho cả nhà, bạn kiểm tra lại.": only while the split the AI filled is untouched
+  const [splitNote, setSplitNote] = useState<string | null>(null)
   // The latest fill: the fields it changed (minus those the user has edited since) and their old values
   const lastFill = useRef<{
     fields: Set<FillField>
@@ -150,6 +154,7 @@ function ExpenseForm({
   function edited(field: FillField) {
     // A field edited after a fill is the user's now: undo must not take it back
     lastFill.current?.fields.delete(field)
+    if (field === 'split') setSplitNote(null)
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -208,6 +213,7 @@ function ExpenseForm({
         setSplitType('equal')
         setSelected(new Set((values.member_ids as number[]).filter((id) => memberIds.has(id))))
         setCustomText({})
+        setSplitNote(values.splitNote?.trim() || null)
       }
       setJustFilled(fill)
       if (fill.size > 0) setFromAi(true)
@@ -231,6 +237,7 @@ function ExpenseForm({
         setSplitType(before.splitType)
         setSelected(before.selected)
         setCustomText(before.customText)
+        setSplitNote(null)
       }
       setJustFilled(new Set())
       setFromAi(false)
@@ -263,6 +270,8 @@ function ExpenseForm({
     if (amount === null || amount <= 0) found.amount = 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000 hoặc 240k.'
     if (payerId === '') found.payer = 'Chọn người trả.'
     if (!spentAt) found.date = 'Hãy chọn ngày.'
+    // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
+    else if (!isDayInRange(spentAt)) found.date = 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.'
     if (splitType === 'equal') {
       if (selected.size === 0) found.split = 'Hãy chọn ít nhất một người cùng chia.'
     } else if (customInvalid) {
@@ -319,6 +328,7 @@ function ExpenseForm({
         setTouched(new Set())
         setJustFilled(new Set())
         setFromAi(false)
+        setSplitNote(null)
         lastFill.current = null
       }
     } catch {
@@ -465,6 +475,8 @@ function ExpenseForm({
               id="expense-date"
               data-field="date"
               type="date"
+              min={MIN_DAY}
+              max={MAX_DAY}
               value={spentAt}
               aria-labelledby="expense-date-label"
               {...invalid('date')}
@@ -488,11 +500,17 @@ function ExpenseForm({
             aria-label={splitOpen ? 'Xong, đóng cách chia' : 'Sửa cách chia'}
             aria-expanded={splitOpen}
             aria-controls="expense-split-control"
+            aria-describedby={splitNote ? 'expense-split-note' : undefined}
             onClick={() => setSplitOpen((open) => !open)}
           >
             {splitOpen ? 'Xong' : 'Sửa'}
           </button>
         </div>
+        {splitNote && (
+          <p className="note field-note" id="expense-split-note">
+            {splitNote}
+          </p>
+        )}
         <div id="expense-split-control" hidden={!splitOpen}>
           {splitOpen && (
             <fieldset className="fold-control split" {...invalid('split')}>

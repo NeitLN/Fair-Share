@@ -7,6 +7,8 @@ import type { MemberLook } from '../lib/names'
 import { Avatar } from './Avatar'
 import { Chip } from './Chip'
 import { Money } from './Money'
+import ErrorNote from './ErrorNote'
+import Skeleton from './Skeleton'
 
 interface ExpenseListProps {
   expenses: Expense[]
@@ -15,6 +17,10 @@ interface ExpenseListProps {
   looks?: Map<number, MemberLook>
   loading: boolean
   error: string | null
+  /** Reloads after a failed load; shows Thử lại next to the error. */
+  onRetry?: () => void
+  /** The reload is running: Thử lại is disabled. */
+  retrying?: boolean
   onEdit: (expense: Expense) => void
   onDelete: (expense: Expense) => void
   /** The expense being deleted right now: its buttons are disabled so a double click sends one request. */
@@ -61,6 +67,8 @@ function ExpenseList({
   looks: givenLooks,
   loading,
   error,
+  onRetry,
+  retrying = false,
   onEdit,
   onDelete,
   deletingId = null,
@@ -69,7 +77,7 @@ function ExpenseList({
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
 
   if (loading) {
-    return <p className="hint">Đang tải danh sách khoản chi…</p>
+    return <Skeleton label="Đang tải danh sách khoản chi" />
   }
 
   const lookOf = (id: number) => looks.get(id) ?? REMOVED_MEMBER
@@ -81,7 +89,7 @@ function ExpenseList({
 
   return (
     <div className="expense-days">
-      {error && <p role="alert">{error}</p>}
+      {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "no expenses" */}
       {expenses.length === 0 ? (
         !error && <p className="empty">Chưa có khoản chi nào. Ghi khoản đầu tiên ở trên.</p>

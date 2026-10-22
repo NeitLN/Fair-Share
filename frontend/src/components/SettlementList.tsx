@@ -4,6 +4,8 @@ import { formatVND } from '../lib/money'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { Money } from './Money'
+import ErrorNote from './ErrorNote'
+import Skeleton from './Skeleton'
 
 interface SettlementListProps {
   settlements: Settlement[]
@@ -13,6 +15,10 @@ interface SettlementListProps {
   deletingId?: number | null
   loading?: boolean
   error?: string | null
+  /** Reloads after a failed load; shows Thử lại next to the error. */
+  onRetry?: () => void
+  /** The reload is running: Thử lại is disabled. */
+  retrying?: boolean
 }
 
 /** "Lịch sử trả": the payments already made, newest first. Props only; the page does the API calls. */
@@ -23,9 +29,11 @@ function SettlementList({
   deletingId = null,
   loading = false,
   error = null,
+  onRetry,
+  retrying = false,
 }: SettlementListProps) {
   if (loading) {
-    return <p className="hint">Đang tải các khoản trả…</p>
+    return <Skeleton label="Đang tải các khoản trả" />
   }
 
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
@@ -44,7 +52,7 @@ function SettlementList({
 
   return (
     <div>
-      {error && <p role="alert">{error}</p>}
+      {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "nothing was paid back" */}
       {settlements.length === 0 ? (
         !error && <p className="empty">Chưa có khoản trả nào. Bấm "Đã trả" ở trên khi ai đó trả xong.</p>

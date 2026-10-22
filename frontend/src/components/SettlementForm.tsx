@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Member, SettlementInput } from '../api/types'
-import { today } from '../lib/date'
+import { isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { parseAmount } from '../lib/split'
 
@@ -32,6 +32,7 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
     if (fromId === toId) return 'Người trả và người nhận phải là hai người khác nhau.'
     if (amount === null || amount <= 0) return 'Số tiền chưa hợp lệ. Ví dụ: 120000, 120.000 hoặc 120k.'
     if (!settledAt) return 'Hãy chọn ngày.'
+    if (!isDayInRange(settledAt)) return 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.'
     return null
   }
 
@@ -93,6 +94,8 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
       <input
         id="settlement-date"
         type="date"
+        min={MIN_DAY}
+        max={MAX_DAY}
         value={settledAt}
         onChange={(e) => setSettledAt(e.target.value)}
       />

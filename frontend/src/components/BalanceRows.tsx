@@ -5,6 +5,7 @@ import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
 import { Money } from './Money'
+import Skeleton from './Skeleton'
 
 interface BalanceRowsProps {
   /** One row per member, already ordered by member id. */
@@ -22,7 +23,7 @@ interface BalanceRowsProps {
  */
 function BalanceRows({ balances, looks, me = null, loading = false, unavailable = false }: BalanceRowsProps) {
   if (loading) {
-    return <p className="hint">Đang tải số dư…</p>
+    return <Skeleton label="Đang tải số dư" />
   }
   // Nothing is known, which is not the same as nobody owing anything
   if (unavailable) {
@@ -32,7 +33,7 @@ function BalanceRows({ balances, looks, me = null, loading = false, unavailable 
   return (
     <div>
       {balances.length === 0 ? (
-        <p className="empty">Chưa có dữ liệu số dư.</p>
+        <p className="empty">Chưa có số dư. Thêm thành viên và ghi khoản chi đầu tiên để xem ai trả ai.</p>
       ) : (
         <ul className="balance-list">
           {balances.map((balance) => {

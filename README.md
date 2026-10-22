@@ -13,10 +13,11 @@ moment **who owes whom** and a short list of transfers that settles everything. 
 feature, **Quick add**, will turn a sentence such as *"dinner 240k, Minh paid, split 3 ways"* into a
 pre-filled expense form that the user confirms.
 
-> **Where we are (Week 7):** the platform is in place: Docker image, Compose stack, live HTTPS deployment
-> on Render backed by **Supabase PostgreSQL**, and a GitHub Actions pipeline that blocks a bad merge,
-> deploys a good one and proves which commit is live. The running app is still the course's FastAPI
-> starter; the expense features, the React app and the AI feature arrive in Weeks 7–8
+> **Where we are (Week 8, 22 Oct):** every user story is live on the web app, Quick add included, on
+> a platform that has been in place since Week 6: Docker image, Compose stack, live HTTPS deployment on
+> Render backed by **Supabase PostgreSQL**, and a GitHub Actions pipeline that blocks a bad merge,
+> deploys a good one and proves which commit is live. The "Sticker pop" redesign is half live: the
+> foundation, the households list and Thành viên (T-42); Tổng quan and Chi tiêu (T-43) are in review
 > ([project status](#project-status)).
 
 Final project for **72ITDS30103 Software Development Platforms**, Van Lang University, Semester 261.
@@ -56,12 +57,14 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 
 | | Feature | Status |
 |---|---|---|
-| 🏠 | Households and their members | Week 7 |
-| 💸 | Expenses in VND with **equal** or **custom** split (shares always add up to the exact amount) | Week 8 |
-| ⚖️ | Balances per member (paid, owed, net) and **suggested settlements** (at most *n − 1* transfers) | Week 8 |
-| 🤝 | Record a settlement ("A paid B 120 000 ₫") | Week 8 |
-| ✨ | **Quick add (AI):** free-text sentence → pre-filled form via the Google Gemini API, called only from our server | Week 8 |
-| 🛟 | **AI failure fallback:** on 429, timeout or no key the user keeps their text and fills in the normal form; nothing breaks | Week 8 |
+| 🏠 | Households and their members | ✅ live |
+| 💸 | Expenses in VND with **equal** or **custom** split (shares always add up to the exact amount) | ✅ live |
+| ⚖️ | Balances per member (paid, owed, net) and **suggested settlements** (at most *n − 1* transfers) | ✅ live |
+| 🤝 | Record a settlement ("A paid B 120.000đ") | ✅ live |
+| ✨ | **Quick add (AI):** free-text sentence → pre-filled form via the Google Gemini API, called only from our server | ✅ live |
+| 🛟 | **AI failure fallback:** on 429, timeout or no key the user keeps their text and fills in the normal form; nothing breaks | ✅ live |
+| 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame with "Bạn là ai?", Thành viên | ✅ live (T-42) |
+| 🧾 | Tổng quan verdict ("Bạn cần trả Minh 120.000đ") with **Đã trả** + undo and a copyable reminder; Chi tiêu form with you as payer by default, list grouped by day | 🚧 in review (T-43, #108) |
 
 Out of scope by design: user accounts, payments, receipts/images, real-time updates.
 **Known limitation:** there is no login, so anyone with the URL can edit any household; acceptable for a
@@ -233,7 +236,7 @@ and, for quick add, [§6](docs/ARCHITECTURE.md#6-ai-integration--quick-add).
 | pytest | `pytest -q` | Health and version endpoints, the error format, `/health/db` with no or an unreachable database | in CI |
 | pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | Tests marked `db`: migrations (fresh, repeated, failing, concurrent), the schema's rules, the seed, `/health/db`; skipped locally without a database, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
-| oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint, API client and route tests; `npm run build` type-checks | in CI |
+| oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint; API client, components, hooks and pages (forms, the AI fill rules, toasts, routes); `npm run build` type-checks | in CI |
 | Playwright | `npm run e2e` in `frontend/` (`E2E_BASE_URL=http://localhost:3000 E2E_API_URL=http://localhost:3000` for Compose) | The main flow in a real browser on the live site; cleans up after itself | after each deploy |
 
 A pull request is merged only when these pass in CI **and** another team member has approved it.
@@ -370,8 +373,9 @@ Target layout, with the routers and services still to come:
 | [**Pull requests**](https://github.com/NeitLN/Fair-Share/pulls?q=is%3Apr) | Who wrote and who reviewed each change; every PR closes a `T-xx` issue | Live |
 | [**Actions**](https://github.com/NeitLN/Fair-Share/actions) | Every check and deploy; the `smoke` job proves which commit is live | Every PR and merge |
 
-Week 6 is complete: container, Compose stack, live HTTPS deployment, and a pipeline that blocks a bad merge
-and deploys a good one. Remaining milestones:
+Week 6 (platform) and Week 7 (cloud database, households and members) are complete. Week 8: the
+expenses, settlements, balances and Quick add are live; T-25 (validation) and T-43 (Tổng quan and Chi
+tiêu redesign) are in review. Milestones:
 
 | Milestone | Due | Goal |
 |---|---|---|
@@ -394,7 +398,7 @@ The five live-demo criteria of the brief, and where the evidence is. Updated as 
 | Deployment triggered automatically by a merge to `main` (5) | `deploy` job → Render deploy hook; Render auto-deploy off | ✅ verified by the `smoke` job (live commit = merged commit) |
 | Configuration and secrets via the environment, none in the repository (4) | [Configuration](#configuration), `.gitignore`, `.env.example` | ✅ policy · ✅ [full-history audit](docs/SECRET_AUDIT.md) and gitleaks in CI |
 | Managed cloud PostgreSQL attached by one env var | `DATABASE_URL` on Render → Supabase; live [`/health/db`](https://fair-share-4bu9.onrender.com/health/db) | ✅ |
-| AI feature on the live URL, failure handled | Quick add + fallback | 🗓️ Week 8 (T-19, T-21, T-22) |
+| AI feature on the live URL, failure handled | Quick add + fallback; per-visitor and global limits on the server | ✅ live (T-19, T-21, T-22) |
 
 ✅ done · 🚧 in progress or in review · 🗓️ planned
 

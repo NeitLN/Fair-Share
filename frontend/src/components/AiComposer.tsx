@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { ApiError } from '../api/client'
-import type { AiDraft, Member } from '../api/types'
+import type { AiDraft, DraftWarning, Member } from '../api/types'
 import { warningMessage } from '../lib/aiWarnings'
 import { draftSummary } from '../lib/draftSummary'
 import { errorMessage } from '../lib/errors'
@@ -14,7 +14,8 @@ interface AiComposerProps {
   /** Asks the API for a draft (POST …/ai/parse-expense). Nothing is saved. */
   onParse: (text: string) => Promise<AiDraft>
   /** Puts the draft into the expense form; returns what was filled and what was kept. */
-  onDraft: (draft: AiDraft['draft']) => FillResult
+  /** Warnings come along: the form shows the ones about a field next to that field. */
+  onDraft: (draft: AiDraft['draft'], warnings: DraftWarning[]) => FillResult
   /** Restores the form as it was before the draft. */
   onUndo: () => void
   /** "Nhập tay": stop waiting and go to the form. */
@@ -70,7 +71,7 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
     try {
       const { draft, warnings } = await onParse(sentence)
       if (request !== latest.current) return
-      const result = onDraft(draft)
+      const result = onDraft(draft, warnings)
       // Describe what was applied, not the raw draft: kept fields keep the user's values
       const applied = new Set(result.filled)
       const summary = draftSummary(
@@ -86,7 +87,8 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
       setState({
         step: 'filled',
         summary: summary || 'Không điền thêm gì: các ô đều đang giữ giá trị bạn đã nhập.',
-        warnings: warnings.map(warningMessage),
+        // participants_assumed is about the split: the form shows it beside Cách chia instead
+        warnings: warnings.filter((w) => w.code !== 'participants_assumed').map(warningMessage),
         kept: result.kept,
       })
     } catch (error) {

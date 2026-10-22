@@ -30,3 +30,16 @@ export function dayLabel(isoDate: string, now = new Date()): string {
   if (year !== now.getFullYear()) return `${dayMonth}/${year}`
   return `${WEEKDAYS[new Date(year, month - 1, day).getDay()]}, ${dayMonth}`
 }
+
+/** The earliest day the expense API accepts. */
+export const MIN_DAY = '2000-01-01'
+/** The latest day the expense API accepts. */
+export const MAX_DAY = '2099-12-31'
+
+/**
+ * True for a plain "YYYY-MM-DD" day inside 2000-01-01 … 2099-12-31, the range the API accepts.
+ * The comparison is safe on the strings because the format sorts the same way as the dates.
+ */
+export function isDayInRange(isoDate: string): boolean {
+  return isoDate !== '' && isoDate >= MIN_DAY && isoDate <= MAX_DAY
+}
