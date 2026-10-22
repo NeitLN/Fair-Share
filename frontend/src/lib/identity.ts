@@ -26,6 +26,29 @@ export function writeMe(householdId: number, memberId: number | null): void {
   }
 }
 
+/**
+ * The payer of the last expense saved on this device, per household: the default payer when nobody has
+ * said who they are (DESIGN.md §6.3). Like the identity, it stays in this browser.
+ */
+export const lastPayerKey = (householdId: number) => `fair-share:last-payer:${householdId}`
+
+export function readLastPayer(householdId: number): number | null {
+  try {
+    const saved = Number(localStorage.getItem(lastPayerKey(householdId)))
+    return Number.isInteger(saved) && saved > 0 ? saved : null
+  } catch {
+    return null
+  }
+}
+
+export function writeLastPayer(householdId: number, memberId: number): void {
+  try {
+    localStorage.setItem(lastPayerKey(householdId), String(memberId))
+  } catch {
+    // Storage blocked: the next expense simply has no default payer
+  }
+}
+
 export interface Identity {
   /** The member using this device, or null when not chosen (or no longer in the household). */
   me: number | null

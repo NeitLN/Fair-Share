@@ -11,6 +11,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* A field focused from the keyboard scrolls clear of the sticky Lưu khoản chi bar */
+  scroll-padding-bottom: 88px;
 }
 
 body {
@@ -67,9 +69,11 @@ body {
   margin: 0 auto;
   padding: 12px max(16px, env(safe-area-inset-right, 0px)) 4px max(16px, env(safe-area-inset-left, 0px));
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  /* At 320 px (or 200% zoom) the theme switch moves under the wordmark instead of off the screen */
+  gap: 4px 8px;
 }
 
 .home-link {
@@ -784,11 +788,103 @@ button.ai:active:focus-visible {
 
 /* ---------------------------------------------------------------- expense form and list (restyled in T-43) */
 
-.expense-form fieldset {
-  flex-basis: 100%;
+/* The form is a column of fields on a surface; each field owns its label, control and problem */
+.expense-form {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.expense-form .field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.amount-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.amount-preview {
+  flex: none;
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Under its field, in words; the field's red border repeats it */
+.field-problem {
+  color: var(--debt-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.payer .pick label {
+  max-width: 100%;
+}
+
+.payer .you {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* A fold row (DESIGN.md §5): "Ngày  Hôm nay, 21/10  Đổi", opening the full control in place */
+.fold-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 4px 4px 4px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.fold-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.fold-value {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.fold-value b {
+  color: var(--ink);
+}
+
+.fold-control {
+  display: grid;
+  gap: 10px;
+}
+
+.expense-form .split {
   padding: 12px;
   border-radius: var(--radius-control);
   background: var(--surface-2);
+}
+
+/* Lưu khoản chi stays in reach of the thumb while the form scrolls */
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  margin: 0 -14px -14px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-radius: 0 0 var(--radius-section) var(--radius-section);
+  background: var(--surface);
+}
+
+.form-actions button[type='submit'] {
+  flex: 1;
 }
 
 .split-rows li {
@@ -806,124 +902,314 @@ button.ai:active:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.expense-row {
-  flex-direction: column;
-  align-items: stretch;
+/* Các khoản chi (DESIGN.md §6.3): days as small titles, rows that open to Sửa / Xoá */
+.expense-days {
+  display: grid;
+  gap: 14px;
 }
 
-.expense-summary {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
+.expense-day {
+  gap: 6px;
+}
+
+.expense-day-title {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.expense-list {
+  padding: 0 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.expense-row {
+  display: block;
+  padding: 0;
+}
+
+.expense-row:last-child {
+  border-bottom: 0;
+}
+
+.expense-row summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.expense-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.expense-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
 .expense-description {
-  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.expense-amount {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.expense-meta {
+.expense-main small {
   color: var(--muted);
   font-size: 13px;
+}
+
+.expense-amount {
+  text-align: right;
 }
 
 .expense-actions {
   display: flex;
   gap: 8px;
+  padding: 0 0 12px 44px;
 }
 
-/* The "✦ AI" chip on expenses made with Quick add */
-.badge {
-  padding: 2px 9px;
-  border-radius: var(--radius-pill);
-  background: var(--ai);
-  color: var(--on-fill);
-  font-size: 12px;
-  font-weight: 700;
+/* ---------------------------------------------------------------- Tổng quan (DESIGN.md §6.2) */
+
+/* The verdict block: the one taro surface, answering who pays whom before anything else */
+.verdict {
+  padding: 18px 16px 16px;
+  border-radius: var(--radius-block);
+  background: var(--block);
+  color: var(--on-block);
 }
 
-/* ---------------------------------------------------------------- dashboard (restyled in T-43) */
+.verdict-month {
+  color: var(--on-block-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
 
-.balance-table {
+.verdict-sentence {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.verdict-total {
+  margin-top: -4px;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.verdict .note {
+  margin-top: 0;
+  color: var(--ink);
+}
+
+.transfer-list {
+  display: grid;
+  gap: 8px;
+}
+
+/* A transfer card: who pays whom on the left, Đã trả on the right */
+.transfer-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 8px 8px 12px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.transfer-text {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.transfer-card button {
+  padding: 0 14px;
+}
+
+/* Recorded: the card turns surface-2 (never faded) and gets the stamp, slapped on once */
+.transfer-card.paid {
+  background: var(--surface-2);
+}
+
+/* Under the text, so the names keep the full width at 360 px */
+.transfer-done {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -4px;
+}
+
+.transfer-done .stamp {
+  animation: stamp-in 240ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes stamp-in {
+  from {
+    scale: 1.7;
+    opacity: 0;
+  }
+}
+
+.verdict-copy {
   width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
 }
 
-.balance-table caption {
-  margin-bottom: 4px;
+.copy-fallback label {
+  font-size: 13px;
+}
+
+.copy-fallback textarea {
+  width: 100%;
+  min-height: 0;
+  font-size: 14px;
+  resize: none;
+}
+
+/* + Ghi khoản chi: a link that looks like the primary button */
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  padding: 0 16px;
+  border: 2px solid;
+  border-radius: var(--radius-control);
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    translate var(--press) ease-out,
+    box-shadow var(--press) ease-out;
+}
+
+.cta:active {
+  translate: 3px 3px;
+  box-shadow: 0 0 0 var(--sticker-shadow);
+}
+
+.cta:focus-visible {
+  box-shadow:
+    3px 3px 0 var(--sticker-shadow),
+    0 0 0 5px var(--ai);
+}
+
+/* A section title with a small note on the right, wrapping under it on narrow phones */
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+
+.section-note {
   color: var(--muted);
   font-size: 13px;
-  text-align: left;
 }
 
-.balance-table th,
-.balance-table td {
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--line);
+.balance-list,
+.settlement-list {
+  padding: 0 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.balance-row,
+.settlement-row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.balance-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.settlement-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.balance-row:last-child,
+.settlement-row:last-child {
+  border-bottom: 0;
+}
+
+.balance-row .who {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.balance-row .who strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.balance-row small,
+.settlement-text small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.balance-row .standing {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
   text-align: right;
 }
 
-.balance-table th[scope='row'],
-.balance-table thead th:first-child {
-  text-align: left;
-}
-
-.balance-table .net {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.balance-table .state {
-  display: block;
+.balance-row .standing small {
   font-size: 12px;
   font-weight: 500;
 }
 
-/* Colour plus words: the words carry the meaning for colour-blind users */
-.balance-table .positive .net {
-  color: var(--credit-text);
-}
-
-.balance-table .negative .net {
-  color: var(--debt-text);
-}
-
-.balance-table .zero .net {
-  color: var(--muted);
-}
-
-@media (max-width: 400px) {
-  .balance-table th:nth-child(2),
-  .balance-table th:nth-child(3),
-  .balance-table td:nth-child(2),
-  .balance-table td:nth-child(3) {
-    display: none;
-  }
-}
-
-.transfer-row,
-.settlement-row {
-  justify-content: space-between;
-}
-
-.transfer-text,
 .settlement-text {
-  flex: 1 1 14rem;
-  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
-.settlement-note {
-  flex-basis: 100%;
-  color: var(--muted);
-  font-size: 13px;
+.settlement-text small {
+  display: block;
+}
+
+.other-payment[open] {
+  display: grid;
+  gap: 10px;
+}
+
+/* Unlike creating a household, this form is secondary: it stays closable, by its own summary */
+.fold.other-payment[open] > summary {
+  display: flex;
+}
+
+.other-payment form {
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
 }
 
 /* ---------------------------------------------------------------- AI quick add (DESIGN.md §6.3, T-19) */
@@ -944,6 +1230,15 @@ button.ai:active:focus-visible {
   min-height: 72px;
   line-height: 1.4;
   resize: vertical;
+}
+
+/* Two lines to start, growing with the sentence where the browser can size a field to its content */
+@supports (field-sizing: content) {
+  .ai-composer textarea {
+    field-sizing: content;
+    max-height: 9lh;
+    resize: none;
+  }
 }
 
 .ai-reading {

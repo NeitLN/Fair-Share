@@ -8,10 +8,13 @@ import { mockApi, renderApp } from '../test/renderApp'
 beforeEach(() => {
   // The user answers "OK" to "Xoá khoản …?"
   vi.stubGlobal('confirm', vi.fn(() => true))
+  // Tiến is using this device ("Bạn là ai?"), so he is the default payer
+  localStorage.setItem('fair-share:me:7', '1')
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 const household = { id: 7, name: 'Nhà 7', created_at: '' }
@@ -82,7 +85,7 @@ test('lists the expenses with who paid', async () => {
   api()
   renderApp('/households/7/expenses')
   expect(await list().findByText('Tiền điện')).toBeInTheDocument()
-  expect(list().getByText('Tiến')).toBeInTheDocument()
+  expect(list().getByText(/^Tiến trả · chia đều 2 người/)).toBeInTheDocument()
 })
 
 test('adding an expense puts it on the list and clears the form', async () => {
@@ -91,8 +94,8 @@ test('adding an expense puts it on the list and clears the form', async () => {
   renderApp('/households/7/expenses')
 
   await user.type(await screen.findByLabelText('Nội dung'), 'Ăn tối')
-  await user.type(screen.getByLabelText('Số tiền (đồng)'), '240k')
-  await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+  await user.type(screen.getByLabelText('Số tiền'), '240k')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
 
   expect(await list().findByText('Ăn tối')).toBeInTheDocument()
   expect(screen.getByLabelText('Nội dung')).toHaveValue('')
@@ -111,7 +114,7 @@ test('editing fills the form with the expense and saves it with PUT', async () =
 
   await user.click(await screen.findByRole('button', { name: 'Sửa Tiền điện' }))
   expect(screen.getByRole('heading', { name: 'Sửa: Tiền điện' })).toBeInTheDocument()
-  const amount = screen.getByLabelText('Số tiền (đồng)')
+  const amount = screen.getByLabelText('Số tiền')
   expect(amount).toHaveValue('450000')
 
   await user.clear(amount)
@@ -158,8 +161,8 @@ test('a split the server refuses is explained in Vietnamese and the form keeps i
   renderApp('/households/7/expenses')
 
   await user.type(await screen.findByLabelText('Nội dung'), 'Ăn tối')
-  await user.type(screen.getByLabelText('Số tiền (đồng)'), '240000')
-  await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+  await user.type(screen.getByLabelText('Số tiền'), '240000')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
 
   expect(await screen.findByRole('alert')).toHaveTextContent('Có người không thuộc nhà này.')
   expect(screen.getByLabelText('Nội dung')).toHaveValue('Ăn tối')
@@ -216,7 +219,7 @@ test('a sentence fills the form, saving records an AI expense and clears the box
   expect(await screen.findByText(/^Đã điền: Lẩu/)).toBeInTheDocument()
   expect(screen.getByLabelText('Nội dung')).toHaveValue('Lẩu')
 
-  await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
 
   expect(await list().findByText('Lẩu')).toBeInTheDocument()
   const post = fetchFn.mock.calls.find(
@@ -248,8 +251,8 @@ test('when the AI is busy the sentence stays and the expense is saved by hand', 
   expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k Minh trả')
 
   await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
-  await user.type(screen.getByLabelText('Số tiền (đồng)'), '240k')
-  await user.click(screen.getByRole('button', { name: 'Thêm khoản chi' }))
+  await user.type(screen.getByLabelText('Số tiền'), '240k')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
 
   expect(await list().findByText('Lẩu')).toBeInTheDocument()
   const post = fetchFn.mock.calls.find(
@@ -268,3 +271,50 @@ test('the AI box is hidden while an expense is being edited', async () => {
   expect(screen.queryByLabelText('Câu mô tả khoản chi')).not.toBeInTheDocument()
 })
 
+
+test('you are the default payer; without an identity, whoever paid last on this device', async () => {
+  const fetchFn = api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  expect(await screen.findByRole('radio', { name: /^Tiến/ })).toBeChecked()
+  await user.type(screen.getByLabelText('Nội dung'), 'Trà sữa')
+  await user.type(screen.getByLabelText('Số tiền'), '60k')
+  await user.click(screen.getByRole('radio', { name: /^Minh/ }))
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+  await list().findByText('Trà sữa')
+  expect(localStorage.getItem('fair-share:last-payer:7')).toBe('2')
+  expect(fetchFn).toHaveBeenCalled()
+})
+
+test('with no identity, the last payer on this device is chosen for the next expense', async () => {
+  localStorage.removeItem('fair-share:me:7')
+  localStorage.setItem('fair-share:last-payer:7', '1')
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  expect(await screen.findByRole('radio', { name: /^Tiến/ })).toBeChecked()
+  // Minh pays this one: the next expense starts with Minh
+  await user.type(screen.getByLabelText('Nội dung'), 'Trà sữa')
+  await user.type(screen.getByLabelText('Số tiền'), '60k')
+  await user.click(screen.getByRole('radio', { name: /^Minh/ }))
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+  await list().findByText('Trà sữa')
+  await waitFor(() => expect(screen.getByRole('radio', { name: /^Minh/ })).toBeChecked())
+})
+
+test('with no identity and no last payer, nobody is chosen and saving asks who paid', async () => {
+  localStorage.removeItem('fair-share:me:7')
+  const fetchFn = api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  await user.type(await screen.findByLabelText('Nội dung'), 'Trà sữa')
+  await user.type(screen.getByLabelText('Số tiền'), '60k')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+
+  expect(screen.getByText('Chọn người trả.')).toBeInTheDocument()
+  expect(screen.getByRole('radio', { name: /^Tiến/ })).toHaveFocus()
+  expect(fetchFn.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+})

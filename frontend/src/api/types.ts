@@ -116,6 +116,8 @@ export interface Balances {
   balances: MemberBalance[]
   /** Paying these settles everyone. */
   suggested: Transfer[]
+  /** Added by getBalances, not the API: which balances request this answers (api/settlements.ts). */
+  fetchCount?: number
 }
 
 // --- AI quick add (US-09, US-10) ---------------------------------------------------------------

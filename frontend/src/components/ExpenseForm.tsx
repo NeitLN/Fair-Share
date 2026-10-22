@@ -1,10 +1,13 @@
-import { useImperativeHandle, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent, Ref } from 'react'
 
 import type { Expense, ExpenseInput, Member, SplitType } from '../api/types'
-import { today } from '../lib/date'
+import { dayLabel, today } from '../lib/date'
 import { formatVND } from '../lib/money'
+import { memberLooks, REMOVED_MEMBER } from '../lib/names'
+import type { MemberLook } from '../lib/names'
 import { equalSplit, parseAmount } from '../lib/split'
+import { Avatar } from './Avatar'
 
 /** The fields a quick-add draft can fill. */
 export type FillField = 'description' | 'amount' | 'payer' | 'date' | 'split'
@@ -39,6 +42,15 @@ export interface ExpenseFormHandle {
 interface ExpenseFormProps {
   ref?: Ref<ExpenseFormHandle>
   members: Member[]
+  /** How each member is shown (lib/names.ts); worked out from `members` when not given. */
+  looks?: Map<number, MemberLook>
+  /** The member using this device, marked "(bạn)" in Ai trả?. */
+  me?: number | null
+  /**
+   * The payer a new expense starts with: you, else the last payer used on this device (DESIGN.md
+   * §6.3). Null leaves "Ai trả?" for the user. A default is not a user change: the AI may replace it.
+   */
+  defaultPayer?: number | null
   /** An existing expense to edit; without it the form adds a new one. */
   initial?: Expense | null
   /** Resolves when saved, rejects on failure (the form keeps everything the user typed). */
@@ -50,10 +62,16 @@ interface ExpenseFormProps {
 
 const MAX_DESCRIPTION = 120
 
-// US-03, US-04, US-05: one expense, split equally or by custom amounts
+type Problems = Partial<Record<FillField, string>>
+const ORDER: FillField[] = ['description', 'amount', 'payer', 'date', 'split']
+
+// US-03, US-04, US-05: one expense, split equally or by custom amounts (DESIGN.md §6.3)
 function ExpenseForm({
   ref,
   members,
+  looks: givenLooks,
+  me = null,
+  defaultPayer = null,
   initial,
   onSubmit,
   onCancel,
@@ -62,10 +80,16 @@ function ExpenseForm({
 }: ExpenseFormProps) {
   const editing = Boolean(initial)
   const initialShares = new Map(initial?.shares.map((s) => [s.member_id, s.amount]))
+  const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
+  const shortName = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
+  const validPayer = (id: number | null) => (id !== null && members.some((m) => m.id === id) ? id : '')
 
   const [description, setDescription] = useState(initial?.description ?? '')
   const [amountText, setAmountText] = useState(initial ? String(initial.amount) : '')
-  const [payerId, setPayerId] = useState<number | ''>(initial?.payer_id ?? members[0]?.id ?? '')
+  const [payerId, setPayerId] = useState<number | ''>(initial?.payer_id ?? validPayer(defaultPayer))
+  // The payer is still the default (not chosen by the user, not filled or cleared by the AI): only then
+  // may a change of "Bạn là ai?" move it. Its value alone cannot tell, the AI may fill the same person.
+  const [payerIsDefault, setPayerIsDefault] = useState(!initial)
   const [spentAt, setSpentAt] = useState(initial?.spent_at ?? today())
   const [splitType, setSplitType] = useState<SplitType>(initial?.split_type ?? 'equal')
   // Equal split: who takes part. A new expense starts with everyone.
@@ -78,7 +102,10 @@ function ExpenseForm({
       ? Object.fromEntries([...initialShares].map(([id, amount]) => [id, String(amount)]))
       : {},
   )
-  const [validation, setValidation] = useState<string | null>(null)
+  const [problems, setProblems] = useState<Problems>({})
+  // The date and the split are folded: the 90% case is "today, everyone, equally"
+  const [dateOpen, setDateOpen] = useState(false)
+  const [splitOpen, setSplitOpen] = useState(false)
 
   // AI quick add: what the user changed by hand is never overwritten, and a fill can be undone
   const [touched, setTouched] = useState<Set<FillField>>(new Set())
@@ -91,6 +118,7 @@ function ExpenseForm({
       description: string
       amountText: string
       payerId: number | ''
+      payerIsDefault: boolean
       spentAt: string
       splitType: SplitType
       selected: Set<number>
@@ -98,6 +126,26 @@ function ExpenseForm({
     }
   } | null>(null)
   const descriptionInput = useRef<HTMLInputElement>(null)
+  const formElement = useRef<HTMLFormElement>(null)
+  // The field to focus once it is on screen (a folded field opens first)
+  const focusField = useRef<FillField | null>(null)
+
+  // "Bạn là ai?" chosen while the form is open: an untouched default follows it
+  const [seenDefault, setSeenDefault] = useState(defaultPayer)
+  if (defaultPayer !== seenDefault) {
+    setSeenDefault(defaultPayer)
+    if (!editing && payerIsDefault) {
+      setPayerId(validPayer(defaultPayer))
+      if (validPayer(defaultPayer) !== '') clearProblem('payer')
+    }
+  }
+
+  useEffect(() => {
+    const field = focusField.current
+    if (!field) return
+    focusField.current = null
+    formElement.current?.querySelector<HTMLElement>(`[data-field="${field}"]`)?.focus()
+  })
 
   function edited(field: FillField) {
     // A field edited after a fill is the user's now: undo must not take it back
@@ -106,6 +154,16 @@ function ExpenseForm({
     setJustFilled((current) => {
       const next = new Set(current)
       next.delete(field)
+      return next
+    })
+    clearProblem(field)
+  }
+
+  function clearProblem(field: FillField) {
+    setProblems((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
       return next
     })
   }
@@ -136,13 +194,14 @@ function ExpenseForm({
 
       lastFill.current = {
         fields: new Set([...fill, ...clear]),
-        before: { description, amountText, payerId, spentAt, splitType, selected, customText },
+        before: { description, amountText, payerId, payerIsDefault, spentAt, splitType, selected, customText },
       }
       if (fill.has('description')) setDescription((values.description as string).trim())
       if (fill.has('amount')) setAmountText(String(values.amount))
       if (clear.has('amount')) setAmountText('')
       if (fill.has('payer')) setPayerId(values.payer_id as number)
       if (clear.has('payer')) setPayerId('')
+      if (fill.has('payer') || clear.has('payer')) setPayerIsDefault(false)
       if (fill.has('date')) setSpentAt(values.spent_at as string)
       if (fill.has('split')) {
         // The split is one group: type, who takes part and any custom amounts change together
@@ -152,7 +211,7 @@ function ExpenseForm({
       }
       setJustFilled(fill)
       if (fill.size > 0) setFromAi(true)
-      setValidation(null)
+      setProblems({})
       return result
     },
     undoFill() {
@@ -162,7 +221,11 @@ function ExpenseForm({
       const { fields, before } = last
       if (fields.has('description')) setDescription(before.description)
       if (fields.has('amount')) setAmountText(before.amountText)
-      if (fields.has('payer')) setPayerId(before.payerId)
+      if (fields.has('payer')) {
+        // Back to the default means today's default: "Bạn là ai?" may have changed since the fill
+        setPayerId(before.payerIsDefault ? validPayer(defaultPayer) : before.payerId)
+        setPayerIsDefault(before.payerIsDefault)
+      }
       if (fields.has('date')) setSpentAt(before.spentAt)
       if (fields.has('split')) {
         setSplitType(before.splitType)
@@ -178,7 +241,7 @@ function ExpenseForm({
     },
   }))
 
-  const flash = (field: FillField) => (justFilled.has(field) ? 'just-filled' : undefined)
+  const flash = (field: FillField) => (justFilled.has(field) ? ' just-filled' : '')
 
   const amount = parseAmount(amountText)
   const equalShares = equalSplit(amount ?? 0, [...selected])
@@ -189,23 +252,27 @@ function ExpenseForm({
   const customInvalid = customShares.some((s) => s.amount === null)
   const customTotal = customShares.reduce((sum, s) => sum + (s.amount ?? 0), 0)
   const remainder = (amount ?? 0) - customTotal
+  const customPeople = customShares.filter((s) => (s.amount ?? 0) > 0).length
 
-  function problem(): string | null {
+  function check(): Problems {
+    const found: Problems = {}
     const text = description.trim()
     if (text.length < 1 || text.length > MAX_DESCRIPTION) {
-      return `Nội dung phải từ 1 đến ${MAX_DESCRIPTION} ký tự.`
+      found.description = `Nội dung phải từ 1 đến ${MAX_DESCRIPTION} ký tự.`
     }
-    if (amount === null || amount <= 0) return 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000 hoặc 240k.'
-    if (payerId === '') return 'Hãy chọn người đã trả.'
-    if (!spentAt) return 'Hãy chọn ngày.'
+    if (amount === null || amount <= 0) found.amount = 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000 hoặc 240k.'
+    if (payerId === '') found.payer = 'Chọn người trả.'
+    if (!spentAt) found.date = 'Hãy chọn ngày.'
     if (splitType === 'equal') {
-      if (selected.size === 0) return 'Hãy chọn ít nhất một người cùng chia.'
-    } else {
-      if (customInvalid) return 'Có phần chia chưa phải là số tiền hợp lệ.'
-      if (!customShares.some((s) => (s.amount ?? 0) > 0)) return 'Hãy nhập phần của ít nhất một người.'
-      if (remainder !== 0) return 'Tổng các phần phải bằng đúng số tiền của khoản chi.'
+      if (selected.size === 0) found.split = 'Hãy chọn ít nhất một người cùng chia.'
+    } else if (customInvalid) {
+      found.split = 'Có phần chia chưa phải là số tiền hợp lệ.'
+    } else if (customPeople === 0) {
+      found.split = 'Hãy nhập phần của ít nhất một người.'
+    } else if (remainder !== 0) {
+      found.split = 'Tổng các phần phải bằng đúng số tiền của khoản chi.'
     }
-    return null
+    return found
   }
 
   function toInput(): ExpenseInput {
@@ -228,16 +295,26 @@ function ExpenseForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    const found = problem()
-    setValidation(found)
-    if (found) return
+    const found = check()
+    setProblems(found)
+    const first = ORDER.find((field) => found[field])
+    if (first) {
+      // Each message is under its field; the first one gets focus, opening its fold if needed
+      if (first === 'date') setDateOpen(true)
+      if (first === 'split') setSplitOpen(true)
+      focusField.current = first
+      return
+    }
     try {
       await onSubmit(toInput())
       if (!editing) {
-        // Ready for the next expense: same payer, date and way of splitting
+        // Ready for the next expense: same date and way of splitting, and the default payer again (you,
+        // or without an identity the payer just saved, which the page now remembers)
         setDescription('')
         setAmountText('')
         setCustomText({})
+        setPayerId(validPayer(defaultPayer))
+        setPayerIsDefault(true)
         // The next expense starts from scratch: nothing touched, nothing from the AI
         setTouched(new Set())
         setJustFilled(new Set())
@@ -259,160 +336,258 @@ function ExpenseForm({
     })
   }
 
+  // Error text under a field, and what the field needs to point at it
+  const problemId = (field: FillField) => `expense-${field}-problem`
+  const invalid = (field: FillField, ...describedBy: string[]) => {
+    const ids = [...describedBy, problems[field] ? problemId(field) : ''].filter(Boolean).join(' ')
+    return {
+      'aria-invalid': problems[field] ? true : undefined,
+      'aria-describedby': ids || undefined,
+    }
+  }
+  const problemText = (field: FillField) =>
+    problems[field] && (
+      <p id={problemId(field)} className="field-problem">
+        {problems[field]}
+      </p>
+    )
+
+  const [dayWord, dayDate] = dayLabel(spentAt).split(', ')
+  const splitSummary =
+    splitType === 'custom'
+      ? `Chia riêng (${customPeople} người)`
+      : selected.size === members.length
+        ? `Chia đều cả nhà (${members.length} người)`
+        : `Chia đều (${selected.size}/${members.length} người)`
+
   return (
-    <form className="expense-form" onSubmit={handleSubmit} noValidate>
-      <label htmlFor="expense-description">Nội dung</label>
-      <input
-        ref={descriptionInput}
-        id="expense-description"
-        className={flash('description')}
-        type="text"
-        value={description}
-        maxLength={MAX_DESCRIPTION}
-        placeholder="Tiền điện tháng 10"
-        onChange={(e) => {
-          edited('description')
-          setDescription(e.target.value)
-        }}
-      />
+    <form ref={formElement} className="expense-form" onSubmit={handleSubmit} noValidate>
+      <div className="field">
+        <label htmlFor="expense-description">Nội dung</label>
+        <input
+          ref={descriptionInput}
+          id="expense-description"
+          data-field="description"
+          className={flash('description').trim() || undefined}
+          type="text"
+          value={description}
+          maxLength={MAX_DESCRIPTION}
+          placeholder="Tiền điện tháng 10"
+          {...invalid('description')}
+          onChange={(e) => {
+            edited('description')
+            setDescription(e.target.value)
+          }}
+        />
+        {problemText('description')}
+      </div>
 
-      <label htmlFor="expense-amount">Số tiền (đồng)</label>
-      <input
-        id="expense-amount"
-        className={flash('amount')}
-        type="text"
-        inputMode="numeric"
-        value={amountText}
-        placeholder="240.000 hoặc 240k"
-        aria-describedby="expense-amount-preview"
-        onChange={(e) => {
-          edited('amount')
-          setAmountText(e.target.value)
-        }}
-      />
-      <span id="expense-amount-preview" className="hint">
-        {amount !== null && amount > 0 ? formatVND(amount) : ''}
-      </span>
-
-      <label htmlFor="expense-payer">Người trả</label>
-      <select
-        id="expense-payer"
-        className={flash('payer')}
-        value={payerId}
-        onChange={(e) => {
-          edited('payer')
-          setPayerId(e.target.value === '' ? '' : Number(e.target.value))
-        }}
-      >
-        {payerId === '' && (
-          <option value="" disabled>
-            Chọn người trả
-          </option>
-        )}
-        {members.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name}
-          </option>
-        ))}
-      </select>
-
-      <label htmlFor="expense-date">Ngày</label>
-      <input
-        id="expense-date"
-        className={flash('date')}
-        type="date"
-        value={spentAt}
-        onChange={(e) => {
-          edited('date')
-          setSpentAt(e.target.value)
-        }}
-      />
-
-      <fieldset className={['split', flash('split')].filter(Boolean).join(' ')}>
-        <legend>Cách chia</legend>
-        <label className="inline">
+      <div className="field">
+        <label htmlFor="expense-amount">Số tiền</label>
+        <div className="amount-row">
           <input
-            type="radio"
-            name="split-type"
-            checked={splitType === 'equal'}
-            onChange={() => {
-              edited('split')
-              setSplitType('equal')
+            id="expense-amount"
+            data-field="amount"
+            className={flash('amount').trim() || undefined}
+            type="text"
+            inputMode="numeric"
+            value={amountText}
+            placeholder="240k"
+            {...invalid('amount', 'expense-amount-preview')}
+            onChange={(e) => {
+              edited('amount')
+              setAmountText(e.target.value)
             }}
           />
-          Chia đều
-        </label>
-        <label className="inline">
-          <input
-            type="radio"
-            name="split-type"
-            checked={splitType === 'custom'}
-            onChange={() => {
-              edited('split')
-              setSplitType('custom')
-            }}
-          />
-          Chia riêng
-        </label>
+          <span id="expense-amount-preview" className="amount-preview">
+            {amount !== null && amount > 0 ? `= ${formatVND(amount)}` : ''}
+          </span>
+        </div>
+        {problemText('amount')}
+      </div>
 
-        {splitType === 'equal' ? (
-          <ul className="split-rows">
-            {members.map((m) => (
-              <li key={m.id}>
-                <label className="inline">
-                  <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
-                  {m.name}
+      <fieldset className={`field payer${flash('payer')}`} {...invalid('payer')}>
+        <legend>Ai trả?</legend>
+        <div className="pick">
+          {members.map((m, index) => {
+            const look = looks.get(m.id) ?? REMOVED_MEMBER
+            return (
+              <span key={m.id}>
+                <input
+                  type="radio"
+                  id={`payer-${m.id}`}
+                  name="expense-payer"
+                  data-field={(payerId === '' ? index === 0 : payerId === m.id) ? 'payer' : undefined}
+                  checked={payerId === m.id}
+                  aria-invalid={problems.payer ? true : undefined}
+                  aria-describedby={problems.payer ? problemId('payer') : undefined}
+                  onChange={() => {
+                    edited('payer')
+                    setPayerId(m.id)
+                    setPayerIsDefault(false)
+                  }}
+                />
+                <label htmlFor={`payer-${m.id}`} title={look.full}>
+                  <Avatar look={look} size="sm" decorative />
+                  <span className="name">{look.short}</span>
+                  {me === m.id && <span className="you">(bạn)</span>}
                 </label>
-                <span className="share">
-                  {selected.has(m.id) && amount ? formatVND(equalShares.get(m.id) ?? 0) : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <>
-            <ul className="split-rows">
-              {members.map((m) => (
-                <li key={m.id}>
-                  <label htmlFor={`share-${m.id}`}>Phần của {m.name}</label>
-                  <input
-                    id={`share-${m.id}`}
-                    type="text"
-                    inputMode="numeric"
-                    value={customText[m.id] ?? ''}
-                    placeholder="0"
-                    onChange={(e) => {
-                      edited('split')
-                      setCustomText({ ...customText, [m.id]: e.target.value })
-                    }}
-                  />
-                </li>
-              ))}
-            </ul>
-            <p className="remainder" aria-live="polite">
-              {customInvalid
-                ? 'Có phần chia chưa phải là số tiền hợp lệ.'
-                : remainder === 0 && customTotal > 0
-                  ? 'Đã chia khớp số tiền.'
-                  : remainder > 0
-                    ? `Còn lại: ${formatVND(remainder)}`
-                    : `Vượt quá: ${formatVND(-remainder)}`}
-            </p>
-          </>
-        )}
+              </span>
+            )
+          })}
+        </div>
+        {problemText('payer')}
       </fieldset>
 
-      {validation && <p role="alert">{validation}</p>}
+      <div className={`field fold-field${flash('date')}`}>
+        <div className="fold-row">
+          <span className="fold-label" id="expense-date-label">
+            Ngày
+          </span>
+          <span className="fold-value">
+            <b>{dayWord}</b>
+            {dayDate && `, ${dayDate}`}
+          </span>
+          <button
+            type="button"
+            className="btn-ghost"
+            aria-label={dateOpen ? 'Xong, đóng ngày' : 'Đổi ngày'}
+            aria-expanded={dateOpen}
+            aria-controls="expense-date-control"
+            onClick={() => setDateOpen((open) => !open)}
+          >
+            {dateOpen ? 'Xong' : 'Đổi'}
+          </button>
+        </div>
+        <div id="expense-date-control" className="fold-control" hidden={!dateOpen}>
+          {dateOpen && (
+            <input
+              id="expense-date"
+              data-field="date"
+              type="date"
+              value={spentAt}
+              aria-labelledby="expense-date-label"
+              {...invalid('date')}
+              onChange={(e) => {
+                edited('date')
+                setSpentAt(e.target.value)
+              }}
+            />
+          )}
+        </div>
+        {problemText('date')}
+      </div>
+
+      <div className={`field fold-field${flash('split')}`}>
+        <div className="fold-row">
+          <span className="fold-label">Cách chia</span>
+          <span className="fold-value">{splitSummary}</span>
+          <button
+            type="button"
+            className="btn-ghost"
+            aria-label={splitOpen ? 'Xong, đóng cách chia' : 'Sửa cách chia'}
+            aria-expanded={splitOpen}
+            aria-controls="expense-split-control"
+            onClick={() => setSplitOpen((open) => !open)}
+          >
+            {splitOpen ? 'Xong' : 'Sửa'}
+          </button>
+        </div>
+        <div id="expense-split-control" hidden={!splitOpen}>
+          {splitOpen && (
+            <fieldset className="fold-control split" {...invalid('split')}>
+              <legend className="visually-hidden">Cách chia</legend>
+              <div className="segmented">
+                <button
+                  type="button"
+                  data-field={splitType === 'equal' ? 'split' : undefined}
+                  aria-describedby={problems.split ? problemId('split') : undefined}
+                  aria-pressed={splitType === 'equal'}
+                  onClick={() => {
+                    edited('split')
+                    setSplitType('equal')
+                  }}
+                >
+                  Chia đều
+                </button>
+                <button
+                  type="button"
+                  data-field={splitType === 'custom' ? 'split' : undefined}
+                  aria-describedby={problems.split ? problemId('split') : undefined}
+                  aria-pressed={splitType === 'custom'}
+                  onClick={() => {
+                    edited('split')
+                    setSplitType('custom')
+                  }}
+                >
+                  Chia riêng
+                </button>
+              </div>
+
+              {splitType === 'equal' ? (
+                <ul className="split-rows">
+                  {members.map((m) => (
+                    <li key={m.id}>
+                      <label className="inline">
+                        <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
+                        {shortName(m.id)}
+                      </label>
+                      <span className="share">
+                        {selected.has(m.id) && amount ? formatVND(equalShares.get(m.id) ?? 0) : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <>
+                  <ul className="split-rows">
+                    {members.map((m) => (
+                      <li key={m.id}>
+                        <label htmlFor={`share-${m.id}`}>Phần của {shortName(m.id)}</label>
+                        <input
+                          id={`share-${m.id}`}
+                          type="text"
+                          inputMode="numeric"
+                          value={customText[m.id] ?? ''}
+                          placeholder="0"
+                          onChange={(e) => {
+                            edited('split')
+                            setCustomText({ ...customText, [m.id]: e.target.value })
+                          }}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="remainder" aria-live="polite">
+                    {customInvalid
+                      ? 'Có phần chia chưa phải là số tiền hợp lệ.'
+                      : remainder === 0 && customTotal > 0
+                        ? 'Đã chia khớp số tiền.'
+                        : remainder > 0
+                          ? `Còn lại: ${formatVND(remainder)}`
+                          : `Vượt quá: ${formatVND(-remainder)}`}
+                  </p>
+                </>
+              )}
+            </fieldset>
+          )}
+        </div>
+        {problemText('split')}
+      </div>
+
+      {/* The server's answer stays above the button (DESIGN.md §6.3) */}
       {error && <p role="alert">{error}</p>}
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Thêm khoản chi'}
-      </button>
-      {onCancel && (
-        <button type="button" onClick={onCancel} disabled={submitting}>
-          Hủy
+      <div className="form-actions">
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Lưu khoản chi'}
         </button>
-      )}
+        {onCancel && (
+          <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>
+            Hủy
+          </button>
+        )}
+      </div>
     </form>
   )
 }

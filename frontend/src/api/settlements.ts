@@ -17,5 +17,15 @@ export const createSettlement = (householdId: number, input: SettlementInput) =>
 /** There is no edit: a mistaken settlement is deleted and entered again. */
 export const deleteSettlement = (id: number) => api.delete(`/api/settlements/${id}`)
 
-export const getBalances = (householdId: number) =>
-  api.get<Balances>(`/api/households/${householdId}/balances`)
+// Every balances request gets a number when it starts. A payment remembers the count when it was
+// recorded, so the dashboard knows which balances were asked for after it (lib/usePaidTransfers.ts).
+let balancesFetches = 0
+
+/** How many balances requests have started so far. */
+export const balancesFetchCount = () => balancesFetches
+
+export async function getBalances(householdId: number): Promise<Balances> {
+  const fetchCount = ++balancesFetches
+  const balances = await api.get<Balances>(`/api/households/${householdId}/balances`)
+  return { ...balances, fetchCount }
+}

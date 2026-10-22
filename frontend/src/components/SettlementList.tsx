@@ -1,10 +1,13 @@
-import type { Member, Settlement } from '../api/types'
-import { formatDate } from '../lib/date'
+import type { Settlement } from '../api/types'
+import { dayLabel } from '../lib/date'
 import { formatVND } from '../lib/money'
+import { REMOVED_MEMBER } from '../lib/names'
+import type { MemberLook } from '../lib/names'
+import { Money } from './Money'
 
 interface SettlementListProps {
   settlements: Settlement[]
-  members: Member[]
+  looks: Map<number, MemberLook>
   onDelete: (settlement: Settlement) => void
   /** The settlement being deleted right now: its button is disabled so a double click sends one request. */
   deletingId?: number | null
@@ -12,27 +15,25 @@ interface SettlementListProps {
   error?: string | null
 }
 
-/** Props-only list. Deleting is a callback; the page does the API call. */
+/** "Lịch sử trả": the payments already made, newest first. Props only; the page does the API calls. */
 function SettlementList({
   settlements,
-  members,
+  looks,
   onDelete,
   deletingId = null,
   loading = false,
   error = null,
 }: SettlementListProps) {
   if (loading) {
-    return <p>Đang tải các khoản trả…</p>
+    return <p className="hint">Đang tải các khoản trả…</p>
   }
 
-  function memberName(id: number): string {
-    return members.find((member) => member.id === id)?.name ?? 'Thành viên đã xoá'
-  }
+  const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
 
   // Who paid whom how much: unique enough to tell two payments by the same person apart
   function describe(settlement: Settlement): string {
-    const from = memberName(settlement.from_member_id)
-    const to = memberName(settlement.to_member_id)
+    const from = nameOf(settlement.from_member_id)
+    const to = nameOf(settlement.to_member_id)
     return `khoản ${from} trả ${to} ${formatVND(settlement.amount)}`
   }
 
@@ -46,7 +47,7 @@ function SettlementList({
       {error && <p role="alert">{error}</p>}
       {/* An empty list after an error means "could not load", not "nothing was paid back" */}
       {settlements.length === 0 ? (
-        !error && <p>Chưa ghi nhận khoản trả nào.</p>
+        !error && <p className="empty">Chưa có khoản trả nào. Bấm "Đã trả" ở trên khi ai đó trả xong.</p>
       ) : (
         <ul className="settlement-list">
           {settlements.map((settlement) => {
@@ -54,13 +55,16 @@ function SettlementList({
             return (
               <li key={settlement.id} className="settlement-row">
                 <span className="settlement-text">
-                  <strong>{memberName(settlement.from_member_id)}</strong> đã trả{' '}
-                  <strong>{memberName(settlement.to_member_id)}</strong>{' '}
-                  {formatVND(settlement.amount)} · {formatDate(settlement.settled_at)}
+                  <strong>{nameOf(settlement.from_member_id)}</strong> đã trả{' '}
+                  <strong>{nameOf(settlement.to_member_id)}</strong> <Money amount={settlement.amount} />
+                  <small>
+                    {dayLabel(settlement.settled_at)}
+                    {settlement.note && ` · ${settlement.note}`}
+                  </small>
                 </span>
-                {settlement.note && <span className="settlement-note">{settlement.note}</span>}
                 <button
                   type="button"
+                  className="btn-danger"
                   aria-label={`Xoá ${describe(settlement)}`}
                   disabled={deleting}
                   onClick={() => confirmDelete(settlement)}

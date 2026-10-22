@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
 import { parseExpense } from '../api/ai'
@@ -11,11 +11,14 @@ import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import { errorMessage } from '../lib/errors'
+import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
+import { memberLooks } from '../lib/names'
 
 // US-03, US-04, US-05: record, list, edit and delete the expenses of one household
 function ExpensesPage() {
   const householdId = Number(useParams().householdId)
   const queryClient = useQueryClient()
+  const { me } = useMe()
   const formRef = useRef<HTMLElement>(null)
   const [editing, setEditing] = useState<Expense | null>(null)
   // The AI fills this form; a new key clears the composer after each saved expense
@@ -35,7 +38,8 @@ function ExpensesPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
   const create = useMutation({
     mutationFn: (input: ExpenseInput) => createExpense(householdId, input),
-    onSuccess: () => {
+    onSuccess: (_expense, input) => {
+      writeLastPayer(householdId, input.payer_id)
       setComposerKey((key) => key + 1)
       return refresh()
     },
@@ -63,6 +67,9 @@ function ExpensesPage() {
   }
 
   const noMembers = members.isSuccess && members.data.length === 0
+  const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  // You, else whoever paid last on this device (DESIGN.md §6.3)
+  const defaultPayer = me ?? readLastPayer(householdId)
   const form = editing ? update : create
 
   return (
@@ -103,9 +110,12 @@ function ExpensesPage() {
             <h2 id="expense-form-title">{editing ? `Sửa: ${editing.description}` : 'Thêm khoản chi'}</h2>
             <ExpenseForm
               ref={expenseForm}
-              // A new key gives the form fresh state for each expense it edits
-              key={editing?.id ?? 'new'}
+              // A new key gives the form fresh state for each household and each expense it edits
+              key={`${householdId}-${editing?.id ?? 'new'}`}
               members={members.data}
+              looks={looks}
+              me={me}
+              defaultPayer={defaultPayer}
               initial={editing}
               onSubmit={(input) =>
                 editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
@@ -119,10 +129,14 @@ function ExpensesPage() {
       )}
 
       <section aria-labelledby="expense-list-title">
-        <h2 id="expense-list-title">Các khoản chi</h2>
+        <div className="section-head">
+          <h2 id="expense-list-title">Các khoản chi</h2>
+          <span className="section-note">chạm để sửa hoặc xoá</span>
+        </div>
         <ExpenseList
           expenses={expenses.data ?? []}
           members={members.data ?? []}
+          looks={looks}
           loading={expenses.isPending}
           error={errorMessage(expenses.error ?? remove.error)}
           onEdit={startEditing}

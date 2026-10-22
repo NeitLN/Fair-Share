@@ -98,4 +98,116 @@ describe('Toast', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => render(<Trigger toasts={[]} />)).toThrow(/ToastProvider/)
   })
+
+  describe('onGone tells the owner once, whichever way the toast leaves', () => {
+    test('not before a toast shown from a mounting child is even on screen; once on timeout', () => {
+      const gone = vi.fn()
+      function ShowOnMount() {
+        const show = useToast()
+        useEffect(() => {
+          show({ text: 'Đã ghi', onGone: gone })
+        }, [show])
+        return null
+      }
+      render(
+        <ToastProvider>
+          <ShowOnMount />
+        </ToastProvider>,
+      )
+      expect(screen.getByRole('status')).toHaveTextContent('Đã ghi')
+      expect(gone).not.toHaveBeenCalled()
+      act(() => vi.advanceTimersByTime(TOAST_MS))
+      expect(gone).toHaveBeenCalledTimes(1)
+    })
+
+    test('under StrictMode, where React runs each state update twice, the owner still hears it once', () => {
+      const gone = vi.fn()
+      render(
+        <StrictMode>
+          <ToastProvider>
+            <Trigger toasts={[{ text: 'một', onGone: gone }, { text: 'hai' }, { text: 'ba' }, { text: 'bốn' }]} />
+          </ToastProvider>
+        </StrictMode>,
+      )
+      for (let i = 0; i < 4; i++) fireEvent.click(screen.getByText(`show ${i}`))
+      expect(screen.getByRole('status')).not.toHaveTextContent('một')
+      expect(gone).toHaveBeenCalledTimes(1)
+      act(() => vi.advanceTimersByTime(TOAST_MS))
+      expect(gone).toHaveBeenCalledTimes(1)
+    })
+
+    test('however many leave in one batch, every owner is told once', () => {
+      const owners = Array.from({ length: MAX_TOASTS + 21 }, () => vi.fn())
+      function ShowMany() {
+        const show = useToast()
+        useEffect(() => {
+          owners.forEach((onGone, i) => show({ text: 'toast ' + i, onGone }))
+        }, [show])
+        return null
+      }
+      render(
+        <ToastProvider>
+          <ShowMany />
+        </ToastProvider>,
+      )
+      // All but the last MAX_TOASTS were pushed out
+      owners.slice(0, -MAX_TOASTS).forEach((onGone) => expect(onGone).toHaveBeenCalledTimes(1))
+      owners.slice(-MAX_TOASTS).forEach((onGone) => expect(onGone).not.toHaveBeenCalled())
+      act(() => vi.advanceTimersByTime(TOAST_MS))
+      owners.forEach((onGone) => expect(onGone).toHaveBeenCalledTimes(1))
+    })
+
+    test('pushed out in the same batch, before its timer started', () => {
+      const gone = vi.fn()
+      function ShowMany() {
+        const show = useToast()
+        useEffect(() => {
+          show({ text: 'một', onGone: gone })
+          for (const text of ['hai', 'ba', 'bốn']) show({ text })
+        }, [show])
+        return null
+      }
+      render(
+        <ToastProvider>
+          <ShowMany />
+        </ToastProvider>,
+      )
+      expect(screen.getByRole('status')).not.toHaveTextContent('một')
+      expect(gone).toHaveBeenCalledTimes(1)
+    })
+
+    test('acted on, and dismissed by its owner', () => {
+      const actedGone = vi.fn()
+      const dismissedGone = vi.fn()
+      let dismiss: () => void = () => {}
+      function Owner() {
+        const show = useToast()
+        return (
+          <button
+            type="button"
+            onClick={() => {
+              show({ text: 'Đã ghi', action: { label: 'Hoàn tác', onAction: vi.fn() }, onGone: actedGone })
+              dismiss = show({ text: 'Đã sao chép', onGone: dismissedGone })
+            }}
+          >
+            show
+          </button>
+        )
+      }
+      render(
+        <ToastProvider>
+          <Owner />
+        </ToastProvider>,
+      )
+      fireEvent.click(screen.getByText('show'))
+      fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }))
+      act(() => dismiss())
+      act(() => dismiss())
+      expect(actedGone).toHaveBeenCalledTimes(1)
+      expect(dismissedGone).toHaveBeenCalledTimes(1)
+      act(() => vi.advanceTimersByTime(TOAST_MS))
+      expect(actedGone).toHaveBeenCalledTimes(1)
+      expect(dismissedGone).toHaveBeenCalledTimes(1)
+    })
+  })
 })

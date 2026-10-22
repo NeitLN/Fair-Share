@@ -21,11 +21,18 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
   const [open, setOpen] = useState(false)
   const chooser = useRef<HTMLDivElement>(null)
   const toggle = useRef<HTMLButtonElement>(null)
-  // Focus moves into the chooser only when the user opened it, never on page load
+  // Focus moves into the chooser only when the user opened it, never on page load, and back to the
+  // button that opened it when it closes, so keyboard users do not lose their place
   const openedByUser = useRef(false)
+  const closedByUser = useRef(false)
 
   useEffect(() => {
-    if (!open || !openedByUser.current) return
+    if (!open) {
+      if (closedByUser.current) toggle.current?.focus()
+      closedByUser.current = false
+      return
+    }
+    if (!openedByUser.current) return
     openedByUser.current = false
     const buttons = chooser.current?.querySelectorAll<HTMLButtonElement>('button')
     const current = chooser.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
@@ -33,9 +40,8 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
   }, [open])
 
   function close() {
+    closedByUser.current = true
     setOpen(false)
-    // Back to the button that opened the chooser, so keyboard users do not lose their place
-    requestAnimationFrame(() => toggle.current?.focus())
   }
 
   if (!open) {
