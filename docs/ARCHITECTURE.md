@@ -201,8 +201,10 @@ settlement must be members of the **same household** (composite foreign keys on
   expenses → shares cascade has run.
 * **Supabase's REST API is closed:** every table has Row Level Security enabled with no policies, so the
   public Data API key can read nothing. The API connects as the tables' owner, which RLS does not apply to.
-* **Demo data:** [`db/seed.sql`](../db/seed.sql) adds one household with three members, only when
-  `SEED_DEMO_DATA=true` (Compose) and only into an empty database. Never set on Render.
+* **Demo data:** [`db/seed.sql`](../db/seed.sql) adds one household with three members, five
+  expenses over last month and this month (dated from today, never in the future) and one
+  settlement, only when `SEED_DEMO_DATA=true` (Compose) and only into an empty database. Never set
+  on Render.
 * **Surviving a restart or a pause:** all state lives in PostgreSQL; the API is stateless and reconnects
   through the pool. `/health/db` runs one query and returns a **safe** message on failure (details only
   in the server log). Before a demo: open the Supabase dashboard, *Resume* the project if it is paused,
