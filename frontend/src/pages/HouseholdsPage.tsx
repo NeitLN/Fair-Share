@@ -54,7 +54,7 @@ function HouseholdsPage() {
           <HouseholdCreateForm
             onCreate={create.mutateAsync}
             submitting={create.isPending}
-            error={create.error?.message ?? null}
+            error={errorMessage(create.error)}
           />
         </details>
       )}
