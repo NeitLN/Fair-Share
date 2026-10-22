@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router'
 import { createHousehold, keys, listHouseholds } from '../api/households'
 import HouseholdCreateForm from '../components/HouseholdCreateForm'
 import HouseholdList from '../components/HouseholdList'
+import { errorMessage } from '../lib/errors'
 
 // US-01: list households and create one (docs/DESIGN.md §6.1: the list first, creating is folded)
 function HouseholdsPage() {
@@ -32,7 +33,10 @@ function HouseholdsPage() {
       <HouseholdList
         households={households.data ?? []}
         loading={households.isPending}
-        error={households.error?.message ?? null}
+        // Vietnamese like every other page (it used to show the server's English text)
+        error={errorMessage(households.error)}
+        onRetry={() => households.refetch()}
+        retrying={households.isFetching}
       />
       {!households.isPending && (
         <details

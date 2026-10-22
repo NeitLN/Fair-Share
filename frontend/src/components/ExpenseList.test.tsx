@@ -197,9 +197,31 @@ describe('ExpenseList', () => {
     expect(screen.queryByText(/Chưa có khoản chi nào/)).not.toBeInTheDocument()
   })
 
-  test('shows a loading message instead of the list', () => {
+  test('shows skeleton rows instead of the list while loading', () => {
     renderList([electricity], { loading: true })
-    expect(screen.getByText('Đang tải danh sách khoản chi…')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải danh sách khoản chi')
     expect(screen.queryByText('Tiền điện')).not.toBeInTheDocument()
+  })
+
+  test('a failed load offers Thử lại, and the button is disabled while it reloads', async () => {
+    const onRetry = vi.fn()
+    const { rerender } = renderList([], { error: 'Máy chủ gặp lỗi.', onRetry })
+    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+
+    rerender(
+      <ExpenseList
+        expenses={[]}
+        members={members}
+        loading={false}
+        error="Máy chủ gặp lỗi."
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onRetry={onRetry}
+        retrying
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Đang thử lại…' })).toBeDisabled()
+    expect(screen.queryByText(/Chưa có khoản chi nào/)).not.toBeInTheDocument()
   })
 })
