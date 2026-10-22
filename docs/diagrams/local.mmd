@@ -1,0 +1,18 @@
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+%% The same stack on a laptop: docker compose up --build (compose.yml).
+flowchart LR
+    B["Browser<br/>localhost:3000"]
+    DEV["Developer<br/>localhost:8000/docs"]
+
+    subgraph Compose["Docker Compose (one command)"]
+        W["web · nginx (uid 101, port 8080)<br/>serves the built SPA<br/>proxies /api → api:8000"]
+        A["api · FastAPI<br/>same image as Render<br/>migrations at start-up"]
+        D[("db · postgres:16-alpine<br/>volume pgdata<br/>no published port")]
+    end
+
+    B -- "3000 → 8080" --> W
+    W -- "/api/*, same origin<br/>(no CORS needed)" --> A
+    DEV -- "8000" --> A
+    A -- "DATABASE_URL<br/>from DB_PASSWORD" --> D
+    W -. "starts when api is healthy" .-> A
+    A -. "starts when db is healthy" .-> D

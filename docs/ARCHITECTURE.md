@@ -10,22 +10,37 @@ always match what is deployed.** A PR that changes the topology updates this fil
 
 ## 1. Deployed topology (production)
 
+Checked against the live services on 22/10/2026; the exported diagrams for the report and how each
+part was checked are in [`docs/diagrams/`](diagrams/README.md).
+
 ```mermaid
 flowchart LR
-    U["Browser / phone<br/>(HTTPS)"]
-    subgraph Render["Render (free tier)"]
-        WEB["Static Site<br/>React SPA<br/>fair-share-web"]
-        API["Web Service (Docker)<br/>FastAPI + Uvicorn<br/>fair-share-4bu9"]
-    end
-    DB[("Supabase<br/>PostgreSQL<br/>session pooler, TLS")]
-    AI["Google Gemini API (W8)<br/>(generateContent)"]
-    GH["GitHub Actions<br/>CI/CD"]
+    U["Browser / phone"]
 
-    U -- "HTML/JS/CSS" --> WEB
-    U -- "JSON over HTTPS<br/>/api/* (CORS: web origin only)" --> API
+    subgraph CF["Cloudflare edge"]
+        EDGE["HTTPS for both services<br/>appends X-Forwarded-For"]
+    end
+
+    subgraph Render["Render (free tier)"]
+        WEB["<b>Static Site</b> fair-share-web<br/>React SPA, built by Render<br/>rewrite /* → /index.html"]
+        API["<b>Web Service</b> fair-share-4bu9<br/>Docker image from ./Dockerfile<br/>FastAPI + Uvicorn, non-root"]
+    end
+
+    DB[("<b>Supabase</b> PostgreSQL 16<br/>session pooler, TLS<br/>RLS on every table")]
+    AI["<b>Google Gemini API</b><br/>generateContent<br/>gemini-3.5-flash-lite"]
+
+    subgraph GH["GitHub Actions"]
+        CI["checks on every PR:<br/>backend · frontend · images · secrets"]
+        POST["after each deploy: smoke + E2E<br/>daily: keep-alive"]
+    end
+
+    U -- "HTTPS" --> EDGE
+    EDGE -- "HTML / JS / CSS" --> WEB
+    EDGE -- "JSON /api/*<br/>CORS: web origin only" --> API
     API -- "SQL over TLS<br/>DATABASE_URL" --> DB
     API -- "HTTPS + x-goog-api-key<br/>GEMINI_API_KEY" --> AI
-    GH -- "deploy hooks<br/>(after green checks on main)" --> Render
+    CI -- "merge to main → deploy hooks<br/>pinned to the tested commit" --> Render
+    POST -. "checks the live site" .-> EDGE
 ```
 
 | Component | Runs on | Talks to | How it is configured |

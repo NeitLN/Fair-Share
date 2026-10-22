@@ -1,0 +1,52 @@
+%% The database schema, exactly as db/migrations/001_init.sql creates it (plus schema_migrations,
+%% which app/migrate.py keeps). Money is a whole number of đồng (bigint).
+erDiagram
+    households ||--o{ members : "has"
+    households ||--o{ expenses : "has"
+    households ||--o{ settlements : "has"
+    members ||--o{ expenses : "paid (payer_id)"
+    expenses ||--|{ expense_shares : "split into"
+    members ||--o{ expense_shares : "owes a share"
+    members ||--o{ settlements : "pays (from_member_id)"
+    members ||--o{ settlements : "is paid (to_member_id)"
+
+    households {
+        bigint id PK
+        text name "1-60 characters"
+        timestamptz created_at
+    }
+    members {
+        bigint id PK
+        bigint household_id FK "cascade on household delete"
+        text name "1-40, unique per household ignoring case"
+        timestamptz created_at
+    }
+    expenses {
+        bigint id PK
+        bigint household_id FK
+        text description "1-120 characters"
+        bigint amount "dong, > 0"
+        bigint payer_id FK "member of the same household"
+        date spent_at
+        text source "manual or ai"
+        timestamptz created_at
+    }
+    expense_shares {
+        bigint expense_id PK, FK "cascade on expense delete"
+        bigint member_id PK, FK
+        bigint share_amount "dong, >= 0; shares sum to amount"
+    }
+    settlements {
+        bigint id PK
+        bigint household_id FK
+        bigint from_member_id FK "same household"
+        bigint to_member_id FK "same household, not from"
+        bigint amount "dong, > 0"
+        date settled_at
+        text note "0-200 characters, optional"
+        timestamptz created_at
+    }
+    schema_migrations {
+        text version PK "e.g. 001_init"
+        timestamptz applied_at
+    }
