@@ -4,12 +4,13 @@ import { Link, useParams } from 'react-router'
 
 import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
-import { keys, listMembers } from '../api/households'
+import { getHousehold, keys, listMembers } from '../api/households'
 import type { Expense, ExpenseInput } from '../api/types'
 import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
+import ExportCsvButton from '../components/ExportCsvButton'
 import { warningMessage } from '../lib/aiWarnings'
 import { errorMessage } from '../lib/errors'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
@@ -35,6 +36,11 @@ function ExpensesPage() {
   const expenses = useQuery({
     queryKey: expenseKeys.list(householdId),
     queryFn: () => listExpenses(householdId),
+  })
+  // The same query HouseholdLayout already runs, so its cache answers and no request is sent twice
+  const household = useQuery({
+    queryKey: keys.household(householdId),
+    queryFn: () => getHousehold(householdId),
   })
 
   // An expense changes the balances too: refetch everything cached under this household
@@ -144,6 +150,11 @@ function ExpensesPage() {
         <div className="section-head">
           <h2 id="expense-list-title">Các khoản chi</h2>
           <span className="section-note">chạm để sửa hoặc xoá</span>
+          <ExportCsvButton
+            expenses={expenses.data ?? []}
+            members={members.data ?? []}
+            householdName={household.data?.name ?? ''}
+          />
         </div>
         <ExpenseList
           expenses={expenses.data ?? []}
