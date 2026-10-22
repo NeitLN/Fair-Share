@@ -141,13 +141,13 @@ on it because the composer and both redesigned screens use its components.
 | T-15 | Expenses API: equal & custom split, exact-remainder rule, edit/delete + tests | Hoàng Minh | Việt Tiến | P0 | ✅ |
 | T-16 | Settlements API + tests | Hoàng Minh | Duy Anh | P0 | ✅ |
 | T-17 | Balances endpoint + suggested settlements (greedy, ≤ n−1 transfers) + property tests | Hoàng Minh | Việt Tiến | P0 | ✅ |
-| T-25 | Validation & errors: one error JSON, 404/409/422 cases, input limits — the contract the pages rely on | Hoàng Minh | Duy Anh | P1 | Wed 28/10 · 🚧 in review (#107) |
+| T-25 | Validation & errors: one error JSON, 404/409/422 cases, input limits — the contract the pages rely on | Hoàng Minh | Duy Anh | P1 | ✅ |
 | T-18 | Expenses page: list, add/edit/delete form with equal/custom split | Duy Anh | Hoàng Minh | P0 | ✅ |
 | T-20 | Dashboard: balances, suggested settlements, "record this payment" | Duy Anh | Hoàng Minh | P0 | ✅ |
 | T-19 | AI quick-add box: draft preview → confirm; 429 / 503 / 422 / not-configured fall back to the manual form — built on the T-42 components, states in [DESIGN.md §6.3](DESIGN.md#63-chi-tiêu-householdsidexpenses); owns the form's AI-fill interface ([§9](DESIGN.md#9-implementation-plan)), shipped in #104 so T-43 builds on it | Duy Anh | Việt Tiến | P0 | ✅ |
 | T-41 | Design system "Sticker pop": [DESIGN.md](DESIGN.md) — rules, light/dark tokens with measured contrast, type, components, screen specs, copy | Việt Tiến | Duy Anh | P1 | ✅ |
 | T-42 | UI foundation: tokens, fonts, base CSS, shared components (avatar, money, chips, buttons, toast), "Bạn là ai?"; Danh sách nhà, household frame, Thành viên | Việt Tiến | Duy Anh | P1 | ✅ |
-| T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | Wed 28/10 · 🚧 in review (#108) |
+| T-43 | UI screens: Tổng quan (verdict block, Đã trả + stamp + undo, reminder message), Chi tiêu form defaults and list | Việt Tiến | Duy Anh | P1 | ✅ |
 | T-44 | Brand kit: [BRAND.md](BRAND.md) — tagline, logo and icon, colour and voice rules, OG image, README header, slide and report templates | Việt Tiến | Duy Anh | P1 | ✅ |
 | T-21 | Gemini client service: structured JSON output, 10 s timeout, 429/5xx mapping, key from env, never logged (key on Render by Wed 21/10) | Việt Tiến | Hoàng Minh | P0 | ✅ |
 | T-22 | `POST /api/households/{id}/ai/parse-expense`: per-IP limit + global budget, name matching, tests with mocked Gemini | Việt Tiến | Hoàng Minh | P0 | ✅ |
@@ -162,9 +162,9 @@ on it because the composer and both redesigned screens use its components.
 |---|---|---|---|---|---|
 | T-30 | Peer review session in class: each member reviews another's area; every finding becomes an issue labelled `peer-review` | **All** | — | P0 | **Thu 29/10** |
 | T-27 | Persistence drill: `pg_dump` of Supabase, restore into local Compose, restart and redeploy the Render API → data still there; written up for report §5 | Hoàng Minh | Việt Tiến | P0 | Sat 31/10 |
-| T-28 | Architecture & ER diagrams exported for the report, checked against Render and Supabase | Hoàng Minh | Việt Tiến | P0 | Fri 30/10 |
-| T-32 | UI polish: loading / empty / error states ([DESIGN.md §6.5](DESIGN.md#65-states-on-every-screen)), 360 px and 200% zoom pass, dark-mode pass, one UI language | Duy Anh | Việt Tiến | P1 | Sat 31/10 |
-| T-33 | Browser smoke test (Playwright) of the main flow against the live URL | Duy Anh | Việt Tiến | P2 | Sun 01/11 |
+| T-28 | Architecture & ER diagrams exported for the report, checked against Render and Supabase | Hoàng Minh | Việt Tiến | P0 | Fri 30/10 · 🚧 approved, to merge (#112) |
+| T-32 | UI polish: loading / empty / error states ([DESIGN.md §6.5](DESIGN.md#65-states-on-every-screen)), 360 px and 200% zoom pass, dark-mode pass, one UI language | Duy Anh | Việt Tiến | P1 | ✅ |
+| T-33 | Browser smoke test (Playwright) of the main flow against the live URL | Duy Anh | Việt Tiến | P2 | ✅ |
 | T-31 | Report draft — all 8 sections assembled (section drafts due Wed 28/10, owners in §4) | Việt Tiến (editor) | All | P0 | **Sun 01/11** |
 
 ### Week 10 · Report & rehearsal (Mon 02/11 → Wed 11/11) — no new features

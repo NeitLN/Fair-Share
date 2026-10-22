@@ -16,9 +16,9 @@ pre-filled expense form that the user confirms.
 > **Where we are (Week 8, 22 Oct):** every user story is live on the web app, Quick add included, on
 > a platform that has been in place since Week 6: Docker image, Compose stack, live HTTPS deployment on
 > Render backed by **Supabase PostgreSQL**, and a GitHub Actions pipeline that blocks a bad merge,
-> deploys a good one and proves which commit is live. The "Sticker pop" redesign is half live: the
-> foundation, the households list and Thành viên (T-42); Tổng quan and Chi tiêu (T-43) are in review
-> ([project status](#project-status)).
+> deploys a good one and proves which commit is live. The "Sticker pop" redesign is live on every
+> screen (T-42, T-43), with loading, empty and error states (T-32), and a real browser walks the main
+> flow on the live site after each deploy (T-33) ([project status](#project-status)).
 
 Final project for **72ITDS30103 Software Development Platforms**, Van Lang University, Semester 261.
 What is assessed is the platform pipeline around the application: container, Compose stack, CI/CD,
@@ -63,8 +63,8 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | 🤝 | Record a settlement ("A paid B 120.000đ") | ✅ live |
 | ✨ | **Quick add (AI):** free-text sentence → pre-filled form via the Google Gemini API, called only from our server | ✅ live |
 | 🛟 | **AI failure fallback:** on 429, timeout or no key the user keeps their text and fills in the normal form; nothing breaks | ✅ live |
-| 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame with "Bạn là ai?", Thành viên | ✅ live (T-42) |
-| 🧾 | Tổng quan verdict ("Bạn cần trả Minh 120.000đ") with **Đã trả** + undo and a copyable reminder; Chi tiêu form with you as payer by default, list grouped by day | 🚧 in review (T-43, #108) |
+| 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame with "Bạn là ai?", Thành viên; loading, empty and error states on every screen | ✅ live (T-42, T-32) |
+| 🧾 | Tổng quan verdict ("Bạn cần trả Minh 120.000đ") with **Đã trả** + undo and a copyable reminder; Chi tiêu form with you as payer by default, list grouped by day | ✅ live (T-43) |
 
 Out of scope by design: user accounts, payments, receipts/images, real-time updates.
 **Known limitation:** there is no login, so anyone with the URL can edit any household; acceptable for a
@@ -375,9 +375,10 @@ Target layout, with the routers and services still to come:
 | [**Pull requests**](https://github.com/NeitLN/Fair-Share/pulls?q=is%3Apr) | Who wrote and who reviewed each change; every PR closes a `T-xx` issue | Live |
 | [**Actions**](https://github.com/NeitLN/Fair-Share/actions) | Every check and deploy; the `smoke` job proves which commit is live | Every PR and merge |
 
-Week 6 (platform) and Week 7 (cloud database, households and members) are complete. Week 8: the
-expenses, settlements, balances and Quick add are live; T-25 (validation) and T-43 (Tổng quan and Chi
-tiêu redesign) are in review. Milestones:
+Week 6 (platform), Week 7 (cloud database, households and members) and Week 8 (every user story,
+Quick add, validation, the redesign) are complete, and two Week 9 tasks are already done: the UI
+states (T-32) and the live browser test (T-33). Next: the diagrams (T-28, in review), the persistence
+drill (T-27), peer review in class (T-30, Thu 29/10) and the report draft (T-31). Milestones:
 
 | Milestone | Due | Goal |
 |---|---|---|
