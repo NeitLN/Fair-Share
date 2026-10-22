@@ -21,3 +21,6 @@ tests/
 *.md
 compose.yml
 .ruff_cache/
+
+# Database backups (scripts/db-backup.sh)
+backups/

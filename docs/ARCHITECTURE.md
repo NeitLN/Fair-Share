@@ -192,7 +192,7 @@ settlement must be members of the **same household** (composite foreign keys on
   through the pool. `/health/db` runs one query and returns a **safe** message on failure (details only
   in the server log). Before a demo: open the Supabase dashboard, *Resume* the project if it is paused,
   then hit `/health/db`. A daily scheduled workflow queries the database so it is not paused for
-  inactivity (T-26), and a restart/restore drill (T-27) proves the data survives.
+  inactivity (T-26), and a restart/restore drill (T-27) proves the data survives: [`PERSISTENCE_DRILL.md`](PERSISTENCE_DRILL.md), with `scripts/db-backup.sh` and `scripts/db-restore.sh` for our own `pg_dump` backups.
 
 ## 5. API (JSON, prefix `/api`)
 

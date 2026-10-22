@@ -20,3 +20,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Database backups (scripts/db-backup.sh): data, never committed
+backups/
