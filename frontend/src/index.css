@@ -1411,3 +1411,45 @@ button.ai:active:focus-visible {
     animation: none;
   }
 }
+
+/* Chi tiêu filters and month totals (PROJECT_SPEC §3.4) */
+.expense-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.filter-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.filter-field label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.expense-filters button.ghost {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: var(--target);
+}
+
+.month-totals {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.month-totals h3 {
+  font-size: 16px;
+}
+
+.balance-row.highlighted {
+  margin: 0 -14px;
+  padding-inline: 14px;
+  background: var(--surface-2);
+}
