@@ -318,3 +318,20 @@ test('with no identity and no last payer, nobody is chosen and saving asks who p
   expect(screen.getByRole('radio', { name: /^Tiến/ })).toHaveFocus()
   expect(fetchFn.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
 })
+
+test('an AI split for the whole house is flagged beside Cách chia, not in the AI box', async () => {
+  api({
+    'POST /api/households/7/ai/parse-expense': [
+      200,
+      { ...lau, warnings: [{ code: 'participants_assumed', message: 'Split between everyone' }] },
+    ],
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
+  await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+
+  const note = await screen.findByText('AI chia cho cả nhà, bạn kiểm tra lại.')
+  expect(note).toHaveAttribute('id', 'expense-split-note')
+})

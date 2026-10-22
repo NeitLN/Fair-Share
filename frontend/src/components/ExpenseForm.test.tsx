@@ -681,3 +681,86 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(screen.getByLabelText('Nội dung')).toHaveFocus()
   })
 })
+
+describe('ExpenseForm, the note beside Cách chia', () => {
+  const note = 'AI chia cho cả nhà, bạn kiểm tra lại.'
+  const filled = {
+    description: 'Lẩu',
+    amount: 240_000,
+    payer_id: 2,
+    spent_at: '2026-10-21',
+    member_ids: [1, 2, 3],
+    splitNote: note,
+  }
+
+  function setupWithRef() {
+    const ref = createRef<ExpenseFormHandle>()
+    const onSubmit = vi.fn().mockResolvedValue({})
+    render(
+      <ExpenseForm ref={ref} members={members} onSubmit={onSubmit} submitting={false} error={null} />,
+    )
+    return { form: () => ref.current as ExpenseFormHandle, onSubmit, user: userEvent.setup() }
+  }
+
+  test('a split filled by the AI shows its note under Cách chia, tied to the Sửa button', () => {
+    const { form } = setupWithRef()
+    act(() => {
+      form().fill(filled)
+    })
+
+    const shown = screen.getByText(note)
+    expect(shown).toHaveAttribute('id', 'expense-split-note')
+    expect(screen.getByRole('button', { name: 'Sửa cách chia' })).toHaveAttribute(
+      'aria-describedby',
+      'expense-split-note',
+    )
+  })
+
+  test('no note when the user had set the split: the AI did not fill it', async () => {
+    const { form, user } = setupWithRef()
+    await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    act(() => {
+      form().fill(filled)
+    })
+
+    expect(screen.queryByText(note)).not.toBeInTheDocument()
+  })
+
+  test('the note goes away once the user changes the split, and a later fill keeps their split', async () => {
+    const { form, user } = setupWithRef()
+
+    act(() => {
+      form().fill(filled)
+    })
+    await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    expect(screen.queryByText(note)).not.toBeInTheDocument()
+
+    act(() => {
+      form().fill(filled)
+    })
+    // The split is the user's now, so this fill keeps it and shows no note
+    expect(screen.queryByText(note)).not.toBeInTheDocument()
+  })
+
+  test('undo takes the note away with the split it described', () => {
+    const { form } = setupWithRef()
+    act(() => {
+      form().fill(filled)
+    })
+    act(() => {
+      form().undoFill()
+    })
+    expect(screen.queryByText(note)).not.toBeInTheDocument()
+  })
+
+  test('after saving, the next expense has no note', async () => {
+    const { form, user } = setupWithRef()
+    act(() => {
+      form().fill(filled)
+    })
+    await user.click(screen.getByRole('button', { name: /Lưu khoản chi/ }))
+    expect(screen.queryByText(note)).not.toBeInTheDocument()
+  })
+})

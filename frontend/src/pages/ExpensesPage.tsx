@@ -10,6 +10,7 @@ import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
+import { warningMessage } from '../lib/aiWarnings'
 import { errorMessage } from '../lib/errors'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
@@ -93,13 +94,16 @@ function ExpensesPage() {
               key={`${householdId}-${composerKey}`}
               members={members.data}
               onParse={(text) => parseExpense(householdId, text)}
-              onDraft={(draft) =>
+              onDraft={(draft, warnings) =>
                 expenseForm.current?.fill({
                   description: draft.description,
                   amount: draft.amount,
                   payer_id: draft.payer_id,
                   spent_at: draft.spent_at,
                   member_ids: draft.split.member_ids,
+                splitNote: warnings.some((w) => w.code === 'participants_assumed')
+                  ? warningMessage({ code: 'participants_assumed', message: '' })
+                  : null,
                 }) ?? { filled: [], kept: [], cleared: [] }
               }
               onUndo={() => expenseForm.current?.undoFill()}

@@ -60,7 +60,7 @@ describe('AiComposer', () => {
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
     expect(props.onParse).toHaveBeenCalledWith('lẩu 240k Minh trả chia đều')
-    expect(props.onDraft).toHaveBeenCalledWith(answer.draft)
+    expect(props.onDraft).toHaveBeenCalledWith(answer.draft, answer.warnings)
     const note = await screen.findByText(/^Đã điền:/)
     expect(plain(note.textContent)).toBe('Đã điền: Lẩu · 240.000đ · Minh trả · chia đều cả nhà (2 người).')
   })
@@ -236,5 +236,19 @@ describe('AiComposer', () => {
     const user = userEvent.setup()
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k{Enter}')
     expect(props.onParse).toHaveBeenCalledWith('lẩu 240k')
+  })
+})
+
+describe('AiComposer, the split warning', () => {
+  test('participants_assumed goes to the form with the draft, not into the AI note', async () => {
+    const assumed = { code: 'participants_assumed', message: 'Split between everyone' }
+    const props = setup(() => Promise.resolve({ ...answer, warnings: [assumed] }))
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+
+    expect(await screen.findByText(/^Đã điền:/)).toBeInTheDocument()
+    expect(props.onDraft).toHaveBeenCalledWith(answer.draft, [assumed])
+    expect(screen.queryByText('AI chia cho cả nhà, bạn kiểm tra lại.')).not.toBeInTheDocument()
   })
 })

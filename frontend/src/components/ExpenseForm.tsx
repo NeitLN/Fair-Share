@@ -19,6 +19,8 @@ export interface FormFill {
   payer_id?: number | null
   spent_at?: string | null
   member_ids?: number[] | null
+  /** A remark about the split, shown beside Cách chia while the filled split stands (§6.3). */
+  splitNote?: string | null
 }
 
 /**
@@ -111,6 +113,8 @@ function ExpenseForm({
   const [touched, setTouched] = useState<Set<FillField>>(new Set())
   const [justFilled, setJustFilled] = useState<Set<FillField>>(new Set())
   const [fromAi, setFromAi] = useState(false)
+  // e.g. "AI chia cho cả nhà, bạn kiểm tra lại.": only while the split the AI filled is untouched
+  const [splitNote, setSplitNote] = useState<string | null>(null)
   // The latest fill: the fields it changed (minus those the user has edited since) and their old values
   const lastFill = useRef<{
     fields: Set<FillField>
@@ -150,6 +154,7 @@ function ExpenseForm({
   function edited(field: FillField) {
     // A field edited after a fill is the user's now: undo must not take it back
     lastFill.current?.fields.delete(field)
+    if (field === 'split') setSplitNote(null)
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -208,6 +213,7 @@ function ExpenseForm({
         setSplitType('equal')
         setSelected(new Set((values.member_ids as number[]).filter((id) => memberIds.has(id))))
         setCustomText({})
+        setSplitNote(values.splitNote?.trim() || null)
       }
       setJustFilled(fill)
       if (fill.size > 0) setFromAi(true)
@@ -231,6 +237,7 @@ function ExpenseForm({
         setSplitType(before.splitType)
         setSelected(before.selected)
         setCustomText(before.customText)
+        setSplitNote(null)
       }
       setJustFilled(new Set())
       setFromAi(false)
@@ -319,6 +326,7 @@ function ExpenseForm({
         setTouched(new Set())
         setJustFilled(new Set())
         setFromAi(false)
+        setSplitNote(null)
         lastFill.current = null
       }
     } catch {
@@ -488,11 +496,17 @@ function ExpenseForm({
             aria-label={splitOpen ? 'Xong, đóng cách chia' : 'Sửa cách chia'}
             aria-expanded={splitOpen}
             aria-controls="expense-split-control"
+            aria-describedby={splitNote ? 'expense-split-note' : undefined}
             onClick={() => setSplitOpen((open) => !open)}
           >
             {splitOpen ? 'Xong' : 'Sửa'}
           </button>
         </div>
+        {splitNote && (
+          <p className="note field-note" id="expense-split-note">
+            {splitNote}
+          </p>
+        )}
         <div id="expense-split-control" hidden={!splitOpen}>
           {splitOpen && (
             <fieldset className="fold-control split" {...invalid('split')}>
