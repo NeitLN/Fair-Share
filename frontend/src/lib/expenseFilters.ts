@@ -22,11 +22,14 @@ export function monthsOf(expenses: Expense[]): string[] {
   return [...new Set(expenses.map(monthOf))].sort((a, b) => b.localeCompare(a))
 }
 
-/** "Tháng 10/2026". */
-export function monthLabel(month: string): string {
+/** "10/2026": short enough for a select at 360 px, where the field's label already says Tháng. */
+export function monthNumber(month: string): string {
   const [year, number] = month.split('-')
-  return `Tháng ${Number(number)}/${year}`
+  return `${Number(number)}/${year}`
 }
+
+/** "Tháng 10/2026". */
+export const monthLabel = (month: string) => `Tháng ${monthNumber(month)}`
 
 /** Whether the member paid for the expense or has a share in it. */
 export function involves(expense: Expense, memberId: number): boolean {

@@ -6,6 +6,7 @@ import {
   involves,
   isFiltered,
   monthLabel,
+  monthNumber,
   monthsOf,
   monthTotals,
   NO_FILTER,
@@ -44,6 +45,7 @@ describe('months', () => {
   test('a month reads the Vietnamese way', () => {
     expect(monthLabel('2026-10')).toBe('Tháng 10/2026')
     expect(monthLabel('2027-01')).toBe('Tháng 1/2027')
+    expect(monthNumber('2026-10')).toBe('10/2026')
   })
 })
 

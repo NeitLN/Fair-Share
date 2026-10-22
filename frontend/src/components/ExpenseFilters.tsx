@@ -1,5 +1,5 @@
 import type { Member } from '../api/types'
-import { isFiltered, monthLabel, NO_FILTER } from '../lib/expenseFilters'
+import { isFiltered, monthNumber, NO_FILTER } from '../lib/expenseFilters'
 import type { ExpenseFilter } from '../lib/expenseFilters'
 
 interface ExpenseFiltersProps {
@@ -27,7 +27,7 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
           <option value="">Tất cả</option>
           {months.map((month) => (
             <option key={month} value={month}>
-              {monthLabel(month)}
+              {monthNumber(month)}
             </option>
           ))}
         </select>

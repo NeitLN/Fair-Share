@@ -379,7 +379,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     renderApp('/households/7/expenses')
     await list().findByText('Tiền nhà')
 
-    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 10/2026')
+    await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
 
     expect(list().queryByText('Tiền nhà')).not.toBeInTheDocument()
     expect(list().getByText('Tiền điện')).toBeInTheDocument()
@@ -402,9 +402,9 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(list().queryByText('Tiền nước')).not.toBeInTheDocument()
     expect(list().getByText('Tiền nhà')).toBeInTheDocument()
 
-    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 10/2026')
+    await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
     await user.selectOptions(list().getByLabelText('Người'), 'Minh')
-    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 9/2026')
+    await user.selectOptions(list().getByLabelText('Tháng'), '9/2026')
     expect(list().getByText('Tiền nhà')).toBeInTheDocument()
 
     await user.click(list().getByRole('button', { name: 'Bỏ lọc' }))
@@ -431,7 +431,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
     await list().findByText('Tiền điện')
-    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 10/2026')
+    await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
 
     await user.click(list().getByText('Tiền điện'))
     await user.click(list().getByRole('button', { name: 'Xoá Tiền điện' }))

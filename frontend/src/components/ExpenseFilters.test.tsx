@@ -15,8 +15,8 @@ test('a labelled month and member, "Tất cả" and "Cả nhà" first', () => {
   const month = screen.getByLabelText('Tháng')
   expect([...month.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
     'Tất cả',
-    'Tháng 10/2026',
-    'Tháng 9/2026',
+    '10/2026',
+    '9/2026',
   ])
   const member = screen.getByLabelText('Người')
   expect([...member.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Cả nhà', 'Tiến', 'Minh'])
