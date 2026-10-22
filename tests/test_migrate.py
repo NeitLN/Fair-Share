@@ -213,6 +213,36 @@ def test_seed_fills_only_an_empty_database(conn):
     conn.execute("DELETE FROM households")  # rolled back by the fixture
     conn.execute(seed_sql)
     conn.execute(seed_sql)  # a restart must not add a second demo household
-    households = conn.execute("SELECT count(*) FROM households").fetchone()[0]
-    members = conn.execute("SELECT count(*) FROM members").fetchone()[0]
-    assert (households, members) == (1, 3)
+    counts = conn.execute(
+        "SELECT (SELECT count(*) FROM households), (SELECT count(*) FROM members),"
+        " (SELECT count(*) FROM expenses), (SELECT count(*) FROM settlements)"
+    ).fetchone()
+    assert counts == (1, 3, 5, 1)
+
+
+def test_seed_expenses_add_up_and_cover_two_months_up_to_today(conn):
+    conn.execute("DELETE FROM households")  # rolled back by the fixture
+    conn.execute(SEED_FILE.read_text(encoding="utf-8"))
+
+    # Every expense's shares add up to its amount, as the API guarantees for its own
+    unbalanced = conn.execute(
+        "SELECT e.description FROM expenses e JOIN expense_shares s ON s.expense_id = e.id"
+        " GROUP BY e.id HAVING sum(s.share_amount) <> e.amount"
+    ).fetchall()
+    assert unbalanced == []
+
+    # Last month and this month, never a day after today, whatever today is
+    months, future = conn.execute(
+        "SELECT count(DISTINCT date_trunc('month', spent_at)),"
+        " count(*) FILTER (WHERE spent_at > current_date) FROM expenses"
+    ).fetchone()
+    assert (months, future) == (2, 0)
+    assert conn.execute("SELECT settled_at <= current_date FROM settlements").fetchone()[0]
+
+    # One split leaves someone out, and one expense came from Quick add
+    sharers = conn.execute(
+        "SELECT count(*) FROM expense_shares s JOIN expenses e ON e.id = s.expense_id"
+        " WHERE e.description = 'Mì gói và trứng'"
+    ).fetchone()[0]
+    from_ai = conn.execute("SELECT count(*) FROM expenses WHERE source = 'ai'").fetchone()[0]
+    assert (sharers, from_ai) == (2, 1)

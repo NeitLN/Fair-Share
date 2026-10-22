@@ -143,7 +143,9 @@ docker compose down -v     # stop AND permanently delete the local database volu
 
 The API creates the schema itself: at every start it applies any new file in
 [`db/migrations/`](db/migrations) (each exactly once, recorded in `schema_migrations`), then adds a demo
-household with three members if the database is empty ([`db/seed.sql`](db/seed.sql), Compose only).
+household if the database is empty ([`db/seed.sql`](db/seed.sql), Compose only): three members, five
+expenses over last month and this month (equal and custom splits, one from Quick add) and one
+settlement, so every screen has something to show.
 Your data survives `docker compose down` and later starts; `down -v` gives you the demo household again.
 
 ## Configuration
