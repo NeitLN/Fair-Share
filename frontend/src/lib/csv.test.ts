@@ -43,6 +43,14 @@ describe('toCsv', () => {
       '"a,b","say ""hi""","line 1\nline 2","cr\rhere"',
     )
   })
+
+  test('text that a spreadsheet would run as a formula is kept as text', () => {
+    expect(toCsv([['=HYPERLINK("http://x","bấm")', '+1', '-1', '@SUM(A1)', '\tx']])).toBe(
+      `"'=HYPERLINK(""http://x"",""bấm"")",'+1,'-1,'@SUM(A1),'\tx`,
+    )
+    // Numbers, and text with a sign only inside it, are left alone
+    expect(toCsv([[-5, 'Lẩu - 3 người', 'a=b']])).toBe('-5,Lẩu - 3 người,a=b')
+  })
 })
 
 describe('expensesCsv', () => {
