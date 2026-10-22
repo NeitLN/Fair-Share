@@ -335,3 +335,23 @@ test('an AI split for the whole house is flagged beside Cách chia, not in the A
   const note = await screen.findByText('AI chia cho cả nhà, bạn kiểm tra lại.')
   expect(note).toHaveAttribute('id', 'expense-split-note')
 })
+
+// --- Xuất CSV (T-46) ----------------------------------------------------------------------------
+
+test('the CSV button is enabled once there is an expense', async () => {
+  api()
+  renderApp('/households/7/expenses')
+
+  await list().findByText('Tiền điện')
+  expect(screen.getByRole('button', { name: 'Xuất CSV' })).toBeEnabled()
+})
+
+test('the CSV button is disabled while the list is empty', async () => {
+  api({ 'GET /api/households/7/expenses': [200, []] })
+  renderApp('/households/7/expenses')
+
+  await screen.findByText(/Chưa có khoản chi nào/)
+  const button = screen.getByRole('button', { name: 'Xuất CSV' })
+  expect(button).toBeDisabled()
+  expect(button).toHaveAttribute('title', 'Chưa có khoản chi để xuất')
+})
