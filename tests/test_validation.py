@@ -143,15 +143,19 @@ BAD_TEXT = {
     "bell": "a\\u0007b",
     "line break inside": "Minh\\nTiến",
 }
+TARGETS = ["household name", "member name", "expense description", "settlement note", "ai text"]
+# The AI sentence is free text: its line breaks are joined, not refused (tests/test_ai.py).
+CASES = [
+    pytest.param(target, bad, id=f"{target}-{name}")
+    for target in TARGETS
+    for name, bad in BAD_TEXT.items()
+    if (target, name) != ("ai text", "line break inside")
+]
 
 
 @pytest.mark.db
 @pytest.mark.usefixtures("cleanup")
-@pytest.mark.parametrize("bad", BAD_TEXT.values(), ids=BAD_TEXT.keys())
-@pytest.mark.parametrize(
-    "target",
-    ["household name", "member name", "expense description", "settlement note", "ai text"],
-)
+@pytest.mark.parametrize("target, bad", CASES)
 def test_control_characters_and_broken_unicode_are_422_not_500(client, house, target, bad):
     hid = house["id"]
     path, body, field = {

@@ -46,11 +46,22 @@ def clean_text(value: Any) -> Any:
     return unicodedata.normalize("NFC", value)
 
 
-def text(max_length: int, min_length: int = 1):
-    """A text field of `min_length`-`max_length` characters, cleaned by clean_text()."""
+def join_lines(value: Any) -> Any:
+    """Line breaks and tabs become single spaces, for free text that is read, not stored as a name:
+    a message pasted from Zalo, "lẩu 240k\\nMinh trả chia đều", is one sentence to the AI."""
+    return " ".join(value.split()) if isinstance(value, str) else value
+
+
+def text(max_length: int, min_length: int = 1, multiline: bool = False):
+    """A text field of `min_length`-`max_length` characters, cleaned by clean_text().
+
+    multiline=True accepts line breaks and tabs by joining the lines first (see join_lines); every
+    other control character is still refused.
+    """
+    clean = (lambda value: clean_text(join_lines(value))) if multiline else clean_text
     return Annotated[
         str,
-        BeforeValidator(clean_text),
+        BeforeValidator(clean),
         StringConstraints(strip_whitespace=True, min_length=min_length, max_length=max_length),
     ]
 
@@ -192,7 +203,8 @@ class Balances(BaseModel):
 # --- AI Quick add (US-09, US-10) ----------------------------------------------------------------
 
 # Same limit as app/services/gemini.py: longer text is refused before Gemini is called.
-AiText = text(300)
+# Free text, often pasted from a chat app over several lines: the lines are joined, not refused.
+AiText = text(300, multiline=True)
 
 
 class AiParseIn(BaseModel):

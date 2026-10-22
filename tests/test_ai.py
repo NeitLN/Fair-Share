@@ -86,6 +86,30 @@ def test_a_sentence_becomes_a_draft_that_can_be_saved_as_it_is(client, house):
     assert saved.json()["source"] == "ai"
 
 
+@pytest.mark.parametrize(
+    "pasted",
+    [
+        "lẩu 240k\nMinh trả chia đều",  # a two-line message pasted from Zalo
+        "lẩu 240k\r\nMinh trả chia đều",  # Windows line ending
+        "lẩu 240k\tMinh trả\n\n  chia đều  ",  # Shift+Enter, a tab, extra spaces
+    ],
+)
+def test_a_multi_line_sentence_reaches_the_ai_as_one_line(client, house, pasted):
+    """Found by Duy Anh on #107: refusing line breaks (as in names) broke pasted chat messages."""
+    fake = use(client, FakeGemini(DINNER))
+    response = parse(client, house["id"], text=pasted)
+    assert response.status_code == 200, response.text
+    assert fake.calls[0]["text"] == "lẩu 240k Minh trả chia đều"
+
+
+def test_other_control_characters_in_the_ai_sentence_are_still_refused(client, house):
+    fake = use(client, FakeGemini(DINNER))
+    response = parse(client, house["id"], text="lẩu 240k\u0000")
+    assert response.status_code == 422
+    assert error_code(response) == "validation_error"
+    assert fake.calls == []  # refused before any quota is used
+
+
 def test_unknown_names_are_reported_not_guessed(client, house):
     use(
         client,

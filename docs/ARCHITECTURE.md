@@ -228,7 +228,7 @@ FastAPI's interactive docs at `/docs` are the living API reference.
 | Input | Rule |
 |---|---|
 | Household name · member name · expense description · settlement note · AI text | 1–60 · 1–40 · 1–120 · 0–200 · 1–300 characters, after trimming |
-| Any text | Stored in one Unicode form (NFC), so "Tiến" typed with combining accents is the same member as "Tiến"; control characters (NUL, line breaks, …) and broken UTF-8 are refused |
+| Any text | Stored in one Unicode form (NFC), so "Tiến" typed with combining accents is the same member as "Tiến"; control characters (NUL, line breaks, …) and broken UTF-8 are refused. The AI sentence is the exception for line breaks and tabs: they become spaces, so a message pasted over several lines still works |
 | Amounts, member ids in a body | JSON numbers only: `true`, `"1000"` and `1000.5` are refused, not converted |
 | Amount | 1 to 1 000 000 000 000 đồng (custom shares may be 0) |
 | `spent_at`, `settled_at` | 2000-01-01 to 2099-12-31 |
