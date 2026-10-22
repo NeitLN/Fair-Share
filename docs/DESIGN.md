@@ -264,15 +264,27 @@ Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm q
 
 ## 8. Accessibility checklist
 
-- [ ] Every text pair ≥ 4.5:1 in both themes (table in §3); focus ring: 2 px ink + 5 px yellow halo
-- [ ] Every control ≥ 44 × 44 px; inputs 16 px
-- [ ] Money never relies on colour alone (sign or word)
-- [ ] Headings in order: house name `h1`, sections `h2`
-- [ ] Toasts and AI status in `aria-live="polite"`; the stamp has a text equivalent (the toast and the
-      history row)
-- [ ] Usable at 360 px and at 200% zoom; no horizontal scroll
-- [ ] `prefers-reduced-motion`: stamp, progress bar and toast appear without movement
-- [ ] Keyboard: every action reachable, Enter submits, Escape closes an open fold or chooser
+Checked on 22/10/2026. Items marked *(test)* are asserted by `frontend/e2e/a11y.spec.ts`, which runs on the
+live site after every deploy (`.github/workflows/e2e.yml`); the others say how they were checked.
+
+- [x] Every text pair ≥ 4.5:1 in both themes (table in §3); focus ring: 2 px ink + 5 px yellow halo.
+      *42 text pairs recomputed with the WCAG formula in the #101 review, none under 4.5:1; the focus
+      ring measured as a 2 px outline + 5 px yellow shadow (test).*
+- [x] Every control ≥ 44 × 44 px; inputs 16 px. *Playwright sweep of the four screens at 320 / 360 /
+      640 px in #110: no button, link or summary under 44 px; inputs and selects 16 px (test).*
+- [x] Money never relies on colour alone (sign or word). *"được nhận" / "cần trả" / "SẠCH NỢ" next to
+      every amount, a real minus sign (`Money`, `BalanceRows`).*
+- [x] Headings in order: house name `h1`, sections `h2` *(test: one h1, first, no skipped level).*
+- [x] Toasts and AI status in `aria-live="polite"`; the stamp has a text equivalent (the toast and the
+      history row). *(test: the toast region is polite, says "Đã ghi: …", and ĐÃ TRẢ is text on the card;
+      the Quick add status is a polite region in `AiComposer`.)*
+- [x] Usable at 360 px and at 200% zoom; no horizontal scroll. *Sweep in #110 at 320 / 360 / 640 px
+      (640 = 1280 px at 200 %), light and dark, with long names and 12.500.000đ: no overflow.*
+- [x] `prefers-reduced-motion`: stamp, progress bar and toast appear without movement *(test: nothing
+      animates or transitions after Đã trả).*
+- [x] Keyboard: every action reachable, Enter submits, Escape closes an open fold or chooser *(test: the
+      chooser, both form folds, "+ Tạo nhà mới" and "Ghi khoản trả khác" close on Escape and return the
+      focus; Enter saves an expense). The folds did not close on Escape before 22/10; fixed with `lib/fold.ts`.*
 
 ## 9. Implementation plan
 
