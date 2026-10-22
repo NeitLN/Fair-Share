@@ -404,6 +404,7 @@ flowchart LR
 | `secrets` | A committed key or connection string, anywhere in the history (gitleaks, exceptions in `.gitleaks.toml`) |
 | `deploy` | Runs only on `push` to `main` after all checks; PRs never deploy. The hook is pinned to the tested commit (`ref=`) and refused if it belongs to another Render service |
 | `smoke` | A deploy hook only *queues* a deploy. This job proves the live API runs the exact merged commit and the web app loads — otherwise the run goes red |
+| `E2E smoke (live)` | Separate workflow (`e2e.yml`), after every green CI/CD run on `main` and on demand: Playwright walks the main flow on the live site on a 360 px phone (create a household, members, an expense, Đã trả / Hoàn tác, settled). Catches what unit tests cannot: the deployed SPA, the API and Supabase working together. It writes a test household to the real database and always deletes it; it never calls Gemini. Not a required check: it runs after the merge, on the deployed app |
 
 Branch protection on `main`: PR required, 1 approving review, required checks
 `backend`, `frontend`, `images`, `secrets`, enforced for administrators.

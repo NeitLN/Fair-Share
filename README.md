@@ -234,6 +234,7 @@ and, for quick add, [§6](docs/ARCHITECTURE.md#6-ai-integration--quick-add).
 | pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | Tests marked `db`: migrations (fresh, repeated, failing, concurrent), the schema's rules, the seed, `/health/db`; skipped locally without a database, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
 | oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint, API client and route tests; `npm run build` type-checks | in CI |
+| Playwright | `npm run e2e` in `frontend/` (`E2E_BASE_URL=http://localhost:3000 E2E_API_URL=http://localhost:3000` for Compose) | The main flow in a real browser on the live site; cleans up after itself | after each deploy |
 
 A pull request is merged only when these pass in CI **and** another team member has approved it.
 
@@ -258,6 +259,7 @@ flowchart LR
 | `images` | every PR and merge | Builds both images; checks the API container answers `/health` and the web container serves the SPA and a deep link | A Dockerfile that breaks, or a container that crashes on start |
 | `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
 | `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit (10 min cap) | A deploy that silently never goes live |
+| `E2E smoke (live)` | after a green run on `main`, or by hand ([`e2e.yml`](.github/workflows/e2e.yml)) | A real browser walks the main flow on the live site and deletes its test household | A deployed app whose pages, API and database no longer work together |
 
 * Branch protection on `main` requires `backend`, `frontend` and `images` plus one approving review, for
   administrators too. A deliberately failing test was blocked in Lab 4; the demo branch for Session 20 is
