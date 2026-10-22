@@ -8,6 +8,8 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   timeout: 90_000,
+  // Each check may wait on the live API (a few seconds per call on the free tier)
+  expect: { timeout: 15_000 },
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
