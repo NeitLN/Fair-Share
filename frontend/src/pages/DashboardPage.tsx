@@ -24,6 +24,7 @@ import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
 import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/verdict'
 import ErrorNote from '../components/ErrorNote'
+import { closeFoldOnEscape } from '../lib/fold'
 
 // US-06, US-07, US-08: who pays whom, marking it paid, and the payments already made (DESIGN.md §6.2)
 function DashboardPage() {
@@ -168,7 +169,7 @@ function Dashboard({ householdId }: { householdId: number }) {
       <section aria-labelledby="settlements-title">
         <h2 id="settlements-title">Lịch sử trả</h2>
         {memberList.length >= 2 && (
-          <details className="fold other-payment">
+          <details className="fold other-payment" onKeyDown={closeFoldOnEscape}>
             <summary>Ghi khoản trả khác</summary>
             <p className="hint">Trả số khác với gợi ý, hoặc trả tiền mặt hôm khác.</p>
             <SettlementForm

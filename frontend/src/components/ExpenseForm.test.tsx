@@ -779,3 +779,30 @@ describe('ExpenseForm, the note beside Cách chia', () => {
     expect(screen.queryByText(note)).not.toBeInTheDocument()
   })
 })
+
+describe('ExpenseForm, Escape closes the folds (DESIGN.md §8)', () => {
+  test('Escape in the date fold closes it and focuses Đổi ngày', async () => {
+    const { user } = setup()
+    await openDate(user)
+    await user.click(screen.getByLabelText('Ngày'))
+
+    await user.keyboard('{Escape}')
+
+    expect(document.getElementById('expense-date-control')).not.toBeVisible()
+    expect(screen.getByRole('button', { name: 'Đổi ngày' })).toHaveFocus()
+  })
+
+  test('Escape in the split fold closes it and focuses Sửa cách chia', async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+
+    await user.keyboard('{Escape}')
+
+    expect(document.getElementById('expense-split-control')).not.toBeVisible()
+    expect(screen.getByRole('button', { name: 'Sửa cách chia' })).toHaveFocus()
+    // Closing is not undoing: the change stays
+    await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
+    expect(screen.getByRole('checkbox', { name: 'Anh' })).not.toBeChecked()
+  })
+})

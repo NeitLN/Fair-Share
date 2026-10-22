@@ -110,3 +110,44 @@ test('a failed load says so in Vietnamese, and Thử lại loads the list', asyn
   expect(await screen.findByRole('link', { name: /Nhà 7/ })).toBeInTheDocument()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
+
+test('Escape closes "+ Tạo nhà mới" and focuses it again', async () => {
+  mockApi({ 'GET /api/households': [200, [{ id: 7, name: 'Nhà 7', created_at: '' }]] })
+  renderApp('/')
+  const user = userEvent.setup()
+  await screen.findByRole('link', { name: /Nhà 7/ })
+  const fold = screen.getByText('+ Tạo nhà mới').closest('details') as HTMLDetailsElement
+  await user.click(screen.getByText('+ Tạo nhà mới'))
+  await user.click(screen.getByLabelText('Tên nhà'))
+
+  await user.keyboard('{Escape}')
+
+  expect(fold.open).toBe(false)
+  expect(screen.getByText('+ Tạo nhà mới')).toHaveFocus()
+})
+
+test('with no household yet, Escape leaves the create form open: it is the only thing to do', async () => {
+  mockApi({ 'GET /api/households': [200, []] })
+  renderApp('/')
+  const user = userEvent.setup()
+  await user.click(await screen.findByLabelText('Tên nhà'))
+
+  await user.keyboard('{Escape}')
+
+  expect(screen.getByText('+ Tạo nhà mới').closest('details')).toHaveAttribute('open')
+})
+
+test('a failed create says why in Vietnamese, not the server\'s English', async () => {
+  mockApi({
+    'GET /api/households': [200, [{ id: 7, name: 'Nhà 7', created_at: '' }]],
+    'POST /api/households': [503, { error: { code: 'database_unavailable', message: 'The database is down' } }],
+  })
+  renderApp('/')
+  const user = userEvent.setup()
+  await user.click(await screen.findByText('+ Tạo nhà mới'))
+  await user.type(screen.getByLabelText('Tên nhà'), 'Nhà 8')
+  await user.click(screen.getByRole('button', { name: 'Tạo nhà' }))
+
+  expect(await screen.findByText(/Máy chủ tạm thời không kết nối được dữ liệu/)).toBeInTheDocument()
+  expect(screen.queryByText('The database is down')).not.toBeInTheDocument()
+})

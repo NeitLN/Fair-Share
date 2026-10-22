@@ -6,6 +6,7 @@ import { createHousehold, keys, listHouseholds } from '../api/households'
 import HouseholdCreateForm from '../components/HouseholdCreateForm'
 import HouseholdList from '../components/HouseholdList'
 import { errorMessage } from '../lib/errors'
+import { closeFoldOnEscape } from '../lib/fold'
 
 // US-01: list households and create one (docs/DESIGN.md §6.1: the list first, creating is folded)
 function HouseholdsPage() {
@@ -45,12 +46,15 @@ function HouseholdsPage() {
           onToggle={(event) => {
             if (event.currentTarget.open) setCreating(true)
           }}
+          onKeyDown={(event) => {
+            if (!none && closeFoldOnEscape(event)) setCreating(false)
+          }}
         >
           <summary className="btn-secondary">+ Tạo nhà mới</summary>
           <HouseholdCreateForm
             onCreate={create.mutateAsync}
             submitting={create.isPending}
-            error={create.error?.message ?? null}
+            error={errorMessage(create.error)}
           />
         </details>
       )}
