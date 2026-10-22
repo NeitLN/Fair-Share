@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { Expense, ExpenseInput } from '../api/types'
 import { mockApi, renderApp } from '../test/renderApp'
@@ -354,4 +354,96 @@ test('the CSV button is disabled while the list is empty', async () => {
   const button = screen.getByRole('button', { name: 'Xuất CSV' })
   expect(button).toBeDisabled()
   expect(button).toHaveAttribute('title', 'Chưa có khoản chi để xuất')
+})
+
+describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
+  const water = saved(12, {
+    description: 'Tiền nước',
+    amount: 100_000,
+    payer_id: 2,
+    spent_at: '2026-10-03',
+    split: { type: 'custom', shares: [{ member_id: 2, amount: 100_000 }] },
+  })
+  const rent = saved(13, {
+    description: 'Tiền nhà',
+    amount: 3_000_000,
+    payer_id: 2,
+    spent_at: '2026-09-30',
+    split: { type: 'equal', member_ids: [1, 2] },
+  })
+  const three = () => api({ 'GET /api/households/7/expenses': [200, [electricity, water, rent]] })
+
+  test('a month narrows the list and shows what each member paid and owes', async () => {
+    three()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await list().findByText('Tiền nhà')
+
+    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 10/2026')
+
+    expect(list().queryByText('Tiền nhà')).not.toBeInTheDocument()
+    expect(list().getByText('Tiền điện')).toBeInTheDocument()
+    expect(list().getByText('2/3 khoản')).toBeInTheDocument()
+    const totals = within(list().getByRole('region', { name: /Tháng 10\/2026: cả nhà chi/ }))
+    expect(totals.getByRole('heading')).toHaveTextContent('550.000đ')
+    // Tiến paid the electricity (450k) and owes half of it; Minh paid the water and owes all of it
+    const [tien, minh] = totals.getAllByRole('listitem')
+    expect(tien).toHaveTextContent(/Tiếnbạn.*đã trả 450\.000đ.*225\.000đ.*phần chia/)
+    expect(minh).toHaveTextContent(/Minh.*đã trả 100\.000đ.*325\.000đ.*phần chia/)
+  })
+
+  test('a member keeps what they paid or share in; with no match, Xem tất cả clears the filter', async () => {
+    three()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await list().findByText('Tiền nhà')
+
+    await user.selectOptions(list().getByLabelText('Người'), 'Tiến')
+    expect(list().queryByText('Tiền nước')).not.toBeInTheDocument()
+    expect(list().getByText('Tiền nhà')).toBeInTheDocument()
+
+    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 10/2026')
+    await user.selectOptions(list().getByLabelText('Người'), 'Minh')
+    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 9/2026')
+    expect(list().getByText('Tiền nhà')).toBeInTheDocument()
+
+    await user.click(list().getByRole('button', { name: 'Bỏ lọc' }))
+    expect(list().getByText('Tiền nước')).toBeInTheDocument()
+    expect(list().getByLabelText('Tháng')).toHaveValue('')
+    expect(list().getByText('chạm để sửa hoặc xoá')).toBeInTheDocument()
+  })
+
+  test('a filter that matches nothing says so', async () => {
+    api({ 'GET /api/households/7/expenses': [200, [water]] })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await list().findByText('Tiền nước')
+
+    await user.selectOptions(list().getByLabelText('Người'), 'Tiến')
+
+    expect(list().getByText('Không có khoản chi nào khớp bộ lọc.')).toBeInTheDocument()
+    await user.click(list().getByRole('button', { name: 'Xem tất cả' }))
+    expect(list().getByText('Tiền nước')).toBeInTheDocument()
+  })
+
+  test('deleting the last expense of the chosen month drops the month filter', async () => {
+    api()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await list().findByText('Tiền điện')
+    await user.selectOptions(list().getByLabelText('Tháng'), 'Tháng 10/2026')
+
+    await user.click(list().getByText('Tiền điện'))
+    await user.click(list().getByRole('button', { name: 'Xoá Tiền điện' }))
+
+    expect(await list().findByText(/Chưa có khoản chi nào/)).toBeInTheDocument()
+    expect(list().queryByLabelText('Tháng')).not.toBeInTheDocument()
+  })
+
+  test('no filters before the first expense', async () => {
+    api({ 'GET /api/households/7/expenses': [200, []] })
+    renderApp('/households/7/expenses')
+    expect(await list().findByText(/Chưa có khoản chi nào/)).toBeInTheDocument()
+    expect(list().queryByLabelText('Tháng')).not.toBeInTheDocument()
+  })
 })
