@@ -1,0 +1,61 @@
+name: E2E smoke (live)
+
+# A real browser walks the main flow on the live site (frontend/e2e/smoke.spec.ts) after every
+# deploy that went green, and on demand. It is not a pull request check: it needs the deployed app,
+# and it writes a test household to the real database, which it always deletes again.
+on:
+  workflow_run:
+    workflows: [ "CI/CD" ]
+    types: [ completed ]
+    branches: [ main ]
+  workflow_dispatch:                       # or by hand: Actions → E2E smoke (live) → Run workflow
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-live                          # never two runs against the live site at once
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    # Only after CI/CD succeeded, i.e. its smoke job saw the merged commit live
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The test that matches what was just deployed
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Walk the main flow on the live site
+        env:
+          E2E_BASE_URL: ${{ vars.WEB_URL || 'https://fair-share-web.onrender.com' }}
+          E2E_API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
+        run: npm run e2e
+
+      - name: Keep the report and the trace of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7

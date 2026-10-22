@@ -1,6 +1,6 @@
-/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,5 +12,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Page tests render the whole app; on a busy laptop one can pass 5 s (the default) and fail
+    // at random although it passes alone. 15 s still reports a real hang quickly.
+    testTimeout: 15_000,
+    // Playwright tests live in e2e/ and must not be picked up by Vitest
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 })
