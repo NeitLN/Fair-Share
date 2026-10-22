@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import errors
 from app.config import APP_VERSION, Settings
 from app.db import create_pool
+from app.limits import BodySizeLimit
 from app.migrate import prepare_database
 from app.routers import ai, balances, expenses, households, members, settlements, system
 from app.services.gemini import GeminiClient
@@ -43,6 +44,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.gemini = GeminiClient(settings.gemini_api_key, settings.gemini_model,
                                     settings.ai_timeout)
     app.state.ai_budget = AiBudget()
+    # Added before CORS on purpose: the last middleware added runs first, so CORS wraps this one
+    # and the browser can still read a 413 sent to the web app's origin.
+    app.add_middleware(BodySizeLimit)
     if settings.allowed_origins:
         # Only the listed origins (never "*"); the SPA sends JSON, so Content-Type must be allowed
         # for the browser's preflight. No cookies are used, so credentials stay off.
