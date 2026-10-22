@@ -8,6 +8,8 @@ import type { MemberLook } from '../lib/names'
 import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
+import ErrorNote from './ErrorNote'
+import Skeleton from './Skeleton'
 
 interface MemberListProps {
   members: Member[]
@@ -20,6 +22,10 @@ interface MemberListProps {
   loading: boolean
   /** Loading the members failed. */
   error: string | null
+  /** Reloads after a failed load; shows Thử lại next to the error. */
+  onRetry?: () => void
+  /** The reload is running: Thử lại is disabled. */
+  retrying?: boolean
   /** Resolves when saved (edit mode closes), rejects on failure (edit mode stays open). */
   onRename: (id: number, name: string) => Promise<unknown>
   onRemove: (id: number) => void
@@ -48,6 +54,8 @@ function MemberList({
   me = null,
   loading,
   error,
+  onRetry,
+  retrying = false,
   onRename,
   onRemove,
   removingId = null,
@@ -75,7 +83,7 @@ function MemberList({
   }, [editingId])
 
   if (loading) {
-    return <p className="hint">Đang tải danh sách thành viên…</p>
+    return <Skeleton label="Đang tải danh sách thành viên" />
   }
 
   // Removing cannot be undone from the UI, so ask first
@@ -119,7 +127,7 @@ function MemberList({
 
   return (
     <div className="members">
-      {error && <p role="alert">{error}</p>}
+      {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "no members" */}
       {members.length === 0 ? (
         !error && <p className="empty">Chưa có thành viên nào. Thêm người đầu tiên ở trên.</p>

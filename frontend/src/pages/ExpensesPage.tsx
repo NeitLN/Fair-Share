@@ -10,9 +10,12 @@ import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
+import { warningMessage } from '../lib/aiWarnings'
 import { errorMessage } from '../lib/errors'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import ErrorNote from '../components/ErrorNote'
+import Skeleton from '../components/Skeleton'
 
 // US-03, US-04, US-05: record, list, edit and delete the expenses of one household
 function ExpensesPage() {
@@ -76,8 +79,14 @@ function ExpensesPage() {
     <>
       <h2 className="visually-hidden">Chi tiêu</h2>
 
-      {members.isPending && <p>Đang tải thành viên…</p>}
-      {members.error && <p role="alert">{errorMessage(members.error)}</p>}
+      {members.isPending && <Skeleton rows={4} label="Đang tải biểu mẫu" />}
+      {members.error && (
+        <ErrorNote
+          message={errorMessage(members.error) ?? ''}
+          onRetry={() => members.refetch()}
+          retrying={members.isFetching}
+        />
+      )}
       {noMembers && (
         <p>
           Nhà chưa có thành viên. <Link to="../members">Thêm thành viên</Link> trước khi ghi
@@ -93,13 +102,16 @@ function ExpensesPage() {
               key={`${householdId}-${composerKey}`}
               members={members.data}
               onParse={(text) => parseExpense(householdId, text)}
-              onDraft={(draft) =>
+              onDraft={(draft, warnings) =>
                 expenseForm.current?.fill({
                   description: draft.description,
                   amount: draft.amount,
                   payer_id: draft.payer_id,
                   spent_at: draft.spent_at,
                   member_ids: draft.split.member_ids,
+                splitNote: warnings.some((w) => w.code === 'participants_assumed')
+                  ? warningMessage({ code: 'participants_assumed', message: '' })
+                  : null,
                 }) ?? { filled: [], kept: [], cleared: [] }
               }
               onUndo={() => expenseForm.current?.undoFill()}
@@ -139,6 +151,9 @@ function ExpensesPage() {
           looks={looks}
           loading={expenses.isPending}
           error={errorMessage(expenses.error ?? remove.error)}
+          // Thử lại reloads the list; a failed delete is retried from its row
+          onRetry={expenses.error ? () => expenses.refetch() : undefined}
+          retrying={expenses.isFetching}
           onEdit={startEditing}
           onDelete={(expense) => remove.mutate(expense)}
           deletingId={remove.isPending ? remove.variables?.id : null}

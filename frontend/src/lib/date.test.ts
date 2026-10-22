@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { dayLabel, formatDate, today } from './date'
+import { dayLabel, formatDate, isDayInRange, today } from './date'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -38,4 +38,15 @@ test('across New Year, "today" and "yesterday" win over the year', () => {
   expect(dayLabel('2027-01-01', newYear)).toBe('Hôm nay, 01/01')
   expect(dayLabel('2026-12-31', newYear)).toBe('Hôm qua, 31/12')
   expect(dayLabel('2026-12-30', newYear)).toBe('30/12/2026')
+})
+
+test.each([
+  ['2000-01-01', true],
+  ['2099-12-31', true],
+  ['2026-10-21', true],
+  ['1999-12-31', false],
+  ['2100-01-01', false],
+  ['', false],
+])('isDayInRange(%s) is %s', (iso, inside) => {
+  expect(isDayInRange(iso)).toBe(inside)
 })

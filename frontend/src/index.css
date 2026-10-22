@@ -1386,3 +1386,28 @@ button.ai:active:focus-visible {
     background: var(--ai);
   }
 }
+
+/* Skeleton (DESIGN.md §6.5) */
+.skeleton-row {
+  height: 60px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  animation: skeleton-fade 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-row {
+    animation: none;
+  }
+}

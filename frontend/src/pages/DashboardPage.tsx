@@ -23,6 +23,7 @@ import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
 import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/verdict'
+import ErrorNote from '../components/ErrorNote'
 
 // US-06, US-07, US-08: who pays whom, marking it paid, and the payments already made (DESIGN.md §6.2)
 function DashboardPage() {
@@ -115,12 +116,11 @@ function Dashboard({ householdId }: { householdId: number }) {
     <>
       <h2 className="visually-hidden">Tổng quan</h2>
       {members.error && (
-        <div className="note" role="alert">
-          {errorMessage(members.error)}
-          <button type="button" className="btn-secondary" onClick={() => members.refetch()}>
-            Thử lại
-          </button>
-        </div>
+        <ErrorNote
+          message={errorMessage(members.error) ?? ''}
+          onRetry={() => members.refetch()}
+          retrying={members.isFetching}
+        />
       )}
 
       <VerdictBlock
@@ -184,6 +184,8 @@ function Dashboard({ householdId }: { householdId: number }) {
           looks={looks}
           loading={settlements.isPending}
           error={errorMessage(settlements.error ?? remove.error)}
+          onRetry={settlements.error ? () => settlements.refetch() : undefined}
+          retrying={settlements.isFetching}
           onDelete={(settlement) => remove.mutate(settlement)}
           deletingId={remove.isPending ? remove.variables?.id : null}
         />

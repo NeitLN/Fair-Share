@@ -89,3 +89,24 @@ test('a failed create keeps the form open through the retry', async () => {
   expect(fold).toHaveAttribute('open')
   expect(screen.getByLabelText('Tên nhà')).toHaveValue('Nhà mới')
 })
+
+test('a failed load says so in Vietnamese, and Thử lại loads the list', async () => {
+  let calls = 0
+  mockApi({
+    'GET /api/households': () => {
+      calls += 1
+      return calls === 1
+        ? [503, { error: { code: 'database_unavailable', message: 'The database is not reachable' } }]
+        : [200, [{ id: 7, name: 'Nhà 7', created_at: '2026-10-16T00:00:00Z' }]]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/')
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Máy chủ tạm thời không kết nối được dữ liệu.',
+  )
+  await user.click(screen.getByRole('button', { name: 'Thử lại' }))
+  expect(await screen.findByRole('link', { name: /Nhà 7/ })).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})

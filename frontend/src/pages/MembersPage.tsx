@@ -63,6 +63,8 @@ function MembersPage() {
         me={me}
         loading={members.isPending}
         error={errorMessage(members.error)}
+        onRetry={() => members.refetch()}
+        retrying={members.isFetching}
         onRename={(id, name) => {
           remove.reset()
           return rename.mutateAsync({ id, name })
