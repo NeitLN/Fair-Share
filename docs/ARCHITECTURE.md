@@ -210,6 +210,10 @@ settlement must be members of the **same household** (composite foreign keys on
   in the server log). Before a demo: open the Supabase dashboard, *Resume* the project if it is paused,
   then hit `/health/db`. A daily scheduled workflow queries the database so it is not paused for
   inactivity (T-26), and a restart/restore drill (T-27) proves the data survives.
+* **While the database is down** the API backs off instead of retrying on every request: the pool
+  stops its own retries after 60 s, and after a failed attempt requests get the 503 at once for 20 s
+  (`DatabaseCooldown` in `app/db.py`). Added after the outages of 22–23/10, when our retries got the
+  project blocked by the pooler: [OUTAGES.md](OUTAGES.md).
 
 ## 5. API (JSON, prefix `/api`)
 
