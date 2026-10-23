@@ -162,9 +162,11 @@ on it because the composer and both redesigned screens use its components.
 |---|---|---|---|---|---|
 | T-30 | Peer review session in class: each member reviews another's area; every finding becomes an issue labelled `peer-review` | **All** | — | P0 | **Thu 29/10** |
 | T-27 | Persistence drill: `pg_dump` of Supabase, restore into local Compose, restart and redeploy the Render API → data still there; written up for report §5 | Hoàng Minh | Việt Tiến | P0 | Sat 31/10 |
-| T-28 | Architecture & ER diagrams exported for the report, checked against Render and Supabase | Hoàng Minh | Việt Tiến | P0 | Fri 30/10 · 🚧 approved, to merge (#112) |
+| T-28 | Architecture & ER diagrams exported for the report, checked against Render and Supabase | Hoàng Minh | Việt Tiến | P0 | ✅ |
 | T-32 | UI polish: loading / empty / error states ([DESIGN.md §6.5](DESIGN.md#65-states-on-every-screen)), 360 px and 200% zoom pass, dark-mode pass, one UI language | Duy Anh | Việt Tiến | P1 | ✅ |
 | T-33 | Browser smoke test (Playwright) of the main flow against the live URL | Duy Anh | Việt Tiến | P2 | ✅ |
+| T-45 | Stretch: filter Chi tiêu by month and member, each member's total for the month *(added 22/10)* | Duy Anh | Việt Tiến | P2 | Sun 01/11 · 🚧 approved, to merge (#122) |
+| T-46 | Stretch: export a household's expenses as CSV (Excel and Google Sheets, Vietnamese text) *(added 22/10)* | Duy Anh | Hoàng Minh | P2 | ✅ |
 | T-31 | Report draft — all 8 sections assembled (section drafts due Wed 28/10, owners in §4) | Việt Tiến (editor) | All | P0 | **Sun 01/11** |
 
 ### Week 10 · Report & rehearsal (Mon 02/11 → Wed 11/11) — no new features

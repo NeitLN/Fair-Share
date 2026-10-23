@@ -65,6 +65,7 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | 🛟 | **AI failure fallback:** on 429, timeout or no key the user keeps their text and fills in the normal form; nothing breaks | ✅ live |
 | 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame with "Bạn là ai?", Thành viên; loading, empty and error states on every screen | ✅ live (T-42, T-32) |
 | 🧾 | Tổng quan verdict ("Bạn cần trả Minh 120.000đ") with **Đã trả** + undo and a copyable reminder; Chi tiêu form with you as payer by default, list grouped by day | ✅ live (T-43) |
+| 📤 | Export a household's expenses as CSV, opening correctly in Excel and Google Sheets | ✅ live (T-46) |
 
 Out of scope by design: user accounts, payments, receipts/images, real-time updates.
 **Known limitation:** there is no login, so anyone with the URL can edit any household; acceptable for a
@@ -377,8 +378,9 @@ Target layout, with the routers and services still to come:
 
 Week 6 (platform), Week 7 (cloud database, households and members) and Week 8 (every user story,
 Quick add, validation, the redesign) are complete, and two Week 9 tasks are already done: the UI
-states (T-32) and the live browser test (T-33). Next: the diagrams (T-28, in review), the persistence
-drill (T-27), peer review in class (T-30, Thu 29/10) and the report draft (T-31). Milestones:
+states (T-32), the live browser test (T-33), the diagrams (T-28) and CSV export (T-46). Next: the
+persistence drill on production (T-27), the month and member filters (T-45), peer review in class
+(T-30, Thu 29/10) and the report draft (T-31). Milestones:
 
 | Milestone | Due | Goal |
 |---|---|---|
