@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import errors
 from app.config import APP_VERSION, Settings
-from app.db import create_pool
+from app.db import DatabaseCooldown, create_pool
 from app.limits import BodySizeLimit
 from app.migrate import prepare_database
 from app.routers import ai, balances, expenses, households, members, settlements, system
@@ -40,6 +40,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title=settings.app_name, version=APP_VERSION, lifespan=lifespan)
     app.state.settings = settings
+    # Shared by every request of this app: after a database failure, wait before trying again
+    app.state.db_cooldown = DatabaseCooldown()
     # AI Quick add: one client and one request budget per app (tests get fresh ones per app).
     app.state.gemini = GeminiClient(settings.gemini_api_key, settings.gemini_model,
                                     settings.ai_timeout)
