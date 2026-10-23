@@ -43,10 +43,19 @@ else
     sh -c 'pg_dump "$DATABASE_URL" $OPTS' | gzip > "$out"
 fi
 
-# A dump that does not contain our tables is not a backup: fail loudly instead of keeping it.
-if ! gunzip -c "$out" | grep -q "CREATE TABLE public.households"; then
+# Keep only a complete dump of our tables, otherwise fail loudly and keep nothing:
+# - sh has no pipefail, so if pg_dump dies halfway, gzip still writes a file; pg_dump ends every
+#   complete dump with this line, so a cut-off one does not have it (suggested by Tiến on #115);
+# - a complete dump without our tables (wrong database) is no backup of Fair-Share either.
+problem=""
+if ! gunzip -c "$out" | tail -n 5 | grep -q "^-- PostgreSQL database dump complete"; then
+  problem="the dump is incomplete (pg_dump stopped before the end)"
+elif ! gunzip -c "$out" | grep -q "CREATE TABLE public.households"; then
+  problem="the dump has no households table (wrong database?)"
+fi
+if [ -n "$problem" ]; then
   rm -f "$out"
-  echo "The dump has no households table, so it is not a usable backup; nothing kept." >&2
+  echo "Not a usable backup: $problem; nothing kept." >&2
   exit 1
 fi
 
