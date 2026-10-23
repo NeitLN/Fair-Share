@@ -62,8 +62,11 @@ app/
                      rate_limit, gemini (the only file that calls Gemini)
 ```
 
-- **Stateless.** The API keeps nothing on its own disk or in memory that matters; all state is in
-  PostgreSQL. A restart, a redeploy or a second instance changes nothing for the data (section 5).
+- **Stateless for the data.** All user data is in PostgreSQL; the API keeps none on its own disk. A
+  restart, a redeploy or a second instance changes nothing for the data (section 5). Only short-lived
+  counters live in memory: the AI request limits and the 20 s database back-off (#127). They are per
+  instance, so with two instances each would allow its own 5/min; that is fine for our single free
+  instance, and a restart only resets them.
 - **Routers are thin, services are pure.** The money logic (equal split, net balances, the greedy
   settlement plan with at most *n − 1* transfers) lives in `services/` as plain functions, tested with
   property tests over thousands of random households. The routers only validate, run SQL and call them.

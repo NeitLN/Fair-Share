@@ -19,7 +19,7 @@ table, `schema_migrations`, records which migrations have run.
 | Decision | Why |
 |---|---|
 | Money is a whole number of đồng (`bigint`), never a float | No rounding errors; sums are exact and easy to test |
-| Shares are stored, and always add up to the expense amount | The equal split gives everyone `amount // n` and the leftover đồng to the lowest member ids (100 000 between three: 33 334 / 33 333 / 33 333) |
+| Shares are stored, and the **API guarantees** they add up to the expense amount | The database checks each share (`≥ 0`) but not their sum; the API computes or checks it before saving, in the same transaction. The equal split gives everyone `amount // n` and the leftover đồng to the lowest member ids (100 000 between three: 33 334 / 33 333 / 33 333); custom shares that do not add up get `422 split_mismatch` |
 | Balances are **computed, not stored**: `net = paid − owed + sent − received` | Nothing to keep in sync: an edit or a delete changes the balances on the next request. The nets of a household always sum to 0 (property-tested) |
 | A payer and both sides of a settlement must belong to the expense's household | Composite foreign keys `(household_id, member_id)`: even a buggy request cannot mix two households |
 | Member names unique per household, ignoring case | A unique index on `(household_id, lower(name))`; the API also stores text in one Unicode form, so "Tiến" typed two different ways is still one member |
