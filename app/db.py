@@ -6,7 +6,7 @@ open and hands them out. The pool is opened at start-up without waiting, so the 
 
 While the database is down the API must not keep knocking: every attempt goes to each address of
 Supabase's pooler, and on 23/10/2026 enough failed attempts made the pooler block our project for a
-few minutes after the database itself was back (docs/PERSISTENCE_DRILL.md, "Outages"). So the pool
+few minutes after the database itself was back (docs/OUTAGES.md). So the pool
 stops retrying on its own after a minute, and after a failure the API answers 503 at once for a
 short while instead of trying again on every request.
 """

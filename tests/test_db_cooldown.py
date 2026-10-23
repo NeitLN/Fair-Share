@@ -2,7 +2,7 @@
 
 On 23/10/2026 the pool kept retrying Supabase's pooler during an outage, each attempt failing
 authentication on every pooler address, until the pooler blocked our project for a few more minutes
-(docs/PERSISTENCE_DRILL.md, "Outages"). These tests pin the behaviour that prevents it.
+(docs/OUTAGES.md). These tests pin the behaviour that prevents it.
 """
 import time
 from contextlib import contextmanager
