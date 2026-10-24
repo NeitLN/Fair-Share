@@ -148,6 +148,9 @@ expenses over last month and this month (equal and custom splits, one from Quick
 settlement, so every screen has something to show.
 Your data survives `docker compose down` and later starts; `down -v` gives you the demo household again.
 
+The rehearsal of these steps on a machine that never had the project, with timings and the
+demo-day plan, is in [docs/CLEAN_CLONE.md](docs/CLEAN_CLONE.md).
+
 ## Configuration
 
 All configuration comes from **environment variables**; nothing environment-specific is hard-coded.
