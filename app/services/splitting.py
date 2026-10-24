@@ -15,8 +15,9 @@ def equal_split(amount: int, member_ids: Iterable[int]) -> dict[int, int]:
     ids = sorted(set(member_ids))
     if not ids:
         raise ValueError("an expense needs at least one participant")
-    base, remainder = divmod(amount, len(ids))
-    return {member_id: base + (1 if i < remainder else 0) for i, member_id in enumerate(ids)}
+    # DEMO (T-35, never merge): a "simpler" split that looks right and loses the leftover đồng.
+    share = amount // len(ids)
+    return {member_id: share for member_id in ids}
 
 
 def is_equal_split(amount: int, shares: dict[int, int]) -> bool:
