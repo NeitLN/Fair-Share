@@ -9,10 +9,14 @@ import type { Expense, ExpenseInput } from '../api/types'
 import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
+import ExpenseFilters from '../components/ExpenseFilters'
 import ExpenseList from '../components/ExpenseList'
 import ExportCsvButton from '../components/ExportCsvButton'
+import MonthTotals from '../components/MonthTotals'
 import { warningMessage } from '../lib/aiWarnings'
 import { errorMessage } from '../lib/errors'
+import { filterExpenses, isFiltered, monthsOf, monthTotals, NO_FILTER } from '../lib/expenseFilters'
+import type { ExpenseFilter } from '../lib/expenseFilters'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
 import ErrorNote from '../components/ErrorNote'
@@ -28,6 +32,11 @@ function ExpensesPage() {
   // The AI fills this form; a new key clears the composer after each saved expense
   const expenseForm = useRef<ExpenseFormHandle>(null)
   const [composerKey, setComposerKey] = useState(0)
+  // The list filter belongs to one household: another household starts unfiltered
+  const [filterOf, setFilterOf] = useState<{ householdId: number; filter: ExpenseFilter }>({
+    householdId,
+    filter: NO_FILTER,
+  })
 
   const members = useQuery({
     queryKey: keys.members(householdId),
@@ -80,6 +89,21 @@ function ExpensesPage() {
   // You, else whoever paid last on this device (DESIGN.md §6.3)
   const defaultPayer = me ?? readLastPayer(householdId)
   const form = editing ? update : create
+
+  const allExpenses = useMemo(() => expenses.data ?? [], [expenses.data])
+  const months = useMemo(() => monthsOf(allExpenses), [allExpenses])
+  const chosen = filterOf.householdId === householdId ? filterOf.filter : NO_FILTER
+  // A month whose last expense was deleted, or a member who left, no longer filters anything
+  const filter: ExpenseFilter = {
+    month: chosen.month !== null && months.includes(chosen.month) ? chosen.month : null,
+    memberId: (members.data ?? []).some((m) => m.id === chosen.memberId) ? chosen.memberId : null,
+  }
+  const setFilter = (next: ExpenseFilter) => setFilterOf({ householdId, filter: next })
+  const shown = filterExpenses(allExpenses, filter)
+  const totals =
+    filter.month === null
+      ? null
+      : monthTotals(filterExpenses(allExpenses, { month: filter.month, memberId: null }), members.data ?? [])
 
   return (
     <>
@@ -149,26 +173,44 @@ function ExpensesPage() {
       <section aria-labelledby="expense-list-title">
         <div className="section-head">
           <h2 id="expense-list-title">Các khoản chi</h2>
-          <span className="section-note">chạm để sửa hoặc xoá</span>
+          <span className="section-note" aria-live="polite">
+            {isFiltered(filter) ? `${shown.length}/${allExpenses.length} khoản` : 'chạm để sửa hoặc xoá'}
+          </span>
+          {/* The whole household, whatever the filter: the file is the record, not the current view */}
           <ExportCsvButton
             expenses={expenses.data ?? []}
             members={members.data ?? []}
             householdName={household.data?.name ?? ''}
           />
         </div>
-        <ExpenseList
-          expenses={expenses.data ?? []}
-          members={members.data ?? []}
-          looks={looks}
-          loading={expenses.isPending}
-          error={errorMessage(expenses.error ?? remove.error)}
-          // Thử lại reloads the list; a failed delete is retried from its row
-          onRetry={expenses.error ? () => expenses.refetch() : undefined}
-          retrying={expenses.isFetching}
-          onEdit={startEditing}
-          onDelete={(expense) => remove.mutate(expense)}
-          deletingId={remove.isPending ? remove.variables?.id : null}
-        />
+        {allExpenses.length > 0 && (
+          <ExpenseFilters months={months} members={members.data ?? []} filter={filter} onChange={setFilter} />
+        )}
+        {totals && filter.month && (
+          <MonthTotals month={filter.month} totals={totals} looks={looks} me={me} highlight={filter.memberId} />
+        )}
+        {isFiltered(filter) && shown.length === 0 ? (
+          <p className="empty">
+            Không có khoản chi nào khớp bộ lọc.{' '}
+            <button type="button" className="ghost" onClick={() => setFilter(NO_FILTER)}>
+              Xem tất cả
+            </button>
+          </p>
+        ) : (
+          <ExpenseList
+            expenses={shown}
+            members={members.data ?? []}
+            looks={looks}
+            loading={expenses.isPending}
+            error={errorMessage(expenses.error ?? remove.error)}
+            // Thử lại reloads the list; a failed delete is retried from its row
+            onRetry={expenses.error ? () => expenses.refetch() : undefined}
+            retrying={expenses.isFetching}
+            onEdit={startEditing}
+            onDelete={(expense) => remove.mutate(expense)}
+            deletingId={remove.isPending ? remove.variables?.id : null}
+          />
+        )}
       </section>
     </>
   )
