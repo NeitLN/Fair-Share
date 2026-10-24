@@ -34,7 +34,7 @@ erDiagram
     expense_shares {
         bigint expense_id PK, FK "cascade on expense delete"
         bigint member_id PK, FK
-        bigint share_amount "dong, >= 0; shares sum to amount"
+        bigint share_amount "dong, >= 0; sum = amount (checked by the API)"
     }
     settlements {
         bigint id PK
