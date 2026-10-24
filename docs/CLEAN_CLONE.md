@@ -67,18 +67,19 @@ Base images (`python:3.12-slim`, `node:22-alpine`, `nginxinc/nginx-unprivileged:
 | Situation | Measured | Where it matters |
 |---|---|---|
 | Nothing cached: the four base images are downloaded, both images built | **358 s** from `git clone` to `/api/version` answering (22/10, home connection) | The worst case on a fresh machine |
-| Base images already pulled, nothing of ours cached | *to measure* | Demo day: base images can be pulled beforehand without touching the repository |
+| Base images already pulled, nothing of ours cached | **30 s** from `git clone` to the stack up, with `pip install` and `npm ci` run again (24/10, `docker compose build --no-cache` then `up -d --wait`); pulling the four base images first took 14 s | Demo day: base images are pulled beforehand without touching the repository |
 | Restart (`down` then `up -d --wait`) | **13 s** (22/10) | Later starts |
 
-**Demo day.** The live demo block is 4 minutes, shorter than a build from nothing. Before the session,
+**Demo day.** The live demo block is 4 minutes, and a build from nothing took 6. Before the session,
 on the demo laptop, pull the base images (`docker pull` each of the four above) and check the ports;
-then the clean clone itself (`git clone` → `docker compose up --build`) runs live from an empty folder.
-Say so in the talk: what is cached are public base images, not our code.
+then the clean clone itself (`git clone` → `docker compose up --build`) runs live from an empty folder in
+about half a minute. Say so in the talk: what is cached are public base images, not our code.
 
 ## 5. Record of runs
 
 | Run | Date | Machine | Docker | Result | Clone → `/api/version` | Notes |
 |---|---|---|---|---|---|---|
 | Dry run | 22/10 | Duy Anh's laptop, Windows 11 (had the project in another folder; no Fair-Share volume or image) | Docker Desktop 29.9, Compose v5.6 | ✅ passed checks 1–9, Playwright 2/2 | 358 s, nothing cached | README needed no change. Found: the demo household had no expenses, fixed in #124 / #125. Details in [#53](https://github.com/NeitLN/Fair-Share/issues/53) |
+| Demo timing | 24/10 | Same laptop, base images pulled first, our build cache bypassed | Docker Desktop 29.9 | ✅ `/api/version` 200, `/health/db` ok, demo household with 5 expenses | 30 s | Measures the demo-day plan above; not a fresh-machine run |
 | #1 | Tue 03/11 | *a machine that never had the project* | | | | |
 | Final | Mon 09/11 | | | | | |
