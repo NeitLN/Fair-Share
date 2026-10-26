@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fair-Share · Slide thuyết trình</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700&family=Bricolage+Grotesque:opsz,wght@12..96,800&display=swap" rel="stylesheet">
+<style>
+  /* Brand tokens (docs/BRAND.md §3) */
+  :root {
+    --taro: #5a3cf0;
+    --ink: #17132b;
+    --lilac: #f3f0fc;
+    --white: #ffffff;
+    --yellow: #ffe14d;
+    --mint: #3ddc97;
+    --pink: #ff5c8a;
+    --muted: #5d5878;
+    --line: #e4def7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--ink); overflow: hidden; }
+  body { font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: var(--ink); }
+
+  /* Every slide is drawn at 1920 × 1080 (the brand template) and scaled to the window */
+  .deck { position: fixed; inset: 0; display: grid; place-items: center; }
+  .slide {
+    position: absolute; width: 1920px; height: 1080px; padding: 110px 120px 0;
+    background: var(--lilac); transform-origin: center; display: none;
+  }
+  .slide.active { display: block; }
+  .slide.taro { background: var(--taro); color: var(--white); }
+
+  h1, h2, h3, .big { font-family: 'Bricolage Grotesque', 'Be Vietnam Pro', sans-serif; font-weight: 800; }
+  h1 { font-size: 150px; line-height: 0.98; letter-spacing: -0.035em; }
+  h2 { font-size: 84px; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 56px; }
+  h3 { font-size: 44px; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 18px; }
+  p, li { font-size: 32px; line-height: 1.45; }
+  .muted { color: var(--muted); }
+  .kicker { font-size: 28px; font-weight: 700; color: var(--taro); margin-bottom: 18px; letter-spacing: 0.01em; }
+  .taro .kicker { color: var(--yellow); }
+
+  .cols { display: grid; gap: 36px; }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .card { background: var(--white); border-radius: 28px; padding: 44px; }
+  .card.taro-block { background: var(--taro); color: var(--white); }
+  .taro .card:not(.taro-block) { color: var(--ink); }
+  .card p + p { margin-top: 14px; }
+  .card ul { padding-left: 1.1em; }
+
+  .footer {
+    position: absolute; left: 120px; right: 120px; bottom: 56px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer img { height: 46px; }
+  .footer .page { font-size: 28px; color: var(--muted); }
+  .taro .footer .page { color: #d9d1ff; }
+  .who { font-size: 26px; font-weight: 700; color: var(--muted); }
+
+  .phone {
+    width: 380px; height: 760px; border-radius: 44px; border: 10px solid var(--ink);
+    overflow: hidden; background: var(--lilac); box-shadow: 14px 14px 0 var(--ink);
+  }
+  .phone img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top; }
+  .phone img.from-bottom { object-position: bottom; }
+
+  .sticker {
+    display: inline-block; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+    font-size: 40px; padding: 14px 30px; border: 4px solid var(--ink); border-radius: 16px;
+    box-shadow: 8px 8px 0 var(--ink); transform: rotate(-6deg); color: var(--ink);
+  }
+  .sticker.mint { background: var(--mint); }
+  .sticker.yellow { background: var(--yellow); }
+
+  .steps { counter-reset: step; list-style: none; display: grid; gap: 22px; }
+  .steps li {
+    counter-increment: step; display: grid; grid-template-columns: 76px 1fr; align-items: center;
+    background: var(--white); border-radius: 22px; padding: 18px 28px;
+  }
+  .steps li::before {
+    content: counter(step); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+    font-size: 40px; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--taro); color: var(--white);
+  }
+  .steps b { font-weight: 700; }
+  code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 0.9em;
+    background: var(--lilac); padding: 2px 10px; border-radius: 8px; }
+  .card.taro-block code { background: #4a2fd6; }
+
+  /* Speaker notes: hidden on the slide, shown with N */
+  .notes { display: none; }
+  #notes-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; max-height: 34vh; overflow: auto; z-index: 5;
+    background: #0e0b1d; color: #e9e5ff; padding: 18px 24px; font-size: 17px; line-height: 1.55;
+    border-top: 3px solid var(--yellow); display: none;
+  }
+  #notes-panel.open { display: block; }
+  #notes-panel b { color: var(--yellow); }
+  #hint { position: fixed; right: 14px; top: 10px; color: #8d86b3; font-size: 13px; z-index: 6; }
+
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    html, body { overflow: visible; background: none; height: auto; }
+    .deck { position: static; display: block; }
+    .slide { display: block !important; position: relative; transform: none !important; page-break-after: always; }
+    #notes-panel, #hint { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 · Cover -->
+  <section class="slide taro" data-time="0:05">
+    <h1>Fair-Share:<br>rõ ai trả ai.</h1>
+    <p style="font-size:40px;margin-top:48px;color:#e7e1ff">Ứng dụng quản lý chi tiêu chung cho nhóm ở trọ.</p>
+    <span class="sticker mint" style="position:absolute;right:170px;top:150px">ĐÃ TRẢ</span>
+    <div class="footer">
+      <p style="font-size:30px;color:#e7e1ff;line-height:1.4">Đồ án Các nền tảng phát triển phần mềm<br>Nhóm Fair-Share · Việt Tiến · Hoàng Minh · Duy Anh · 12/11/2026</p>
+      <img src="../brand/wordmark-on-taro.svg" alt="Fair·Share" style="height:64px">
+    </div>
+    <div class="notes"><b>Duy Anh · 5 giây.</b> Chào thầy cô và các bạn, nhóm Fair-Share gồm Việt Tiến, Hoàng Minh và em, Duy Anh. (Lịch 10 phút: app 1 · kiến trúc 2 · demo 4 · một lỗi thật 2 · nếu làm lại 1.)</div>
+  </section>
+
+  <!-- 2 · Block 1: the problem -->
+  <section class="slide" data-time="0:25">
+    <div class="kicker">1 · App làm gì, cho ai</div>
+    <h2>Ở trọ chung, cuối tháng ai cũng hỏi:<br>“Rốt cuộc mình trả ai bao nhiêu?”</h2>
+    <div class="cols cols-3">
+      <div class="card"><h3>Ghi khoản chi</h3><p>Ai trả, bao nhiêu, chia cho ai: chia đều hoặc chia riêng, tiền là số nguyên đồng.</p></div>
+      <div class="card"><h3>Rõ phần mình</h3><p>Mở app là thấy một câu: <b>“Bạn cần trả Minh 1.690.000đ”</b>, không phải một bảng số.</p></div>
+      <div class="card taro-block"><h3>Dễ chốt tiền</h3><p>Ít lần chuyển nhất để cả nhà sạch nợ. App không giữ tiền: <b>Đã trả</b> chỉ ghi lại việc đã chuyển.</p></div>
+    </div>
+    <div class="footer"><img src="../brand/wordmark.svg" alt="Fair·Share"><span class="page"></span></div>
+    <div class="notes"><b>Duy Anh · 25 giây.</b> Người dùng là một nhóm ở trọ, ba đến sáu người. Vấn đề: ai cũng ứng tiền, cuối tháng không ai nhớ. Fair-Share làm ba việc: ghi khoản chi, cho mỗi người thấy phần của mình bằng một câu, và gợi ý ít lần chuyển nhất để chốt sổ. Nói rõ: app không chuyển tiền, chỉ ghi lại.</div>
+  </section>
+
+  <!-- 3 · Block 1: the app -->
+  <section class="slide" data-time="0:30">
+    <div class="kicker">1 · App làm gì, cho ai</div>
+    <div style="display:grid;grid-template-columns:380px 380px 1fr;gap:56px;align-items:start;margin-top:8px">
+      <div class="phone"><img src="img/app-overview.png" alt="Tổng quan: Bạn cần trả Minh 1.690.000đ, hai lần trả gợi ý với nút Đã trả"></div>
+      <div class="phone"><img src="img/app-expenses.png" alt="Chi tiêu: lọc theo tháng 10/2026, tổng tháng của từng người, nút Xuất CSV" class="from-bottom"></div>
+      <div>
+        <h3>Gõ nhanh bằng AI</h3>
+        <p>Gõ <b>“lẩu 240k Minh trả chia đều cả nhà”</b>, Gemini điền sẵn form. Người dùng duyệt rồi mới lưu.</p>
+        <p class="muted" style="margin-top:18px">AI lỗi, quá tải hay chưa cấu hình: câu đã gõ vẫn còn, form tay vẫn dùng được.</p>
+        <span class="sticker yellow" style="margin-top:44px">✦ GÕ NHANH</span>
+        <p class="muted" style="margin-top:56px">Điện thoại 360 px, sáng và tối, lọc theo tháng, xuất CSV.</p>
+      </div>
+    </div>
+    <div class="footer"><img src="../brand/wordmark.svg" alt="Fair·Share"><span class="page"></span></div>
+    <div class="notes"><b>Duy Anh · 30 giây.</b> Màn hình trái: Tổng quan. Câu đầu tiên là phần của bạn, bấm Đã trả là ghi lại, có hoàn tác. Màn hình giữa: Chi tiêu, lọc theo tháng và người, tổng tháng từng người, xuất CSV mở được trong Excel. Bên phải: tính năng AI duy nhất, Gõ nhanh. AI chỉ điền nháp, không lưu gì; key nằm trên server. Chuyển lời cho Minh: “Minh sẽ nói các phần này chạy ở đâu.”</div>
+  </section>
+
+  <!-- 4 · Block 2: architecture -->
+  <section class="slide" data-time="1:15">
+    <div class="kicker">2 · Kiến trúc: các thành phần nói chuyện với nhau thế nào</div>
+    <h2 style="margin-bottom:32px">Ba tầng, chạy đúng như sơ đồ</h2>
+    <div class="card" style="padding:24px 32px"><img src="../diagrams/architecture.png" alt="Trình duyệt → Cloudflare → Render: web tĩnh và API FastAPI → Supabase PostgreSQL; API gọi Gemini; GitHub Actions deploy" style="width:100%"></div>
+    <div class="cols cols-3" style="margin-top:28px">
+      <div class="card" style="padding:30px 40px"><p><b>Trình duyệt</b> chỉ nhận file tĩnh và JSON.</p></div>
+      <div class="card" style="padding:30px 40px"><p><b>Chuỗi kết nối DB và key AI</b> chỉ nằm trên server API.</p></div>
+      <div class="card taro-block" style="padding:30px 40px"><p><b>Cùng một image API</b> chạy trên máy (Compose) và trên Render.</p></div>
+    </div>
+    <div class="footer"><span class="who">Hoàng Minh</span><span class="page"></span></div>
+    <div class="notes"><b>Hoàng Minh · 1 phút 15.</b> React SPA trên Render Static Site, FastAPI trong Docker trên Render Web Service, PostgreSQL trên Supabase. Trình duyệt chỉ gọi /api; API là nơi duy nhất có DATABASE_URL và GEMINI_API_KEY. Sơ đồ đã đối chiếu với dịch vụ đang chạy ngày 22/10 (docs/diagrams). Ở máy: docker compose chạy cùng image API, thêm postgres:16-alpine và nginx phục vụ web.</div>
+  </section>
+
+  <!-- 5 · Block 2: pipeline -->
+  <section class="slide" data-time="0:45">
+    <div class="kicker">2 · Kiến trúc: từ pull request tới bản live</div>
+    <h2>Chỉ pipeline xanh mới được deploy</h2>
+    <ol class="steps">
+      <li><span><b>Pull request</b> → 4 kiểm tra song song: <code>backend</code> (ruff, pytest trên PostgreSQL thật) · <code>frontend</code> (lint, test, build) · <code>images</code> (build và chạy cả hai image, dựng Compose) · <code>secrets</code> (gitleaks)</span></li>
+      <li><span><b>Xanh + 1 người duyệt</b> mới merge được vào <code>main</code>, kể cả trưởng nhóm</span></li>
+      <li><span><b>deploy</b>: gọi deploy hook của Render, ghim đúng commit vừa kiểm tra</span></li>
+      <li><span><b>smoke</b>: chờ tới khi commit đang chạy trên live <b>bằng</b> commit vừa merge</span></li>
+      <li><span><b>E2E</b>: trình duyệt thật đi hết luồng chính trên bản live, rồi xoá dữ liệu thử</span></li>
+    </ol>
+    <div class="footer"><span class="who">Hoàng Minh</span><span class="page"></span></div>
+    <div class="notes"><b>Hoàng Minh · 45 giây.</b> Mỗi PR chạy 4 job; branch protection bắt buộc xanh và một approval. Merge vào main thì deploy, rồi smoke so commit trên live với commit vừa merge, nên “deploy xanh mà live vẫn bản cũ” không lọt qua được (sự cố 15/10). Sau đó Playwright chạy trên live. Chuyển lời: “Tiến sẽ cho xem trực tiếp.”</div>
+  </section>
+
+  <!-- 6 · Block 3: demo -->
+  <section class="slide taro" data-time="4:00">
+    <div class="kicker">3 · Demo trực tiếp · 4 phút</div>
+    <h2 style="color:var(--white)">Từ thư mục trống tới bản live</h2>
+    <ol class="steps" style="color:var(--ink)">
+      <li><span><b>Đánh thức</b> API trên Render và DB Supabase <span class="muted">(Tiến)</span></span></li>
+      <li><span><b>Clean clone</b>: <code>git clone</code> → <code>docker compose up --build</code>, không <code>.env</code> <span class="muted">(Duy Anh)</span></span></li>
+      <li><span><b>Cổng đỏ</b>: PR #113 có lỗi chia tiền cố ý, test chặn, không merge được <span class="muted">(Tiến)</span></span></li>
+      <li><span><b>Merge</b> một thay đổi xanh → deploy → smoke <span class="muted">(Tiến)</span></span></li>
+      <li><span><b>Live</b>: ghi khoản chi, Gõ nhanh, Đã trả trên điện thoại <span class="muted">(Tiến)</span></span></li>
+      <li><span><b>Tìm key</b> trong repo: không có secret nào <span class="muted">(Tiến)</span></span></li>
+    </ol>
+    <div class="footer"><span class="who" style="color:#e7e1ff">Việt Tiến điều khiển · Duy Anh chạy clean clone</span><span class="page"></span></div>
+    <div class="notes"><b>Việt Tiến + Duy Anh · 4 phút.</b> Trước giờ thuyết trình: đã đánh thức Render và resume Supabase (runbook T-38); máy demo đã kéo sẵn 4 image nền công khai, chưa có gì của repo (docs/CLEAN_CLONE.md). Duy Anh: mở terminal ở thư mục trống, clone, compose up, chỉ http://localhost:3000 và nhà demo có sẵn khoản chi. Nếu mạng lớp hỏng: dùng bản ghi hình dự phòng.</div>
+  </section>
+
+  <!-- 7 · Block 4: one thing that went wrong -->
+  <section class="slide" data-time="2:00">
+    <div class="kicker">4 · Một lỗi thật và cách sửa</div>
+    <h2>Tạo xong rồi sửa ngay: “không tìm thấy”</h2>
+    <div class="cols cols-3">
+      <div class="card"><h3>Triệu chứng</h3><p>Vừa thêm thành viên rồi đổi tên ngay, API đôi khi trả <b>404</b>.</p><p class="muted">Phát hiện khi review PR #84.</p></div>
+      <div class="card"><h3>Nguyên nhân</h3><p>FastAPI chạy phần sau <code>yield</code> của dependency <b>sau</b> khi đã gửi response, nên <b>commit</b> chạy sau. Trang đọc lại trước khi dữ liệu được lưu.</p></div>
+      <div class="card taro-block"><h3>Cách sửa</h3><p>Thêm <code>scope="function"</code> cho dependency kết nối: commit <b>trước</b> khi trả response. Commit lỗi thì là lỗi, không bao giờ là “201” giả.</p><p>Có test riêng phá một ràng buộc chỉ kiểm khi COMMIT.</p></div>
+    </div>
+    <div class="footer"><span class="who">Hoàng Minh</span><span class="page"></span></div>
+    <div class="notes"><b>Hoàng Minh · 2 phút.</b> (Minh chọn lỗi để kể; bản nháp dùng lỗi commit-sau-response vì đã có trong báo cáo §2.6.) Kể theo thứ tự: thấy gì, vì sao, sửa thế nào, làm sao biết đã hết: test cố ý vi phạm một ràng buộc chỉ kiểm khi COMMIT và mong nhận lỗi, không phải 200. Nếu còn thời gian: hai lần DB sập ngày 22 và 23/10 và vì sao nhóm tự backup (T-27).</div>
+  </section>
+
+  <!-- 8 · Block 5: what we would do differently -->
+  <section class="slide" data-time="1:00">
+    <div class="kicker">5 · Nếu làm lại</div>
+    <h2>Ba điều nhóm sẽ làm khác</h2>
+    <div class="cols cols-3">
+      <div class="card"><h3>Kiểm bằng trình duyệt thật từ tuần đầu</h3><p>Playwright đến tuần 9 mới có. Lỗi Escape không đóng ô gập chỉ được tìm thấy khi soát checklist trợ năng trên trình duyệt thật.</p></div>
+      <div class="card"><h3>Mỗi lần chỉ merge một PR</h3><p>Hai PR merge cách nhau 2,5 phút làm smoke đỏ dù code không sai. Giờ là luật: đợi deploy và smoke xanh rồi mới merge tiếp.</p></div>
+      <div class="card taro-block"><h3>Không tin vào gói miễn phí</h3><p>DB miễn phí sập hai ngày liền (22 và 23/10). Nhóm đã thêm backup riêng, keep-alive và cơ chế tự chờ khi DB mất; làm lại sẽ tính từ đầu.</p></div>
+    </div>
+    <div class="footer"><img src="../brand/wordmark.svg" alt="Fair·Share"><span class="page"></span></div>
+    <div class="notes"><b>Duy Anh · 1 phút.</b> Mỗi ý một câu, có bằng chứng: Playwright (#111) và lỗi Escape (#114); hai merge liền tay làm smoke đỏ (#110, chạy lại là xanh); DB sập 22–23/10, backup (#115) và chờ khi DB mất (#127). Nếu bị hỏi về đăng nhập: chưa có là giới hạn đã ghi trong README; ý định là thêm mã nhà (stretch goal trong PROJECT_SPEC).</div>
+  </section>
+
+  <!-- 9 · Close -->
+  <section class="slide taro" data-time="Q&amp;A">
+    <h1>Cảm ơn.<br>Hỏi đáp.</h1>
+    <span class="sticker mint" style="position:absolute;right:170px;top:150px">SẠCH NỢ</span>
+    <div class="cols cols-2" style="margin-top:80px;max-width:1500px">
+      <div class="card"><p class="muted">Dùng thử</p><p><b>fair-share-web.onrender.com</b></p></div>
+      <div class="card"><p class="muted">Mã nguồn, PR, pipeline</p><p><b>github.com/NeitLN/Fair-Share</b></p></div>
+    </div>
+    <div class="footer"><span></span><img src="../brand/wordmark-on-taro.svg" alt="Fair·Share" style="height:64px"></div>
+    <div class="notes"><b>Duy Anh · ngoài 10 phút.</b> Mời câu hỏi. Ai trả lời phần nào: ROADMAP §5, bảng chuẩn bị bảo vệ.</div>
+  </section>
+
+</div>
+<div id="notes-panel" aria-live="polite"></div>
+<div id="hint">← → chuyển slide · N ghi chú · F toàn màn hình</div>
+<script>
+  // Navigation, scaling to the window, page numbers and the notes panel; nothing is stored
+  const slides = [...document.querySelectorAll('.slide')]
+  const panel = document.getElementById('notes-panel')
+  let index = Math.min(Math.max(Number(location.hash.slice(1)) - 1 || 0, 0), slides.length - 1)
+
+  slides.forEach((slide, i) => {
+    const page = slide.querySelector('.page')
+    if (page) page.textContent = `${i + 1} / ${slides.length}`
+  })
+
+  function fit() {
+    const scale = Math.min(innerWidth / 1920, innerHeight / 1080)
+    slides.forEach((s) => (s.style.transform = `scale(${scale})`))
+  }
+
+  function show(i) {
+    index = Math.min(Math.max(i, 0), slides.length - 1)
+    slides.forEach((s, j) => s.classList.toggle('active', j === index))
+    const slide = slides[index]
+    panel.innerHTML = `${index + 1}/${slides.length} · ${slide.dataset.time ?? ''} — ${slide.querySelector('.notes')?.innerHTML ?? ''}`
+    history.replaceState(null, '', `#${index + 1}`)
+  }
+
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) show(index + 1)
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) show(index - 1)
+    else if (e.key === 'Home') show(0)
+    else if (e.key === 'End') show(slides.length - 1)
+    else if (e.key.toLowerCase() === 'n') panel.classList.toggle('open')
+    else if (e.key.toLowerCase() === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+  })
+  addEventListener('click', (e) => { if (!panel.contains(e.target)) show(index + (e.clientX < innerWidth / 3 ? -1 : 1)) })
+  addEventListener('resize', fit)
+  fit()
+  show(index)
+</script>
+</body>
+</html>
