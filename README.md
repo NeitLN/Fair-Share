@@ -4,13 +4,14 @@
 
 [![CI/CD](https://github.com/NeitLN/Fair-Share/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/NeitLN/Fair-Share/actions/workflows/ci-cd.yml)
 [![Live API](https://img.shields.io/website?url=https%3A%2F%2Ffair-share-4bu9.onrender.com%2Fhealth&label=live%20API)](https://fair-share-4bu9.onrender.com/health)
+[![Web app](https://img.shields.io/website?url=https%3A%2F%2Ffair-share-web.onrender.com&label=web%20app)](https://fair-share-web.onrender.com)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
 ![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1)
 
 **Fair-Share** is a three-tier web application for housemates, being built for Session 20
 (12 Nov 2026): record shared expenses, split each one between the people who took part, and see at any
 moment **who owes whom** and a short list of transfers that settles everything. Its one AI-assisted
-feature, **Quick add**, will turn a sentence such as *"dinner 240k, Minh paid, split 3 ways"* into a
+feature, **Quick add**, turns a sentence such as *"dinner 240k, Minh paid, split 3 ways"* into a
 pre-filled expense form that the user confirms.
 
 > **Where we are (Week 8, 22 Oct):** every user story is live on the web app, Quick add included, on
@@ -74,24 +75,18 @@ user stories and acceptance criteria.
 
 ## Architecture
 
-Target architecture for Session 20. Live today: the web app (Render Static Site), the API on Render,
-Supabase and the pipeline. Gemini arrives in Week 8.
+What runs in production, checked against the live services on 22 Oct 2026
+([how](docs/diagrams/README.md#checked-against-what-is-deployed-22102026)):
 
-```mermaid
-flowchart LR
-    U["Browser / phone"] -- HTTPS --> WEB["React SPA<br/>Render Static Site"]
-    U -- "HTTPS · JSON /api/*" --> API["FastAPI in Docker<br/>Render Web Service"]
-    API -- "SQL over TLS · DATABASE_URL" --> DB[("Supabase<br/>PostgreSQL")]
-    API -- "HTTPS · GEMINI_API_KEY" --> AI["Google Gemini API"]
-    GH["GitHub Actions"] -- "deploy hook" --> API
-    GH -- "deploy hook" --> WEB
-```
+![Fair-Share in production: browser, Cloudflare, Render static site and API, Supabase, Gemini, GitHub Actions](docs/diagrams/architecture.png)
 
-* The browser only ever receives static files and JSON. **The database connection string and the AI key exist
-  only on the API server.**
-* Locally, Docker Compose runs the same API image next to a `postgres:16-alpine` container.
+* The browser only ever receives static files and JSON. **The database connection string and the AI key
+  exist only on the API server.**
+* Locally, `docker compose up --build` runs the **same API image** next to PostgreSQL and an nginx
+  container that serves the web app and proxies `/api`
+  ([diagram](docs/diagrams/local.png)); the database schema is [here](docs/diagrams/er.png).
 * Full description, data model, sequence diagram of the AI call and platform trade-offs:
-  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Diagram sources and exports: [docs/diagrams/](docs/diagrams/).
 
 ## Tech stack
 
@@ -99,7 +94,7 @@ flowchart LR
 |---|---|---|
 | Presentation | React + TypeScript + Vite | Render Static Site (CDN, HTTPS) |
 | Application | Python 3.12 (same in the image and in CI), FastAPI, Uvicorn, psycopg 3 | Docker container on a Render Web Service, non-root |
-| Data | PostgreSQL 16 | Supabase (cloud) · `postgres:16-alpine` (local) |
+| Data | PostgreSQL | Supabase (cloud) · `postgres:16-alpine` (local and CI) |
 | AI | Google Gemini API, structured JSON output | Called from the API only |
 | CI/CD | GitHub Actions → Render deploy hooks | GitHub-hosted runners |
 | Quality | ruff, pytest, oxlint, Vitest | Locally and in CI |
@@ -161,14 +156,14 @@ All configuration comes from **environment variables**; nothing environment-spec
 |---|---|---|---|---|
 | `DB_PASSWORD` | `compose.yml` (`db` service and the URL below) | `.env` | — | yes |
 | `DATABASE_URL` | `app/config.py` | built in `compose.yml` from `DB_PASSWORD` | service env var (Supabase session pooler, `sslmode=require`) | **yes** |
-| `APP_NAME` | `app/config.py` (default `sdp-starter`) | not forwarded by Compose, so the default is used | service env var | no |
+| `APP_NAME` | `app/config.py` (default `fair-share`) | `fair-share`, or `APP_NAME` from `.env` | service env var | no |
 | `APP_ENV` | `app/config.py` (default `development`) | not forwarded, default | `production` | no |
 | `SEED_DEMO_DATA` | `app/config.py` (default off) | `true` in `compose.yml`: demo household in an empty database | **not set** | no |
 | `PORT` | the container's start command (default `8000`) | default | set by Render | no |
 
-**Added with upcoming features**
+**For Quick add, CORS and deployment**
 
-| Variable | For | Where it will live | Secret? |
+| Variable | For | Where it lives | Secret? |
 |---|---|---|---|
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | AI Quick add (`app/services/gemini.py`; default model `gemini-3.5-flash-lite`) | Render env var; optional local `.env` (without it Quick add says "not configured") | key: **yes** |
 | `AI_TIMEOUT`, `FORWARDED_HOPS` | Seconds to wait for Gemini (default 20); proxies in front of the API, used to find the visitor's address for the Quick add limit (default 1, or 3 on Render) | Usually not set | no |
@@ -236,8 +231,8 @@ and, for quick add, [§6](docs/ARCHITECTURE.md#6-ai-integration--quick-add).
 | Tool | Command | Covers | Status |
 |---|---|---|---|
 | ruff | `ruff check .` | Python style, unused imports, likely bugs, import order | in CI |
-| pytest | `pytest -q` | Health and version endpoints, the error format, `/health/db` with no or an unreachable database | in CI |
-| pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | Tests marked `db`: migrations (fresh, repeated, failing, concurrent), the schema's rules, the seed, `/health/db`; skipped locally without a database, never skipped in CI | in CI |
+| pytest | `pytest -q` | The money logic as pure functions: equal split and balances, with property tests over thousands of random households; name matching, rate limits and the Gemini client (against a fake); the error format, the input limits, health and version | in CI |
+| pytest + PostgreSQL | `pytest -q` with `DATABASE_URL` set | Tests marked `db`: every endpoint with its 404/409/422 cases, the schema's rules written directly to the database, migrations (fresh, repeated, failing, concurrent), the seed, `/health/db`; skipped locally without a database, never skipped in CI | in CI |
 | Docker | `docker build .` then run and call `/health` | The image Render will run builds **and** starts | in CI |
 | oxlint / Vitest | `npm run lint` · `npm test` in `frontend/` | SPA lint; API client, components, hooks and pages (forms, the AI fill rules, toasts, routes); `npm run build` type-checks | in CI |
 | Playwright | `npm run e2e` in `frontend/` (`E2E_BASE_URL=http://localhost:3000 E2E_API_URL=http://localhost:3000` for Compose) | The main flow in a real browser on the live site; cleans up after itself | after each deploy |
@@ -253,7 +248,8 @@ flowchart LR
     PR["Pull request"] --> B["backend<br/>ruff + pytest + PostgreSQL"]
     PR --> F["frontend<br/>lint + test + build"]
     PR --> I["images<br/>docker build + /health"]
-    B & F & I --> R{"all green<br/>+ 1 approval?"}
+    PR --> X["secrets<br/>gitleaks, full history"]
+    B & F & I & X --> R{"all green<br/>+ 1 approval?"}
     R -- "merge to main" --> D["deploy<br/>Render deploy hook(s)"]
     D --> S["smoke<br/>live commit = merged commit"]
 ```
@@ -263,13 +259,15 @@ flowchart LR
 | `backend` | every PR and merge | Applies the migrations to a fresh PostgreSQL 16 service container, then `ruff check .` and `pytest -q` against it | Lint errors, broken endpoints, migrations or SQL that fail on a real database |
 | `frontend` | every PR and merge | `npm ci`, lint, test, build in `frontend/` (passes with a notice until `frontend/` exists) | A SPA that does not type-check, test or build |
 | `images` | every PR and merge | Builds both images; checks the API container answers `/health` and the web container serves the SPA and a deep link | A Dockerfile that breaks, or a container that crashes on start |
+| `secrets` | every PR and merge | gitleaks over the branch's whole history ([audit](docs/SECRET_AUDIT.md)) | A committed key or connection string |
 | `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
 | `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit (10 min cap) | A deploy that silently never goes live |
 | `E2E smoke (live)` | after a green run on `main`, or by hand ([`e2e.yml`](.github/workflows/e2e.yml)) | A real browser walks the main flow on the live site and deletes its test household | A deployed app whose pages, API and database no longer work together |
 
-* Branch protection on `main` requires `backend`, `frontend` and `images` plus one approving review, for
-  administrators too. A deliberately failing test was blocked in Lab 4; the demo branch for Session 20 is
-  task T-35.
+* Branch protection on `main` requires `backend`, `frontend`, `images` and `secrets` plus one approving
+  review, for administrators too. A deliberately failing test was blocked in Lab 4; for Session 20 the
+  draft PR [#113](https://github.com/NeitLN/Fair-Share/pull/113) (`demo/red-gate`, never merged) shows a
+  plausible split bug that lint accepts and the tests stop.
 * Render's auto-deploy is off, so only a green pipeline deploys.
 * **Incident, 15 Oct:** the first `smoke` run went red. The deploy hook secret belonged to another Render
   service, so `deploy` had been green while production stayed on an old commit. Fixed by replacing the
@@ -290,6 +288,11 @@ A [keep-alive workflow](.github/workflows/keep-alive.yml) queries the database t
 every morning (08:00 UTC+7), so Supabase does not pause the project for inactivity; a red run means the
 API or the database needs a look.
 
+**Backups:** `DATABASE_URL='…' sh scripts/db-backup.sh` takes our own `pg_dump` (never committed:
+`backups/` is git-ignored), and `sh scripts/db-restore.sh <file> --yes` restores it into the local Compose
+stack. The drill that proved both, and the steps for production, are in
+[docs/PERSISTENCE_DRILL.md](docs/PERSISTENCE_DRILL.md).
+
 ## Security and secrets
 
 **Rules we follow**
@@ -298,8 +301,8 @@ API or the database needs a look.
   `.env.example`, with empty values, is in the repository.
 * Production secrets live in **Render environment variables**; the deploy hook lives in **GitHub Actions
   secrets** and is masked in logs.
-* The AI key will be used only by the API server, never sent to the browser or written to logs. CI will
-  not need it: the AI tests mock the HTTP call.
+* The AI key is used only by the API server, never sent to the browser or written to logs. CI does not
+  need it: the AI tests use a fake Gemini.
 * Screenshots for the report are checked for keys and URLs before they are added.
 * If a secret leaks: revoke it at the provider, issue a new one, update Render/GitHub, then clean the
   history. Full runbook in [ARCHITECTURE.md §8](docs/ARCHITECTURE.md#8-configuration-and-secrets).
@@ -319,21 +322,25 @@ Fair-Share/
 │   ├── config.py         # Settings read from environment variables
 │   ├── db.py             # psycopg connection pool + get_conn dependency
 │   ├── errors.py         # ApiError and the {"error": {code, message}} format
+│   ├── limits.py         # refuses request bodies over 64 KB (413)
 │   ├── migrate.py        # applies db/migrations at start-up (also: python -m app.migrate)
 │   ├── schemas.py        # request/response bodies (Pydantic), limits = the database's CHECKs
-│   ├── routers/          # system, households, members, expenses, settlements, balances
-│   └── services/         # pure logic, unit-tested: splitting.py, balances.py
+│   ├── routers/          # system, households, members, expenses, settlements, balances, ai
+│   └── services/         # no database, unit-tested: splitting, balances, names, rate_limit, gemini
 ├── db/
 │   ├── migrations/       # 001_init.sql, ...: applied once each, never edited afterwards
 │   └── seed.sql          # demo household for the local Compose stack
+├── scripts/              # db-backup.sh, db-restore.sh (our own pg_dump backups)
 ├── tests/                # pytest
 ├── frontend/             # React + TypeScript + Vite SPA
 │   ├── src/              # api/ (client), pages/, lib/
 │   ├── Dockerfile        # web image: node build → nginx (Compose only)
 │   └── nginx.conf        # SPA fallback, /api proxy, asset caching
-├── docs/                 # specification, architecture, design system, brand, roadmap
+├── docs/                 # specification, architecture, design system, brand, roadmap, audits
+│   ├── diagrams/         # architecture, local stack and ER: Mermaid sources + SVG/PNG
+│   └── report/           # report section drafts
 ├── .github/
-│   ├── workflows/ci-cd.yml
+│   ├── workflows/        # ci-cd, e2e (live), keep-alive, weekly-report, dashboard
 │   ├── ISSUE_TEMPLATE/
 │   └── pull_request_template.md
 ├── Dockerfile            # API image (the one Render builds)
@@ -344,8 +351,7 @@ Fair-Share/
 └── .env.example          # local configuration template
 ```
 
-Target layout, with the routers and services still to come:
-[ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-repository-layout-target).
+More detail in [ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-repository-layout-target).
 
 ## Troubleshooting
 
