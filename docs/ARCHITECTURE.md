@@ -388,7 +388,7 @@ Every one of them leaves the manual form open with the text kept.
 | API hosting | **Render Web Service** (Docker) | Railway, Fly.io (need a card), Vercel (not for long-running Docker) | Sleeps after ~15 min idle → ~50 s cold start; 750 free hours/month | Koyeb / Northflank free tier (verify no card before switching) |
 | SPA hosting | **Render Static Site** | GitHub Pages, Netlify | One more service to configure; but same dashboard and deploy-hook model | GitHub Pages |
 | Database | **Supabase** PostgreSQL | Neon, Render PostgreSQL (free DB expires after 30 days) | Pauses after 7 days idle; direct host is IPv6-only → must use the pooler | Neon |
-| AI | **Google Gemini** | Groq, OpenRouter, Hugging Face | Free quota per minute/day; data sent to Google (we send only the sentence and member first names) | Groq (OpenAI-compatible API) |
+| AI | **Google Gemini** | Groq, OpenRouter, Hugging Face | Free quota per minute/day; data sent to Google (we send only the sentence, the household's member names and today's date) | Groq (OpenAI-compatible API) |
 | CI/CD | **GitHub Actions** | GitLab CI, Jenkins | Minutes are free for public repositories | — |
 
 ## 8. Configuration and secrets
