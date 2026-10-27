@@ -147,7 +147,8 @@ settlement, so every screen has something to show.
 Your data survives `docker compose down` and later starts; `down -v` gives you the demo household again.
 
 The rehearsal of these steps on a machine that never had the project, with timings and the
-demo-day plan, is in [docs/CLEAN_CLONE.md](docs/CLEAN_CLONE.md).
+demo-day plan, is in [docs/CLEAN_CLONE.md](docs/CLEAN_CLONE.md); the checklist for the demo itself (waking
+the services, the red gate, what to do when something fails) is [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
 ## Configuration
 
