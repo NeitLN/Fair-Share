@@ -70,7 +70,7 @@ Needs the Supabase **session pooler** connection string (Supabase dashboard → 
 | The first restore stopped at `schema "public" already exists`: pg_dump writes `CREATE SCHEMA public`, and every new database already has that schema | The restore leaves out exactly that line (and pg_dump 17's `SET transaction_timeout`, unknown to an older local server); any other error still stops it |
 | A wrong `DATABASE_URL` made the backup carry on with an empty version and leave a broken file | The script stops before writing anything, and deletes any dump that does not contain our tables |
 | A pg_dump older than the server refuses to run, and a newer server version is possible on Supabase | The script asks the server for its version first and uses the matching `postgres` image |
-| On 22/10 the live `/health/db` answered 503 (pool timeout) when checked at 07:10 UTC, with the code unchanged, and was back about half an hour later | Recovered on its own; the reason is in the Render log (`database unavailable: …`). This is why we keep our own backups instead of relying on the free tier |
+| On 22/10 (and again on 23/10) the live `/health/db` answered 503 (pool timeout) with the code unchanged, for about half an hour | The database behind Supabase's pooler was unreachable, and our pool's retries then got the project blocked by the pooler for a few more minutes. Recorded in [OUTAGES.md](OUTAGES.md); the API now backs off while the database is down (#127). This is also why we keep our own backups |
 
 ## What makes the data survive
 

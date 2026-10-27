@@ -70,7 +70,7 @@ concurrent runs.
 | The commit ran after the response (see section 2.6) | Commit before the response (#84) |
 | A NUL byte or broken Unicode in a name reached PostgreSQL, which refuses both: a 500 | Text is cleaned and checked before the database; a decomposed "Tiến" no longer creates a second identical member (#107) |
 | The first restore stopped at `schema "public" already exists` | The restore script leaves out exactly that line of the dump; any other error still stops it |
-| On 22/10 the live database check answered 503 (pool timeout) with no code change, and recovered about half an hour later | The cause is in the Render log; it is why we keep our own backups and a keep-alive rather than trusting the free tier |
+| On 22 and 23/10 the live database check answered 503 for about half an hour, with no code change. The Render log showed the pooler first unreachable, then unable to reach our database, then **blocking our project** (`ECIRCUITBREAKER`) because our pool kept retrying | The API now backs off: the pool stops retrying after 60 s, and after a failure requests get the 503 at once for 20 s (#127). `/health` stayed up and no data was lost; the cause on Supabase's side is still open ([OUTAGES.md](../OUTAGES.md)) |
 
 ## 5.6 How we know it works
 
