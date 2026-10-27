@@ -38,8 +38,8 @@ A throw-away Compose project (`COMPOSE_PROJECT_NAME=fsdrill`), so nobody's own l
 Needs the Supabase **session pooler** connection string (Supabase dashboard → *Connect*, or the
 `DATABASE_URL` value on Render). Paste it only into your own terminal, never into a chat or a file.
 
-1. **Before:** open `https://fair-share-4bu9.onrender.com/api/households` and the balances of one
-   household (`/api/households/<id>/balances`); save both pages as `before-*.json` (not in the repo).
+1. **Before:** open one household (`https://fair-share-4bu9.onrender.com/api/households/<id>`) and its
+   balances (`/api/households/<id>/balances`); save both pages as `before-*.json` (not in the repo).
 2. **Backup:**
    ```bash
    read -rs DATABASE_URL && export DATABASE_URL     # paste, Enter (nothing is shown)

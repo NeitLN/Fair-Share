@@ -26,10 +26,9 @@ def require_household(conn: Connection, household_id: int) -> None:
         raise household_not_found()
 
 
-@router.get("/households", response_model=list[Household])
-def list_households(conn: ConnDep):
-    """Newest first."""
-    return fetch_all(conn, f"SELECT {HOUSEHOLD_COLUMNS} FROM households ORDER BY id DESC")
+# There is deliberately no GET /households (#132): without logins, a list of every household would
+# show every group's households to anyone who opens the site. Each browser remembers the households
+# it created or opened (frontend/src/lib/knownHouseholds.ts) and loads them one by one.
 
 
 @router.post("/households", response_model=Household, status_code=201)

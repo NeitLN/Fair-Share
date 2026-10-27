@@ -15,7 +15,9 @@ test('a household from creation to everyone settled', async ({ page, request }) 
     // 1. Create the household. The first load may wait for the free API instance to wake up.
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeVisible()
-    await page.getByText('+ Tạo nhà mới').click()
+    // A fresh browser knows no household yet (#132), so the form is already open; otherwise unfold it
+    const create = page.getByText('+ Tạo nhà mới')
+    if (await create.isVisible()) await create.click()
     await page.getByLabel('Tên nhà').fill(name)
     await page.getByRole('button', { name: 'Tạo nhà' }).click()
     await page.waitForURL(/\/households\/\d+\/members$/, { timeout: 60_000 })

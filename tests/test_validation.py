@@ -97,7 +97,7 @@ def test_a_validation_error_never_echoes_the_input(echo):
     [
         ("GET", "/no/such/route", 404, "not_found"),
         ("POST", "/health", 405, "method_not_allowed"),
-        ("GET", "/api/households", 503, "database_not_configured"),
+        ("GET", "/api/households/1", 503, "database_not_configured"),
     ],
 )
 def test_framework_errors_use_the_one_shape(make_client, method, path, status, code):
