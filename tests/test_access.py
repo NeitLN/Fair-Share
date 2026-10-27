@@ -137,6 +137,39 @@ def test_quick_add_without_the_key_spends_no_budget(client, world, monkeypatch):
     assert error_code(response) == "household_not_found"
 
 
+# Other ways of writing an id that the routes still read as that id (found in review of #138)
+SPELLINGS = ("%2B{}", "%20{}", "{}%20", "{}.0", "0{}")
+
+
+def respell(path: str, item_id: int, spelling: str) -> str:
+    return path.replace(f"/{item_id}", "/" + spelling.format(item_id), 1)
+
+
+@pytest.mark.parametrize("spelling", SPELLINGS)
+def test_writing_the_id_differently_does_not_skip_the_key(client, world, spelling):
+    h = world["ours"]["id"]
+    routes = [(m, respell(p, h, spelling), b, "household_not_found")
+              for m, p, b in household_routes(world)]
+    ids = {"member_not_found": world["minh"], "expense_not_found": world["expense"],
+           "settlement_not_found": world["settlement"]}
+    routes += [(m, respell(p, ids[code], spelling), b, code)
+               for m, p, b, code in item_routes(world)]
+    routes.append(("DELETE", respell(f"/api/households/{h}", h, spelling), None,
+                   "household_not_found"))
+    for method, path, body, code in routes:
+        response = send(client, method, path, body, None)
+        assert response.status_code == 404, (method, path, response.text)
+        assert error_code(response) == code
+    # Nothing was changed or deleted
+    after = client.get(f"/api/households/{h}").json()
+    assert after["name"] == world["ours"]["name"]
+    assert client.get(f"/api/expenses/{world['expense']}").status_code == 200
+    # With the right key, the same spelling still reaches the household
+    response = send(client, "GET", respell(f"/api/households/{h}", h, spelling), None,
+                    world["ours"]["key"])
+    assert response.status_code == 200
+
+
 def test_an_invalid_id_is_still_a_422_not_a_404(client, world):
     too_big = "/api/households/99999999999999999999"
     response = send(client, "GET", too_big, None, world["ours"]["key"])

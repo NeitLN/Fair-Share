@@ -17,15 +17,18 @@ from typing import Annotated
 
 from fastapi import Depends, Header, Request
 from psycopg import Connection
+from pydantic import TypeAdapter, ValidationError
 
 from app.db import ConnDep, fetch_one
 from app.errors import ApiError
+from app.schemas import Id
 
 KEY_HEADER = "X-Household-Key"
 HouseholdKey = Annotated[str | None, Header(alias=KEY_HEADER)]
 
-# Path ids are validated as bigint by the routes; anything else is left to them (a 422)
-_MAX_ID = 2**63 - 1
+# Read a path id exactly as the routes do (their parameters are `Id`), so every id a route accepts
+# is checked, "+7", " 7" and "7.0" included; whatever they refuse is left to their 422.
+_ID = TypeAdapter(Id)
 
 
 def household_not_found() -> ApiError:
@@ -67,10 +70,10 @@ def key_matches(stored: str | None, given: str | None) -> bool:
 
 
 def _path_id(raw: str) -> int | None:
-    if not raw.isdigit():
+    try:
+        return _ID.validate_python(raw)
+    except ValidationError:
         return None
-    value = int(raw)
-    return value if 0 < value <= _MAX_ID else None
 
 
 def require_key(conn: Connection, param: str, item_id: int, key: str | None) -> None:
