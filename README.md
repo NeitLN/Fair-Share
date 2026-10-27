@@ -69,8 +69,10 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | 📤 | Export a household's expenses as CSV, opening correctly in Excel and Google Sheets | ✅ live (T-46) |
 
 Out of scope by design: user accounts, payments, receipts/images, real-time updates.
-**Known limitation:** there is no login, so anyone with the URL can edit any household; acceptable for a
-classroom demo and discussed in the report. See [PROJECT_SPEC.md §3](docs/PROJECT_SPEC.md#3-scope) for the
+**Known limitation:** there is no login. The home page lists only the households this browser created
+or opened (there is no API listing every household, #132), but household ids are sequential, so someone
+who guesses `/households/2` can still open and edit it. Secret invite links that close this are being
+added (#132, second part). Acceptable for a classroom demo and discussed in the report. See [PROJECT_SPEC.md §3](docs/PROJECT_SPEC.md#3-scope) for the
 user stories and acceptance criteria.
 
 ## Architecture
@@ -215,7 +217,7 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | `GET` | `/health/db` | Readiness: runs one query against PostgreSQL; `503` with a safe message if it cannot (details in the server log) |
 | `GET` | `/` | Name, version and environment of the running app |
 | `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test |
-| `GET` `POST` | `/api/households` | List (newest first) / create a household: `{"name"}`, 1–60 characters → `201` |
+| `POST` | `/api/households` | Create a household: `{"name"}`, 1–60 characters → `201`. There is no list of every household (#132) |
 | `GET` `PATCH` `DELETE` | `/api/households/{id}` | One household; delete removes everything in it → `204` |
 | `GET` `POST` | `/api/households/{id}/members` | Members (oldest first) / add one: `{"name"}`, 1–40 characters → `201`; `409 member_name_taken` |
 | `PATCH` `DELETE` | `/api/members/{id}` | Rename / remove; `409 member_in_use` if they are in an expense or a settlement |

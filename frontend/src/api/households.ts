@@ -9,8 +9,6 @@ export const keys = {
   members: (householdId: number) => ['households', householdId, 'members'] as const,
 }
 
-export const listHouseholds = () => api.get<Household[]>('/api/households')
-
 export const getHousehold = (id: number) => api.get<Household>(`/api/households/${id}`)
 
 export const createHousehold = (name: string) =>

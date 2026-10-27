@@ -14,15 +14,21 @@ pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 # --- Households (US-01) -----------------------------------------------------------------------
 
 
-def test_create_then_list_and_get(client):
+def test_create_then_get(client):
     created = household(client, "  Nhà trọ Q7  ")
     assert created["name"] == "Nhà trọ Q7"  # trimmed
     assert set(created) == {"id", "name", "created_at"}
 
-    listed = client.get("/api/households").json()
-    assert listed[0] == created  # newest first
-
     assert client.get(f"/api/households/{created['id']}").json() == created
+
+
+def test_there_is_no_list_of_every_household(client):
+    """#132: with no logins, such a list would show every group's households to anyone."""
+    household(client, "Nhà của nhóm khác")
+    response = client.get("/api/households")
+    assert response.status_code == 405
+    assert error_code(response) == "method_not_allowed"
+    assert "Nhà của nhóm khác" not in response.text
 
 
 @pytest.mark.parametrize("name", ["", "   ", "x" * 61])

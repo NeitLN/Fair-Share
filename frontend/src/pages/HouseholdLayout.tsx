@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
 
 import { ApiError } from '../api/client'
@@ -7,6 +7,7 @@ import { getHousehold, keys, listMembers } from '../api/households'
 import { AvatarStack } from '../components/Avatar'
 import { IdentityProvider } from '../components/IdentityProvider'
 import WhoAmI from '../components/WhoAmI'
+import { forget, remember } from '../lib/knownHouseholds'
 import { memberLooks } from '../lib/names'
 
 // Shared frame for one household (DESIGN.md §6.2): its name and people, the tabs, "Bạn là ai?"
@@ -28,6 +29,14 @@ function HouseholdLayout() {
   const missing =
     !Number.isInteger(householdId) ||
     (household.error instanceof ApiError && household.error.status === 404)
+
+  // Opened here (or from a link a housemate sent): this browser's home page lists it from now on.
+  // Deleted: it leaves the list.
+  const opened = household.isSuccess
+  useEffect(() => {
+    if (opened) remember(householdId)
+    else if (missing && Number.isInteger(householdId)) forget(householdId)
+  }, [opened, missing, householdId])
   if (missing) {
     return (
       <>

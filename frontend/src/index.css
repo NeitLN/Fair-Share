@@ -69,11 +69,17 @@ body {
   margin: 0 auto;
   padding: 12px max(16px, env(safe-area-inset-right, 0px)) 4px max(16px, env(safe-area-inset-left, 0px));
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  /* At 320 px (or 200% zoom) the theme switch moves under the wordmark instead of off the screen */
   gap: 4px 8px;
+}
+
+/* Below 360 px (a 320 px phone, or 200% zoom) the theme switch moves under the wordmark instead of
+   off the screen; at 360 px and up both fit on one line */
+@media (max-width: 359px) {
+  .app-header {
+    flex-wrap: wrap;
+  }
 }
 
 .home-link {
@@ -164,10 +170,16 @@ body {
 }
 
 .household-list > li {
-  display: block;
+  display: grid;
   min-height: 0;
   padding: 0;
   border: 0;
+}
+
+/* Bỏ khỏi danh sách: under its row, small, on the right; it only forgets the household here */
+.household-list .forget {
+  justify-self: end;
+  font-size: 13px;
 }
 
 .household-row {

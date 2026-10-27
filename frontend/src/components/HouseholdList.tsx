@@ -1,48 +1,65 @@
 import { Link } from 'react-router'
 
-import type { Household } from '../api/types'
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
 
-interface HouseholdListProps {
-  households: Household[]
-  loading: boolean
-  error: string | null
-  /** Reloads after a failed load; shows Thử lại next to the error. */
-  onRetry?: () => void
-  /** The reload is running: Thử lại is disabled. */
-  retrying?: boolean
+/** One household this browser knows, as far as it has been loaded. */
+export interface KnownHousehold {
+  id: number
+  /** Known once it has loaded. */
+  name?: string
+  loading?: boolean
+  /** Loading it failed (not "it was deleted": those leave the list). */
+  error?: string | null
 }
 
-/** Props-only list of households, each row one link (DESIGN.md §6.1). Data fetching stays in the page. */
-function HouseholdList({
-  households,
-  loading,
-  error,
-  onRetry,
-  retrying = false,
-}: HouseholdListProps) {
-  if (loading) {
-    return <Skeleton label="Đang tải danh sách nhà" />
+interface HouseholdListProps {
+  households: KnownHousehold[]
+  /** Loads one household again after a failure. */
+  onRetry: (id: number) => void
+  /** Takes a household off this browser's list (its data stays). */
+  onForget: (household: KnownHousehold) => void
+}
+
+/**
+ * The households this browser created or opened (DESIGN.md §6.1, #132), each row one link, with a way
+ * to take it off the list. Props only; the page loads them.
+ */
+function HouseholdList({ households, onRetry, onForget }: HouseholdListProps) {
+  if (households.length === 0) {
+    return (
+      <p className="empty">
+        Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn nhà mà bạn cùng phòng gửi.
+      </p>
+    )
   }
   return (
-    <div className="households">
-      {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
-      {/* An empty list after an error means "could not load", not "no households" */}
-      {households.length === 0 ? (
-        !error && <p className="empty">Chưa có nhà nào. Tạo nhà đầu tiên rồi thêm bạn cùng phòng.</p>
-      ) : (
-        <ul className="household-list">
-          {households.map((household) => (
-            <li key={household.id}>
+    <ul className="household-list">
+      {households.map((household) => {
+        const label = household.name ?? `Nhà #${household.id}`
+        return (
+          <li key={household.id}>
+            {household.loading ? (
+              <Skeleton label="Đang tải nhà" rows={1} />
+            ) : household.error ? (
+              <ErrorNote message={household.error} onRetry={() => onRetry(household.id)} />
+            ) : (
               <Link to={`/households/${household.id}`} className="household-row">
-                {household.name}
+                {label}
               </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+            )}
+            <button
+              type="button"
+              className="btn-ghost forget"
+              aria-label={`Bỏ ${label} khỏi danh sách`}
+              onClick={() => onForget(household)}
+            >
+              Bỏ khỏi danh sách
+            </button>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

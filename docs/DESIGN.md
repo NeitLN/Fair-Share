@@ -135,11 +135,13 @@ Nhà của bạn                          ← page title, Bricolage 28
 └──────────────────────────────────┘
 [ + Tạo nhà mới ]                    ← secondary; opens the name field + "Tạo nhà" in place
 ```
-List first, create second (returning users far outnumber new ones). Empty state: "Chưa có nhà nào. Tạo
-nhà đầu tiên rồi thêm bạn cùng phòng."
+List first, create second (returning users far outnumber new ones). The list holds only the households
+**this browser** created or opened (#132; `lib/knownHouseholds.ts`), most recent first, each with
+*Bỏ khỏi danh sách* (forgets it here, deletes nothing; a toast offers *Hoàn tác*). Empty state: "Máy
+này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn nhà mà bạn cùng phòng gửi."
 
-**Shipped in T-42: the name only.** `GET /api/households` returns `{id, name, created_at}`; the second line
-and the avatar stack would need one more request per house. If it is added later, one
+**Shipped in T-42: the name only.** Each row is one `GET /api/households/{id}`; the second line and the
+avatar stack would need one more request per house. If it is added later, one
 `GET /households/{id}/balances` per row already has the names, the count and your net.
 
 ### 6.2 Khung một nhà + Tổng quan `/households/:id`

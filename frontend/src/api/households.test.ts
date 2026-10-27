@@ -4,7 +4,6 @@ import {
   addMember,
   createHousehold,
   getHousehold,
-  listHouseholds,
   listMembers,
   removeMember,
   renameMember,
@@ -28,7 +27,6 @@ function captureFetch() {
 }
 
 test.each([
-  ['list households', () => listHouseholds(), 'GET', '/api/households', undefined],
   ['get one household', () => getHousehold(7), 'GET', '/api/households/7', undefined],
   ['create a household', () => createHousehold('Nhà 12'), 'POST', '/api/households', '{"name":"Nhà 12"}'],
   ['list members', () => listMembers(7), 'GET', '/api/households/7/members', undefined],
