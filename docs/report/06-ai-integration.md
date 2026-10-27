@@ -53,8 +53,18 @@ it, in `app/services/rate_limit.py`, before any call is made:
 | Global budget | 10 per minute, 200 per day | Stays under the project's free quota, so Google never has to refuse us |
 | Sentence length | 300 characters | Bounds the tokens of each call |
 
-*Gemini's own free-tier numbers for `gemini-3.5-flash-lite` (requests per minute, per day, tokens per
-minute), as shown in Google AI Studio on [date]: [to fill in].*
+Google's free tier for `gemini-3.5-flash-lite`, and what we actually used, from Google AI Studio's
+rate-limit page for our project on 27/10/2026 (peak over the last 28 days, the live demo testing
+included):
+
+| | Requests per minute | Tokens per minute | Requests per day |
+|---|---|---|---|
+| Google's free-tier limit | 15 | 250,000 | 500 |
+| Our own global budget | 10 | (300 characters per sentence) | 200 |
+| Our peak, last 28 days | 6 | 1,390 | 70 |
+
+Our budget sits below Google's limits on both counts that matter, so a busy minute is refused by our own
+limiter with a clear message, never by Google. The real peak used less than half of either limit.
 
 **Who is one visitor** was the hardest part. Behind Render, each proxy appends an address to
 `X-Forwarded-For`, so the first versions counted a proxy instead of the visitor and let every request
