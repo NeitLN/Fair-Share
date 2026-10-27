@@ -58,9 +58,9 @@ in total.
 | 15–16/10, PRs #18 and #79 | The same exercise by Duy Anh and Hoàng Minh, so each member has seen a red gate on their own PR | Blocked, then fixed |
 | 22/10, draft PR #113 (`demo/red-gate`) | A plausible bug in the equal split (the leftover đồng is lost) that **lint accepts**. `backend` fails with **8 of 282 tests**; `frontend`, `images` and `secrets` pass | Kept as a draft, never merged: it is the live demo of the gate for the assessment |
 
-In daily work the gate mostly shows up as reviews rather than red builds. Of the 78 pull requests merged
-by 27/10, every one from the CI lab onwards (#14 on, 74 of them) has an approval from another member; the
-four before it predate branch protection. Several were changed after review before they went in, for
+In daily work the gate mostly shows up as reviews rather than red builds. Of the 80 pull requests merged
+by 27/10, every one from the CI lab onwards (#14 on, 69 of them) has an approval from another member; the
+11 before it (Labs 2 and 3) predate branch protection. Several were changed after review before they went in, for
 example #84, where a review found that the database commit ran after the response was sent.
 
 ## 4.4 Things we learned running it

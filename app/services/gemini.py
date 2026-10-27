@@ -11,8 +11,9 @@ Failures become ApiErrors the frontend already knows how to show (the manual for
     Gemini 429 (quota)                           →  429 ai_rate_limited
     blocked prompt, empty or invalid answer      →  422 ai_unparseable
 
-There is deliberately no automatic retry: on a 429 a retry only burns more of the free quota and
-makes the user wait longer than typing the expense by hand.
+This client never retries: on a 429 a retry only burns more of the free quota and makes the user
+wait longer than typing the expense by hand. The route (app/routers/ai.py) retries once, and only
+a 5xx that came back within a few seconds, while the global budget has room.
 """
 
 import datetime as dt
