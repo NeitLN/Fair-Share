@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
@@ -236,6 +236,24 @@ describe('AiComposer', () => {
     const user = userEvent.setup()
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k{Enter}')
     expect(props.onParse).toHaveBeenCalledWith('lẩu 240k')
+  })
+
+  test('Enter that only finishes a word being composed (Telex, phone keyboards) sends nothing', async () => {
+    const props = setup(() => Promise.resolve(answer))
+    const user = userEvent.setup()
+    const box = screen.getByLabelText('Câu mô tả khoản chi')
+    await user.type(box, 'lẩu 240k chia đều cả nhà')
+
+    // Chrome and Firefox: the keydown says the input method is composing
+    fireEvent.keyDown(box, { key: 'Enter', isComposing: true })
+    // Safari ends the composition first, then sends the Enter as keyCode 229
+    fireEvent.keyDown(box, { key: 'Enter', keyCode: 229 })
+    expect(props.onParse).not.toHaveBeenCalled()
+
+    // The next Enter, once the word is done, reads the sentence
+    fireEvent.keyDown(box, { key: 'Enter', keyCode: 13 })
+    expect(props.onParse).toHaveBeenCalledOnce()
+    expect(props.onParse).toHaveBeenCalledWith('lẩu 240k chia đều cả nhà')
   })
 })
 
