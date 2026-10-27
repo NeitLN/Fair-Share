@@ -11,8 +11,9 @@ export const keys = {
 
 export const getHousehold = (id: number) => api.get<Household>(`/api/households/${id}`)
 
+/** The answer carries the household's key, the only time the API sends it (#132). */
 export const createHousehold = (name: string) =>
-  api.post<Household>('/api/households', { name })
+  api.post<Household & { key: string }>('/api/households', { name })
 
 export const listMembers = (householdId: number) =>
   api.get<Member[]>(`/api/households/${householdId}/members`)
@@ -20,7 +21,8 @@ export const listMembers = (householdId: number) =>
 export const addMember = (householdId: number, name: string) =>
   api.post<Member>(`/api/households/${householdId}/members`, { name })
 
-export const renameMember = (id: number, name: string) =>
-  api.patch<Member>(`/api/members/${id}`, { name })
+export const renameMember = (id: number, name: string, householdId: number) =>
+  api.patch<Member>(`/api/members/${id}`, { name }, householdId)
 
-export const removeMember = (id: number) => api.delete(`/api/members/${id}`)
+export const removeMember = (id: number, householdId: number) =>
+  api.delete(`/api/members/${id}`, householdId)

@@ -16,7 +16,8 @@ export const listExpenses = (householdId: number) =>
 export const createExpense = (householdId: number, input: ExpenseInput) =>
   api.post<Expense>(`/api/households/${householdId}/expenses`, input)
 
-export const updateExpense = (id: number, input: ExpenseInput) =>
-  api.put<Expense>(`/api/expenses/${id}`, input)
+export const updateExpense = (id: number, input: ExpenseInput, householdId: number) =>
+  api.put<Expense>(`/api/expenses/${id}`, input, householdId)
 
-export const deleteExpense = (id: number) => api.delete(`/api/expenses/${id}`)
+export const deleteExpense = (id: number, householdId: number) =>
+  api.delete(`/api/expenses/${id}`, householdId)

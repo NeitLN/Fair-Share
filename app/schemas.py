@@ -80,6 +80,12 @@ class Household(BaseModel):
     created_at: datetime
 
 
+class HouseholdCreated(Household):
+    """Only the answer to creating a household carries its key (#132, app/access.py)."""
+
+    key: str
+
+
 class MemberIn(BaseModel):
     name: MemberName
 

@@ -26,6 +26,7 @@ table, `schema_migrations`, records which migrations have run.
 | `CHECK` constraints mirror the API's limits | Name lengths, `amount > 0`, `share_amount ≥ 0`, `from ≠ to`. The API validates first (a clear 422); the database is the last line of defence |
 | Row Level Security enabled on every table, with no policies | Supabase also publishes `public` tables through a REST API with a public key; RLS closes it. Our API connects as the tables' owner, which RLS does not restrict |
 | A member who appears in an expense or settlement cannot be deleted | Foreign keys without `ON DELETE`: the API answers `409 member_in_use` instead of silently changing balances |
+| Each household has a secret `access_key` (`002_household_keys.sql`, #132) | Ids are sequential, so without it anyone could open `/households/2`. The database makes the key (32 random hex characters) for every new household; the API answers `404` to any request without the right one |
 
 ## 5.2 Migrations: the same schema everywhere
 
@@ -51,7 +52,7 @@ concurrent runs.
 | Transactions | One per request, **committed before the response is sent**: a client that reads right after a write sees it, and a failed commit is an error, never a false "201" |
 | SQL | Plain parameterised SQL with psycopg 3 (no ORM): no string-built queries, so no SQL injection |
 | Errors | A database that is down or busy → `503 database_unavailable` with a safe message; details go to the server log. Constraint violations the API expects become clear codes (`409 member_name_taken`, `409 member_in_use`) |
-| Readiness | `/health/db` runs one real query (`{"db":"ok","schema":"001_init"}`); `/health` never touches the database, so a paused database does not make Render restart a healthy API |
+| Readiness | `/health/db` runs one real query (`{"db":"ok","schema":"002_household_keys"}`); `/health` never touches the database, so a paused database does not make Render restart a healthy API |
 
 ## 5.4 Restart and pause
 

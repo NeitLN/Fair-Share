@@ -6,12 +6,14 @@ shows up immediately. The maths is in app/services/balances.py.
 
 from fastapi import APIRouter
 
+from app.access import HouseholdAccess
 from app.db import ConnDep, fetch_all
 from app.routers.households import require_household
 from app.schemas import Balances, Id
 from app.services.balances import net, suggest_settlements
 
-router = APIRouter(prefix="/api", tags=["balances"])
+# The household key is required (app/access.py)
+router = APIRouter(prefix="/api", tags=["balances"], dependencies=[HouseholdAccess])
 
 # sum() of bigint is numeric in PostgreSQL; cast back so Python gets an int, not a Decimal.
 MEMBER_TOTALS = """

@@ -5,13 +5,15 @@ from typing import Any
 from fastapi import APIRouter
 from psycopg import Connection, errors
 
+from app.access import HouseholdAccess, expense_not_found
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
 from app.routers.households import require_household
 from app.schemas import Expense, ExpenseIn, Id
 from app.services.splitting import equal_split, is_equal_split
 
-router = APIRouter(prefix="/api", tags=["expenses"])
+# The household key is required, also for /expenses/{id} through its household (app/access.py)
+router = APIRouter(prefix="/api", tags=["expenses"], dependencies=[HouseholdAccess])
 
 # One row per expense, its shares gathered into a JSON list. Every expense has at least one share.
 SELECT_EXPENSES = """
@@ -23,10 +25,6 @@ SELECT_EXPENSES = """
     JOIN expense_shares s ON s.expense_id = e.id
 """
 NEWEST_FIRST = "GROUP BY e.id ORDER BY e.spent_at DESC, e.id DESC"
-
-
-def expense_not_found() -> ApiError:
-    return ApiError(404, "expense_not_found", "This expense does not exist")
 
 
 def unknown_member() -> ApiError:

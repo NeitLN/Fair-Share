@@ -7,5 +7,9 @@ import { afterEach } from 'vitest'
 // to report a real failure.
 configure({ asyncUtilTimeout: 5000 })
 
-// Unmount whatever the previous test rendered, so tests never see each other's DOM
-afterEach(cleanup)
+// Unmount whatever the previous test rendered, so tests never see each other's DOM, nor its storage
+// (household keys, "Bạn là ai?")
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+})

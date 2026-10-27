@@ -137,8 +137,14 @@ Nhà của bạn                          ← page title, Bricolage 28
 ```
 List first, create second (returning users far outnumber new ones). The list holds only the households
 **this browser** created or opened (#132; `lib/knownHouseholds.ts`), most recent first, each with
-*Bỏ khỏi danh sách* (forgets it here, deletes nothing; a toast offers *Hoàn tác*). Empty state: "Máy
-này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn nhà mà bạn cùng phòng gửi."
+*Bỏ khỏi danh sách* (forgets it here and its key, deletes nothing; a toast offers *Hoàn tác*). Empty
+state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn mời mà bạn cùng phòng gửi."
+
+**Invite link** (#132). A household opens only with its key, which this browser gets by creating it or
+by opening its invite link `/households/{id}#k={key}` once (the key is then removed from the address
+bar). Opening `/households/{id}` without a key shows *Cần đường dẫn mời*: one sentence on asking a
+housemate for the link from Thành viên, and a link back to the list. A wrong key looks like a deleted
+household ("Có thể nhà đã bị xoá, hoặc đường dẫn mời không đúng").
 
 **Shipped in T-42: the name only.** Each row is one `GET /api/households/{id}`; the second line and the
 avatar stack would need one more request per house. If it is added later, one
@@ -243,6 +249,11 @@ buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (ask
 and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
 field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…". If two members share a last word,
 both are shown by their last two words ("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
+
+Above the add field, **Mời bạn cùng phòng** (#132): the hint "Ai có đường dẫn này đều xem và sửa được
+nhà, nên chỉ gửi cho người trong nhà." and *Sao chép đường dẫn mời* (toast "Đã sao chép đường dẫn mời.
+Gửi vào nhóm chat của nhà nhé."). Where the clipboard is blocked, the link is shown in a read-only field,
+selected, to copy by hand. The Tổng quan reminder ends with the same link.
 
 ### 6.5 States on every screen
 

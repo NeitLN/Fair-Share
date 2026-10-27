@@ -31,8 +31,8 @@ test.each([
   ['create a household', () => createHousehold('Nhà 12'), 'POST', '/api/households', '{"name":"Nhà 12"}'],
   ['list members', () => listMembers(7), 'GET', '/api/households/7/members', undefined],
   ['add a member', () => addMember(7, 'Minh'), 'POST', '/api/households/7/members', '{"name":"Minh"}'],
-  ['rename a member', () => renameMember(3, 'Tiến'), 'PATCH', '/api/members/3', '{"name":"Tiến"}'],
-  ['remove a member', () => removeMember(3), 'DELETE', '/api/members/3', undefined],
+  ['rename a member', () => renameMember(3, 'Tiến', 7), 'PATCH', '/api/members/3', '{"name":"Tiến"}'],
+  ['remove a member', () => removeMember(3, 7), 'DELETE', '/api/members/3', undefined],
 ] as const)('%s', async (_name, call, method, url, body) => {
   const lastCall = captureFetch()
   await call()

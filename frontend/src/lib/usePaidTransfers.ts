@@ -163,7 +163,7 @@ export function usePaidTransfers(
     intent.current = { card: `pay-${id}`, then: 'gone' }
     change(id, { state: 'undoing' })
     try {
-      await deleteSettlement(settlementId)
+      await deleteSettlement(settlementId, householdId)
       finished.current.add(id)
       deletedSettlements.current.add(settlementId)
       change(id, null)

@@ -78,7 +78,8 @@ User accounts and login, multi-currency, receipts/images, notifications, real-ti
 of any kind. The brief warns against image processing, real-time sockets and payments; the free tiers
 will not carry them and they add nothing to the assessed pipeline.
 
-> **Known limitation, stated openly:** without login, anyone with the URL can edit any household. For a
+> **Known limitation, stated openly:** without login, anyone with a household's invite link can edit it
+> (the link carries a secret key since #132, so guessing another id is not enough). For a
 > classroom demo this is acceptable; the report explains how we would add authentication
 > (Supabase Auth or OAuth) and row-level ownership if the product went further.
 

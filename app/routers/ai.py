@@ -21,8 +21,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
+from app.access import HouseholdKey, household_not_found, key_matches
 from app.errors import ApiError
-from app.routers.households import household_not_found
 from app.schemas import (
     MAX_AMOUNT,
     MAX_PARTICIPANTS,
@@ -110,15 +110,17 @@ def log_forwarding(forwarded: str, cf_connecting_ip: str | None, hops: int) -> N
     )
 
 
-def load_members(request: Request, household_id: int) -> dict[int, str]:
+def load_members(request: Request, household_id: int, key: str | None) -> dict[int, str]:
     """{member_id: name} of the household. Uses its own short-lived connection instead of ConnDep:
-    the route then waits up to AI_TIMEOUT (20 s) for Gemini, and the pool only has 5 connections."""
+    the route then waits up to AI_TIMEOUT (20 s) for Gemini, and the pool only has 5 connections.
+    So it checks the household key itself (app/access.py does it for the other routers)."""
     pool = getattr(request.app.state, "pool", None)
     if pool is None:
         raise ApiError(503, "database_not_configured", "The database is not configured")
     with pool.connection() as conn:
-        exists = conn.execute("SELECT 1 FROM households WHERE id = %s", (household_id,))
-        if exists.fetchone() is None:
+        row = conn.execute("SELECT access_key FROM households WHERE id = %s", (household_id,))
+        found = row.fetchone()
+        if found is None or not key_matches(found[0], key):
             raise household_not_found()
         rows = conn.execute(
             "SELECT id, name FROM members WHERE household_id = %s ORDER BY id", (household_id,)
@@ -133,8 +135,10 @@ def parse_expense(
     request: Request,
     gemini: Annotated[GeminiClient, Depends(get_gemini)],
     budget: Annotated[AiBudget, Depends(get_budget)],
+    key: HouseholdKey = None,
 ):
-    members = load_members(request, household_id)
+    # Before the budget: a request without the key never spends anyone's quota
+    members = load_members(request, household_id, key)
     if not members:
         raise ApiError(409, "no_members", "Add the household's members before using quick add")
     # Checked before the budget, so a missing key never uses it up.

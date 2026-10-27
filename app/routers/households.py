@@ -3,18 +3,16 @@
 from fastapi import APIRouter
 from psycopg import Connection, errors
 
+from app.access import HouseholdAccess, household_not_found
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
-from app.schemas import Household, HouseholdIn, Id, Member, MemberIn
+from app.schemas import Household, HouseholdCreated, HouseholdIn, Id, Member, MemberIn
 
-router = APIRouter(prefix="/api", tags=["households"])
+# Every route here with a household id in its path needs that household's key (app/access.py)
+router = APIRouter(prefix="/api", tags=["households"], dependencies=[HouseholdAccess])
 
 HOUSEHOLD_COLUMNS = "id, name, created_at"
 MEMBER_COLUMNS = "id, household_id, name, created_at"
-
-
-def household_not_found() -> ApiError:
-    return ApiError(404, "household_not_found", "This household does not exist")
 
 
 def member_name_taken() -> ApiError:
@@ -31,13 +29,12 @@ def require_household(conn: Connection, household_id: int) -> None:
 # it created or opened (frontend/src/lib/knownHouseholds.ts) and loads them one by one.
 
 
-@router.post("/households", response_model=Household, status_code=201)
+@router.post("/households", response_model=HouseholdCreated, status_code=201)
 def create_household(body: HouseholdIn, conn: ConnDep):
-    return fetch_one(
-        conn,
-        f"INSERT INTO households (name) VALUES (%s) RETURNING {HOUSEHOLD_COLUMNS}",
-        (body.name,),
-    )
+    """The answer carries the household's key, the only time the API ever sends it."""
+    returning = f"{HOUSEHOLD_COLUMNS}, access_key AS key"
+    sql = f"INSERT INTO households (name) VALUES (%s) RETURNING {returning}"
+    return fetch_one(conn, sql, (body.name,))
 
 
 @router.get("/households/{household_id}", response_model=Household)

@@ -63,14 +63,14 @@ function ExpensesPage() {
     },
   })
   const update = useMutation({
-    mutationFn: ({ id, input }: { id: number; input: ExpenseInput }) => updateExpense(id, input),
+    mutationFn: ({ id, input }: { id: number; input: ExpenseInput }) => updateExpense(id, input, householdId),
     onSuccess: () => {
       setEditing(null)
       return refresh()
     },
   })
   const remove = useMutation({
-    mutationFn: (expense: Expense) => deleteExpense(expense.id),
+    mutationFn: (expense: Expense) => deleteExpense(expense.id, householdId),
     onSuccess: (_result, expense) => {
       // The expense being edited is gone: back to adding a new one
       setEditing((current) => (current?.id === expense.id ? null : current))

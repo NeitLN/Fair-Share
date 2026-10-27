@@ -3,16 +3,14 @@
 from fastapi import APIRouter
 from psycopg import errors
 
+from app.access import HouseholdAccess, member_not_found
 from app.db import ConnDep, fetch_one
 from app.errors import ApiError
 from app.routers.households import MEMBER_COLUMNS, member_name_taken
 from app.schemas import Id, Member, MemberIn
 
-router = APIRouter(prefix="/api", tags=["members"])
-
-
-def member_not_found() -> ApiError:
-    return ApiError(404, "member_not_found", "This member does not exist")
+# The member's household key is required (app/access.py)
+router = APIRouter(prefix="/api", tags=["members"], dependencies=[HouseholdAccess])
 
 
 @router.patch("/members/{member_id}", response_model=Member)
