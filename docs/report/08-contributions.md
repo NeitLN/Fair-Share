@@ -39,10 +39,11 @@ gh issue list --state closed --limit 300 --json number,assignees    # closed iss
 
 ## 8.3 Signatures
 
-We agree that the table above describes our contributions.
+We agree that the table above describes our contributions, and on the share of the work below (the
+three shares add up to 100%).
 
-| Member | Student ID | Signature | Date |
-|---|---|---|---|
-| Võ Việt Tiến | 2474802010391 | | |
-| Võ Hoàng Minh | 2474802010242 | | |
-| Bùi Duy Anh | 2474802010525 | | |
+| Member | Student ID | Share of the work | Signature | Date |
+|---|---|---|---|---|
+| Võ Việt Tiến | 2474802010391 | % | | |
+| Võ Hoàng Minh | 2474802010242 | % | | |
+| Bùi Duy Anh | 2474802010525 | % | | |
