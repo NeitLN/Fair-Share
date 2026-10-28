@@ -90,8 +90,9 @@ browser ──► web :3000 (nginx 8080) ──/api──► api :8000 (FastAPI)
   A git-ignored `.env` can override it, or add a `GEMINI_API_KEY` to try Quick add.
 
 **How we know it works.** Every pull request starts both images and the whole stack in CI (the `images`
-job, section 4). A clean clone on a machine without the project took **358 s** with nothing cached and
-**30 s** with the base images pulled ([CLEAN_CLONE.md](../CLEAN_CLONE.md), T-34).
+job, section 4). In the T-34 dry runs (a fresh folder on Duy Anh's laptop, with no image or volume of
+ours) a clean clone took **358 s** with nothing cached and **30 s** with the base images pulled; the run
+on a machine that never had the project is on 03/11 ([CLEAN_CLONE.md](../CLEAN_CLONE.md)).
 
 | Problem we met | Fix |
 |---|---|
