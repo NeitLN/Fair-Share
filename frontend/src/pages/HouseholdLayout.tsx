@@ -15,6 +15,7 @@ import {
   remember,
   restoreReplacedKey,
   savedOnThisDevice,
+  wasRefused,
 } from '../lib/knownHouseholds'
 import { memberLooks } from '../lib/names'
 import { useToast } from '../lib/toast'
@@ -32,7 +33,9 @@ function HouseholdLayout() {
   // Writing the same key again is harmless, so doing it while rendering is safe. A key this browser
   // already held is kept aside until the API says whether the new one works (below).
   const invited = keyFromHash(location.hash)
-  if (validId && invited && keyFor(householdId) !== invited) remember(householdId, invited)
+  if (validId && invited && keyFor(householdId) !== invited && !wasRefused(householdId, invited)) {
+    remember(householdId, invited)
+  }
   const hasKey = validId && keyFor(householdId) !== null
   // ...then take it out of the address bar, so it is not in a screenshot or a shared tab. Unless this
   // browser could not store it: then the link is the only way back after a reload, so it stays.
@@ -113,8 +116,8 @@ function HouseholdLayout() {
       {household.error && <p role="alert">{household.error.message}</p>}
       {!stored && (
         <p className="note attention">
-          Trình duyệt này không lưu được khoá của nhà (có thể đang ở chế độ ẩn danh). Giữ lại đường dẫn
-          mời trên thanh địa chỉ để mở lại nhà sau này.
+          Trình duyệt này không lưu được khoá của nhà (có thể đang ở chế độ ẩn danh). Trước khi đóng
+          trang, vào <b>Thành viên</b> và bấm <b>Sao chép đường dẫn mời</b> để mở lại nhà sau này.
         </p>
       )}
       <nav className="tabs" aria-label="Mục của nhà">

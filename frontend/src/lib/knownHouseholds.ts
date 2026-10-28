@@ -66,6 +66,18 @@ export function readKnown(): number[] {
 
 // The key an invite link replaced, per household, until the API has said whether the new one works
 const replaced = new Map<number, string>()
+// Keys the API refused in this visit, so a wrong link still in the address bar is not tried again
+const refused = new Set<string>()
+
+/** Drops what this visit kept in memory, as a page reload would (tests start each case from here). */
+export function resetVisit(): void {
+  unsaved.clear()
+  replaced.clear()
+  refused.clear()
+}
+
+/** Whether the API already refused this key for this household during this visit. */
+export const wasRefused = (householdId: number, key: string) => refused.has(`${householdId}:${key}`)
 
 /** Created or opened here: its key is kept, and it goes first in the list. */
 export function remember(householdId: number, key?: string | null): void {
@@ -91,6 +103,8 @@ export function keyWorks(householdId: number): void {
  * held, that key comes back and true is returned: the link was wrong, not the household gone.
  */
 export function restoreReplacedKey(householdId: number): boolean {
+  // Not tried again in this visit, even if the link is still in the address bar
+  refused.add(`${householdId}:${keyFor(householdId)}`)
   const previous = replaced.get(householdId)
   replaced.delete(householdId)
   if (!previous) return false
