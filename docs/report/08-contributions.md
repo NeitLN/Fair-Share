@@ -14,13 +14,13 @@ member's area: Duy Anh → Hoàng Minh, Việt Tiến → Duy Anh, Hoàng Minh �
 
 | What the repository shows | Việt Tiến | Hoàng Minh | Duy Anh |
 |---|---|---|---|
-| Commits on `main`, no merges (`git shortlog -sne --no-merges`; Duy Anh's two e-mails added up) | 71 | 23 | 108 |
-| Merged pull requests authored (`gh pr list --state merged`) | 36 | 18 | 26 |
+| Commits on `main`, no merges (Duy Anh's two e-mails added up) | 71 | 23 | 108 |
+| Merged pull requests authored | 36 | 18 | 26 |
 | Others' merged pull requests reviewed (approved) | 6 (6) | 50 (50) | 22 (21) |
-| Closed issues assigned (`gh issue list --state closed`) | 18 | 10 | 13 |
+| Closed issues assigned | 18 | 10 | 13 |
 | Peer-review findings filed (T-30) | 2 | 0 (due 29/10) | 4 |
 
-Commit counts depend on how finely each person commits, so they are read together with the pull requests
+Taken at `main` = `e37e438` (27/10) with `git shortlog -sne --no-merges e37e438`, and `gh pr list --state merged --limit 300 --json number,author,reviews` / `gh issue list --state closed --limit 300 --json number,assignees`; a reviewer counts once per pull request, and as approving if any of their reviews on it approved. Commit counts depend on how finely each person commits, so they are read together with the pull requests
 and the tasks above, not on their own.
 
 We agree that the tables above describe our contributions, and on the shares below (together 100%).
