@@ -30,7 +30,7 @@ const payBack: SettlementInput = {
 test.each([
   ['list settlements', () => listSettlements(7), 'GET', '/api/households/7/settlements', undefined],
   ['record a settlement', () => createSettlement(7, payBack), 'POST', '/api/households/7/settlements', JSON.stringify(payBack)],
-  ['delete a settlement', () => deleteSettlement(4), 'DELETE', '/api/settlements/4', undefined],
+  ['delete a settlement', () => deleteSettlement(4, 7), 'DELETE', '/api/settlements/4', undefined],
   ['read the balances', () => getBalances(7), 'GET', '/api/households/7/balances', undefined],
 ] as const)('%s', async (_name, call, method, url, body) => {
   const lastCall = captureFetch()

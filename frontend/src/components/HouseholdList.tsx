@@ -29,7 +29,7 @@ function HouseholdList({ households, onRetry, onForget }: HouseholdListProps) {
   if (households.length === 0) {
     return (
       <p className="empty">
-        Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn nhà mà bạn cùng phòng gửi.
+        Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn mời mà bạn cùng phòng gửi.
       </p>
     )
   }

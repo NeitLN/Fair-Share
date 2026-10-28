@@ -14,8 +14,8 @@ import { useToast } from '../lib/toast'
 
 const gone = (error: unknown) => error instanceof ApiError && error.status === 404
 
-// US-01: the households this browser knows, and creating one (docs/DESIGN.md §6.1). The API no longer
-// lists every household (#132): this browser remembers the ones it created or opened.
+// US-01: the households this browser knows, and creating one (docs/DESIGN.md §6.1). The API does not
+// list every household (#132): this browser keeps the ones it created or opened, with their keys.
 function HouseholdsPage() {
   const navigate = useNavigate()
   const toast = useToast()
@@ -48,14 +48,15 @@ function HouseholdsPage() {
   const create = useMutation({
     mutationFn: createHousehold,
     onSuccess: (household) => {
-      remember(household.id)
+      // The key comes only in this answer: keep it, or the household could not be opened again
+      remember(household.id, household.key)
       // A new household has nobody in it yet: go straight to adding members
       navigate(`/households/${household.id}/members`)
     },
   })
 
   function forgetOne(household: KnownHousehold) {
-    const at = forget(household.id)
+    const forgotten = forget(household.id)
     setKnown(readKnown())
     const label = household.name ?? `Nhà #${household.id}`
     toast({
@@ -63,7 +64,7 @@ function HouseholdsPage() {
       action: {
         label: 'Hoàn tác',
         onAction: () => {
-          putBack(household.id, at)
+          putBack(household.id, forgotten)
           setKnown(readKnown())
         },
       },
@@ -101,7 +102,8 @@ function HouseholdsPage() {
         />
       </details>
       <p className="hint">
-        Gửi đường dẫn của nhà cho bạn cùng phòng: mở nó một lần là nhà hiện ở đây trên máy của họ.
+        Mời bạn cùng phòng bằng đường dẫn mời (trong Thành viên): mở nó một lần là nhà hiện ở đây trên máy
+        của họ.
       </p>
       <p className="hint">Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai, ít lần chuyển nhất.</p>
     </>

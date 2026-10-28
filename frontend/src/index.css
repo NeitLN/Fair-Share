@@ -212,6 +212,17 @@ body {
 
 /* ---------------------------------------------------------------- members (DESIGN.md §6.4) */
 
+.invite {
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.invite input {
+  width: 100%;
+  font-size: 14px;
+}
+
 .member-add {
   padding: 14px;
   border-radius: var(--radius-section);
@@ -1095,6 +1106,14 @@ button.ai:active:focus-visible {
   min-height: 0;
   font-size: 14px;
   resize: none;
+}
+
+/* "Về danh sách các nhà" on a household that cannot be opened: on its own line, a full-size target */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  font-weight: 700;
 }
 
 /* + Ghi khoản chi: a link that looks like the primary button */

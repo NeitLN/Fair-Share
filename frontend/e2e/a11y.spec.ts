@@ -12,16 +12,22 @@ test.use({ reducedMotion: 'reduce' })
 async function makeHousehold(request: APIRequestContext) {
   const name = `E2E a11y ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
   const household = await (await request.post(`${API}/api/households`, { data: { name } })).json()
+  // Only the answer to creating it carries the household's key; every other call sends it (#132)
+  const headers = { 'X-Household-Key': household.key as string }
   const ids: number[] = []
   for (const member of ['Tiến', 'Minh', 'Duy Anh']) {
-    const created = await request.post(`${API}/api/households/${household.id}/members`, { data: { name: member } })
+    const created = await request.post(`${API}/api/households/${household.id}/members`, {
+      data: { name: member },
+      headers,
+    })
     ids.push((await created.json()).id)
   }
   const today = new Date().toISOString().slice(0, 10)
   await request.post(`${API}/api/households/${household.id}/expenses`, {
     data: { description: 'Lẩu', amount: 300_000, payer_id: ids[0], spent_at: today, split: { type: 'equal', member_ids: ids } },
+    headers,
   })
-  return household.id as number
+  return { id: household.id as number, key: household.key as string }
 }
 
 async function headingLevels(page: Page) {
@@ -29,8 +35,12 @@ async function headingLevels(page: Page) {
 }
 
 test('the household screens meet the accessibility checklist', async ({ page, request }) => {
-  const id = await makeHousehold(request)
+  const { id, key } = await makeHousehold(request)
   try {
+    // Open it once through its invite link, as a housemate would, so this browser holds the key
+    await page.goto(`/households/${id}#k=${key}`)
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Cần đường dẫn mời')
+
     // One h1 per screen, first, and no level skipped
     for (const path of ['/', `/households/${id}`, `/households/${id}/expenses`, `/households/${id}/members`]) {
       await page.goto(path)
@@ -114,7 +124,9 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await expect(page.getByLabel('Tên nhà')).toBeHidden()
     await expect(create).toBeFocused()
   } finally {
-    const response = await request.delete(`${API}/api/households/${id}`)
+    const response = await request.delete(`${API}/api/households/${id}`, {
+      headers: { 'X-Household-Key': key },
+    })
     expect(response.status(), 'test household deleted').toBe(204)
   }
 })

@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
-import { mockApi, renderApp } from '../test/renderApp'
+import { mockApi, renderApp, testKey } from '../test/renderApp'
 
 beforeEach(() => {
   // The user answers "OK" to "Xoá … khỏi nhà?"
@@ -11,6 +11,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 const household = { id: 7, name: 'Nhà 7', created_at: '2026-10-16T00:00:00Z' }
@@ -105,4 +106,29 @@ test('renaming keeps edit mode open when the name is taken', async () => {
 
   expect(await screen.findByRole('alert')).toHaveTextContent('trùng tên')
   expect(screen.getByLabelText('Tên mới cho Minh')).toHaveValue('Tiến')
+})
+
+test('Sao chép đường dẫn mời puts the invite link, with its key, on the clipboard (#132)', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/members')
+
+  await user.click(await screen.findByRole('button', { name: 'Sao chép đường dẫn mời' }))
+
+  expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/households/7#k=${testKey(7)}`)
+  expect(await screen.findByRole('status')).toHaveTextContent('Đã sao chép đường dẫn mời.')
+})
+
+test('when copying is not possible the invite link is shown, selected, to copy by hand', async () => {
+  api()
+  const user = userEvent.setup()
+  vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('NotAllowedError'))
+  renderApp('/households/7/members')
+
+  await user.click(await screen.findByRole('button', { name: 'Sao chép đường dẫn mời' }))
+
+  const field = (await screen.findByLabelText(/^Không sao chép được/)) as HTMLInputElement
+  expect(field.value).toBe(`${window.location.origin}/households/7#k=${testKey(7)}`)
+  await waitFor(() => expect(field).toHaveFocus())
+  expect([field.selectionStart, field.selectionEnd]).toEqual([0, field.value.length])
 })

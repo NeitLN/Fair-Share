@@ -64,7 +64,14 @@ test('a household from creation to everyone settled', async ({ page, request }) 
   } finally {
     // Always remove the test household and everything in it from the real database
     if (householdId) {
-      const response = await request.delete(`${API}/api/households/${householdId}`)
+      // The key the browser was given when it created the household (#132)
+      const key = await page.evaluate(
+        (id) => JSON.parse(localStorage.getItem('fair-share:household-keys') ?? '{}')[id] as string,
+        householdId,
+      )
+      const response = await request.delete(`${API}/api/households/${householdId}`, {
+        headers: { 'X-Household-Key': key },
+      })
       expect(response.status(), 'test household deleted').toBe(204)
     }
   }

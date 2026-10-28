@@ -3,13 +3,15 @@
 All of these need a real PostgreSQL. Throw-away migrations are written to a temporary folder with
 versions starting "9xx_test" and removed again after each test.
 """
+import logging
+import re
 import threading
 
 import psycopg
 import pytest
 from psycopg import errors
 
-from app.migrate import MIGRATIONS_DIR, SEED_FILE, migrate
+from app.migrate import MIGRATIONS_DIR, SEED_FILE, migrate, seed
 
 pytestmark = pytest.mark.db
 
@@ -218,6 +220,27 @@ def test_seed_fills_only_an_empty_database(conn):
         " (SELECT count(*) FROM expenses), (SELECT count(*) FROM settlements)"
     ).fetchone()
     assert counts == (1, 3, 5, 1)
+
+
+def test_seed_writes_the_demo_invite_links_to_the_log(db_url, tmp_path, caplog):
+    # Households open only with their key (#132): CLEAN_CLONE.md step 6 reads the link from here
+    migrate(db_url)
+    with psycopg.connect(db_url, autocommit=True) as conn:
+        sql = "INSERT INTO households (name) VALUES ('Nhà log') RETURNING id"
+        house = conn.execute(sql).fetchone()[0]
+    no_data = tmp_path / "seed.sql"
+    no_data.write_text("SELECT 1", encoding="utf-8")
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+    try:
+        seed(db_url, no_data)
+        with psycopg.connect(db_url) as conn:
+            keys = dict(conn.execute("SELECT id, access_key FROM households").fetchall())
+    finally:
+        with psycopg.connect(db_url, autocommit=True) as conn:
+            conn.execute("DELETE FROM households WHERE id = %s", (house,))
+    links = re.findall(r"demo household .*: open /households/(\d+)#k=([0-9a-f]{32})", caplog.text)
+    assert links
+    assert all(keys[int(found)] == key for found, key in links)
 
 
 def test_seed_expenses_add_up_and_cover_two_months_up_to_today(conn):

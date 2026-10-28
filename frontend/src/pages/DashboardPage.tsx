@@ -19,6 +19,7 @@ import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
+import { inviteLink } from '../lib/knownHouseholds'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
@@ -65,7 +66,7 @@ function Dashboard({ householdId }: { householdId: number }) {
     onSuccess: refresh,
   })
   const remove = useMutation({
-    mutationFn: (settlement: Settlement) => deleteSettlement(settlement.id),
+    mutationFn: (settlement: Settlement) => deleteSettlement(settlement.id, householdId),
     onSuccess: (_result, settlement) => {
       // Deleted from the history: a stamped card for it has nothing left to undo
       paid.forget(settlement.id)
@@ -110,7 +111,8 @@ function Dashboard({ householdId }: { householdId: number }) {
     month,
     suggested,
     nameOf,
-    `${window.location.origin}/households/${householdId}`,
+    // The invite link, so everyone in the group chat can open the household
+    inviteLink(householdId) ?? `${window.location.origin}/households/${householdId}`,
   )
 
   return (

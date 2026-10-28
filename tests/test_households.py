@@ -17,7 +17,10 @@ pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 def test_create_then_get(client):
     created = household(client, "  Nhà trọ Q7  ")
     assert created["name"] == "Nhà trọ Q7"  # trimmed
-    assert set(created) == {"id", "name", "created_at"}
+    # The key comes with the answer to creating it, and only there (#132)
+    assert set(created) == {"id", "name", "created_at", "key"}
+    key = created.pop("key")
+    assert len(key) >= 32
 
     assert client.get(f"/api/households/{created['id']}").json() == created
 

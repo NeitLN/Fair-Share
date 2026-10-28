@@ -6,12 +6,14 @@ There is no edit: a mistaken settlement is deleted and entered again.
 from fastapi import APIRouter
 from psycopg import errors
 
+from app.access import HouseholdAccess, settlement_not_found
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
 from app.routers.households import require_household
 from app.schemas import Id, Settlement, SettlementIn
 
-router = APIRouter(prefix="/api", tags=["settlements"])
+# The household key is required, also for /settlements/{id} through its household (app/access.py)
+router = APIRouter(prefix="/api", tags=["settlements"], dependencies=[HouseholdAccess])
 
 SETTLEMENT_COLUMNS = (
     "id, household_id, from_member_id, to_member_id, amount, settled_at, note, created_at"
@@ -63,4 +65,4 @@ def create_settlement(household_id: Id, body: SettlementIn, conn: ConnDep):
 @router.delete("/settlements/{settlement_id}", status_code=204)
 def delete_settlement(settlement_id: Id, conn: ConnDep):
     if not conn.execute("DELETE FROM settlements WHERE id = %s", (settlement_id,)).rowcount:
-        raise ApiError(404, "settlement_not_found", "This settlement does not exist")
+        raise settlement_not_found()

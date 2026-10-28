@@ -107,7 +107,7 @@ Fair-Share/
 │   ├── routers/              # households, members, expenses, settlements, balances, ai
 │   └── services/             # splitting.py, balances.py, gemini.py (unit-tested, no database)
 ├── db/
-│   ├── migrations/001_init.sql
+│   ├── migrations/001_init.sql, 002_household_keys.sql
 │   └── seed.sql              # demo household for local Compose only
 ├── frontend/                 # React + TypeScript + Vite SPA
 │   ├── src/                  # pages/, components/, api/
@@ -135,6 +135,7 @@ erDiagram
     households {
         bigint id PK
         text name "1-60 chars"
+        text access_key "secret, 32+ chars (#132)"
         timestamptz created_at
     }
     members {
@@ -222,7 +223,7 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET /health` | Liveness for Render and the pipeline | Never touches the DB |
 | `GET /health/db` | Readiness: one query against PostgreSQL | 503 with a safe message on failure |
 | `GET /api/version` | App name, version, environment, `commit` (Render's `RENDER_GIT_COMMIT`) | The smoke test waits until `commit` equals the merged SHA |
-| `POST /api/households` | Create a household (no `GET`: no list of every household, #132; the SPA remembers the ones a browser created or opened) | `201` on create |
+| `POST /api/households` | Create a household (no `GET`: no list of every household, #132; the SPA remembers the ones a browser created or opened) | `201` on create, with the household's `key`: the only answer that contains it |
 | `GET/PATCH/DELETE /api/households/{id}` | One household | `404 household_not_found`; delete removes everything in it, `204` |
 | `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive) |
 | `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
@@ -232,6 +233,15 @@ settlement must be members of the **same household** (composite foreign keys on
 | `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found` |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
 | `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — `{text}` (1–300 characters) in, a draft out; saves nothing | Response and error codes in §6 |
+
+**Household key** (#132). Every route below `POST /api/households` belongs to one household, and the
+request must send that household's key in the `X-Household-Key` header (`app/access.py`, a dependency on
+each router; the AI route checks it before it spends any of the AI budget). A missing or wrong key gets
+the same `404` as an id that does not exist (`household_not_found`, or `member_not_found` etc. for an
+item), so ids cannot be probed. The key is 32 random hex characters made by the database
+(`002_household_keys.sql`) and compared in constant time. The SPA learns it from the create answer or
+from an invite link `/households/{id}#k={key}`: after `#`, so it never reaches a server log or a
+`Referer` header; it is kept in `localStorage` and removed from the address bar.
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.
@@ -410,6 +420,10 @@ Every one of them leaves the manual form open with the text kept.
 | `SEED_DEMO_DATA` | no | `true` (in `compose.yml`) | — | **not set** |
 | `VITE_API_BASE_URL` | no (public) | empty (same origin) | empty | Static site env var, build time |
 | `RENDER_DEPLOY_HOOK_API` / `_WEB` | **yes** | — | Actions secrets | — |
+
+Household keys (#132) are not configuration: they are data, one per household in the database, sent to
+the browser that creates the household and never written to the server log. Only the local seed logs
+the demo households' invite links (`SEED_DEMO_DATA`, never set on Render).
 
 **If a key leaks** (written into the report as our incident runbook):
 1. Revoke it at the provider immediately (AI Studio → delete key; Supabase → reset database password;

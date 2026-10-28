@@ -4,6 +4,8 @@ import { MemoryRouter } from 'react-router'
 import { vi } from 'vitest'
 
 import App from '../App'
+import { remember } from '../lib/knownHouseholds'
+import LocationProbe from './LocationProbe'
 
 type Reply = [status: number, body?: unknown]
 type Handler = Reply | ((body: unknown) => Reply)
@@ -32,13 +34,23 @@ function json(status: number, body: unknown) {
   })
 }
 
-/** The whole app at `path`, with a fresh cache and no retries so failures show at once. */
-export function renderApp(path: string) {
+/** A key this browser holds for a household in tests (#132). */
+export const testKey = (householdId: number) => `${householdId}`.padStart(32, 'a')
+
+/**
+ * The whole app at `path`, with a fresh cache and no retries so failures show at once. This browser
+ * holds the key of the household in the path, as it would after opening its invite link, unless
+ * `withoutKey` is set.
+ */
+export function renderApp(path: string, { withoutKey = false } = {}) {
+  const household = /^\/households\/(\d+)/.exec(path)
+  if (household && !withoutKey) remember(Number(household[1]), testKey(Number(household[1])))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <App />
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
   )

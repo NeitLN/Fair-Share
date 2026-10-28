@@ -2,8 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { KNOWN_KEY } from '../lib/knownHouseholds'
-import { mockApi, renderApp } from '../test/renderApp'
+import { keyFor, KNOWN_KEY, remember } from '../lib/knownHouseholds'
+import { mockApi, renderApp, testKey } from '../test/renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -13,8 +13,8 @@ afterEach(() => {
 const nha7 = { id: 7, name: 'Nhà 7', created_at: '2026-10-16T00:00:00Z' }
 const nha9 = { id: 9, name: 'Nhà 9', created_at: '2026-10-18T00:00:00Z' }
 
-/** This browser created or opened these households, most recent first. */
-const knows = (...ids: number[]) => localStorage.setItem(KNOWN_KEY, JSON.stringify(ids))
+/** This browser created or opened these households (with their keys), most recent first. */
+const knows = (...ids: number[]) => [...ids].reverse().forEach((id) => remember(id, testKey(id)))
 const known = () => JSON.parse(localStorage.getItem(KNOWN_KEY) ?? '[]')
 const listCalls = (fetchFn: ReturnType<typeof mockApi>) =>
   fetchFn.mock.calls.filter(([url, init]) => url === '/api/households' && !init?.method)
@@ -41,23 +41,24 @@ test('another browser sees no household at all, and the create form is open', as
   expect(fetchFn).not.toHaveBeenCalled()
 })
 
-test('the first visit after the update lists the households this browser already used', async () => {
-  // Chosen "Bạn là ai?" in one, saved an expense in another, before the list existed
+test('households saved before keys existed are not listed: they cannot be opened any more', async () => {
+  localStorage.setItem(KNOWN_KEY, JSON.stringify([7]))
   localStorage.setItem('fair-share:me:7', '3')
-  localStorage.setItem('fair-share:last-payer:9', '4')
-  mockApi({ 'GET /api/households/7': [200, nha7], 'GET /api/households/9': [200, nha9] })
+  const fetchFn = mockApi({ 'GET /api/households/7': [200, nha7] })
   renderApp('/')
 
-  expect(await screen.findByRole('link', { name: 'Nhà 9' })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Nhà 7' })).toBeInTheDocument()
-  expect(known()).toEqual([9, 7])
+  expect(await screen.findByText(/Máy này chưa có nhà nào/)).toBeInTheDocument()
+  expect(fetchFn).not.toHaveBeenCalled()
 })
 
 test('creating a household remembers it here and opens its members page', async () => {
   knows(7)
   const fetchFn = mockApi({
     'GET /api/households/7': [200, nha7],
-    'POST /api/households': (body) => [201, { ...nha9, name: (body as { name: string }).name }],
+    'POST /api/households': (body) => [
+      201,
+      { ...nha9, name: (body as { name: string }).name, key: testKey(9) },
+    ],
     'GET /api/households/9': [200, nha9],
     'GET /api/households/9/members': [200, []],
   })
@@ -71,11 +72,13 @@ test('creating a household remembers it here and opens its members page', async 
   expect(await screen.findByRole('heading', { level: 2, name: 'Thành viên' })).toBeInTheDocument()
   expect(fetchFn).toHaveBeenCalledWith('/api/households', expect.objectContaining({ method: 'POST' }))
   expect(known()).toEqual([9, 7])
+  // The key came only with that answer, and is kept
+  expect(keyFor(9)).toBe(testKey(9))
 })
 
-test('opening a household from a link a housemate sent adds it to this browser\'s list', async () => {
+test('opening a household from an invite link adds it to this browser\'s list', async () => {
   mockApi({ 'GET /api/households/7': [200, nha7], 'GET /api/households/7/members': [200, []] })
-  renderApp('/households/7/members')
+  renderApp(`/households/7/members#k=${testKey(7)}`, { withoutKey: true })
 
   expect(await screen.findByRole('heading', { level: 1, name: 'Nhà 7' })).toBeInTheDocument()
   await waitFor(() => expect(known()).toEqual([7]))
@@ -125,6 +128,8 @@ test('Bỏ khỏi danh sách forgets it on this browser only, and Hoàn tác put
 
   expect(screen.queryByRole('link', { name: 'Nhà 9' })).not.toBeInTheDocument()
   expect(known()).toEqual([7])
+  // Its key is gone from this browser too: opening it again needs the invite link
+  expect(keyFor(9)).toBeNull()
   // Nothing was deleted on the server
   expect(fetchFn.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
 
@@ -132,6 +137,7 @@ test('Bỏ khỏi danh sách forgets it on this browser only, and Hoàn tác put
   await user.click(within(status).getByRole('button', { name: 'Hoàn tác' }))
   expect(await screen.findByRole('link', { name: 'Nhà 9' })).toBeInTheDocument()
   expect(known()).toEqual([9, 7])
+  expect(keyFor(9)).toBe(testKey(9))
 })
 
 test('shows the server message when creating fails, and keeps what was typed', async () => {

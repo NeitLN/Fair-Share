@@ -31,8 +31,8 @@ const dinner: ExpenseInput = {
 test.each([
   ['list expenses', () => listExpenses(7), 'GET', '/api/households/7/expenses', undefined],
   ['create an expense', () => createExpense(7, dinner), 'POST', '/api/households/7/expenses', JSON.stringify(dinner)],
-  ['replace an expense', () => updateExpense(12, dinner), 'PUT', '/api/expenses/12', JSON.stringify(dinner)],
-  ['delete an expense', () => deleteExpense(12), 'DELETE', '/api/expenses/12', undefined],
+  ['replace an expense', () => updateExpense(12, dinner, 7), 'PUT', '/api/expenses/12', JSON.stringify(dinner)],
+  ['delete an expense', () => deleteExpense(12, 7), 'DELETE', '/api/expenses/12', undefined],
 ] as const)('%s', async (_name, call, method, url, body) => {
   const lastCall = captureFetch()
   await call()

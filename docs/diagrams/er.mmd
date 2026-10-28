@@ -13,6 +13,7 @@ erDiagram
     households {
         bigint id PK
         text name "1-60 characters"
+        text access_key "secret, 32+ characters"
         timestamptz created_at
     }
     members {

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import type { Settlement, SettlementInput } from '../api/types'
 import { today } from '../lib/date'
-import { mockApi, renderApp } from '../test/renderApp'
+import { mockApi, renderApp, testKey } from '../test/renderApp'
 
 beforeEach(() => {
   // The user answers "OK" to "Xoá khoản …?"
@@ -227,7 +227,8 @@ test('the reminder goes to the clipboard, ready for the group chat', async () =>
       `Nhà 7 chốt sổ tháng ${month} nè:`,
       '• Minh trả Tiến 100.000đ',
       '• An trả Tiến 100.000đ',
-      `Xem chi tiết: ${window.location.origin}/households/7`,
+      // The invite link, so everyone in the group chat can open the household (#132)
+      `Xem chi tiết: ${window.location.origin}/households/7#k=${testKey(7)}`,
     ].join('\n'),
   )
   expect(await screen.findByRole('status')).toHaveTextContent('Đã sao chép. Dán vào nhóm chat của nhà nhé.')

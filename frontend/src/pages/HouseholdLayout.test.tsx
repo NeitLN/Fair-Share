@@ -1,7 +1,8 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
+import { keyFor } from '../lib/knownHouseholds'
 import { mockApi, renderApp } from '../test/renderApp'
 
 afterEach(() => {
@@ -86,3 +87,39 @@ test('a saved choice greets you on the next visit', async () => {
   renderApp('/households/7/members')
   expect(await screen.findByText('Minh', { selector: '.who-am-i b' })).toBeInTheDocument()
 })
+
+describe('invite links (#132)', () => {
+  const key = 'f'.repeat(32)
+
+  test('an invite link keeps its key, opens the household and leaves the address bar', async () => {
+    const fetchFn = mockApi(house)
+    renderApp(`/households/7#k=${key}`, { withoutKey: true })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
+    expect(keyFor(7)).toBe(key)
+    const [, init] = fetchFn.mock.calls.find(([url]) => url === '/api/households/7') as unknown as [
+      string,
+      RequestInit,
+    ]
+    expect(new Headers(init.headers).get('X-Household-Key')).toBe(key)
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/households\/7$/)
+  })
+
+  test('without a key this browser asks for the invite link, and asks the API nothing', async () => {
+    const fetchFn = mockApi(house)
+    renderApp('/households/7/expenses', { withoutKey: true })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Cần đường dẫn mời' })).toBeInTheDocument()
+    expect(screen.getByText(/Sao chép đường dẫn mời/)).toBeInTheDocument()
+    expect(fetchFn).not.toHaveBeenCalled()
+  })
+
+  test('a key that no longer opens it (deleted, or a wrong link) says so and is forgotten', async () => {
+    mockApi({})
+    renderApp(`/households/7#k=${key}`, { withoutKey: true })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
+    await waitFor(() => expect(keyFor(7)).toBeNull())
+  })
+})
+

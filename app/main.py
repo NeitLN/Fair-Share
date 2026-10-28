@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import errors
+from app.access import KEY_HEADER
 from app.config import APP_VERSION, Settings
 from app.db import DatabaseCooldown, create_pool
 from app.limits import BodySizeLimit
@@ -56,7 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             CORSMiddleware,
             allow_origins=list(settings.allowed_origins),
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-            allow_headers=["Content-Type"],
+            allow_headers=["Content-Type", KEY_HEADER],
             max_age=600,
         )
     errors.install(app)

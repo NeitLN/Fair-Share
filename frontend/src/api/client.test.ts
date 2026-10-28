@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import { api, ApiError } from './client'
+import { remember } from '../lib/knownHouseholds'
+import { api, ApiError, KEY_HEADER } from './client'
 
 function mockFetch(response: Response | Error) {
   const fn = vi.fn(() =>
@@ -78,3 +79,40 @@ describe('api client', () => {
     })
   })
 })
+
+describe('the household key (#132)', () => {
+  afterEach(() => localStorage.clear())
+
+  const sentKey = () => {
+    const fetchFn = vi.fn(() =>
+      Promise.resolve(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+    vi.stubGlobal('fetch', fetchFn)
+    return () => new Headers((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].headers).get(KEY_HEADER)
+  }
+
+  test('is sent with every request about a household this browser holds the key of', async () => {
+    remember(7, 'a'.repeat(32))
+    const key = sentKey()
+    await api.get('/api/households/7/balances')
+    expect(key()).toBe('a'.repeat(32))
+  })
+
+  test('is sent for a member, expense or settlement when the caller names the household', async () => {
+    remember(7, 'b'.repeat(32))
+    const key = sentKey()
+    await api.delete('/api/expenses/12', 7)
+    expect(key()).toBe('b'.repeat(32))
+  })
+
+  test('is not sent for another household, nor when creating one', async () => {
+    remember(7, 'c'.repeat(32))
+    const other = sentKey()
+    await api.get('/api/households/8')
+    expect(other()).toBeNull()
+    const create = sentKey()
+    await api.post('/api/households', { name: 'Nhà' })
+    expect(create()).toBeNull()
+  })
+})
+

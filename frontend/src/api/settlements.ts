@@ -15,7 +15,8 @@ export const createSettlement = (householdId: number, input: SettlementInput) =>
   api.post<Settlement>(`/api/households/${householdId}/settlements`, input)
 
 /** There is no edit: a mistaken settlement is deleted and entered again. */
-export const deleteSettlement = (id: number) => api.delete(`/api/settlements/${id}`)
+export const deleteSettlement = (id: number, householdId: number) =>
+  api.delete(`/api/settlements/${id}`, householdId)
 
 // Every balances request gets a number when it starts. A payment remembers the count when it was
 // recorded, so the dashboard knows which balances were asked for after it (lib/usePaidTransfers.ts).
