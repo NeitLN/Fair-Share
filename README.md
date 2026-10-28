@@ -336,7 +336,7 @@ Fair-Share/
 ├── db/
 │   ├── migrations/       # 001_init.sql, ...: applied once each, never edited afterwards
 │   └── seed.sql          # demo household for the local Compose stack
-├── scripts/              # db-backup.sh, db-restore.sh (our own pg_dump backups)
+├── scripts/              # db-backup.sh, db-restore.sh (our own pg_dump backups), build_report.py (report PDF)
 ├── tests/                # pytest
 ├── frontend/             # React + TypeScript + Vite SPA
 │   ├── src/              # api/ (client), pages/, lib/
