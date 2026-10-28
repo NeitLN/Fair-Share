@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { keyFor } from '../lib/knownHouseholds'
-import { mockApi, renderApp } from '../test/renderApp'
+import { mockApi, renderApp, testKey } from '../test/renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -120,6 +120,38 @@ describe('invite links (#132)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
     await waitFor(() => expect(keyFor(7)).toBeNull())
+  })
+
+  test('a wrong invite link for a household this browser already opens does not lose the key that works', async () => {
+    // The API answers only to the right key, like app/access.py
+    const right = (init: RequestInit): [number, unknown] =>
+      new Headers(init.headers).get('X-Household-Key') === testKey(7)
+        ? (house['GET /api/households/7'] as [number, unknown])
+        : [404, { error: { code: 'household_not_found', message: 'No such household' } }]
+    mockApi({
+      'GET /api/households/7': (_body, init) => right(init),
+      'GET /api/households/7/members': (_body, init) =>
+        right(init)[0] === 200 ? house['GET /api/households/7/members'] : right(init),
+    })
+    renderApp(`/households/7#k=${key}`) // this browser holds testKey(7); the link carries another
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
+    expect(keyFor(7)).toBe(testKey(7))
+    expect(await screen.findByRole('status')).toHaveTextContent('Đường dẫn mời này không đúng')
+  })
+
+  test('when this browser cannot store anything, the key works for this visit and the link stays', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    mockApi(house)
+    renderApp(`/households/7#k=${key}`, { withoutKey: true })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
+    expect(screen.getByText(/không lưu được khoá/)).toBeInTheDocument()
+    // The only way back after a reload is the link itself, so it is not taken out of the address bar
+    expect(screen.getByTestId('location')).toHaveTextContent(`/households/7#k=${key}`)
+    vi.restoreAllMocks()
   })
 })
 

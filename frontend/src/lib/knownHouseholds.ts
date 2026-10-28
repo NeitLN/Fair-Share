@@ -10,9 +10,23 @@ export const KEYS_KEY = 'fair-share:household-keys'
 
 const valid = (id: unknown): id is number => Number.isInteger(id) && (id as number) > 0
 
+// What the browser refused to store (private window, storage blocked or full): kept in memory, so a
+// household just created or opened still works for this visit. A later write that succeeds saves it.
+const unsaved = new Map<string, string>()
+
+/** False when something could not be stored on this device and will be lost on reload. */
+export const savedOnThisDevice = () => unsaved.size === 0
+
 function load<T>(storageKey: string, fallback: T): T {
+  let saved = unsaved.get(storageKey) ?? null
+  if (saved === null) {
+    try {
+      saved = localStorage.getItem(storageKey)
+    } catch {
+      saved = null
+    }
+  }
   try {
-    const saved = localStorage.getItem(storageKey)
     return saved === null ? fallback : (JSON.parse(saved) as T)
   } catch {
     return fallback
@@ -20,10 +34,12 @@ function load<T>(storageKey: string, fallback: T): T {
 }
 
 function save(storageKey: string, value: unknown): void {
+  const text = JSON.stringify(value)
   try {
-    localStorage.setItem(storageKey, JSON.stringify(value))
+    localStorage.setItem(storageKey, text)
+    unsaved.delete(storageKey)
   } catch {
-    // Storage blocked: it lasts for this visit only
+    unsaved.set(storageKey, text)
   }
 }
 
@@ -48,14 +64,38 @@ export function readKnown(): number[] {
   return ids.filter((id) => keyFor(id) !== null)
 }
 
+// The key an invite link replaced, per household, until the API has said whether the new one works
+const replaced = new Map<number, string>()
+
 /** Created or opened here: its key is kept, and it goes first in the list. */
 export function remember(householdId: number, key?: string | null): void {
   if (!valid(householdId)) return
-  if (key) save(KEYS_KEY, { ...keys(), [String(householdId)]: key })
+  if (key) {
+    const held = keyFor(householdId)
+    if (held && held !== key) replaced.set(householdId, held)
+    save(KEYS_KEY, { ...keys(), [String(householdId)]: key })
+  }
   if (keyFor(householdId) === null) return
   const ids = readKnown()
   if (ids[0] === householdId) return
   save(KNOWN_KEY, [householdId, ...ids.filter((id) => id !== householdId)])
+}
+
+/** The household opened with its current key: a key it replaced is not needed any more. */
+export function keyWorks(householdId: number): void {
+  replaced.delete(householdId)
+}
+
+/**
+ * The current key does not open the household. If an invite link had replaced a key this browser
+ * held, that key comes back and true is returned: the link was wrong, not the household gone.
+ */
+export function restoreReplacedKey(householdId: number): boolean {
+  const previous = replaced.get(householdId)
+  replaced.delete(householdId)
+  if (!previous) return false
+  save(KEYS_KEY, { ...keys(), [String(householdId)]: previous })
+  return true
 }
 
 export interface Forgotten {
@@ -69,6 +109,7 @@ export interface Forgotten {
  * The household and its data are not touched.
  */
 export function forget(householdId: number): Forgotten {
+  replaced.delete(householdId)
   const ids = readKnown()
   const forgotten = { at: ids.indexOf(householdId), key: keyFor(householdId) }
   save(KNOWN_KEY, ids.filter((id) => id !== householdId))

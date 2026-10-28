@@ -1,4 +1,4 @@
-import { useMutation, useQueries } from '@tanstack/react-query'
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -19,6 +19,7 @@ const gone = (error: unknown) => error instanceof ApiError && error.status === 4
 function HouseholdsPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const queryClient = useQueryClient()
   const [known, setKnown] = useState(readKnown)
   // The same query the household frame uses, so opening one from here is instant
   const loaded = useQueries({
@@ -58,6 +59,8 @@ function HouseholdsPage() {
   function forgetOne(household: KnownHousehold) {
     const forgotten = forget(household.id)
     setKnown(readKnown())
+    // What was loaded goes too: a made-up invite link must not show it from the cache
+    queryClient.removeQueries({ queryKey: keys.household(household.id) })
     const label = household.name ?? `Nhà #${household.id}`
     toast({
       text: `Đã bỏ ${label} khỏi danh sách trên máy này`,
