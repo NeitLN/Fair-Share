@@ -165,7 +165,7 @@ on it because the composer and both redesigned screens use its components.
 | T-28 | Architecture & ER diagrams exported for the report, checked against Render and Supabase | Hoàng Minh | Việt Tiến | P0 | ✅ |
 | T-32 | UI polish: loading / empty / error states ([DESIGN.md §6.5](DESIGN.md#65-states-on-every-screen)), 360 px and 200% zoom pass, dark-mode pass, one UI language | Duy Anh | Việt Tiến | P1 | ✅ |
 | T-33 | Browser smoke test (Playwright) of the main flow against the live URL | Duy Anh | Việt Tiến | P2 | ✅ |
-| T-45 | Stretch: filter Chi tiêu by month and member, each member's total for the month *(added 22/10)* | Duy Anh | Việt Tiến | P2 | Sun 01/11 · 🚧 approved, to merge (#122) |
+| T-45 | Stretch: filter Chi tiêu by month and member, each member's total for the month *(added 22/10)* | Duy Anh | Việt Tiến | P2 | ✅ |
 | T-46 | Stretch: export a household's expenses as CSV (Excel and Google Sheets, Vietnamese text) *(added 22/10)* | Duy Anh | Hoàng Minh | P2 | ✅ |
 | T-31 | Report draft — all 8 sections assembled (section drafts due Wed 28/10, owners in §4) | Việt Tiến (editor) | All | P0 | **Sun 01/11** |
 
@@ -174,8 +174,8 @@ on it because the composer and both redesigned screens use its components.
 | ID | Task | Owner | Reviewer | Pri | Due |
 |---|---|---|---|---|---|
 | T-35 | Demo branch `demo/red-gate` with a deliberate failing test, ready but never merged | Hoàng Minh | Việt Tiến | P0 | Mon 02/11 |
-| T-39 | Final README: live URLs, architecture image, run/test instructions, badges (start in W9) | Hoàng Minh | Duy Anh | P1 | Mon 02/11 |
-| T-34 | Clean-clone rehearsal on a machine that never had the project; write the exact steps | Duy Anh | Việt Tiến | P0 | #1 Tue 03/11 · final Mon 09/11 |
+| T-39 | Final README: live URLs, architecture image, run/test instructions, badges (start in W9) | Hoàng Minh | Duy Anh | P1 | ✅ (#119) |
+| T-34 | Clean-clone rehearsal on a machine that never had the project; write the exact steps | Duy Anh | Việt Tiến | P0 | dry run ✅ 22/10 · #1 Tue 03/11 · final Mon 09/11 |
 | T-38 | Demo-day runbook: wake service, resume DB, repo key search, fallback recording | Việt Tiến | Hoàng Minh | P0 | Wed 04/11 |
 | T-37 | Slides + timed 10-minute rehearsals | Duy Anh | All | P0 | #1 Thu 05/11 · #2 Tue 10/11 |
 | T-36 | Final report PDF (≤ 12 pages) + contribution table signed by all, cross-checked with `git shortlog`: content and signatures Fri 06/11, PDF checked Sat 07/11 | Việt Tiến | All | P0 | **Submit Sun 08/11** |
