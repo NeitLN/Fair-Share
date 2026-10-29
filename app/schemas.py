@@ -29,18 +29,45 @@ MemberId = Annotated[StrictInt, Field(ge=1, le=BIGINT_MAX)]
 Day = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2099, 12, 31))]
 
 
+# Characters that take no space on screen. Left in, they make a name that looks empty, or a second
+# "Minh" that cannot be told from the first (#133). The zero-width joiner is handled apart: it
+# also builds emoji such as a family from three people, so it stays between two emoji.
+INVISIBLE = {"\u200b", "\u200c", "\u2060", "\ufeff", "\u00ad"}
+ZERO_WIDTH_JOINER = "\u200d"
+
+
+def _emoji_part(ch: str) -> bool:
+    """An emoji, a skin-tone modifier or the emoji variation selector."""
+    return unicodedata.category(ch) in ("So", "Sk") or ch == "\ufe0f"
+
+
+def drop_invisible(text: str) -> str:
+    kept = []
+    for i, ch in enumerate(text):
+        if ch in INVISIBLE:
+            continue
+        if ch == ZERO_WIDTH_JOINER and not (
+            0 < i < len(text) - 1 and _emoji_part(text[i - 1]) and _emoji_part(text[i + 1])
+        ):
+            continue
+        kept.append(ch)
+    return "".join(kept)
+
+
 def clean_text(value: Any) -> Any:
     """Runs before the length limits on every text field.
 
     * NFC: Vietnamese letters can arrive as one character ("ế") or as a letter plus combining
       marks (some keyboards, copy-paste). Both look identical; storing one form keeps "Tiến" and
       "Tiến" from becoming two members and lets the length limits count what the user sees.
+    * Invisible characters (zero-width space, soft hyphen, ...) are removed, so a name made only of
+      them is empty (422) and "Minh" with one inside is "Minh" again (409 for a second one).
     * Control characters (NUL, bell, line breaks inside a name, ...) and broken UTF-8 (a lone
       surrogate) are refused: PostgreSQL cannot store NUL or invalid UTF-8, which used to be a 500.
     """
     if not isinstance(value, str):
         return value  # not text: the str type check reports it
-    value = value.strip()
+    value = drop_invisible(value).strip()
     if any(unicodedata.category(ch) in ("Cc", "Cs") for ch in value):
         raise ValueError("must not contain control characters")
     return unicodedata.normalize("NFC", value)
