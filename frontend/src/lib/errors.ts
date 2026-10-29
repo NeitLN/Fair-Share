@@ -9,6 +9,8 @@ const MESSAGES: Record<string, string> = {
   expense_not_found: 'Khoản chi này không còn nữa.',
   settlement_not_found: 'Khoản trả này không còn nữa.',
   member_name_taken: 'Nhà này đã có thành viên trùng tên.',
+  // As many as one expense can be split between (app/routers/households.py, #134)
+  too_many_members: 'Nhà đã đủ 50 thành viên, mức tối đa của một nhà.',
   member_in_use: 'Không xoá được: người này đã có trong một khoản chi hoặc khoản trả.',
   split_mismatch: 'Tổng các phần chưa bằng số tiền của khoản chi.',
   unknown_member: 'Có người không thuộc nhà này. Hãy tải lại trang rồi thử lại.',
