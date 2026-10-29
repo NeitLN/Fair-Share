@@ -68,6 +68,14 @@ describe('ExpenseForm, the 90% case', () => {
     })
   })
 
+  test('millions the way rent is written: "1tr5" shows and saves 1.500.000đ (#141)', async () => {
+    const { user, onSubmit } = setup()
+    await fillBasics(user, '1tr5')
+    expect(screen.getByText('= 1.500.000đ')).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit.mock.calls[0][0].amount).toBe(1_500_000)
+  })
+
   test('another payer is one tap on their chip', async () => {
     const { user, onSubmit } = setup()
     await fillBasics(user)

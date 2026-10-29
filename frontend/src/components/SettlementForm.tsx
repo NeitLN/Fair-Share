@@ -30,7 +30,7 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
   function problem(): string | null {
     if (fromId === '' || toId === '') return 'Hãy chọn người trả và người nhận.'
     if (fromId === toId) return 'Người trả và người nhận phải là hai người khác nhau.'
-    if (amount === null || amount <= 0) return 'Số tiền chưa hợp lệ. Ví dụ: 120000, 120.000 hoặc 120k.'
+    if (amount === null || amount <= 0) return 'Số tiền chưa hợp lệ. Ví dụ: 120000, 120.000, 120k hoặc 1tr2.'
     if (!settledAt) return 'Hãy chọn ngày.'
     if (!isDayInRange(settledAt)) return 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.'
     return null

@@ -278,7 +278,7 @@ function ExpenseForm({
     if (text.length < 1 || text.length > MAX_DESCRIPTION) {
       found.description = `Nội dung phải từ 1 đến ${MAX_DESCRIPTION} ký tự.`
     }
-    if (amount === null || amount <= 0) found.amount = 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000 hoặc 240k.'
+    if (amount === null || amount <= 0) found.amount = 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000, 240k hoặc 1tr5.'
     if (payerId === '') found.payer = 'Chọn người trả.'
     if (!spentAt) found.date = 'Hãy chọn ngày.'
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
