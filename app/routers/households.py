@@ -6,13 +6,24 @@ from psycopg import Connection, errors
 from app.access import HouseholdAccess, household_not_found
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
-from app.schemas import Household, HouseholdCreated, HouseholdIn, Id, Member, MemberIn
+from app.schemas import (
+    MAX_PARTICIPANTS,
+    Household,
+    HouseholdCreated,
+    HouseholdIn,
+    Id,
+    Member,
+    MemberIn,
+)
 
 # Every route here with a household id in its path needs that household's key (app/access.py)
 router = APIRouter(prefix="/api", tags=["households"], dependencies=[HouseholdAccess])
 
 HOUSEHOLD_COLUMNS = "id, name, created_at"
 MEMBER_COLUMNS = "id, household_id, name, created_at"
+# No more members than one expense can be split between, so an equal split for the whole
+# household always works (#134)
+MAX_MEMBERS = MAX_PARTICIPANTS
 
 
 def member_name_taken() -> ApiError:
@@ -78,7 +89,18 @@ def list_members(household_id: Id, conn: ConnDep):
 
 @router.post("/households/{household_id}/members", response_model=Member, status_code=201)
 def add_member(household_id: Id, body: MemberIn, conn: ConnDep):
-    require_household(conn, household_id)
+    # Locks the household until this request commits, so two members added at the same moment
+    # cannot both be the last one allowed
+    locked = fetch_one(conn, "SELECT 1 FROM households WHERE id = %s FOR UPDATE", (household_id,))
+    if locked is None:
+        raise household_not_found()
+    count = conn.execute(
+        "SELECT count(*) FROM members WHERE household_id = %s", (household_id,)
+    ).fetchone()[0]
+    if count >= MAX_MEMBERS:
+        raise ApiError(
+            409, "too_many_members", f"A household has at most {MAX_MEMBERS} members"
+        )
     sql = f"INSERT INTO members (household_id, name) VALUES (%s, %s) RETURNING {MEMBER_COLUMNS}"
     try:
         return fetch_one(conn, sql, (household_id, body.name))

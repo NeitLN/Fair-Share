@@ -221,7 +221,7 @@ FastAPI publishes an always-current reference at **`/docs`** (Swagger UI) and **
 | `GET` | `/api/version` | Name, version, environment and the **commit** Render built; used by the post-deploy smoke test |
 | `POST` | `/api/households` | Create a household: `{"name"}`, 1–60 characters → `201` with its secret `key`, the only time it is sent. There is no list of every household (#132) |
 | `GET` `PATCH` `DELETE` | `/api/households/{id}` | One household; delete removes everything in it → `204` |
-| `GET` `POST` | `/api/households/{id}/members` | Members (oldest first) / add one: `{"name"}`, 1–40 characters → `201`; `409 member_name_taken` |
+| `GET` `POST` | `/api/households/{id}/members` | Members (oldest first) / add one: `{"name"}`, 1–40 characters → `201`; `409 member_name_taken`, `409 too_many_members` (at most 50, as many as one expense can be split between) |
 | `PATCH` `DELETE` | `/api/members/{id}` | Rename / remove; `409 member_in_use` if they are in an expense or a settlement |
 | `GET` `POST` | `/api/households/{id}/expenses` | List (newest first) / add an expense with an equal or custom split → `201`; `422 split_mismatch` if custom shares do not add up |
 | `GET` `PUT` `DELETE` | `/api/expenses/{id}` | One expense with its shares; edit replaces it; delete → `204` |
