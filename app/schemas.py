@@ -32,7 +32,11 @@ Day = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2099, 12, 31))]
 # Characters that take no space on screen. Left in, they make a name that looks empty, or a second
 # "Minh" that cannot be told from the first (#133). The zero-width joiner is handled apart: it
 # also builds emoji such as a family from three people, so it stays between two emoji.
-INVISIBLE = {"\u200b", "\u200c", "\u2060", "\ufeff", "\u00ad"}
+INVISIBLE = {
+    "\u200b", "\u200c", "\u2060", "\ufeff", "\u00ad",
+    # The Hangul fillers: Unicode calls them letters, so strip() keeps them, but they draw nothing
+    "\u115f", "\u1160", "\u3164", "\uffa0",
+}
 ZERO_WIDTH_JOINER = "\u200d"
 
 
@@ -60,8 +64,9 @@ def clean_text(value: Any) -> Any:
     * NFC: Vietnamese letters can arrive as one character ("ế") or as a letter plus combining
       marks (some keyboards, copy-paste). Both look identical; storing one form keeps "Tiến" and
       "Tiến" from becoming two members and lets the length limits count what the user sees.
-    * Invisible characters (zero-width space, soft hyphen, ...) are removed, so a name made only of
-      them is empty (422) and "Minh" with one inside is "Minh" again (409 for a second one).
+    * Invisible characters (zero-width space, soft hyphen, Hangul filler, ...) are removed, so a
+      name made only of them is empty (422) and "Minh" with one inside is "Minh" again (409 for a
+      second one).
     * Control characters (NUL, bell, line breaks inside a name, ...) and broken UTF-8 (a lone
       surrogate) are refused: PostgreSQL cannot store NUL or invalid UTF-8, which used to be a 500.
     """
