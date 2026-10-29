@@ -139,8 +139,11 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
           aria-describedby="ai-hint"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            // Enter reads the sentence; Shift+Enter is a new line
-            if (e.key === 'Enter' && !e.shiftKey) {
+            // Enter reads the sentence; Shift+Enter is a new line. While an input method is still
+            // composing a word (Telex on some keyboards, phone keyboards), Enter only commits that
+            // word: browsers say so with isComposing, Safari with keyCode 229.
+            const composing = e.nativeEvent.isComposing || e.keyCode === 229
+            if (e.key === 'Enter' && !e.shiftKey && !composing) {
               e.preventDefault()
               void read()
             }
