@@ -149,11 +149,11 @@
         <p>Gõ <b>“lẩu 240k Minh trả chia đều cả nhà”</b>, Gemini điền sẵn form. Người dùng duyệt rồi mới lưu.</p>
         <p class="muted" style="margin-top:18px">AI lỗi, quá tải hay chưa cấu hình: câu đã gõ vẫn còn, form tay vẫn dùng được.</p>
         <span class="sticker yellow" style="margin-top:44px">✦ GÕ NHANH</span>
-        <p class="muted" style="margin-top:56px">Điện thoại 360 px, sáng và tối, lọc theo tháng, xuất CSV.</p>
+        <p class="muted" style="margin-top:56px">Mỗi nhà riêng tư: chỉ mở được bằng đường dẫn mời. Điện thoại 360 px, sáng và tối, lọc theo tháng, xuất CSV.</p>
       </div>
     </div>
     <div class="footer"><img src="../brand/wordmark.svg" alt="Fair·Share"><span class="page"></span></div>
-    <div class="notes"><b>Duy Anh · 30 giây.</b> Màn hình trái: Tổng quan. Câu đầu tiên là phần của bạn, bấm Đã trả là ghi lại, có hoàn tác. Màn hình giữa: Chi tiêu, lọc theo tháng và người, tổng tháng từng người, xuất CSV mở được trong Excel. Bên phải: tính năng AI duy nhất, Gõ nhanh. AI chỉ điền nháp, không lưu gì; key nằm trên server. Chuyển lời cho Minh: “Minh sẽ nói các phần này chạy ở đâu.”</div>
+    <div class="notes"><b>Duy Anh · 30 giây.</b> Màn hình trái: Tổng quan. Câu đầu tiên là phần của bạn, bấm Đã trả là ghi lại, có hoàn tác. Màn hình giữa: Chi tiêu, lọc theo tháng và người, tổng tháng từng người, xuất CSV mở được trong Excel. Bên phải: tính năng AI duy nhất, Gõ nhanh. AI chỉ điền nháp, không lưu gì; key nằm trên server. Không có đăng nhập: mỗi nhà chỉ mở được bằng đường dẫn mời (Thành viên → Sao chép đường dẫn mời), người lạ đoán số nhà cũng không vào được. Chuyển lời cho Minh: “Minh sẽ nói các phần này chạy ở đâu.”</div>
   </section>
 
   <!-- 4 · Block 2: architecture -->
@@ -191,14 +191,14 @@
     <h2 style="color:var(--white)">Từ thư mục trống tới bản live</h2>
     <ol class="steps" style="color:var(--ink)">
       <li><span><b>Đánh thức</b> API trên Render và DB Supabase <span class="muted">(Tiến)</span></span></li>
-      <li><span><b>Clean clone</b>: <code>git clone</code> → <code>docker compose up --build</code>, không <code>.env</code> <span class="muted">(Duy Anh)</span></span></li>
+      <li><span><b>Clean clone</b>: <code>git clone</code> → <code>podman compose up --build</code> → link mời trong log <span class="muted">(Duy Anh)</span></span></li>
       <li><span><b>Cổng đỏ</b>: PR #113 có lỗi chia tiền cố ý, test chặn, không merge được <span class="muted">(Tiến)</span></span></li>
       <li><span><b>Merge</b> một thay đổi xanh → deploy → smoke <span class="muted">(Tiến)</span></span></li>
       <li><span><b>Live</b>: ghi khoản chi, Gõ nhanh, Đã trả trên điện thoại <span class="muted">(Tiến)</span></span></li>
       <li><span><b>Tìm key</b> trong repo: không có secret nào <span class="muted">(Tiến)</span></span></li>
     </ol>
     <div class="footer"><span class="who" style="color:#e7e1ff">Việt Tiến điều khiển · Duy Anh chạy clean clone</span><span class="page"></span></div>
-    <div class="notes"><b>Việt Tiến + Duy Anh · 4 phút.</b> Trước giờ thuyết trình: đã đánh thức Render và resume Supabase (runbook T-38); máy demo đã kéo sẵn 4 image nền công khai, chưa có gì của repo (docs/CLEAN_CLONE.md). Duy Anh: mở terminal ở thư mục trống, clone, compose up, chỉ http://localhost:3000 và nhà demo có sẵn khoản chi. Nếu mạng lớp hỏng: dùng bản ghi hình dự phòng.</div>
+    <div class="notes"><b>Việt Tiến + Duy Anh · 4 phút.</b> Trước giờ thuyết trình: đã đánh thức Render và resume Supabase (runbook T-38); máy demo đã kéo sẵn 4 image nền công khai, chưa có gì của repo (docs/CLEAN_CLONE.md). Duy Anh (PowerShell, trong C:\demo trống): <code>git clone …</code>, <code>cd Fair-Share</code>, <code>podman compose up --build -d --wait</code>; nói thời gian đã đo ở runbook §1 bước 9. Rồi <code>podman compose logs api | Select-String "demo household"</code> và mở đường dẫn <code>/households/…#k=…</code> nó in ra trên <code>http://&lt;host&gt;:3000</code> (<code>localhost</code>, hoặc IP của máy nếu Podman vẫn rootful: runbook §1 bước 3b). Nhà trọ demo hiện ra với 5 khoản chi trong 2 tháng. Mở <code>localhost:3000</code> trống trơn là đúng: không có link thì không vào được nhà nào. Nếu mạng lớp hỏng: dùng bản ghi hình dự phòng.</div>
   </section>
 
   <!-- 7 · Block 4: one thing that went wrong -->
