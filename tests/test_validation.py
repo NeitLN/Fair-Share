@@ -11,6 +11,7 @@ import unicodedata
 import pytest
 
 from app.limits import MAX_BODY_BYTES
+from app.schemas import clean_text
 from tests.api import error_code, household, member
 
 JSON = {"Content-Type": "application/json"}
@@ -184,6 +185,70 @@ def test_a_decomposed_name_is_the_same_member(client, house):
     """"Tiến" typed as e + combining marks is stored in the composed form, so it is a duplicate."""
     response = client.post(f"/api/households/{house['id']}/members", json={"name": NFD_TIEN})
     assert_error_shape(response, 409, "member_name_taken")
+
+
+ZWSP = "\N{ZERO WIDTH SPACE}"
+ZWJ = "\N{ZERO WIDTH JOINER}"
+SOFT_HYPHEN = "\N{SOFT HYPHEN}"
+FAMILY = "\N{MAN}" + ZWJ + "\N{WOMAN}" + ZWJ + "\N{GIRL}"
+# A thumbs up with a skin tone, joined to the male sign: one emoji
+MAN_THUMBS_UP = (
+    "\N{THUMBS UP SIGN}\N{EMOJI MODIFIER FITZPATRICK TYPE-4}"
+    + ZWJ
+    + "\N{MALE SIGN}\N{VARIATION SELECTOR-16}"
+)
+
+
+@pytest.mark.parametrize(
+    "typed, kept",
+    [
+        (ZWSP, ""),
+        ("Minh" + ZWSP, "Minh"),
+        ("Mi" + SOFT_HYPHEN + "nh", "Minh"),
+        ("\N{ZERO WIDTH NO-BREAK SPACE}Tiến", "Tiến"),
+        ("Mi" + ZWJ + "nh", "Minh"),
+        (ZWJ, ""),
+        # Between two emoji the joiner builds one picture, so it stays
+        ("Nhà " + FAMILY, "Nhà " + FAMILY),
+        (MAN_THUMBS_UP, MAN_THUMBS_UP),
+    ],
+)
+def test_invisible_characters_are_removed_but_emoji_keep_their_joiner(typed, kept):
+    assert clean_text(typed) == kept
+
+
+@pytest.mark.db
+@pytest.mark.usefixtures("cleanup")
+@pytest.mark.parametrize(
+    "path, name",
+    [
+        ("member", ZWSP),
+        ("member", SOFT_HYPHEN),
+        ("member", " " + ZWSP + " "),
+        ("household", ZWJ),
+    ],
+)
+def test_a_name_made_only_of_invisible_characters_is_422(client, house, path, name):
+    url = "/api/households" if path == "household" else f"/api/households/{house['id']}/members"
+    response = client.post(url, json={"name": name})
+    assert_error_shape(response, 422, "validation_error")
+    assert response.json()["error"]["details"][0]["loc"] == ["body", "name"]
+
+
+@pytest.mark.db
+@pytest.mark.usefixtures("cleanup")
+@pytest.mark.parametrize("lookalike", ["Minh" + ZWSP, ZWSP + "Minh", "Mi" + SOFT_HYPHEN + "nh"])
+def test_an_invisible_character_does_not_make_a_second_minh(client, house, lookalike):
+    """The house already has Minh: the same name with an invisible character is a duplicate."""
+    response = client.post(f"/api/households/{house['id']}/members", json={"name": lookalike})
+    assert_error_shape(response, 409, "member_name_taken")
+
+
+@pytest.mark.db
+@pytest.mark.usefixtures("cleanup")
+def test_an_emoji_household_name_is_stored_whole(client):
+    created = household(client, "Nhà " + FAMILY)
+    assert created["name"] == "Nhà " + FAMILY
 
 
 @pytest.mark.db
