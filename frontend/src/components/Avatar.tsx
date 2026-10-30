@@ -1,4 +1,5 @@
 import type { MemberLook } from '../lib/names'
+import { useT } from '../i18n'
 
 type Size = 'sm' | 'md' | 'lg'
 
@@ -32,11 +33,12 @@ interface AvatarStackProps {
 
 /** The household at a glance: up to three avatars, then how many more. */
 export function AvatarStack({ looks, max = 3 }: AvatarStackProps) {
+  const t = useT()
   const shown = looks.slice(0, max)
   const more = looks.length - shown.length
   const names = looks.map((look) => look.full).join(', ')
   return (
-    <span className="avatar-stack" role="img" aria-label={`${looks.length} người: ${names}`}>
+    <span className="avatar-stack" role="img" aria-label={`${t.common.people(looks.length)}${names}`}>
       {shown.map((look, index) => (
         <Avatar key={index} look={look} decorative />
       ))}

@@ -5,6 +5,7 @@ import { ApiError } from '../api/client'
 import { keys } from '../api/households'
 import { balancesFetchCount, createSettlement, deleteSettlement } from '../api/settlements'
 import type { Balances, Transfer } from '../api/types'
+import { messages } from '../i18n'
 import { today } from './date'
 import { errorMessage } from './errors'
 import { formatVND } from './money'
@@ -143,8 +144,8 @@ export function usePaidTransfers(
         change(id, null)
       } else {
         change(id, { state: 'paid', settlementId: settlement.id, recordedAtFetch: balancesFetchCount() })
-        say(`Đã ghi: ${named(transfer)}`, {
-          label: 'Hoàn tác',
+        say(messages().paid.recorded(named(transfer)), {
+          label: messages().common.undo,
           onAction: () => undo(id, settlement.id, transfer),
         })
       }
@@ -167,17 +168,17 @@ export function usePaidTransfers(
       finished.current.add(id)
       deletedSettlements.current.add(settlementId)
       change(id, null)
-      say(`Đã hoàn tác: ${named(transfer)}`)
+      say(messages().paid.undone(named(transfer)))
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 404) {
         // Deleted already (from Lịch sử trả, or on another phone): nothing left to undo
         finished.current.add(id)
         change(id, null)
-        say('Khoản trả này đã được xoá trước đó.')
+        say(messages().paid.alreadyDeleted)
       } else {
         change(id, { state: 'paid' })
-        say(`Chưa hoàn tác được. ${errorMessage(failure)}`, {
-          label: 'Thử lại',
+        say(messages().paid.undoFailed(errorMessage(failure) ?? ''), {
+          label: messages().common.tryAgain,
           onAction: () => undo(id, settlementId, transfer),
         })
       }

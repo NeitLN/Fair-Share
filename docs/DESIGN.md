@@ -275,6 +275,34 @@ already typed is lost.
 Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm qua", "Thứ bảy, 18/10", full
 `18/10/2026` only in history older than this year.
 
+### 7.1 English and Vietnamese
+
+The app speaks **English by default**; **EN / VI** in the header switches the whole page and is
+remembered on the device, like the theme. Every word lives in `frontend/src/i18n/` (`en.tsx`, `vi.tsx`,
+the same keys, checked by TypeScript); components take them from `useT()`, plain functions from
+`messages()`. The Vietnamese above is unchanged. The English terms were agreed in a translation review:
+
+| Vietnamese | English | Why |
+|---|---|---|
+| nhà | **group** (Your groups, New group) | Short and right for a group opened by an invite link; "household" sounds formal, "home" is the start page |
+| khoản chi · khoản trả · số dư | **expense · repayment · balance** | "Repayment" keeps paying someone back apart from paying for an expense |
+| cần trả · được nhận · sạch nợ | **owes · gets back · SETTLED** | |
+| Đã trả (button) · ĐÃ TRẢ (stamp) | **Mark as paid · PAID** | The button records money already paid outside the app |
+| Bạn cần trả Minh · Minh trả Lan (suggestions) | **You owe Minh · Minh owes Lan** | A suggestion must never read as already done |
+| Minh đã trả Lan (history) | **Minh paid Lan** | |
+| Gõ nhanh bằng AI · Điền giúp · Nhập tay · Hoàn tác điền | **Quick add with AI · Fill form · Enter manually · Undo autofill** | |
+| đường dẫn mời · Mời bạn cùng phòng | **invite link · Invite housemates** | "Roommates" can mean one bedroom |
+| Bỏ khỏi danh sách | **Remove from list** | Nothing is deleted; the hint says so |
+| App gọi mỗi người bằng tên cuối | **The app uses the last word of each name** | "Last name" would mean the family name |
+| Rõ ai trả ai. | **See who owes who.** | |
+
+English rules: sentence case for headings, tabs and buttons (only the stamps are upper case); "you" for
+the person, "your" for things; counts agree ("1 repayment", "2 repayments"; "Minh owes", "Minh and Lan
+owe"). Numbers: `240,000 ₫` (comma thousands, a no-break space, ₫). Dates: "Today, 30 Oct",
+"Yesterday, 29 Oct", "Saturday, 18 Oct", `18 Oct 2025` for another year. Names keep their Vietnamese
+spelling in both languages. A label that is longer in English is shortened rather than allowed to
+overflow: at 320 px the split fold reads "Split · Equally · Custom amounts".
+
 ## 8. Accessibility checklist
 
 Checked on 22/10/2026. Items marked *(test)* are asserted by `frontend/e2e/a11y.spec.ts`, which runs on the

@@ -1,4 +1,5 @@
 import type { Expense, MemberBalance, Transfer } from '../api/types'
+import { messages } from '../i18n'
 import { formatVND } from './money'
 
 /** The short name of a member id (lib/names.ts), or the removed-member label. */
@@ -16,10 +17,11 @@ export function tookPart(balance: MemberBalance): boolean {
   return balance.paid > 0 || balance.owed > 0 || balance.sent > 0 || balance.received > 0
 }
 
-// "Minh", "Minh và Lan", "3 người"
+// "Minh", "Minh và Lan", "3 người" ("Minh", "Minh and Lan", "3 people")
 function people(names: string[]): string {
-  if (names.length <= 2) return names.join(' và ')
-  return `${names.length} người`
+  const t = messages().verdict
+  if (names.length <= 2) return names.join(t.and)
+  return t.nPeople(names.length)
 }
 
 const sum = (transfers: Transfer[]) => transfers.reduce((total, t) => total + t.amount, 0)
@@ -30,31 +32,30 @@ const sum = (transfers: Transfer[]) => transfers.reduce((total, t) => total + t.
  * `started` is false for a household where nobody has spent anything yet.
  */
 export function verdict(suggested: Transfer[], me: number | null, nameOf: NameOf, started: boolean): Verdict {
+  const t = messages().verdict
   const count = suggested.length
-  if (count === 0) {
-    return {
-      sentence: started ? 'Cả nhà sạch nợ. Nhà trọ bình yên.' : 'Chưa có khoản chi nào. Ghi khoản đầu tiên để xem ai trả ai.',
-      total: null,
-    }
-  }
-  if (me === null) return { sentence: `Còn ${count} lần trả là cả nhà về 0đ`, total: null }
+  if (count === 0) return { sentence: started ? t.allSquare : t.nothingYet, total: null }
+  if (me === null) return { sentence: t.paymentsLeft(count), total: null }
 
   const iPay = suggested.filter((t) => t.from_member_id === me)
   if (iPay.length > 0) {
-    return { sentence: `Bạn cần trả ${people(iPay.map((t) => nameOf(t.to_member_id)))}`, total: sum(iPay) }
+    return { sentence: t.youPay(people(iPay.map((p) => nameOf(p.to_member_id)))), total: sum(iPay) }
   }
   const iGet = suggested.filter((t) => t.to_member_id === me)
   if (iGet.length > 0) {
-    return { sentence: `Bạn được nhận từ ${people(iGet.map((t) => nameOf(t.from_member_id)))}`, total: sum(iGet) }
+    const names = iGet.map((p) => nameOf(p.from_member_id))
+    return { sentence: t.youGet(people(names), names.length > 1), total: sum(iGet) }
   }
-  return { sentence: `Bạn không nợ ai. Còn ${count} lần trả trong nhà.`, total: null }
+  return { sentence: t.youAreSquare(count), total: null }
 }
 
-/** One transfer from where you stand: "Bạn trả Minh", "Minh trả bạn", "Anh trả Minh". */
+/** One transfer from where you stand: "Bạn trả Minh", "Minh trả bạn" ("You owe Minh", "Minh owes you"). */
 export function transferText(transfer: Transfer, me: number | null, nameOf: NameOf): string {
-  const from = transfer.from_member_id === me ? 'Bạn' : nameOf(transfer.from_member_id)
-  const to = transfer.to_member_id === me ? 'bạn' : nameOf(transfer.to_member_id)
-  return `${from} trả ${to}`
+  const t = messages().verdict
+  const fromIsYou = transfer.from_member_id === me
+  const from = fromIsYou ? t.you : nameOf(transfer.from_member_id)
+  const to = transfer.to_member_id === me ? t.youObject : nameOf(transfer.to_member_id)
+  return t.pays(from, to, fromIsYou)
 }
 
 /**
@@ -68,10 +69,11 @@ export function reminderMessage(
   nameOf: NameOf,
   link: string,
 ): string {
-  const lines = suggested.map(
-    (t) => `• ${nameOf(t.from_member_id)} trả ${nameOf(t.to_member_id)} ${formatVND(t.amount)}`,
+  const t = messages().verdict
+  const lines = suggested.map((p) =>
+    t.reminderLine(nameOf(p.from_member_id), nameOf(p.to_member_id), formatVND(p.amount)),
   )
-  return [`${householdName} chốt sổ tháng ${month} nè:`, ...lines, `Xem chi tiết: ${link}`].join('\n')
+  return [t.reminderHead(householdName, month), ...lines, t.reminderLink(link)].join('\n')
 }
 
 /** What the household spent in the month of `isoDate` ("YYYY-MM-…"), from its expenses. */

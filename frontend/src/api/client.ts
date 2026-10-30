@@ -1,4 +1,5 @@
 // Every call to the FastAPI backend goes through request(), so error handling lives in one place.
+import { messages } from '../i18n'
 import { keyFor } from '../lib/knownHouseholds'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
@@ -36,7 +37,7 @@ async function toApiError(response: Response): Promise<ApiError> {
   if (typeof body.detail === 'string') {
     return new ApiError(response.status, 'error', body.detail)
   }
-  return new ApiError(response.status, 'error', `Máy chủ trả lỗi ${response.status}`)
+  return new ApiError(response.status, 'error', messages().failure.server(response.status))
 }
 
 /** Header carrying a household's secret key (#132, app/access.py). */
@@ -68,7 +69,7 @@ export async function request<T>(
     response = await fetch(`${BASE_URL}${path}`, { ...init, headers })
   } catch {
     // fetch only throws when no response arrived at all (offline, DNS, CORS)
-    throw new ApiError(0, 'network_error', 'Không kết nối được tới máy chủ. Hãy thử lại.')
+    throw new ApiError(0, 'network_error', messages().failure.network)
   }
 
   if (!response.ok) throw await toApiError(response)

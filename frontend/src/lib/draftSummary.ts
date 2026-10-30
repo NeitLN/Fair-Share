@@ -1,4 +1,5 @@
 import type { ExpenseDraft, Member } from '../api/types'
+import { messages } from '../i18n'
 import { formatVND } from './money'
 
 /**
@@ -6,6 +7,7 @@ import { formatVND } from './money'
  * Parts the draft does not have (no amount, no payer) are left out.
  */
 export function draftSummary(draft: ExpenseDraft, members: Member[]): string {
+  const t = messages()
   const parts: string[] = []
 
   const description = draft.description.trim()
@@ -15,7 +17,7 @@ export function draftSummary(draft: ExpenseDraft, members: Member[]): string {
 
   if (draft.payer_id !== null) {
     const payer = members.find((member) => member.id === draft.payer_id)
-    parts.push(`${payer?.name ?? 'Thành viên đã xoá'} trả`)
+    parts.push(t.ai.pays(payer?.name ?? t.common.removedMember))
   }
 
   // No ids: the split was not filled (the user had set it), so it is not mentioned
@@ -26,9 +28,9 @@ export function draftSummary(draft: ExpenseDraft, members: Member[]): string {
       ids.length === members.length &&
       members.every((member) => ids.includes(member.id))
     parts.push(
-      everyone ? `chia đều cả nhà (${members.length} người)` : `chia đều ${ids.length} người`,
+      everyone ? t.ai.splitEveryone(members.length) : t.ai.splitAmong(ids.length),
     )
   }
 
-  return parts.length > 0 ? `Đã điền: ${parts.join(' · ')}.` : ''
+  return parts.length > 0 ? t.ai.filled(parts.join(' · ')) : ''
 }

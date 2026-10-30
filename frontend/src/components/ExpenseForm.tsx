@@ -8,6 +8,7 @@ import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { equalSplit, parseAmount } from '../lib/split'
 import { Avatar } from './Avatar'
+import { useT } from '../i18n'
 
 /** The fields a quick-add draft can fill. */
 export type FillField = 'description' | 'amount' | 'payer' | 'date' | 'split'
@@ -80,6 +81,7 @@ function ExpenseForm({
   submitting,
   error,
 }: ExpenseFormProps) {
+  const t = useT()
   const editing = Boolean(initial)
   const initialShares = new Map(initial?.shares.map((s) => [s.member_id, s.amount]))
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
@@ -276,21 +278,21 @@ function ExpenseForm({
     const found: Problems = {}
     const text = description.trim()
     if (text.length < 1 || text.length > MAX_DESCRIPTION) {
-      found.description = `Nội dung phải từ 1 đến ${MAX_DESCRIPTION} ký tự.`
+      found.description = t.form.descriptionProblem(MAX_DESCRIPTION)
     }
-    if (amount === null || amount <= 0) found.amount = 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000, 240k hoặc 1tr5.'
-    if (payerId === '') found.payer = 'Chọn người trả.'
-    if (!spentAt) found.date = 'Hãy chọn ngày.'
+    if (amount === null || amount <= 0) found.amount = t.form.amountProblem
+    if (payerId === '') found.payer = t.form.payerProblem
+    if (!spentAt) found.date = t.form.dateMissing
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
-    else if (!isDayInRange(spentAt)) found.date = 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.'
+    else if (!isDayInRange(spentAt)) found.date = t.form.dateRange
     if (splitType === 'equal') {
-      if (selected.size === 0) found.split = 'Hãy chọn ít nhất một người cùng chia.'
+      if (selected.size === 0) found.split = t.form.pickSomeone
     } else if (customInvalid) {
-      found.split = 'Có phần chia chưa phải là số tiền hợp lệ.'
+      found.split = t.form.badShare
     } else if (customPeople === 0) {
-      found.split = 'Hãy nhập phần của ít nhất một người.'
+      found.split = t.form.noShare
     } else if (remainder !== 0) {
-      found.split = 'Tổng các phần phải bằng đúng số tiền của khoản chi.'
+      found.split = t.form.sharesMismatch
     }
     return found
   }
@@ -376,15 +378,15 @@ function ExpenseForm({
   const [dayWord, dayDate] = dayLabel(spentAt).split(', ')
   const splitSummary =
     splitType === 'custom'
-      ? `Chia riêng (${customPeople} người)`
+      ? t.form.summaryCustom(customPeople)
       : selected.size === members.length
-        ? `Chia đều cả nhà (${members.length} người)`
-        : `Chia đều (${selected.size}/${members.length} người)`
+        ? t.form.summaryEveryone(members.length)
+        : t.form.summaryEqual(selected.size, members.length)
 
   return (
     <form ref={formElement} className="expense-form" onSubmit={handleSubmit} noValidate>
       <div className="field">
-        <label htmlFor="expense-description">Nội dung</label>
+        <label htmlFor="expense-description">{t.form.description}</label>
         <input
           ref={descriptionInput}
           id="expense-description"
@@ -393,7 +395,7 @@ function ExpenseForm({
           type="text"
           value={description}
           maxLength={MAX_DESCRIPTION}
-          placeholder="Tiền điện tháng 10"
+          placeholder={t.form.descriptionPlaceholder}
           {...invalid('description')}
           onChange={(e) => {
             edited('description')
@@ -404,7 +406,7 @@ function ExpenseForm({
       </div>
 
       <div className="field">
-        <label htmlFor="expense-amount">Số tiền</label>
+        <label htmlFor="expense-amount">{t.form.amount}</label>
         <div className="amount-row">
           <input
             id="expense-amount"
@@ -428,7 +430,7 @@ function ExpenseForm({
       </div>
 
       <fieldset className={`field payer${flash('payer')}`} {...invalid('payer')}>
-        <legend>Ai trả?</legend>
+        <legend>{t.form.whoPaid}</legend>
         <div className="pick">
           {members.map((m, index) => {
             const look = looks.get(m.id) ?? REMOVED_MEMBER
@@ -451,7 +453,7 @@ function ExpenseForm({
                 <label htmlFor={`payer-${m.id}`} title={look.full}>
                   <Avatar look={look} size="sm" decorative />
                   <span className="name">{look.short}</span>
-                  {me === m.id && <span className="you">(bạn)</span>}
+                  {me === m.id && <span className="you">{t.common.youInBrackets}</span>}
                 </label>
               </span>
             )
@@ -465,7 +467,7 @@ function ExpenseForm({
       >
         <div className="fold-row">
           <span className="fold-label" id="expense-date-label">
-            Ngày
+            {t.form.date}
           </span>
           <span className="fold-value">
             <b>{dayWord}</b>
@@ -475,12 +477,12 @@ function ExpenseForm({
             type="button"
             className="btn-ghost"
             ref={dateToggle}
-            aria-label={dateOpen ? 'Xong, đóng ngày' : 'Đổi ngày'}
+            aria-label={dateOpen ? t.form.dateDoneLabel : t.form.dateChangeLabel}
             aria-expanded={dateOpen}
             aria-controls="expense-date-control"
             onClick={() => setDateOpen((open) => !open)}
           >
-            {dateOpen ? 'Xong' : 'Đổi'}
+            {dateOpen ? t.common.done : t.common.change}
           </button>
         </div>
         <div id="expense-date-control" className="fold-control" hidden={!dateOpen}>
@@ -508,19 +510,19 @@ function ExpenseForm({
         onKeyDown={(event) => closeOnEscape(event, splitOpen, () => setSplitOpen(false), splitToggle.current)}
       >
         <div className="fold-row">
-          <span className="fold-label">Cách chia</span>
+          <span className="fold-label">{t.form.split}</span>
           <span className="fold-value">{splitSummary}</span>
           <button
             type="button"
             className="btn-ghost"
             ref={splitToggle}
-            aria-label={splitOpen ? 'Xong, đóng cách chia' : 'Sửa cách chia'}
+            aria-label={splitOpen ? t.form.splitDoneLabel : t.form.splitEditLabel}
             aria-expanded={splitOpen}
             aria-controls="expense-split-control"
             aria-describedby={splitNote ? 'expense-split-note' : undefined}
             onClick={() => setSplitOpen((open) => !open)}
           >
-            {splitOpen ? 'Xong' : 'Sửa'}
+            {splitOpen ? t.common.done : t.common.edit}
           </button>
         </div>
         {splitNote && (
@@ -531,7 +533,7 @@ function ExpenseForm({
         <div id="expense-split-control" hidden={!splitOpen}>
           {splitOpen && (
             <fieldset className="fold-control split" {...invalid('split')}>
-              <legend className="visually-hidden">Cách chia</legend>
+              <legend className="visually-hidden">{t.form.split}</legend>
               <div className="segmented">
                 <button
                   type="button"
@@ -543,7 +545,7 @@ function ExpenseForm({
                     setSplitType('equal')
                   }}
                 >
-                  Chia đều
+                  {t.form.splitEqual}
                 </button>
                 <button
                   type="button"
@@ -555,7 +557,7 @@ function ExpenseForm({
                     setSplitType('custom')
                   }}
                 >
-                  Chia riêng
+                  {t.form.splitCustom}
                 </button>
               </div>
 
@@ -578,7 +580,7 @@ function ExpenseForm({
                   <ul className="split-rows">
                     {members.map((m) => (
                       <li key={m.id}>
-                        <label htmlFor={`share-${m.id}`}>Phần của {shortName(m.id)}</label>
+                        <label htmlFor={`share-${m.id}`}>{t.form.shareOf(shortName(m.id))}</label>
                         <input
                           id={`share-${m.id}`}
                           type="text"
@@ -595,12 +597,12 @@ function ExpenseForm({
                   </ul>
                   <p className="remainder" aria-live="polite">
                     {customInvalid
-                      ? 'Có phần chia chưa phải là số tiền hợp lệ.'
+                      ? t.form.badShare
                       : remainder === 0 && customTotal > 0
-                        ? 'Đã chia khớp số tiền.'
+                        ? t.form.sharesMatch
                         : remainder > 0
-                          ? `Còn lại: ${formatVND(remainder)}`
-                          : `Vượt quá: ${formatVND(-remainder)}`}
+                          ? t.form.left(formatVND(remainder))
+                          : t.form.over(formatVND(-remainder))}
                   </p>
                 </>
               )}
@@ -615,11 +617,11 @@ function ExpenseForm({
 
       <div className="form-actions">
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Đang lưu…' : editing ? 'Lưu thay đổi' : 'Lưu khoản chi'}
+          {submitting ? t.common.saving : editing ? t.form.saveChanges : t.form.save}
         </button>
         {onCancel && (
           <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>
-            Hủy
+            {t.common.cancel}
           </button>
         )}
       </div>

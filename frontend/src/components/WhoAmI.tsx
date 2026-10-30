@@ -4,6 +4,7 @@ import type { Member } from '../api/types'
 import { useMe } from '../lib/identity'
 import type { MemberLook } from '../lib/names'
 import { Avatar } from './Avatar'
+import { useT } from '../i18n'
 
 interface WhoAmIProps {
   members: Member[]
@@ -17,6 +18,7 @@ interface WhoAmIProps {
  * chooses by accident.
  */
 function WhoAmI({ members, looks }: WhoAmIProps) {
+  const t = useT()
   const { me, setMe } = useMe()
   const [open, setOpen] = useState(false)
   const chooser = useRef<HTMLDivElement>(null)
@@ -48,7 +50,7 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
     const name = me !== null ? looks.get(me)?.short : undefined
     return (
       <p className="who-am-i">
-        <span>{name ? <>Bạn là <b>{name}</b></> : 'Bạn là ai trong nhà này?'}</span>
+        <span>{name ? t.whoAmI.youAre(name) : t.whoAmI.question}</span>
         <button
           ref={toggle}
           type="button"
@@ -58,7 +60,7 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
             setOpen(true)
           }}
         >
-          {name ? 'Không phải bạn?' : 'Chọn'}
+          {name ? t.whoAmI.notYou : t.whoAmI.choose}
         </button>
       </p>
     )
@@ -75,7 +77,7 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
       }}
     >
       <p id="chooser-title" className="chooser-title">
-        Bạn là ai trong nhà này?
+        {t.whoAmI.question}
       </p>
       <div className="pick">
         {members.map((member) => {
@@ -97,7 +99,7 @@ function WhoAmI({ members, looks }: WhoAmIProps) {
           )
         })}
       </div>
-      <p className="hint">Chỉ lưu trên máy này, để app nói “bạn” và chọn sẵn người trả.</p>
+      <p className="hint">{t.whoAmI.hint}</p>
     </div>
   )
 }

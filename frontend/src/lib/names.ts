@@ -1,4 +1,5 @@
 import type { Member } from '../api/types'
+import { messages } from '../i18n'
 
 /** How one member is shown (docs/DESIGN.md §3, §5, §6.4). */
 export interface MemberLook {
@@ -89,7 +90,16 @@ export function memberLooks(members: Member[]): Map<number, MemberLook> {
 }
 
 /** For someone no longer in the household (an old expense or settlement). */
-export const REMOVED_MEMBER: MemberLook = { full: 'Thành viên đã xoá', short: 'Thành viên đã xoá', initial: '?', tint: 1 }
+export const REMOVED_MEMBER: MemberLook = {
+  get full() {
+    return messages().common.removedMember
+  },
+  get short() {
+    return messages().common.removedMember
+  },
+  initial: '?',
+  tint: 1,
+}
 
 function groupBy<T>(items: T[], keyOf: (item: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>()

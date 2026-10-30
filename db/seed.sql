@@ -8,7 +8,7 @@
 
 WITH demo AS (
   INSERT INTO households (name)
-  SELECT 'Nhà trọ demo'
+  SELECT 'Demo house'
   WHERE NOT EXISTS (SELECT 1 FROM households)
   RETURNING id
 ),
@@ -21,16 +21,16 @@ people AS (
 -- months_back 1 = last month, 0 = this month; day = day of that month (today at the latest)
 bought (description, amount, payer, months_back, day, source, shares) AS (
   VALUES
-    ('Tiền nhà tháng trước', 4500000, 'Minh', 1, 1, 'manual',
+    ('Rent, last month', 4500000, 'Minh', 1, 1, 'manual',
      '{"Tiến": 1500000, "Minh": 1500000, "Duy Anh": 1500000}'::jsonb),
-    ('Đi chợ cuối tuần', 360000, 'Duy Anh', 1, 12, 'manual',
+    ('Weekend groceries', 360000, 'Duy Anh', 1, 12, 'manual',
      '{"Tiến": 120000, "Minh": 120000, "Duy Anh": 120000}'::jsonb),
-    ('Tiền điện', 450000, 'Tiến', 0, 3, 'manual',
+    ('Electricity', 450000, 'Tiến', 0, 3, 'manual',
      '{"Tiến": 150000, "Minh": 150000, "Duy Anh": 150000}'::jsonb),
-    ('Lẩu', 240000, 'Minh', 0, 8, 'ai',
+    ('Hotpot', 240000, 'Minh', 0, 8, 'ai',
      '{"Tiến": 80000, "Minh": 80000, "Duy Anh": 80000}'::jsonb),
     -- A custom split that leaves Minh out
-    ('Mì gói và trứng', 100000, 'Duy Anh', 0, 10, 'manual',
+    ('Instant noodles and eggs', 100000, 'Duy Anh', 0, 10, 'manual',
      '{"Tiến": 40000, "Duy Anh": 60000}'::jsonb)
 ),
 spent AS (
@@ -56,7 +56,7 @@ shared AS (
 INSERT INTO settlements (household_id, from_member_id, to_member_id, amount, settled_at, note)
 SELECT tien.household_id, tien.id, minh.id, 1000000,
        LEAST(current_date, (date_trunc('month', current_date) - interval '1 month')::date + 14),
-       'Trả bớt tiền nhà'
+       'Part of the rent'
 FROM people tien
 JOIN people minh ON minh.name = 'Minh'
 WHERE tien.name = 'Tiến';

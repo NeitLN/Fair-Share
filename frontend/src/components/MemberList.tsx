@@ -10,6 +10,7 @@ import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
+import { useT } from '../i18n'
 
 interface MemberListProps {
   members: Member[]
@@ -40,9 +41,10 @@ interface MemberListProps {
  * they took part in something and are back to 0, nothing for someone who has not taken part yet.
  */
 function Standing({ balance }: { balance?: MemberBalance }) {
+  const t = useT()
   if (!balance) return null
-  if (balance.net > 0) return <Chip kind="credit">được nhận {formatVND(balance.net)}</Chip>
-  if (balance.net < 0) return <Chip kind="debt">cần trả {formatVND(-balance.net)}</Chip>
+  if (balance.net > 0) return <Chip kind="credit">{t.money.gets(formatVND(balance.net))}</Chip>
+  if (balance.net < 0) return <Chip kind="debt">{t.money.owes(formatVND(-balance.net))}</Chip>
   return tookPart(balance) ? <Stamp kind="settled" decorative={false} /> : null
 }
 
@@ -61,6 +63,7 @@ function MemberList({
   removingId = null,
   rowError = null,
 }: MemberListProps) {
+  const t = useT()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
@@ -83,12 +86,12 @@ function MemberList({
   }, [editingId])
 
   if (loading) {
-    return <Skeleton label="Đang tải danh sách thành viên" />
+    return <Skeleton label={t.members.loading} />
   }
 
   // Removing cannot be undone from the UI, so ask first
   function confirmRemove(member: Member) {
-    if (window.confirm(`Xoá ${member.name} khỏi nhà?`)) onRemove(member.id)
+    if (window.confirm(t.members.confirmRemove(member.name))) onRemove(member.id)
   }
 
   // While a rename is being saved nothing else may open or close an editor: its answer belongs to it
@@ -109,7 +112,7 @@ function MemberList({
     if (saving) return
     const trimmed = draft.trim()
     if (trimmed.length === 0) {
-      setValidation('Tên thành viên không được để trống.')
+      setValidation(t.members.nameEmpty)
       return
     }
     setValidation(null)
@@ -130,7 +133,7 @@ function MemberList({
       {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "no members" */}
       {members.length === 0 ? (
-        !error && <p className="empty">Chưa có thành viên nào. Thêm người đầu tiên ở trên.</p>
+        !error && <p className="empty">{t.members.empty}</p>
       ) : (
         <ul className="member-list">
           {members.map((member) => {
@@ -142,7 +145,7 @@ function MemberList({
                 {look && <Avatar look={look} size="lg" decorative />}
                 {editingId === member.id ? (
                   <form className="member-edit" onSubmit={(e) => saveEditing(e, member.id)} noValidate>
-                    <label htmlFor={`member-name-${member.id}`}>Tên mới cho {member.name}</label>
+                    <label htmlFor={`member-name-${member.id}`}>{t.members.newNameLabel(member.name)}</label>
                     <input
                       ref={editInput}
                       id={`member-name-${member.id}`}
@@ -157,19 +160,19 @@ function MemberList({
                       }}
                     />
                     <button type="submit" disabled={saving}>
-                      {saving ? 'Đang lưu…' : 'Lưu'}
+                      {saving ? t.common.saving : t.common.save}
                     </button>
                     <button type="button" className="btn-secondary" disabled={saving} onClick={stopEditing}>
-                      Hủy
+                      {t.common.cancel}
                     </button>
                   </form>
                 ) : (
                   <div className="who">
                     <strong>
                       {member.name}
-                      {me === member.id && <Chip kind="me">bạn</Chip>}
+                      {me === member.id && <Chip kind="me">{t.common.you}</Chip>}
                     </strong>
-                    {look && look.short !== member.name.trim() && <small>gọi là {look.short}</small>}
+                    {look && look.short !== member.name.trim() && <small>{t.members.calledAs(look.short)}</small>}
                     <span className="standing">
                       <Standing balance={balances?.get(member.id)} />
                     </span>
@@ -184,21 +187,21 @@ function MemberList({
                       }}
                       type="button"
                       className="btn-ghost"
-                      aria-label={`Đổi tên ${member.name}`}
+                      aria-label={t.members.renameLabel(member.name)}
                       disabled={removing || saving}
                       onClick={() => startEditing(member)}
                     >
-                      Đổi tên
+                      {t.members.rename}
                     </button>
                     <button
                       type="button"
                       className="btn-danger"
-                      aria-label={`Xoá ${member.name}`}
+                      aria-label={t.members.removeLabel(member.name)}
                       aria-describedby={note ? `member-note-${member.id}` : undefined}
                       disabled={removing}
                       onClick={() => confirmRemove(member)}
                     >
-                      {removing ? 'Đang xoá…' : 'Xoá'}
+                      {removing ? t.members.removing : t.members.remove}
                     </button>
                   </div>
                 )}

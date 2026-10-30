@@ -5,6 +5,7 @@ import type { Member, SettlementInput } from '../api/types'
 import { isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { parseAmount } from '../lib/split'
+import { useT } from '../i18n'
 
 interface SettlementFormProps {
   members: Member[]
@@ -18,6 +19,7 @@ const MAX_NOTE = 200
 
 // US-08: "A paid B x đồng", for payments that do not match a suggested transfer exactly
 function SettlementForm({ members, onSubmit, submitting, error }: SettlementFormProps) {
+  const t = useT()
   const [fromId, setFromId] = useState<number | ''>(members[0]?.id ?? '')
   const [toId, setToId] = useState<number | ''>(members[1]?.id ?? '')
   const [amountText, setAmountText] = useState('')
@@ -28,11 +30,11 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
   const amount = parseAmount(amountText)
 
   function problem(): string | null {
-    if (fromId === '' || toId === '') return 'Hãy chọn người trả và người nhận.'
-    if (fromId === toId) return 'Người trả và người nhận phải là hai người khác nhau.'
-    if (amount === null || amount <= 0) return 'Số tiền chưa hợp lệ. Ví dụ: 120000, 120.000, 120k hoặc 1tr2.'
-    if (!settledAt) return 'Hãy chọn ngày.'
-    if (!isDayInRange(settledAt)) return 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.'
+    if (fromId === '' || toId === '') return t.settlements.pickBoth
+    if (fromId === toId) return t.settlements.samePerson
+    if (amount === null || amount <= 0) return t.settlements.badAmount
+    if (!settledAt) return t.form.dateMissing
+    if (!isDayInRange(settledAt)) return t.form.dateRange
     return null
   }
 
@@ -66,23 +68,23 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
 
   return (
     <form className="settlement-form" onSubmit={handleSubmit} noValidate>
-      <label htmlFor="settlement-from">Người trả</label>
+      <label htmlFor="settlement-from">{t.settlements.fromLabel}</label>
       <select id="settlement-from" value={fromId} onChange={(e) => setFromId(pick(e.target.value))}>
         {options}
       </select>
 
-      <label htmlFor="settlement-to">Người nhận</label>
+      <label htmlFor="settlement-to">{t.settlements.toLabel}</label>
       <select id="settlement-to" value={toId} onChange={(e) => setToId(pick(e.target.value))}>
         {options}
       </select>
 
-      <label htmlFor="settlement-amount">Số tiền (đồng)</label>
+      <label htmlFor="settlement-amount">{t.settlements.amountLabel}</label>
       <input
         id="settlement-amount"
         type="text"
         inputMode="numeric"
         value={amountText}
-        placeholder="120.000 hoặc 120k"
+        placeholder={t.settlements.amountPlaceholder}
         aria-describedby="settlement-amount-preview"
         onChange={(e) => setAmountText(e.target.value)}
       />
@@ -90,7 +92,7 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
         {amount !== null && amount > 0 ? formatVND(amount) : ''}
       </span>
 
-      <label htmlFor="settlement-date">Ngày</label>
+      <label htmlFor="settlement-date">{t.settlements.dateLabel}</label>
       <input
         id="settlement-date"
         type="date"
@@ -100,13 +102,13 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
         onChange={(e) => setSettledAt(e.target.value)}
       />
 
-      <label htmlFor="settlement-note">Ghi chú (không bắt buộc)</label>
+      <label htmlFor="settlement-note">{t.settlements.noteLabel}</label>
       <input
         id="settlement-note"
         type="text"
         value={note}
         maxLength={MAX_NOTE}
-        placeholder="Chuyển khoản"
+        placeholder={t.settlements.notePlaceholder}
         onChange={(e) => setNote(e.target.value)}
       />
 
@@ -114,7 +116,7 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
       {error && <p role="alert">{error}</p>}
 
       <button type="submit" disabled={submitting}>
-        {submitting ? 'Đang lưu…' : 'Ghi nhận khoản trả'}
+        {submitting ? t.common.saving : t.settlements.submit}
       </button>
     </form>
   )

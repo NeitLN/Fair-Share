@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useT } from '../i18n'
 
 interface MemberAddFormProps {
   /** Resolves when saved (the input is cleared), rejects on failure (the text is kept). */
@@ -10,6 +11,7 @@ interface MemberAddFormProps {
 
 /** Props-only form. The page passes `onAdd` and shows the result. */
 function MemberAddForm({ onAdd, submitting, error }: MemberAddFormProps) {
+  const t = useT()
   const [name, setName] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
 
@@ -17,7 +19,7 @@ function MemberAddForm({ onAdd, submitting, error }: MemberAddFormProps) {
     event.preventDefault()
     const trimmed = name.trim()
     if (trimmed.length === 0) {
-      setValidation('Tên thành viên không được để trống.')
+      setValidation(t.members.nameEmpty)
       return
     }
     setValidation(null)
@@ -31,23 +33,23 @@ function MemberAddForm({ onAdd, submitting, error }: MemberAddFormProps) {
 
   return (
     <form className="member-add" onSubmit={handleSubmit}>
-      <label htmlFor="member-name">Tên thành viên</label>
+      <label htmlFor="member-name">{t.members.nameLabel}</label>
       <input
         id="member-name"
         type="text"
         value={name}
         maxLength={40}
-        placeholder="Họ tên, ví dụ: Trần Thị Thanh Hương"
+        placeholder={t.members.namePlaceholder}
         aria-describedby="member-name-hint"
         aria-invalid={validation || error ? true : undefined}
         disabled={submitting}
         onChange={(event) => setName(event.target.value)}
       />
       <button type="submit" disabled={submitting}>
-        {submitting ? 'Đang thêm…' : 'Thêm thành viên'}
+        {submitting ? t.members.adding : t.members.add}
       </button>
       <p id="member-name-hint" className="hint">
-        App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…
+        {t.members.shortNameHint}
       </p>
       {validation && <p role="alert">{validation}</p>}
       {error && <p role="alert">{error}</p>}
