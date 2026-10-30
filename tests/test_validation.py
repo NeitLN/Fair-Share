@@ -190,6 +190,9 @@ def test_a_decomposed_name_is_the_same_member(client, house):
 ZWSP = "\N{ZERO WIDTH SPACE}"
 ZWJ = "\N{ZERO WIDTH JOINER}"
 SOFT_HYPHEN = "\N{SOFT HYPHEN}"
+# Looks like a blank, but Unicode calls it a letter, so strip() alone keeps it
+HANGUL_FILLER = "\N{HANGUL FILLER}"
+KIM_MIN = "\N{HANGUL SYLLABLE GIM}\N{HANGUL SYLLABLE MIN}"
 FAMILY = "\N{MAN}" + ZWJ + "\N{WOMAN}" + ZWJ + "\N{GIRL}"
 # A thumbs up with a skin tone, joined to the male sign: one emoji
 MAN_THUMBS_UP = (
@@ -208,6 +211,11 @@ MAN_THUMBS_UP = (
         ("\N{ZERO WIDTH NO-BREAK SPACE}Tiến", "Tiến"),
         ("Mi" + ZWJ + "nh", "Minh"),
         (ZWJ, ""),
+        (HANGUL_FILLER, ""),
+        ("Minh" + HANGUL_FILLER, "Minh"),
+        ("\N{HALFWIDTH HANGUL FILLER}", ""),
+        ("\N{HANGUL CHOSEONG FILLER}\N{HANGUL JUNGSEONG FILLER}", ""),
+        (KIM_MIN, KIM_MIN),  # real Korean is untouched
         # Between two emoji the joiner builds one picture, so it stays
         ("Nhà " + FAMILY, "Nhà " + FAMILY),
         (MAN_THUMBS_UP, MAN_THUMBS_UP),
@@ -226,6 +234,8 @@ def test_invisible_characters_are_removed_but_emoji_keep_their_joiner(typed, kep
         ("member", SOFT_HYPHEN),
         ("member", " " + ZWSP + " "),
         ("household", ZWJ),
+        ("member", HANGUL_FILLER),
+        ("household", "\N{HALFWIDTH HANGUL FILLER}" * 3),
     ],
 )
 def test_a_name_made_only_of_invisible_characters_is_422(client, house, path, name):
@@ -237,7 +247,9 @@ def test_a_name_made_only_of_invisible_characters_is_422(client, house, path, na
 
 @pytest.mark.db
 @pytest.mark.usefixtures("cleanup")
-@pytest.mark.parametrize("lookalike", ["Minh" + ZWSP, ZWSP + "Minh", "Mi" + SOFT_HYPHEN + "nh"])
+@pytest.mark.parametrize(
+    "lookalike", ["Minh" + ZWSP, ZWSP + "Minh", "Mi" + SOFT_HYPHEN + "nh", "Minh" + HANGUL_FILLER]
+)
 def test_an_invisible_character_does_not_make_a_second_minh(client, house, lookalike):
     """The house already has Minh: the same name with an invisible character is a duplicate."""
     response = client.post(f"/api/households/{house['id']}/members", json={"name": lookalike})
