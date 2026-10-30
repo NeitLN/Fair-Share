@@ -22,6 +22,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.access import HouseholdKey, household_not_found, key_matches
+from app.db import connection
 from app.errors import ApiError
 from app.schemas import (
     MAX_AMOUNT,
@@ -113,11 +114,9 @@ def log_forwarding(forwarded: str, cf_connecting_ip: str | None, hops: int) -> N
 def load_members(request: Request, household_id: int, key: str | None) -> dict[int, str]:
     """{member_id: name} of the household. Uses its own short-lived connection instead of ConnDep:
     the route then waits up to AI_TIMEOUT (20 s) for Gemini, and the pool only has 5 connections.
-    So it checks the household key itself (app/access.py does it for the other routers)."""
-    pool = getattr(request.app.state, "pool", None)
-    if pool is None:
-        raise ApiError(503, "database_not_configured", "The database is not configured")
-    with pool.connection() as conn:
+    So it checks the household key itself (app/access.py does it for the other routers). The
+    connection goes through the same database back-off as every other route (#155)."""
+    with connection(request) as conn:
         row = conn.execute("SELECT access_key FROM households WHERE id = %s", (household_id,))
         found = row.fetchone()
         if found is None or not key_matches(found[0], key):
