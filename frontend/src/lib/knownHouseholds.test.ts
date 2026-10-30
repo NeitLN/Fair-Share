@@ -1,6 +1,18 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { forget, inviteLink, keyFor, keyFromHash, KNOWN_KEY, putBack, readKnown, remember } from './knownHouseholds'
+import {
+  forget,
+  inviteLink,
+  keyFor,
+  keyFromHash,
+  keyWorks,
+  KNOWN_KEY,
+  putBack,
+  readKnown,
+  remember,
+  restoreReplacedKey,
+  savedOnThisDevice,
+} from './knownHouseholds'
 
 afterEach(() => {
   localStorage.clear()
@@ -47,6 +59,21 @@ test('an invite link carries the key after #, and only a key-shaped value counts
   expect(inviteLink(13)).toBeNull()
 })
 
+test('a key an invite link replaced comes back only if the new one fails, and only once', () => {
+  remember(7, key('a'))
+  remember(7, key('b')) // a link with another key
+  expect(keyFor(7)).toBe(key('b'))
+  expect(restoreReplacedKey(7)).toBe(true)
+  expect(keyFor(7)).toBe(key('a'))
+  // Nothing left to restore: a household that is really gone is forgotten as before
+  expect(restoreReplacedKey(7)).toBe(false)
+
+  remember(7, key('c'))
+  keyWorks(7) // the API opened it with the new key
+  expect(restoreReplacedKey(7)).toBe(false)
+  expect(keyFor(7)).toBe(key('c'))
+})
+
 test('garbage in storage gives an empty list, never an error', () => {
   localStorage.setItem(KNOWN_KEY, 'not json')
   localStorage.setItem('fair-share:household-keys', '[1,2]')
@@ -54,13 +81,23 @@ test('garbage in storage gives an empty list, never an error', () => {
   expect(keyFor(1)).toBeNull()
 })
 
-test('blocked storage: nothing is remembered, nothing breaks', () => {
+test('blocked storage: nothing breaks, and the key still works for this visit', () => {
   vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
     throw new Error('blocked')
   })
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error('blocked')
   })
+  expect(savedOnThisDevice()).toBe(true)
   expect(() => remember(7, key('a'))).not.toThrow()
-  expect(readKnown()).toEqual([])
+  // A household just created must open; it only will not survive a reload
+  expect(readKnown()).toEqual([7])
+  expect(keyFor(7)).toBe(key('a'))
+  expect(savedOnThisDevice()).toBe(false)
+
+  // Storage works again: the next write saves everything, and nothing is held back any more
+  vi.restoreAllMocks()
+  remember(9, key('b'))
+  expect(savedOnThisDevice()).toBe(true)
+  expect(JSON.parse(localStorage.getItem(KNOWN_KEY) as string)).toEqual([9, 7])
 })

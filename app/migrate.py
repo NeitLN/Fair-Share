@@ -24,6 +24,8 @@ logger = logging.getLogger("uvicorn.error")
 DB_DIR = Path(__file__).resolve().parent.parent / "db"
 MIGRATIONS_DIR = DB_DIR / "migrations"
 SEED_FILE = DB_DIR / "seed.sql"
+# The household seed.sql creates; the only one whose invite link goes to the log
+DEMO_HOUSEHOLD = "Nhà trọ demo"
 
 # Any fixed number works, as long as every API instance uses the same one.
 LOCK_ID = 72_261_001
@@ -63,14 +65,19 @@ def migrate(database_url: str, directory: Path = MIGRATIONS_DIR) -> list[str]:
 def seed(database_url: str, path: Path = SEED_FILE) -> None:
     """Load the demo data (local Compose only; the file itself skips a non-empty database).
 
-    Households can only be opened with their invite link (#132), so the demo households' links are
-    written to the log. Never set on Render: there the keys must not reach the logs.
+    Households can only be opened with their invite link (#132), so the demo household's link is
+    written to the log. Only the demo's: a household someone made on their own laptop keeps its key
+    out of the log. Never set on Render: there the keys must not reach the logs.
     """
     with psycopg.connect(database_url, connect_timeout=3) as conn:
         conn.execute(path.read_text(encoding="utf-8"))
-        rows = conn.execute("SELECT id, name, access_key FROM households ORDER BY id LIMIT 5")
-        for household_id, name, key in rows.fetchall():
-            logger.info("demo household %r: open /households/%s#k=%s", name, household_id, key)
+        rows = conn.execute(
+            "SELECT id, access_key FROM households WHERE name = %s ORDER BY id", (DEMO_HOUSEHOLD,)
+        )
+        for household_id, key in rows.fetchall():
+            logger.info(
+                "demo household %r: open /households/%s#k=%s", DEMO_HOUSEHOLD, household_id, key
+            )
 
 
 def prepare_database(settings: Settings) -> None:

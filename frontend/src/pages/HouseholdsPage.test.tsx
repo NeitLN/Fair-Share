@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
+import { keys } from '../api/households'
 import { keyFor, KNOWN_KEY, remember } from '../lib/knownHouseholds'
 import { mockApi, renderApp, testKey } from '../test/renderApp'
 
@@ -122,7 +123,7 @@ test('Bỏ khỏi danh sách forgets it on this browser only, and Hoàn tác put
   knows(9, 7)
   const fetchFn = mockApi({ 'GET /api/households/7': [200, nha7], 'GET /api/households/9': [200, nha9] })
   const user = userEvent.setup()
-  renderApp('/')
+  const { client } = renderApp('/')
 
   await user.click(await screen.findByRole('button', { name: 'Bỏ Nhà 9 khỏi danh sách' }))
 
@@ -130,6 +131,8 @@ test('Bỏ khỏi danh sách forgets it on this browser only, and Hoàn tác put
   expect(known()).toEqual([7])
   // Its key is gone from this browser too: opening it again needs the invite link
   expect(keyFor(9)).toBeNull()
+  // ...and so is what was loaded, so a made-up link cannot show it from the cache
+  expect(client.getQueryData(keys.household(9))).toBeUndefined()
   // Nothing was deleted on the server
   expect(fetchFn.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
 
