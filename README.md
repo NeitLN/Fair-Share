@@ -268,7 +268,7 @@ flowchart LR
 | `images` | every PR and merge | Builds both images; checks the API container answers `/health` and the web container serves the SPA and a deep link | A Dockerfile that breaks, or a container that crashes on start |
 | `secrets` | every PR and merge | gitleaks over the branch's whole history ([audit](docs/SECRET_AUDIT.md)) | A committed key or connection string |
 | `deploy` | merge to `main` only | Calls the Render deploy hook through [`render-deploy.sh`](.github/scripts/render-deploy.sh), which refuses a hook from another service and prints the deploy id | Deploying anything that has not passed all checks |
-| `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit (10 min cap) | A deploy that silently never goes live |
+| `smoke` | after `deploy` | Polls `/api/version` until the live commit equals the merged commit, then the web app until its `<meta name="commit">` does (10 min cap each) | A deploy that silently never goes live, API or web |
 | `E2E smoke (live)` | after a green run on `main`, or by hand ([`e2e.yml`](.github/workflows/e2e.yml)) | A real browser walks the main flow on the live site and deletes its test household | A deployed app whose pages, API and database no longer work together |
 
 * Branch protection on `main` requires `backend`, `frontend`, `images` and `secrets` plus one approving
@@ -285,7 +285,7 @@ flowchart LR
 | Piece | Platform | How it gets there |
 |---|---|---|
 | API | Render Web Service, Docker, free instance | GitHub Actions calls the deploy hook; Render builds the root [`Dockerfile`](Dockerfile) |
-| Web app | Render Static Site `fair-share-web`, rewrite `/* → /index.html`, auto-deploy off | Same pipeline, second deploy hook (`RENDER_DEPLOY_HOOK_WEB`); `smoke` checks `WEB_URL` serves the SPA |
+| Web app | Render Static Site `fair-share-web`, rewrite `/* → /index.html`, auto-deploy off | Same pipeline, second deploy hook (`RENDER_DEPLOY_HOOK_WEB`); `smoke` checks `WEB_URL` serves the build of the merged commit |
 | Database | Supabase PostgreSQL (Singapore, free tier) | Attached to the API with a single `DATABASE_URL` env var (session pooler, TLS); Row Level Security on, so Supabase's public REST API cannot read the tables |
 
 Before a demo: open the live URL a few minutes early to wake the instance, and check the Supabase
