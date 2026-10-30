@@ -26,6 +26,7 @@ import { usePaidTransfers } from '../lib/usePaidTransfers'
 import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/verdict'
 import ErrorNote from '../components/ErrorNote'
 import { closeFoldOnEscape } from '../lib/fold'
+import { useT } from '../i18n'
 
 // US-06, US-07, US-08: who pays whom, marking it paid, and the payments already made (DESIGN.md §6.2)
 function DashboardPage() {
@@ -35,6 +36,7 @@ function DashboardPage() {
 }
 
 function Dashboard({ householdId }: { householdId: number }) {
+  const t = useT()
   const queryClient = useQueryClient()
   const { me } = useMe()
   const toast = useToast()
@@ -95,10 +97,9 @@ function Dashboard({ householdId }: { householdId: number }) {
   if (members.isSuccess && memberList.length === 0) {
     return (
       <>
-        <h2 className="visually-hidden">Tổng quan</h2>
+        <h2 className="visually-hidden">{t.household.overview}</h2>
         <p className="empty">
-          Nhà chưa có thành viên. <Link to="members">Thêm thành viên</Link>, rồi ghi các khoản chi
-          để xem ai trả ai.
+          {t.dashboard.noMembers(<Link to="members">{t.dashboard.addMembers}</Link>)}
         </p>
       </>
     )
@@ -107,7 +108,7 @@ function Dashboard({ householdId }: { householdId: number }) {
   const now = today()
   const month = Number(now.slice(5, 7))
   const reminder = reminderMessage(
-    household.data?.name ?? 'Nhà mình',
+    household.data?.name ?? t.dashboard.defaultName,
     month,
     suggested,
     nameOf,
@@ -117,7 +118,7 @@ function Dashboard({ householdId }: { householdId: number }) {
 
   return (
     <>
-      <h2 className="visually-hidden">Tổng quan</h2>
+      <h2 className="visually-hidden">{t.household.overview}</h2>
       {members.error && (
         <ErrorNote
           message={errorMessage(members.error) ?? ''}
@@ -146,17 +147,17 @@ function Dashboard({ householdId }: { householdId: number }) {
         onFocusDone={paid.clearFocusIntent}
         error={paid.error}
         reminder={reminder}
-        onCopied={() => toast({ text: 'Đã sao chép. Dán vào nhóm chat của nhà nhé.' })}
+        onCopied={() => toast({ text: t.dashboard.reminderCopied })}
       />
 
       <Link to="expenses" className="btn-primary cta">
-        + Ghi khoản chi
+        {t.dashboard.addExpense}
       </Link>
 
       <section aria-labelledby="balances-title">
         <div className="section-head">
-          <h2 id="balances-title">Số dư từng người</h2>
-          <span className="section-note">đã chi · cần trả hoặc được nhận</span>
+          <h2 id="balances-title">{t.dashboard.balancesTitle}</h2>
+          <span className="section-note">{t.dashboard.balancesNote}</span>
         </div>
         <BalanceRows
           balances={balances.data?.balances ?? []}
@@ -169,11 +170,11 @@ function Dashboard({ householdId }: { householdId: number }) {
       </section>
 
       <section aria-labelledby="settlements-title">
-        <h2 id="settlements-title">Lịch sử trả</h2>
+        <h2 id="settlements-title">{t.dashboard.historyTitle}</h2>
         {memberList.length >= 2 && (
           <details className="fold other-payment" onKeyDown={closeFoldOnEscape}>
-            <summary>Ghi khoản trả khác</summary>
-            <p className="hint">Trả số khác với gợi ý, hoặc trả tiền mặt hôm khác.</p>
+            <summary>{t.dashboard.otherPayment}</summary>
+            <p className="hint">{t.dashboard.otherPaymentHint}</p>
             <SettlementForm
               members={memberList}
               onSubmit={record.mutateAsync}

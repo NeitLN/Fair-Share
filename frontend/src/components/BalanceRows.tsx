@@ -6,6 +6,7 @@ import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
 import { Money } from './Money'
 import Skeleton from './Skeleton'
+import { useT } from '../i18n'
 
 interface BalanceRowsProps {
   /** One row per member, already ordered by member id. */
@@ -22,18 +23,19 @@ interface BalanceRowsProps {
  * words carry the meaning, the colour only repeats it. Props only.
  */
 function BalanceRows({ balances, looks, me = null, loading = false, unavailable = false }: BalanceRowsProps) {
+  const t = useT()
   if (loading) {
-    return <Skeleton label="Đang tải số dư" />
+    return <Skeleton label={t.balances.loading} />
   }
   // Nothing is known, which is not the same as nobody owing anything
   if (unavailable) {
-    return <p className="hint">Chưa tải được số dư.</p>
+    return <p className="hint">{t.balances.unavailable}</p>
   }
 
   return (
     <div>
       {balances.length === 0 ? (
-        <p className="empty">Chưa có số dư. Thêm thành viên và ghi khoản chi đầu tiên để xem ai trả ai.</p>
+        <p className="empty">{t.balances.empty}</p>
       ) : (
         <ul className="balance-list">
           {balances.map((balance) => {
@@ -49,20 +51,20 @@ function BalanceRows({ balances, looks, me = null, loading = false, unavailable 
                 <span className="who">
                   <strong>
                     {look.short}
-                    {me === balance.member_id && <Chip kind="me">bạn</Chip>}
+                    {me === balance.member_id && <Chip kind="me">{t.common.you}</Chip>}
                   </strong>
                   {balance.paid > 0 && (
                     <small>
-                      đã chi <Money amount={balance.paid} />
+                      {t.money.spent} <Money amount={balance.paid} />
                     </small>
                   )}
                 </span>
                 <span className="standing">
                   <Money amount={balance.net} kind="balance" />
                   {balance.net > 0 ? (
-                    <small>được nhận</small>
+                    <small>{t.money.getsShort}</small>
                   ) : balance.net < 0 ? (
-                    <small>cần trả</small>
+                    <small>{t.money.owesShort}</small>
                   ) : (
                     tookPart(balance) && <Stamp kind="settled" decorative={false} />
                   )}

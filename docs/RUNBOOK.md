@@ -51,7 +51,7 @@ Do every step of §3 once, with the stopwatch, and fix what fails today rather t
 |---|---|---|
 | Live app | Web app: Tổng quan, Chi tiêu, Quick add with one sentence | The draft fills the form, nothing is saved until you press Lưu. On 429/503: the message, the sentence kept, the manual form |
 | Clean clone | In `C:\demo`: `git clone https://github.com/NeitLN/Fair-Share.git`, `cd Fair-Share`, `podman compose up --build -d --wait` | http://localhost:3000/api/version answers in ~30 s |
-| Open the demo household | `podman compose logs api \| Select-String "demo household"` and open the `/households/…#k=…` path it prints on http://localhost:3000 | Nhà trọ demo with its expenses (households open only with their invite link, #132) |
+| Open the demo household | `podman compose logs api \| Select-String "demo household"` and open the `/households/…#k=…` path it prints on http://localhost:3000 | Demo house with its expenses (households open only with their invite link, #132) |
 | Red gate | PR #113 → Checks | `backend` red: a test caught the split bug; the merge button is blocked |
 | Merge → live | Merge the harmless PR, open its run in Actions | Four checks, then `deploy`, then `smoke`, about 2–3 minutes in all; `/api/version` → `commit` is the merge's SHA |
 | No keys in the repo | `podman run --rm -v "${PWD}:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --config /repo/.gitleaks.toml --log-opts="--all" --redact` | `no leaks found` over every commit; then say where the keys live: Render env vars and Actions secrets (do not open them) |

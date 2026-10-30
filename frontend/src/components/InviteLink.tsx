@@ -2,12 +2,14 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 import { inviteLink } from '../lib/knownHouseholds'
 import { useToast } from '../lib/toast'
+import { useT } from '../i18n'
 
 /**
  * "Mời bạn cùng phòng" (#132): copies the household's invite link, the only way into it from another
  * browser. When copying is not allowed the link is shown, selected, to copy by hand.
  */
 function InviteLink({ householdId }: { householdId: number }) {
+  const t = useT()
   const id = useId()
   const toast = useToast()
   const [showText, setShowText] = useState(false)
@@ -28,7 +30,7 @@ function InviteLink({ householdId }: { householdId: number }) {
     try {
       await navigator.clipboard.writeText(link as string)
       setShowText(false)
-      toast({ text: 'Đã sao chép đường dẫn mời. Gửi vào nhóm chat của nhà nhé.' })
+      toast({ text: t.invite.copied })
     } catch {
       // No clipboard (an old browser, or not on https) or permission refused: copy it by hand
       if (showText) selectField()
@@ -38,16 +40,16 @@ function InviteLink({ householdId }: { householdId: number }) {
 
   return (
     <section className="invite" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>Mời bạn cùng phòng</h2>
+      <h2 id={`${id}-title`}>{t.invite.title}</h2>
       <p className="hint">
-        Ai có đường dẫn này đều xem và sửa được nhà, nên chỉ gửi cho người trong nhà.
+        {t.invite.hint}
       </p>
       <button type="button" className="btn-secondary" onClick={copy}>
-        Sao chép đường dẫn mời
+        {t.invite.copy}
       </button>
       {showText && (
         <div className="note copy-fallback">
-          <label htmlFor={`${id}-link`}>Không sao chép được. Chọn đường dẫn dưới đây rồi sao chép:</label>
+          <label htmlFor={`${id}-link`}>{t.common.copyFailedLink}</label>
           <input id={`${id}-link`} ref={field} type="text" readOnly value={link} />
         </div>
       )}

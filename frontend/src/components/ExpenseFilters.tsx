@@ -1,6 +1,7 @@
 import type { Member } from '../api/types'
 import { isFiltered, monthNumber, NO_FILTER } from '../lib/expenseFilters'
 import type { ExpenseFilter } from '../lib/expenseFilters'
+import { useT } from '../i18n'
 
 interface ExpenseFiltersProps {
   /** The months that have an expense, newest first ("YYYY-MM"). */
@@ -15,16 +16,17 @@ interface ExpenseFiltersProps {
  * Props only; the page keeps the filter and filters the list.
  */
 function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersProps) {
+  const t = useT()
   return (
-    <div className="expense-filters" role="group" aria-label="Lọc khoản chi">
+    <div className="expense-filters" role="group" aria-label={t.filters.label}>
       <div className="filter-field">
-        <label htmlFor="filter-month">Tháng</label>
+        <label htmlFor="filter-month">{t.filters.month}</label>
         <select
           id="filter-month"
           value={filter.month ?? ''}
           onChange={(e) => onChange({ ...filter, month: e.target.value || null })}
         >
-          <option value="">Tất cả</option>
+          <option value="">{t.filters.all}</option>
           {months.map((month) => (
             <option key={month} value={month}>
               {monthNumber(month)}
@@ -33,13 +35,13 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
         </select>
       </div>
       <div className="filter-field">
-        <label htmlFor="filter-member">Người</label>
+        <label htmlFor="filter-member">{t.filters.person}</label>
         <select
           id="filter-member"
           value={filter.memberId ?? ''}
           onChange={(e) => onChange({ ...filter, memberId: e.target.value ? Number(e.target.value) : null })}
         >
-          <option value="">Cả nhà</option>
+          <option value="">{t.filters.everyone}</option>
           {members.map((member) => (
             <option key={member.id} value={member.id}>
               {member.name}
@@ -49,7 +51,7 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
       </div>
       {isFiltered(filter) && (
         <button type="button" className="ghost" onClick={() => onChange(NO_FILTER)}>
-          Bỏ lọc
+          {t.filters.clear}
         </button>
       )}
     </div>

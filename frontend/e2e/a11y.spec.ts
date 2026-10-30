@@ -9,6 +9,12 @@ const API = process.env.E2E_API_URL ?? 'https://fair-share-4bu9.onrender.com'
 
 test.use({ reducedMotion: 'reduce' })
 
+// The checks name screens by their Vietnamese words; the English pages are checked in
+// src/i18n/english.test.tsx. English is the default, so pick Vietnamese before each page loads.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+})
+
 async function makeHousehold(request: APIRequestContext) {
   const name = `E2E a11y ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
   const household = await (await request.post(`${API}/api/households`, { data: { name } })).json()

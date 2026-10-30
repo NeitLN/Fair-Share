@@ -1,6 +1,7 @@
 import type { Expense, Member } from '../api/types'
 import { expensesCsv, fileSlug } from '../lib/csv'
 import { today } from '../lib/date'
+import { useT } from '../i18n'
 
 interface ExportCsvButtonProps {
   expenses: Expense[]
@@ -11,6 +12,7 @@ interface ExportCsvButtonProps {
 
 /** "Xuất CSV" downloads the whole list as a file Excel opens with the right encoding. */
 function ExportCsvButton({ expenses, members, householdName }: ExportCsvButtonProps) {
+  const t = useT()
   const empty = expenses.length === 0
 
   function download() {
@@ -33,10 +35,10 @@ function ExportCsvButton({ expenses, members, householdName }: ExportCsvButtonPr
       type="button"
       className="secondary"
       disabled={empty}
-      title={empty ? 'Chưa có khoản chi để xuất' : undefined}
+      title={empty ? t.expenses.nothingToExport : undefined}
       onClick={download}
     >
-      Xuất CSV
+      {t.expenses.exportCsv}
     </button>
   )
 }

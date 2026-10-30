@@ -112,11 +112,21 @@ body {
   stroke: none;
 }
 
-.theme-switch {
+/* Language and theme, side by side; they wrap under the wordmark only when there is no room */
+.header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.theme-switch,
+.language-switch {
   background: var(--surface);
 }
 
-.theme-switch button {
+.theme-switch button,
+.language-switch button {
   padding: 0 10px;
   font-size: 13px;
 }

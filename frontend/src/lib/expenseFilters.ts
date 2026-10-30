@@ -1,4 +1,5 @@
 import type { Expense, Member } from '../api/types'
+import { language, messages } from '../i18n'
 
 /**
  * Chi tiêu filters (PROJECT_SPEC §3.4): by month and by member, and each member's total for a month.
@@ -25,11 +26,14 @@ export function monthsOf(expenses: Expense[]): string[] {
 /** "10/2026": short enough for a select at 360 px, where the field's label already says Tháng. */
 export function monthNumber(month: string): string {
   const [year, number] = month.split('-')
+  if (language() === 'en') return `${SHORT_MONTHS[Number(number) - 1]} ${year}`
   return `${Number(number)}/${year}`
 }
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 /** "Tháng 10/2026". */
-export const monthLabel = (month: string) => `Tháng ${monthNumber(month)}`
+export const monthLabel = (month: string) => messages().filters.monthLabel(monthNumber(month))
 
 /** Whether the member paid for the expense or has a share in it. */
 export function involves(expense: Expense, memberId: number): boolean {
