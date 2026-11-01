@@ -225,7 +225,7 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET /api/version` | App name, version, environment, `commit` (Render's `RENDER_GIT_COMMIT`) | The smoke test waits until `commit` equals the merged SHA |
 | `POST /api/households` | Create a household (no `GET`: no list of every household, #132; the SPA remembers the ones a browser created or opened) | `201` on create, with the household's `key`: the only answer that contains it |
 | `GET/PATCH/DELETE /api/households/{id}` | One household | `404 household_not_found`; delete removes everything in it, `204` |
-| `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive) |
+| `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive), `409 too_many_members` (50, the most one expense can be split between) |
 | `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
 | `GET/POST /api/households/{id}/expenses` | List (newest first by `spent_at`) / create | Body below; `422 split_mismatch`, `unknown_member`, `duplicate_member` |
 | `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | `PUT` replaces it, same body as create; `404 expense_not_found` |
@@ -458,7 +458,7 @@ flowchart LR
 | `images` | A Dockerfile that no longer builds (what Render would fail on after merge), a container that crashes on start, or a `compose.yml` whose stack does not come up with the web app reaching the API and the API reaching PostgreSQL |
 | `secrets` | A committed key or connection string, anywhere in the history (gitleaks, exceptions in `.gitleaks.toml`) |
 | `deploy` | Runs only on `push` to `main` after all checks; PRs never deploy. The hook is pinned to the tested commit (`ref=`) and refused if it belongs to another Render service |
-| `smoke` | A deploy hook only *queues* a deploy. This job proves the live API runs the exact merged commit and the web app loads — otherwise the run goes red |
+| `smoke` | A deploy hook only *queues* a deploy. This job proves the live API runs the exact merged commit, and that the web app serves the build of that commit (its `<meta name="commit">`, stamped from Render's `RENDER_GIT_COMMIT`, #153) — otherwise the run goes red |
 | `E2E smoke (live)` | Separate workflow (`e2e.yml`), after every green CI/CD run on `main` and on demand: Playwright walks the main flow on the live site on a 360 px phone (create a household, members, an expense, Đã trả / Hoàn tác, settled). Catches what unit tests cannot: the deployed SPA, the API and Supabase working together. It writes a test household to the real database and always deletes it; it never calls Gemini. Not a required check: it runs after the merge, on the deployed app |
 
 Branch protection on `main`: PR required, 1 approving review, required checks

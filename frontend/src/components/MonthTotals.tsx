@@ -5,6 +5,7 @@ import type { MemberLook } from '../lib/names'
 import { Avatar } from './Avatar'
 import { Chip } from './Chip'
 import { Money } from './Money'
+import { useT } from '../i18n'
 
 interface MonthTotalsProps {
   /** "YYYY-MM". */
@@ -21,13 +22,14 @@ interface MonthTotalsProps {
  * paid and what their share was. Paid minus share is how far the month moved them. Props only.
  */
 function MonthTotals({ month, totals, looks, me = null, highlight = null }: MonthTotalsProps) {
+  const t = useT()
   const label = monthLabel(month)
   return (
     <section className="month-totals" aria-labelledby="month-totals-title">
       <h3 id="month-totals-title">
-        {label}: cả nhà chi <Money amount={totals.total} />
+        {label}: {t.filters.monthTotal} <Money amount={totals.total} />
       </h3>
-      <ul className="balance-list" aria-label={`Từng người trong ${label.toLowerCase()}`}>
+      <ul className="balance-list" aria-label={t.filters.eachPerson(label)}>
         {totals.members.map((row) => {
           const look = looks.get(row.memberId) ?? REMOVED_MEMBER
           return (
@@ -39,15 +41,15 @@ function MonthTotals({ month, totals, looks, me = null, highlight = null }: Mont
               <span className="who">
                 <strong>
                   {look.short}
-                  {me === row.memberId && <Chip kind="me">bạn</Chip>}
+                  {me === row.memberId && <Chip kind="me">{t.common.you}</Chip>}
                 </strong>
                 <small>
-                  đã trả <Money amount={row.paid} />
+                  {t.money.paid} <Money amount={row.paid} />
                 </small>
               </span>
               <span className="standing">
                 <Money amount={row.share} />
-                <small>phần chia</small>
+                <small>{t.money.share}</small>
               </span>
             </li>
           )

@@ -12,7 +12,7 @@ short while instead of trying again on every request.
 """
 
 from collections.abc import Callable, Iterator
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from time import monotonic
 from typing import Annotated, Any
 
@@ -72,12 +72,12 @@ def _has_idle_connection(pool: ConnectionPool) -> bool:
     return pool.get_stats().get("pool_available", 0) > 0
 
 
-def get_conn(request: Request) -> Iterator[Connection]:
-    """FastAPI dependency: a pooled connection, one transaction per request.
+@contextmanager
+def connection(request: Request) -> Iterator[Connection]:
+    """A pooled connection and its transaction, behind the back-off above.
 
-    The transaction commits when the route returns and rolls back if it raises. A pool timeout or
-    a dropped connection is turned into a safe 503 by the handlers in app/errors.py.
-    Always use it through ConnDep below, never a bare Depends(get_conn).
+    Routes use it through ConnDep. Quick add uses it directly for a short `with`, because it must
+    not hold a connection while it waits for Gemini; it still shares the back-off (#155).
     """
     pool: ConnectionPool | None = request.app.state.pool
     if pool is None:
@@ -93,7 +93,18 @@ def get_conn(request: Request) -> Iterator[Connection]:
             cooldown.failed()
             raise
         cooldown.succeeded()
-        # Leaving the `with` commits, or rolls back if the route raised (pool.connection() does it)
+        # Leaving the `with` commits, or rolls back if the code inside raised (pool.connection())
+        yield conn
+
+
+def get_conn(request: Request) -> Iterator[Connection]:
+    """FastAPI dependency: a pooled connection, one transaction per request.
+
+    The transaction commits when the route returns and rolls back if it raises. A pool timeout or
+    a dropped connection is turned into a safe 503 by the handlers in app/errors.py.
+    Always use it through ConnDep below, never a bare Depends(get_conn).
+    """
+    with connection(request) as conn:
         yield conn
 
 

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { keyFor } from '../lib/knownHouseholds'
-import { mockApi, renderApp } from '../test/renderApp'
+import { mockApi, renderApp, testKey } from '../test/renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -120,6 +120,78 @@ describe('invite links (#132)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
     await waitFor(() => expect(keyFor(7)).toBeNull())
+  })
+
+  test('a wrong invite link for a household this browser already opens does not lose the key that works', async () => {
+    // The API answers only to the right key, like app/access.py
+    const right = (init: RequestInit): [number, unknown] =>
+      new Headers(init.headers).get('X-Household-Key') === testKey(7)
+        ? (house['GET /api/households/7'] as [number, unknown])
+        : [404, { error: { code: 'household_not_found', message: 'No such household' } }]
+    mockApi({
+      'GET /api/households/7': (_body, init) => right(init),
+      'GET /api/households/7/members': (_body, init) =>
+        right(init)[0] === 200 ? house['GET /api/households/7/members'] : right(init),
+    })
+    // this browser holds testKey(7); the link carries another (its own: refused keys last the visit)
+    renderApp(`/households/7#k=${'c'.repeat(32)}`)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
+    expect(keyFor(7)).toBe(testKey(7))
+    expect(await screen.findByRole('status')).toHaveTextContent('Đường dẫn mời này không đúng')
+  })
+
+  test('when this browser cannot store anything, the key works for this visit and the link stays', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    // Keys refused earlier in this file stay refused for the page's life, so each case has its own
+    const link = 'e'.repeat(32)
+    mockApi(house)
+    renderApp(`/households/7#k=${link}`, { withoutKey: true })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
+    // Changing tabs drops the #k= part, so the note points to the invite link in Thành viên
+    expect(screen.getByText(/không lưu được khoá/)).toHaveTextContent('Sao chép đường dẫn mời')
+    expect(screen.getByTestId('location')).toHaveTextContent(`/households/7#k=${link}`)
+    vi.restoreAllMocks()
+  })
+
+  test('with no key to fall back on, a wrong link that stays in the address bar is asked once', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const fetchFn = mockApi({})
+    renderApp(`/households/7#k=${'b'.repeat(32)}`, { withoutKey: true })
+
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(fetchFn.mock.calls.filter(([url]) => url === '/api/households/7').length).toBe(1)
+    expect(keyFor(7)).toBeNull()
+    vi.restoreAllMocks()
+  })
+
+  test('a wrong link that stays in the address bar is not tried again and again', async () => {
+    // Storage blocked, so the link stays in the address bar; this browser already holds the right key
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const answer = (init: RequestInit): [number, unknown] =>
+      new Headers(init.headers).get('X-Household-Key') === testKey(7)
+        ? (house['GET /api/households/7'] as [number, unknown])
+        : [404, { error: { code: 'household_not_found', message: 'No such household' } }]
+    const fetchFn = mockApi({
+      'GET /api/households/7': (_body, init) => answer(init),
+      'GET /api/households/7/members': [200, people],
+    })
+    renderApp(`/households/7#k=${'d'.repeat(32)}`)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const asked = fetchFn.mock.calls.filter(([url]) => url === '/api/households/7').length
+    expect(asked).toBeLessThanOrEqual(3)
+    expect(keyFor(7)).toBe(testKey(7))
+    vi.restoreAllMocks()
   })
 })
 

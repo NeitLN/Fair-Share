@@ -70,6 +70,23 @@ test('a duplicate name is explained in Vietnamese and the text is kept', async (
   expect(screen.getByLabelText('Tên thành viên')).toHaveValue('Minh')
 })
 
+test('a full household (50 members) says so in Vietnamese and keeps the text', async () => {
+  api({
+    'POST /api/households/7/members': [
+      409,
+      { error: { code: 'too_many_members', message: 'A household has at most 50 members' } },
+    ],
+  })
+  renderApp('/households/7/members')
+
+  await userEvent.type(await screen.findByLabelText('Tên thành viên'), 'Người 51')
+  await userEvent.click(screen.getByRole('button', { name: 'Thêm thành viên' }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('Nhà đã đủ 50 thành viên, mức tối đa của một nhà.')
+  expect(screen.queryByText('A household has at most 50 members')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Tên thành viên')).toHaveValue('Người 51')
+})
+
 test('removing a member takes them off the list', async () => {
   api()
   renderApp('/households/7/members')

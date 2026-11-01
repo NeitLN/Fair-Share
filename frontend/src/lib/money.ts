@@ -1,12 +1,23 @@
+import { language } from '../i18n'
+
 // Built once: creating an Intl.NumberFormat is far slower than calling format()
-const digits = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 })
+const digits = {
+  vi: new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }),
+  en: new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }),
+}
 
 // A real minus sign (U+2212), not a hyphen: it lines up with "+" and reads as a sign (DESIGN.md §5)
 const MINUS = '−'
 
-/** Whole đồng the way Vietnamese write it (docs/DESIGN.md §7): 240000 → "240.000đ", −50000 → "−50.000đ". */
+/**
+ * Whole đồng (docs/DESIGN.md §7), written the way the page's language writes it: 240000 →
+ * "240.000đ" in Vietnamese, "240,000 ₫" in English (a no-break space, so the sign never wraps
+ * away). −50000 → "−50.000đ". The currency is always the last character.
+ */
 export function formatVND(amount: number): string {
-  const text = `${digits.format(Math.abs(amount))}đ`
+  const lang = language()
+  const number = digits[lang].format(Math.abs(amount))
+  const text = lang === 'en' ? `${number}\u00a0₫` : `${number}đ`
   return amount < 0 ? MINUS + text : text
 }
 

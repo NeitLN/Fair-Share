@@ -8,6 +8,7 @@ import { transferText, verdict } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Stamp } from './Chip'
 import { Money } from './Money'
+import { useT } from '../i18n'
 
 interface VerdictBlockProps {
   /** The month the first line talks about, 1–12. */
@@ -70,6 +71,7 @@ function VerdictBlock({
   reminder,
   onCopied,
 }: VerdictBlockProps) {
+  const t = useT()
   const id = useId()
   const [showText, setShowText] = useState(false)
   const fallback = useRef<HTMLTextAreaElement>(null)
@@ -122,14 +124,14 @@ function VerdictBlock({
 
   const monthLine = (
     <p className="verdict-month">
-      Tháng {month}
+      {t.verdict.month(month)}
       {spent !== null && (
         <>
           {' '}
-          · cả nhà đã chi <Money amount={spent} />
+          · {t.verdict.spent} <Money amount={spent} />
         </>
       )}
-      {spent === null && spentUnavailable && ' · chưa tải được tổng chi'}
+      {spent === null && spentUnavailable && t.verdict.spentUnavailable}
     </p>
   )
 
@@ -138,14 +140,14 @@ function VerdictBlock({
       <section className="verdict" aria-labelledby={`${id}-title`} aria-busy={loading || undefined}>
         {monthLine}
         <h2 id={`${id}-title`} className="verdict-sentence">
-          {loading ? 'Đang tính ai trả ai…' : 'Chưa tính được ai trả ai'}
+          {loading ? t.verdict.working : t.verdict.failed}
         </h2>
         {loadError && (
           <div className="note" role="alert">
             {loadError}
             {onRetry && (
               <button type="button" className="btn-secondary" onClick={onRetry}>
-                Thử lại
+                {t.common.tryAgain}
               </button>
             )}
           </div>
@@ -169,17 +171,17 @@ function VerdictBlock({
       )}
       {refreshError && (
         <div className="note" role="alert">
-          Chưa cập nhật được số dư mới nhất. {refreshError}
+          {t.verdict.stale} {refreshError}
           {onRetry && (
             <button type="button" className="btn-secondary" onClick={onRetry}>
-              Thử lại
+              {t.common.tryAgain}
             </button>
           )}
         </div>
       )}
 
       {cards.length > 0 && (
-        <ul ref={list} className="transfer-list" aria-label="Các lần trả gợi ý">
+        <ul ref={list} className="transfer-list" aria-label={t.verdict.transfers}>
           {cards.map((card) => {
             const { transfer } = card
             const textId = `${id}-${card.key}`
@@ -203,7 +205,7 @@ function VerdictBlock({
                         if (card.paymentId !== undefined) onUndo(card.paymentId)
                       }}
                     >
-                      {card.state === 'undoing' ? 'Đang hoàn tác…' : 'Hoàn tác'}
+                      {card.state === 'undoing' ? t.common.undoing : t.common.undo}
                     </button>
                   </span>
                 ) : (
@@ -215,7 +217,7 @@ function VerdictBlock({
                     disabled={card.state === 'paying'}
                     onClick={() => onPaid(transfer)}
                   >
-                    {card.state === 'paying' ? 'Đang ghi…' : 'Đã trả'}
+                    {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
                   </button>
                 )}
               </li>
@@ -232,11 +234,11 @@ function VerdictBlock({
       {suggested.length > 0 && (
         <>
           <button type="button" className="btn-secondary verdict-copy" onClick={copy}>
-            Sao chép tin nhắn nhắc nợ
+            {t.verdict.copyReminder}
           </button>
           {showText && (
             <div className="note copy-fallback">
-              <label htmlFor={`${id}-reminder`}>Không sao chép được. Chọn đoạn dưới đây rồi sao chép:</label>
+              <label htmlFor={`${id}-reminder`}>{t.common.copyFailedText}</label>
               <textarea id={`${id}-reminder`} ref={fallback} readOnly rows={reminder.split('\n').length} value={reminder} />
             </div>
           )}

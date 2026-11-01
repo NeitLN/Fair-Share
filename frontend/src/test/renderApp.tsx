@@ -8,7 +8,7 @@ import { remember } from '../lib/knownHouseholds'
 import LocationProbe from './LocationProbe'
 
 type Reply = [status: number, body?: unknown]
-type Handler = Reply | ((body: unknown) => Reply)
+type Handler = Reply | ((body: unknown, init: RequestInit) => Reply)
 
 /**
  * Replace fetch with a fake API. Keys are "METHOD /path", e.g. "GET /api/households".
@@ -20,7 +20,7 @@ export function mockApi(routes: Record<string, Handler>) {
     const handler = routes[key]
     if (!handler) return json(404, { detail: 'Not Found' })
     const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined
-    const [status, payload] = typeof handler === 'function' ? handler(body) : handler
+    const [status, payload] = typeof handler === 'function' ? handler(body, init) : handler
     return status === 204 ? new Response(null, { status }) : json(status, payload)
   })
   vi.stubGlobal('fetch', fetchFn)
@@ -46,7 +46,7 @@ export function renderApp(path: string, { withoutKey = false } = {}) {
   const household = /^\/households\/(\d+)/.exec(path)
   if (household && !withoutKey) remember(Number(household[1]), testKey(Number(household[1])))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <App />
@@ -54,4 +54,6 @@ export function renderApp(path: string, { withoutKey = false } = {}) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  // The cache too, for tests that check what stays in it
+  return { ...view, client }
 }

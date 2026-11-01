@@ -2,9 +2,21 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 
+// The commit this build is from: Render sets RENDER_GIT_COMMIT while it builds the static site. It
+// goes into index.html, so the pipeline's smoke job can check that the new build went live (#153).
+const commit = /^[0-9a-f]{7,40}$/.test(process.env.RENDER_GIT_COMMIT ?? '')
+  ? (process.env.RENDER_GIT_COMMIT as string)
+  : 'unknown'
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'commit-meta',
+      transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'commit', content: commit }, injectTo: 'head' }],
+    },
+  ],
   server: {
     // npm run dev: send /api to the API published by `docker compose up` on :8000, as nginx does
     proxy: { '/api': 'http://localhost:8000' },

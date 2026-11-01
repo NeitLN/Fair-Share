@@ -94,7 +94,15 @@ def collect():
     runs = rest(f"repos/{REPO}/actions/workflows/ci-cd.yml/runs",
                 {"branch": "main", "event": "push", "per_page": 12})["workflow_runs"]
     for run in runs:
-        jobs = rest(f"repos/{REPO}/actions/runs/{run['id']}/jobs")["jobs"]
+        try:
+            jobs = rest(f"repos/{REPO}/actions/runs/{run['id']}/jobs")["jobs"]
+        except urllib.error.HTTPError as error:
+            if error.code < 500:
+                raise
+            # GitHub sometimes answers 502 for one run's jobs, every time (run 40701370084 on
+            # 30/10): show that run without its jobs instead of not updating the page at all
+            print(f"::warning::jobs of run {run['id']}: HTTP {error.code}, left out")
+            jobs = []
         run["job_results"] = {j["name"]: j["conclusion"] for j in jobs}
     return {
         "milestones": rest(f"repos/{REPO}/milestones", {"state": "all", "sort": "due_on"}),

@@ -10,9 +10,11 @@ import MemberList from '../components/MemberList'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import { useT } from '../i18n'
 
 // US-02: add, rename and remove the members of one household (docs/DESIGN.md §6.4)
 function MembersPage() {
+  const t = useT()
   const householdId = Number(useParams().householdId)
   const queryClient = useQueryClient()
   const { me } = useMe()
@@ -54,7 +56,7 @@ function MembersPage() {
 
   return (
     <>
-      <h2 className="visually-hidden">Thành viên</h2>
+      <h2 className="visually-hidden">{t.household.members}</h2>
       <InviteLink householdId={householdId} />
       <MemberAddForm
         onAdd={add.mutateAsync}

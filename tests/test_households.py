@@ -6,6 +6,7 @@ create, 204 on delete, {"error": {"code", "message"}} on failure.
 import psycopg
 import pytest
 
+from app.routers.households import MAX_MEMBERS
 from tests.api import error_code, household, member
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
@@ -127,6 +128,31 @@ def test_duplicate_member_name_is_409_ignoring_case(client):
     response = client.post(f"/api/households/{house['id']}/members", json={"name": "MINH"})
     assert response.status_code == 409
     assert error_code(response) == "member_name_taken"
+
+
+def test_a_household_has_no_more_members_than_one_expense_can_be_split_between(client):
+    """#134: the 51st member is refused with its own code, so "chia đều cả nhà" always works."""
+    house = household(client)
+    members_url = f"/api/households/{house['id']}/members"
+    ids = [member(client, house["id"], f"Người {i}")["id"] for i in range(MAX_MEMBERS)]
+
+    response = client.post(members_url, json={"name": "Người thêm"})
+    assert response.status_code == 409
+    assert error_code(response) == "too_many_members"
+    assert len(client.get(members_url).json()) == MAX_MEMBERS
+
+    # Someone leaves: there is room for one again
+    assert client.delete(f"/api/members/{ids.pop()}").status_code == 204
+    ids.append(member(client, house["id"], "Người thêm")["id"])
+
+    # And the whole household can share one expense equally
+    response = client.post(
+        f"/api/households/{house['id']}/expenses",
+        json={"description": "Tiền nhà", "amount": 5_000_000, "payer_id": ids[0],
+              "spent_at": "2026-10-29", "split": {"type": "equal", "member_ids": ids}},
+    )
+    assert response.status_code == 201
+    assert len(response.json()["shares"]) == MAX_MEMBERS
 
 
 def test_the_same_name_in_two_households_is_fine(client):

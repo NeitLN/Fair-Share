@@ -7,6 +7,11 @@ import { expect, test } from '@playwright/test'
 // The API is a different origin in production; locally (Compose) it is the web origin's /api.
 const API = process.env.E2E_API_URL ?? 'https://fair-share-4bu9.onrender.com'
 
+// The steps name buttons by their Vietnamese words; English is the default, so pick Vietnamese first
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+})
+
 test('a household from creation to everyone settled', async ({ page, request }) => {
   const name = `E2E smoke ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
   let householdId: number | null = null

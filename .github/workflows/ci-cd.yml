@@ -5,6 +5,10 @@ on:
   push:
     branches: [ main ]       # and every merge to main
 
+# The token only reads: checkout, and the compare call in smoke. Nothing here writes to the repo (#154)
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -206,10 +210,33 @@ jobs:
           echo "::error::$API_URL did not serve $GITHUB_SHA within 10 minutes. Open the Render deploy printed by the deploy job (Events / Deploys) to see whether it failed, was cancelled or is still queued."
           exit 1
 
-      - name: The web app loads
+      - name: The web app serves the merged build (or a later one that contains it)
         run: |
           if [ -z "$WEB_URL" ]; then
             echo "::notice::WEB_URL is not set yet (T-14), skipped"
             exit 0
           fi
-          curl -fsS --max-time 60 "$WEB_URL" | grep -q 'id="root"'
+          # Each build carries its commit in <meta name="commit"> (frontend/vite.config.ts). Without
+          # this, a failed web build would leave the old one online while the run stays green (#153).
+          deadline=$((SECONDS + 600))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            page=$(curl -fsS --max-time 60 "$WEB_URL") || page=""
+            built=$(printf '%s' "$page" | grep -oE 'name="commit" content="[^"]*"' | cut -d'"' -f4) || built=""
+            echo "web build: ${built:-none}   expected: $GITHUB_SHA"
+            if printf '%s' "$page" | grep -q 'id="root"'; then
+              if [ "$built" = "$GITHUB_SHA" ]; then exit 0; fi
+              if [ -z "$built" ] || [ "$built" = "unknown" ]; then
+                # A build from before the commit was stamped, or Render not setting RENDER_GIT_COMMIT
+                echo "::warning::The web app loads but does not say which commit it was built from"
+                exit 0
+              fi
+              rel=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$built" --jq .status) || rel=""
+              if [ "$rel" = "ahead" ]; then
+                echo "::notice::The web app runs ${built:0:7}, a later commit that contains ${GITHUB_SHA:0:7}"
+                exit 0
+              fi
+            fi
+            sleep 20
+          done
+          echo "::error::$WEB_URL still serves ${built:-an unknown build}, not $GITHUB_SHA, after 10 minutes. Open the static site's deploy on Render to see whether the build failed or never started."
+          exit 1

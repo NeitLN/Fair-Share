@@ -10,6 +10,7 @@ import { Money } from './Money'
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
 import { closeFoldOnEscape } from '../lib/fold'
+import { messages, useT } from '../i18n'
 
 interface ExpenseListProps {
   expenses: Expense[]
@@ -33,11 +34,12 @@ interface ExpenseListProps {
  * some of today's members. Members come and go, so an old expense is compared by who, not by how many.
  */
 function splitText(expense: Expense, memberIds: Set<number>): string {
+  const t = messages().expenses
   const people = expense.shares.length
-  if (expense.split_type === 'custom') return `chia riêng ${people} người`
+  if (expense.split_type === 'custom') return t.splitCustom(people)
   const someOfToday =
     people < memberIds.size && expense.shares.every((share) => memberIds.has(share.member_id))
-  return someOfToday ? `chia đều ${people}/${memberIds.size} người` : `chia đều ${people} người`
+  return someOfToday ? t.splitEqualOf(people, memberIds.size) : t.splitEqual(people)
 }
 
 const instant = (timestamp: string) => Date.parse(timestamp) || 0
@@ -74,18 +76,19 @@ function ExpenseList({
   onDelete,
   deletingId = null,
 }: ExpenseListProps) {
+  const t = useT()
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
 
   if (loading) {
-    return <Skeleton label="Đang tải danh sách khoản chi" />
+    return <Skeleton label={t.expenses.loadingList} />
   }
 
   const lookOf = (id: number) => looks.get(id) ?? REMOVED_MEMBER
 
   // Deleting cannot be undone from the UI, so ask first
   function confirmDelete(expense: Expense) {
-    if (window.confirm(`Xoá khoản "${expense.description}"?`)) onDelete(expense)
+    if (window.confirm(t.expenses.confirmDelete(expense.description))) onDelete(expense)
   }
 
   return (
@@ -93,7 +96,7 @@ function ExpenseList({
       {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "no expenses" */}
       {expenses.length === 0 ? (
-        !error && <p className="empty">Chưa có khoản chi nào. Ghi khoản đầu tiên ở trên.</p>
+        !error && <p className="empty">{t.expenses.empty}</p>
       ) : (
         byDay(expenses).map(([day, items]) => (
           <section key={day} className="expense-day" aria-labelledby={`expense-day-${day}`}>
@@ -115,7 +118,7 @@ function ExpenseList({
                             {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
                           </span>
                           <small>
-                            {payer.short} trả · {splitText(expense, memberIds)}
+                            {t.expenses.paidBy(payer.short, splitText(expense, memberIds))}
                           </small>
                         </span>
                         <Money amount={expense.amount} className="expense-amount" />
@@ -124,20 +127,20 @@ function ExpenseList({
                         <button
                           type="button"
                           className="btn-secondary"
-                          aria-label={`Sửa ${expense.description}`}
+                          aria-label={t.expenses.editLabel(expense.description)}
                           disabled={deleting}
                           onClick={() => onEdit(expense)}
                         >
-                          Sửa
+                          {t.common.edit}
                         </button>
                         <button
                           type="button"
                           className="btn-danger"
-                          aria-label={`Xoá ${expense.description}`}
+                          aria-label={t.expenses.deleteLabel(expense.description)}
                           disabled={deleting}
                           onClick={() => confirmDelete(expense)}
                         >
-                          {deleting ? 'Đang xoá…' : 'Xoá'}
+                          {deleting ? t.common.deleting : t.common.delete}
                         </button>
                       </div>
                     </details>
