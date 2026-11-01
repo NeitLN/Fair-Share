@@ -1,72 +1,52 @@
 # 7. Secret and configuration management
 
-*Draft for report section 7 (owner: Việt Tiến). Sources: [ARCHITECTURE.md §8](../ARCHITECTURE.md#8-configuration-and-secrets),
-[SECRET_AUDIT.md](../SECRET_AUDIT.md) (T-29), [`.gitleaks.toml`](../../.gitleaks.toml), `app/config.py`,
-`.env.example`.*
+*Owner: Việt Tiến. Sources: [ARCHITECTURE.md §8](../ARCHITECTURE.md#8-configuration-and-secrets),
+[SECRET_AUDIT.md](../SECRET_AUDIT.md) (T-29), [`.gitleaks.toml`](../../.gitleaks.toml), `app/config.py`.*
 
-The rule is simple: **configuration comes from the environment, and no secret is ever in the
-repository**, not in the current files and not in any old commit. The same code runs on a laptop, in CI
-and on Render; only the environment differs.
+The rule: **configuration comes from the environment, and no secret is ever in the repository**, not in
+the current files and not in any old commit. The same code runs on a laptop, in CI and on Render; only the
+environment differs. `app/config.py` reads and checks every setting once at start-up (for example
+`AI_TIMEOUT > 0`); nothing else reads the environment, and `.env.example` lists them all with safe values.
 
-## 7.1 One place for settings
-
-`app/config.py` reads every setting from environment variables once, at start-up, and checks them (for
-example `AI_TIMEOUT` must be above 0, `FORWARDED_HOPS` cannot be negative). Nothing else in the code
-reads the environment, so the full list of settings is one file, and `.env.example` documents it with
-safe values.
-
-| Setting | Secret? | Laptop (Compose) | CI | Production |
+| Setting | Secret? | Laptop | CI | Production |
 |---|---|---|---|---|
-| `DATABASE_URL` | **yes** | built from `DB_PASSWORD` in a git-ignored `.env` | a throw-away URL to the job's own PostgreSQL container | Render env var: Supabase session pooler URL |
-| `GEMINI_API_KEY` | **yes** | `.env`, optional | **never**: Gemini is replaced by a fake in tests | Render env var |
-| `RENDER_DEPLOY_HOOK_API`, `_WEB` | **yes** | not needed | GitHub Actions secrets, used only by `deploy` | (on Render's side, they are the hooks) |
-| `ALLOWED_ORIGINS`, `GEMINI_MODEL`, `AI_TIMEOUT`, `FORWARDED_HOPS`, `APP_ENV` | no | defaults | defaults | Render env vars where they differ from the default |
-| `VITE_API_BASE_URL` | no, public | empty (same origin) | empty | Static Site env var, read at build time |
+| `DATABASE_URL` | **yes** | built from `DB_PASSWORD`, optional git-ignored `.env` | throw-away URL to the job's own PostgreSQL | Render env var (Supabase pooler URL) |
+| `GEMINI_API_KEY` | **yes** | `.env`, optional | **never**: Gemini is faked in tests | Render env var |
+| `RENDER_DEPLOY_HOOK_API`, `_WEB` | **yes** | — | Actions secrets, used only by `deploy` | — |
+| `VITE_API_BASE_URL` | no, **public** | empty (same origin) | empty | Static Site, build time |
 
-`VITE_API_BASE_URL` is deliberately **not** a secret: anything built into the React app is downloaded by
-every visitor. That is exactly why the database URL and the AI key may only ever live on the API server.
+Anything built into the React app is downloaded by every visitor, which is exactly why the database URL
+and the AI key may only live on the API server. The households' invite keys (#132) are not configuration
+but data: one per household in the database, sent only to the browser that creates it, and never logged
+in production (only the local demo seed prints its own household's link).
 
-## 7.2 How a secret is kept out of Git
+**How a secret is kept out of Git**
 
 | Control | What it catches |
 |---|---|
-| `.gitignore` covers `.env` and `.env.*`; `.env.example` holds placeholders only | The most common leak: committing the local `.env` |
-| **`secrets` job in CI**: gitleaks over the branch's **whole history**, on every pull request and every merge, findings printed redacted; `deploy` waits for it | A key added in any commit, even one later deleted, before it can reach `main` |
-| An extra gitleaks rule, `postgres-url-with-password` | gitleaks has **no default rule for database URLs**, our most important secret. Hoàng Minh showed this in review by planting a fake Supabase URL that the default rules missed; the rule now flags any `postgres://user:password@…` except the known local and test values |
-| **GitHub secret scanning and push protection** | A push containing a recognised provider key is refused before it reaches GitHub |
-| Review of every screenshot before it goes into the repository or the report | Keys or connection strings visible in a dashboard picture |
+| `.gitignore` covers `.env` and `.env.*`; `.env.example` has placeholders | The most common leak: committing the local `.env` |
+| **`secrets` job:** gitleaks over the branch's **whole history** on every pull request and merge, redacted; `deploy` waits for it | A key in any commit, even one later deleted, before it reaches `main` |
+| Our gitleaks rule `postgres-url-with-password` | gitleaks has **no default rule for database URLs**, our most important secret. Hoàng Minh showed it in review with a fake Supabase URL the default rules missed |
+| **GitHub secret scanning and push protection** | A push with a recognised provider key is refused |
+| Every screenshot checked before it enters the repository or the report | Keys visible in a dashboard picture |
 
-## 7.3 The audit (T-29, 20/10/2026)
+**The audit (T-29, 20/10)** checked the past before relying on these controls: gitleaks over **every
+commit on every branch** (122) and the working copy, every `.env` ever committed (none), every database URL
+in the history and every image that could be a screenshot. **No leaks.** The one finding was a false positive: our Render service id in the workflow, which names the
+service so `deploy` can check a hook belongs to it, and triggers nothing without the hook's key. It is
+allowed in `.gitleaks.toml` with that reason. The only passwords in the history are the Compose default and
+CI's `ci-only-not-a-secret`.
 
-Before relying on these controls we checked the past: gitleaks over **every commit on every branch**
-(119, then 122 after the database-URL rule was added), the working copy including untracked files, every
-`.env` ever committed (none), every database URL in the full history, and every image that could be a
-dashboard screenshot.
+**If a key leaks.** The order matters: **stop the key working first**, then clean up.
+1. Revoke it at once: AI Studio → delete the key; Supabase → reset the password; Render → regenerate the
+   hook.
+2. Put a new value only where it lives (Render env vars, Actions secrets), redeploy, check `/health/db` and
+   a Quick add.
+3. Find how it leaked: gitleaks on the full history, Actions logs, recent screenshots.
+4. If it reached Git, rewrite history with `git filter-repo` with the team's agreement, but treat the old
+   value as **compromised forever**: forks, clones and caches keep it, which is why step 1 comes first.
+5. Open an issue with what happened and the prevention added, as we did for the outages
+   ([OUTAGES.md](../OUTAGES.md)).
 
-- **No leaks.** One finding was a false positive: the id of our Render service in the workflow file. It
-  only names the service, so the deploy job can check that a hook belongs to it; without the hook's own
-  key it cannot trigger anything. It is allowed in `.gitleaks.toml` with that reason written next to it.
-- The only passwords in the history are local or test values: the Compose default and the CI container's
-  `ci-only-not-a-secret`.
-- The full record, with the command to repeat it, is in [SECRET_AUDIT.md](../SECRET_AUDIT.md).
-
-## 7.4 If a key leaks: our runbook
-
-The order matters: **stop the key working first**, then clean up.
-
-1. **Revoke it at the provider at once.** Google AI Studio → delete the key; Supabase → reset the
-   database password; Render → regenerate the deploy hook.
-2. **Create a new value and put it only where it lives**: Render environment variables or GitHub
-   Actions secrets. Redeploy, and check the live API (`/health/db`, a Quick add request).
-3. **Find how it leaked**: gitleaks on the full history, the Actions logs, recent screenshots.
-4. **If it reached the Git history**: rewrite it with `git filter-repo` and force-push with the team's
-   agreement, but treat the old value as **compromised forever**. Rewriting history does not un-leak a
-   key that was already pushed: forks, clones and caches keep it. That is why step 1 comes first.
-5. **Open an issue** describing what happened and the prevention added, as we did for the outages in
-   [OUTAGES.md](../OUTAGES.md).
-
-## 7.5 What we would add with more time
-
-A secret manager with rotation (for example Doppler or the cloud provider's own) instead of values typed
-into two dashboards, and a scheduled rotation of the Gemini key. For a three-person project with two
-secrets in production, environment variables plus the controls above were proportionate.
+With more time we would use a secret manager with rotation instead of values typed into two dashboards.
+For three people and two production secrets, environment variables plus these controls were proportionate.
