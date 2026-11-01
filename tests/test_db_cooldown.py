@@ -128,6 +128,32 @@ def test_errors_inside_a_route_do_not_start_the_cooldown(make_client):
     assert client.get("/test/db").status_code == 200
 
 
+def test_quick_add_backs_off_like_every_other_route(make_client):
+    """Quick add opens its own short connection, since it must not hold one while Gemini answers,
+    and still shares the back-off: it fails fast during it, and its own failure starts it (#155)."""
+    pool, clock = FakePool(), Clock()
+    client = client_with(make_client, pool, clock)
+    quick_add = "/api/households/1/ai/parse-expense"
+    body, key = {"text": "lẩu 240k"}, {"X-Household-Key": "a" * 32}
+
+    first = client.post(quick_add, json=body, headers=key)
+    assert first.status_code == 503
+    assert first.json()["error"]["code"] == "database_unavailable"
+    assert pool.attempts == 1
+
+    for _ in range(3):
+        assert client.post(quick_add, json=body, headers=key).status_code == 503
+    # ...and the other routes see the back-off Quick add started
+    assert client.get("/test/db").status_code == 503
+    assert pool.attempts == 1
+
+    # The database is back after the 20 s: one attempt, and the back-off is over for everyone
+    clock.now += 20
+    pool.down = False
+    assert client.get("/test/db").status_code == 200
+    assert not client.app.state.db_cooldown.blocked()
+
+
 def test_an_unreachable_database_answers_fast_after_the_first_failure(make_client):
     """With a real pool and nothing listening: the first request waits for the pool's timeout, the
     next ones are answered straight away."""
