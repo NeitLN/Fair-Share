@@ -40,7 +40,7 @@ Then, in a second terminal or the browser:
 | 3 | http://localhost:8000/health | `{"status":"ok"}` |
 | 4 | http://localhost:8000/health/db | `{"db":"ok","schema":"002_household_keys"}` |
 | 5 | http://localhost:8000/docs | Swagger UI |
-| 6 | `docker compose logs api \| grep "demo household"` and open the `/households/…#k=…` path it prints on http://localhost:3000 (households open only with their invite link, #132) | **Nhà trọ demo**: three members, five expenses over two months, a verdict on Tổng quan; it is now on the home page too |
+| 6 | `docker compose logs api \| grep "demo household"` and open the `/households/…#k=…` path it prints on http://localhost:3000 (households open only with their invite link, #132) | **Demo house**: three members, five expenses over two months, a verdict on Overview (Tổng quan in Vietnamese); it is now on the home page too |
 | 7 | Reload on a deep link, e.g. http://localhost:3000/households/1/expenses | The page, not a 404 |
 | 8 | `docker compose down`, then `docker compose up -d --wait` (time it) | Comes back in seconds; anything you added is still there |
 | 9 | `docker compose down -v` | Removes the local database; the next `up` starts from the demo household again |

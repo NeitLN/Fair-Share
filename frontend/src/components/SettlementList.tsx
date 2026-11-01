@@ -6,6 +6,7 @@ import type { MemberLook } from '../lib/names'
 import { Money } from './Money'
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
+import { useT } from '../i18n'
 
 interface SettlementListProps {
   settlements: Settlement[]
@@ -32,8 +33,9 @@ function SettlementList({
   onRetry,
   retrying = false,
 }: SettlementListProps) {
+  const t = useT()
   if (loading) {
-    return <Skeleton label="Đang tải các khoản trả" />
+    return <Skeleton label={t.settlements.loading} />
   }
 
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
@@ -42,12 +44,12 @@ function SettlementList({
   function describe(settlement: Settlement): string {
     const from = nameOf(settlement.from_member_id)
     const to = nameOf(settlement.to_member_id)
-    return `khoản ${from} trả ${to} ${formatVND(settlement.amount)}`
+    return t.settlements.describe(from, to, formatVND(settlement.amount))
   }
 
   // Deleting cannot be undone from the UI, so ask first
   function confirmDelete(settlement: Settlement) {
-    if (window.confirm(`Xoá ${describe(settlement)}?`)) onDelete(settlement)
+    if (window.confirm(t.settlements.confirmDelete(describe(settlement)))) onDelete(settlement)
   }
 
   return (
@@ -55,7 +57,7 @@ function SettlementList({
       {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "nothing was paid back" */}
       {settlements.length === 0 ? (
-        !error && <p className="empty">Chưa có khoản trả nào. Bấm "Đã trả" ở trên khi ai đó trả xong.</p>
+        !error && <p className="empty">{t.settlements.empty}</p>
       ) : (
         <ul className="settlement-list">
           {settlements.map((settlement) => {
@@ -63,8 +65,11 @@ function SettlementList({
             return (
               <li key={settlement.id} className="settlement-row">
                 <span className="settlement-text">
-                  <strong>{nameOf(settlement.from_member_id)}</strong> đã trả{' '}
-                  <strong>{nameOf(settlement.to_member_id)}</strong> <Money amount={settlement.amount} />
+                  {t.settlements.row(
+                    <strong>{nameOf(settlement.from_member_id)}</strong>,
+                    <strong>{nameOf(settlement.to_member_id)}</strong>,
+                    <Money amount={settlement.amount} />,
+                  )}
                   <small>
                     {dayLabel(settlement.settled_at)}
                     {settlement.note && ` · ${settlement.note}`}
@@ -73,11 +78,11 @@ function SettlementList({
                 <button
                   type="button"
                   className="btn-danger"
-                  aria-label={`Xoá ${describe(settlement)}`}
+                  aria-label={t.settlements.deleteLabel(describe(settlement))}
                   disabled={deleting}
                   onClick={() => confirmDelete(settlement)}
                 >
-                  {deleting ? 'Đang xoá…' : 'Xoá'}
+                  {deleting ? t.common.deleting : t.common.delete}
                 </button>
               </li>
             )

@@ -8,6 +8,7 @@ import { draftSummary } from '../lib/draftSummary'
 import { errorMessage } from '../lib/errors'
 import { useElapsedSeconds } from '../lib/useElapsedSeconds'
 import type { FillField, FillResult } from './ExpenseForm'
+import { useT } from '../i18n'
 
 interface AiComposerProps {
   members: Member[]
@@ -35,18 +36,10 @@ const RETRY_AFTER_EDIT = new Set(['ai_unparseable', 'too_many_participants', 'va
 
 const MAX_TEXT = 300
 
-// What a kept field means to the user, for "Giữ nguyên … bạn đã nhập."
-const KEPT_LABEL: Record<FillField, string> = {
-  description: 'nội dung',
-  amount: 'số tiền',
-  payer: 'người trả',
-  date: 'ngày',
-  split: 'cách chia',
-}
-
 // US-09, US-10: one sentence in, the form below filled for the user to check. The AI never saves;
 // when it fails the sentence stays and the manual form is right there.
 function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerProps) {
+  const t = useT()
   const [text, setText] = useState('')
   const [state, setState] = useState<State>({ step: 'idle' })
   // Each request gets a number; an answer that arrives after "Nhập tay" or a newer request is dropped
@@ -86,7 +79,7 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
       )
       setState({
         step: 'filled',
-        summary: summary || 'Không điền thêm gì: các ô đều đang giữ giá trị bạn đã nhập.',
+        summary: summary || t.ai.nothingFilled,
         // participants_assumed is about the split: the form shows it beside Cách chia instead
         warnings: warnings.filter((w) => w.code !== 'participants_assumed').map(warningMessage),
         kept: result.kept,
@@ -124,18 +117,19 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
   return (
     <section className="ai-composer" aria-labelledby="ai-composer-title">
       <h2 id="ai-composer-title">
-        <span aria-hidden="true">✦ </span>Gõ nhanh bằng AI
+        <span aria-hidden="true">✦ </span>
+          {t.ai.title}
       </h2>
       <form onSubmit={handleSubmit} noValidate>
         <label htmlFor="ai-text" className="visually-hidden">
-          Câu mô tả khoản chi
+          {t.ai.sentenceLabel}
         </label>
         <textarea
           id="ai-text"
           rows={2}
           maxLength={MAX_TEXT}
           value={text}
-          placeholder="lẩu 240k Minh trả chia đều cả nhà"
+          placeholder={t.ai.placeholder}
           aria-describedby="ai-hint"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -150,10 +144,10 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
           }}
         />
         <button type="submit" className="ai" disabled={reading || notConfigured || !text.trim()}>
-          Điền giúp
+          {t.ai.fill}
         </button>
         <p id="ai-hint" className="hint">
-          AI điền form bên dưới, bạn duyệt rồi mới lưu.
+          {t.ai.hint}
         </p>
       </form>
 
@@ -162,9 +156,9 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
           <div className="ai-reading">
             <div className="ai-progress" aria-hidden="true" />
             <p>
-              AI đang đọc… {seconds} giây · thường mất 10–20 giây{' '}
+              {t.ai.reading(seconds)}{' '}
               <button type="button" className="ghost" onClick={manual}>
-                Nhập tay
+                {t.ai.manual}
               </button>
             </p>
           </div>
@@ -174,7 +168,7 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
           <div className="note ok">
             <p>{state.summary}</p>
             {state.kept.length > 0 && (
-              <p>Giữ nguyên {state.kept.map((f) => KEPT_LABEL[f]).join(', ')} bạn đã nhập.</p>
+              <p>{t.ai.kept(state.kept.map((f) => t.ai.fields[f]).join(', '))}</p>
             )}
             {state.warnings.map((warning) => (
               <p key={warning} className="note attention">
@@ -182,7 +176,7 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
               </p>
             ))}
             <button type="button" className="secondary" onClick={undo}>
-              Hoàn tác điền
+              {t.ai.undoFill}
             </button>
           </div>
         )}
@@ -192,7 +186,7 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
             <p>{state.message}</p>
             {canRetry && (
               <button type="button" className="secondary" onClick={() => void read()}>
-                Thử lại
+                {t.common.tryAgain}
               </button>
             )}
           </div>

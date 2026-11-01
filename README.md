@@ -65,6 +65,7 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | ✨ | **Quick add (AI):** free-text sentence → pre-filled form via the Google Gemini API, called only from our server | ✅ live |
 | 🛟 | **AI failure fallback:** on 429, timeout or no key the user keeps their text and fills in the normal form; nothing breaks | ✅ live |
 | 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame with "Bạn là ai?", Thành viên; loading, empty and error states on every screen | ✅ live (T-42, T-32) |
+| 🌐 | **English and Vietnamese**: English by default, **EN / VI** in the header for the whole page, remembered on the device; money and dates written each language's way ([DESIGN.md §7.1](docs/DESIGN.md#71-english-and-vietnamese)) | in review |
 | 🧾 | Tổng quan verdict ("Bạn cần trả Minh 120.000đ") with **Đã trả** + undo and a copyable reminder; Chi tiêu form with you as payer by default, list grouped by day | ✅ live (T-43) |
 | 📤 | Export a household's expenses as CSV, opening correctly in Excel and Google Sheets | ✅ live (T-46) |
 

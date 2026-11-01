@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
+import { useT } from '../i18n'
 
 /** One household this browser knows, as far as it has been loaded. */
 export interface KnownHousehold {
@@ -26,21 +27,22 @@ interface HouseholdListProps {
  * to take it off the list. Props only; the page loads them.
  */
 function HouseholdList({ households, onRetry, onForget }: HouseholdListProps) {
+  const t = useT()
   if (households.length === 0) {
     return (
       <p className="empty">
-        Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn mời mà bạn cùng phòng gửi.
+        {t.households.empty}
       </p>
     )
   }
   return (
     <ul className="household-list">
       {households.map((household) => {
-        const label = household.name ?? `Nhà #${household.id}`
+        const label = household.name ?? t.households.fallbackName(household.id)
         return (
           <li key={household.id}>
             {household.loading ? (
-              <Skeleton label="Đang tải nhà" rows={1} />
+              <Skeleton label={t.households.loading} rows={1} />
             ) : household.error ? (
               <ErrorNote message={household.error} onRetry={() => onRetry(household.id)} />
             ) : (
@@ -51,10 +53,10 @@ function HouseholdList({ households, onRetry, onForget }: HouseholdListProps) {
             <button
               type="button"
               className="btn-ghost forget"
-              aria-label={`Bỏ ${label} khỏi danh sách`}
+              aria-label={t.households.forgetLabel(label)}
               onClick={() => onForget(household)}
             >
-              Bỏ khỏi danh sách
+              {t.households.forget}
             </button>
           </li>
         )

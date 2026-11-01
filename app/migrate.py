@@ -25,7 +25,7 @@ DB_DIR = Path(__file__).resolve().parent.parent / "db"
 MIGRATIONS_DIR = DB_DIR / "migrations"
 SEED_FILE = DB_DIR / "seed.sql"
 # The household seed.sql creates; the only one whose invite link goes to the log
-DEMO_HOUSEHOLD = "Nhà trọ demo"
+DEMO_HOUSEHOLD = "Demo house"
 
 # Any fixed number works, as long as every API instance uses the same one.
 LOCK_ID = 72_261_001

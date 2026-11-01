@@ -268,7 +268,7 @@ def test_seed_expenses_add_up_and_cover_two_months_up_to_today(conn):
     # One split leaves someone out, and one expense came from Quick add
     sharers = conn.execute(
         "SELECT count(*) FROM expense_shares s JOIN expenses e ON e.id = s.expense_id"
-        " WHERE e.description = 'Mì gói và trứng'"
+        " WHERE e.description = 'Instant noodles and eggs'"
     ).fetchone()[0]
     from_ai = conn.execute("SELECT count(*) FROM expenses WHERE source = 'ai'").fetchone()[0]
     assert (sharers, from_ai) == (2, 1)

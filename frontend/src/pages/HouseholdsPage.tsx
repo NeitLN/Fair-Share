@@ -11,12 +11,14 @@ import { errorMessage } from '../lib/errors'
 import { closeFoldOnEscape } from '../lib/fold'
 import { forget, putBack, readKnown, remember } from '../lib/knownHouseholds'
 import { useToast } from '../lib/toast'
+import { useT } from '../i18n'
 
 const gone = (error: unknown) => error instanceof ApiError && error.status === 404
 
 // US-01: the households this browser knows, and creating one (docs/DESIGN.md §6.1). The API does not
 // list every household (#132): this browser keeps the ones it created or opened, with their keys.
 function HouseholdsPage() {
+  const t = useT()
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -61,11 +63,11 @@ function HouseholdsPage() {
     setKnown(readKnown())
     // What was loaded goes too: a made-up invite link must not show it from the cache
     queryClient.removeQueries({ queryKey: keys.household(household.id) })
-    const label = household.name ?? `Nhà #${household.id}`
+    const label = household.name ?? t.households.fallbackName(household.id)
     toast({
-      text: `Đã bỏ ${label} khỏi danh sách trên máy này`,
+      text: t.households.forgotten(label),
       action: {
-        label: 'Hoàn tác',
+        label: t.common.undo,
         onAction: () => {
           putBack(household.id, forgotten)
           setKnown(readKnown())
@@ -81,7 +83,7 @@ function HouseholdsPage() {
 
   return (
     <>
-      <h1>Nhà của bạn</h1>
+      <h1>{t.households.title}</h1>
       <HouseholdList
         households={households}
         onRetry={(id) => loaded[known.indexOf(id)]?.refetch()}
@@ -97,18 +99,15 @@ function HouseholdsPage() {
           if (!none && closeFoldOnEscape(event)) setCreating(false)
         }}
       >
-        <summary className="btn-secondary">+ Tạo nhà mới</summary>
+        <summary className="btn-secondary">{t.households.newHousehold}</summary>
         <HouseholdCreateForm
           onCreate={create.mutateAsync}
           submitting={create.isPending}
           error={errorMessage(create.error)}
         />
       </details>
-      <p className="hint">
-        Mời bạn cùng phòng bằng đường dẫn mời (trong Thành viên): mở nó một lần là nhà hiện ở đây trên máy
-        của họ.
-      </p>
-      <p className="hint">Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai, ít lần chuyển nhất.</p>
+      <p className="hint">{t.households.inviteHint}</p>
+      <p className="hint">{t.households.howItWorks}</p>
     </>
   )
 }

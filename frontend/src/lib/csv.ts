@@ -1,4 +1,5 @@
 import type { Expense, Member } from '../api/types'
+import { messages } from '../i18n'
 import { REMOVED_MEMBER } from './names'
 
 const NEEDS_QUOTES = /[",\r\n]/
@@ -41,8 +42,9 @@ export function expensesCsv(expenses: Expense[], members: Member[]): string {
     ...goneIds.map((id) => ({ id, name: REMOVED_MEMBER.full })),
   ]
 
+  const t = messages().csv
   const rows: (string | number)[][] = [
-    ['Ngày', 'Nội dung', 'Số tiền (đồng)', 'Người trả', 'Cách chia', ...columns.map((c) => c.name)],
+    [t.date, t.description, t.amount, t.paidBy, t.split, ...columns.map((c) => c.name)],
   ]
   const sorted = [...expenses].sort(
     (a, b) => a.spent_at.slice(0, 10).localeCompare(b.spent_at.slice(0, 10)) || a.id - b.id,
@@ -54,7 +56,7 @@ export function expensesCsv(expenses: Expense[], members: Member[]): string {
       expense.description,
       expense.amount,
       nameOf.get(expense.payer_id) ?? REMOVED_MEMBER.full,
-      expense.split_type === 'equal' ? 'chia đều' : 'chia riêng',
+      expense.split_type === 'equal' ? t.equal : t.custom,
       ...columns.map((column) => shares.get(column.id) ?? ''),
     ])
   }

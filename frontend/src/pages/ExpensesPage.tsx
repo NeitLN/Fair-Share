@@ -21,9 +21,11 @@ import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
 import ErrorNote from '../components/ErrorNote'
 import Skeleton from '../components/Skeleton'
+import { useT } from '../i18n'
 
 // US-03, US-04, US-05: record, list, edit and delete the expenses of one household
 function ExpensesPage() {
+  const t = useT()
   const householdId = Number(useParams().householdId)
   const queryClient = useQueryClient()
   const { me } = useMe()
@@ -107,9 +109,9 @@ function ExpensesPage() {
 
   return (
     <>
-      <h2 className="visually-hidden">Chi tiêu</h2>
+      <h2 className="visually-hidden">{t.expenses.title}</h2>
 
-      {members.isPending && <Skeleton rows={4} label="Đang tải biểu mẫu" />}
+      {members.isPending && <Skeleton rows={4} label={t.expenses.loadingForm} />}
       {members.error && (
         <ErrorNote
           message={errorMessage(members.error) ?? ''}
@@ -119,8 +121,7 @@ function ExpensesPage() {
       )}
       {noMembers && (
         <p>
-          Nhà chưa có thành viên. <Link to="../members">Thêm thành viên</Link> trước khi ghi
-          khoản chi.
+          {t.expenses.noMembers(<Link to="../members">{t.expenses.addMembers}</Link>)}
         </p>
       )}
 
@@ -149,7 +150,7 @@ function ExpensesPage() {
             />
           )}
           <section ref={formRef} aria-labelledby="expense-form-title">
-            <h2 id="expense-form-title">{editing ? `Sửa: ${editing.description}` : 'Thêm khoản chi'}</h2>
+            <h2 id="expense-form-title">{editing ? t.expenses.editing(editing.description) : t.expenses.add}</h2>
             <ExpenseForm
               ref={expenseForm}
               // A new key gives the form fresh state for each household and each expense it edits
@@ -172,9 +173,9 @@ function ExpensesPage() {
 
       <section aria-labelledby="expense-list-title">
         <div className="section-head">
-          <h2 id="expense-list-title">Các khoản chi</h2>
+          <h2 id="expense-list-title">{t.expenses.listTitle}</h2>
           <span className="section-note" aria-live="polite">
-            {isFiltered(filter) ? `${shown.length}/${allExpenses.length} khoản` : 'chạm để sửa hoặc xoá'}
+            {isFiltered(filter) ? t.expenses.filteredCount(shown.length, allExpenses.length) : t.expenses.listHint}
           </span>
           {/* The whole household, whatever the filter: the file is the record, not the current view */}
           <ExportCsvButton
@@ -191,9 +192,9 @@ function ExpensesPage() {
         )}
         {isFiltered(filter) && shown.length === 0 ? (
           <p className="empty">
-            Không có khoản chi nào khớp bộ lọc.{' '}
+            {t.expenses.noMatch}{' '}
             <button type="button" className="ghost" onClick={() => setFilter(NO_FILTER)}>
-              Xem tất cả
+              {t.expenses.showAll}
             </button>
           </p>
         ) : (

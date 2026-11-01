@@ -19,6 +19,7 @@ import {
 } from '../lib/knownHouseholds'
 import { memberLooks } from '../lib/names'
 import { useToast } from '../lib/toast'
+import { messages, useT } from '../i18n'
 
 // Shared frame for one household (DESIGN.md §6.2): its name and people, the tabs, "Bạn là ai?"
 function HouseholdLayout() {
@@ -27,6 +28,7 @@ function HouseholdLayout() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const toast = useToast()
+  const t = useT()
   const validId = Number.isInteger(householdId) && householdId > 0
 
   // An invite link (/households/12#k=…): keep its key before any page below asks the API with it.
@@ -72,7 +74,7 @@ function HouseholdLayout() {
       keyWorks(householdId)
     } else if (missing && validId) {
       if (restoreReplacedKey(householdId)) {
-        toast({ text: 'Đường dẫn mời này không đúng, nên máy vẫn dùng khoá cũ của nhà.' })
+        toast({ text: messages().household.wrongInvite })
         void queryClient.resetQueries({ queryKey: keys.household(householdId) })
       } else {
         forget(householdId)
@@ -83,13 +85,12 @@ function HouseholdLayout() {
   if (validId && !hasKey) {
     return (
       <>
-        <h1>Cần đường dẫn mời</h1>
+        <h1>{t.household.needInviteTitle}</h1>
         <p className="empty">
-          Nhà này chỉ mở được bằng đường dẫn mời. Nhờ một người trong nhà vào <b>Thành viên</b>, bấm{' '}
-          <b>Sao chép đường dẫn mời</b> rồi gửi cho bạn.
+          {t.household.needInvite}
         </p>
         <Link to="/" className="back-link">
-          Về danh sách các nhà
+          {t.common.backToHouseholds}
         </Link>
       </>
     )
@@ -97,10 +98,10 @@ function HouseholdLayout() {
   if (missing) {
     return (
       <>
-        <h1>Không tìm thấy nhà này</h1>
-        <p>Có thể nhà đã bị xoá, hoặc đường dẫn mời không đúng.</p>
+        <h1>{t.household.notFoundTitle}</h1>
+        <p>{t.household.notFound}</p>
         <Link to="/" className="back-link">
-          Về danh sách các nhà
+          {t.common.backToHouseholds}
         </Link>
       </>
     )
@@ -110,22 +111,21 @@ function HouseholdLayout() {
   return (
     <IdentityProvider householdId={householdId} members={members.data}>
       <div className="house-head">
-        <h1>{household.data?.name ?? (household.isPending ? 'Đang tải…' : 'Nhà')}</h1>
+        <h1>{household.data?.name ?? (household.isPending ? t.common.loading : t.household.fallbackName)}</h1>
         {people.length > 0 && <AvatarStack looks={people.map((m) => looks.get(m.id)!)} />}
       </div>
       {household.error && <p role="alert">{household.error.message}</p>}
       {!stored && (
         <p className="note attention">
-          Trình duyệt này không lưu được khoá của nhà (có thể đang ở chế độ ẩn danh). Trước khi đóng
-          trang, vào <b>Thành viên</b> và bấm <b>Sao chép đường dẫn mời</b> để mở lại nhà sau này.
+          {t.household.notSaved}
         </p>
       )}
-      <nav className="tabs" aria-label="Mục của nhà">
+      <nav className="tabs" aria-label={t.household.tabs}>
         <NavLink to="" end>
-          Tổng quan
+          {t.household.overview}
         </NavLink>
-        <NavLink to="expenses">Chi tiêu</NavLink>
-        <NavLink to="members">Thành viên</NavLink>
+        <NavLink to="expenses">{t.household.expenses}</NavLink>
+        <NavLink to="members">{t.household.members}</NavLink>
       </nav>
       {people.length > 0 && <WhoAmI members={people} looks={looks} />}
       <Outlet />

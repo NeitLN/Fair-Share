@@ -1,8 +1,11 @@
+import { useEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
 
+import LanguageSwitch from './components/LanguageSwitch'
 import ThemeSwitch from './components/ThemeSwitch'
 import { ToastProvider } from './components/Toast'
 import { Wordmark } from './components/Wordmark'
+import { useT } from './i18n'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
 import HouseholdLayout from './pages/HouseholdLayout'
@@ -12,13 +15,22 @@ import NotFoundPage from './pages/NotFoundPage'
 
 // The router and the query client are provided in main.tsx, so tests can supply their own
 function App() {
+  const t = useT()
+  // The tab's title follows the language too
+  useEffect(() => {
+    document.title = t.pageTitle
+  }, [t])
+
   return (
     <ToastProvider>
       <header className="app-header">
         <Link to="/" className="home-link">
           <Wordmark className="wordmark" />
         </Link>
-        <ThemeSwitch />
+        <div className="header-controls">
+          <LanguageSwitch />
+          <ThemeSwitch />
+        </div>
       </header>
       <main>
         <Routes>
