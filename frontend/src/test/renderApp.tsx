@@ -8,7 +8,7 @@ import { remember } from '../lib/knownHouseholds'
 import LocationProbe from './LocationProbe'
 
 type Reply = [status: number, body?: unknown]
-type Handler = Reply | ((body: unknown, init: RequestInit) => Reply)
+type Handler = Reply | ((body: unknown, init: RequestInit) => Reply | Promise<Reply>)
 
 /**
  * Replace fetch with a fake API. Keys are "METHOD /path", e.g. "GET /api/households".
@@ -20,7 +20,8 @@ export function mockApi(routes: Record<string, Handler>) {
     const handler = routes[key]
     if (!handler) return json(404, { detail: 'Not Found' })
     const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined
-    const [status, payload] = typeof handler === 'function' ? handler(body, init) : handler
+    // A handler may answer later, for tests of what the page shows while a request is slow
+    const [status, payload] = typeof handler === 'function' ? await handler(body, init) : handler
     return status === 204 ? new Response(null, { status }) : json(status, payload)
   })
   vi.stubGlobal('fetch', fetchFn)

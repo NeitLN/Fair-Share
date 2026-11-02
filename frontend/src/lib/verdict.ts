@@ -49,13 +49,16 @@ export function verdict(suggested: Transfer[], me: number | null, nameOf: NameOf
   return { sentence: t.youAreSquare(count), total: null }
 }
 
-/** One transfer from where you stand: "Bạn trả Minh", "Minh trả bạn" ("You owe Minh", "Minh owes you"). */
-export function transferText(transfer: Transfer, me: number | null, nameOf: NameOf): string {
+/**
+ * One transfer from where you stand: "Bạn trả Minh", "Minh trả bạn" ("You owe Minh", "Minh owes you").
+ * Once it is recorded as paid it reads as done: "You paid Minh" (Vietnamese "trả" says both).
+ */
+export function transferText(transfer: Transfer, me: number | null, nameOf: NameOf, paid = false): string {
   const t = messages().verdict
   const fromIsYou = transfer.from_member_id === me
   const from = fromIsYou ? t.you : nameOf(transfer.from_member_id)
   const to = transfer.to_member_id === me ? t.youObject : nameOf(transfer.to_member_id)
-  return t.pays(from, to, fromIsYou)
+  return (paid ? t.paidTo : t.pays)(from, to, fromIsYou)
 }
 
 /**
