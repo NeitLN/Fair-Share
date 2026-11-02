@@ -44,7 +44,7 @@ version, while `/health` never touches the database.
 | API restarted or redeployed | Nothing is lost: the API keeps no data | Drill: restarting and recreating the API container kept every row |
 | Restore from our backup | `scripts/db-backup.sh` (pg_dump matched to the server) and `db-restore.sh` | Local drill, 22/10: wiped and restored, balances and expenses **byte-identical**, ids continued, no migration re-applied |
 | Supabase pauses an idle project | The API answers `503`, `/health` stays up | Daily keep-alive query; resumed from the dashboard before a demo |
-| Live API redeployed; production backup | A drill household fetched before and after each redeploy; the same scripts against Supabase, whose free plan keeps **no backups** of its own | Run 2: **byte-identical** after four redeploys (29/10–02/11); backup in progress (#46) |
+| Live API redeployed; production backup | A drill household fetched before and after each redeploy; the same scripts against Supabase, whose free plan keeps **no backups** of its own | Run 2: **byte-identical** after four redeploys (29/10–02/11), and restored from the backup into local PostgreSQL 16 |
 
 | Problem we met | Fix |
 |---|---|

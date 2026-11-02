@@ -33,11 +33,12 @@ A throw-away Compose project (`COMPOSE_PROJECT_NAME=fsdrill`), so nobody's own l
 | `docker compose restart api`, then the `api` container recreated | Same data each time |
 | Remote mode (`DATABASE_URL`) against the drill database | Detected PostgreSQL 16, dumped with pg_dump 16; the password does not appear in the output or the file. With a wrong password: "Could not reach the database … Nothing written." |
 
-## Run 2: Supabase and Render (restart done, backup in progress)
+## Run 2: Supabase and Render (29/10 → 02/11), done
 
-The restart part is done. The backup needs the Supabase **database password**, which only the project's
-owner (Việt Tiến) has, so he takes it (#46); it is also [RUNBOOK](RUNBOOK.md) §1 step 10. Do **not** reset
-the password to get around this: Render's `DATABASE_URL` would stop working until it is updated.
+Hoàng Minh ran the restart part; Việt Tiến took the backup and the restore (#46), because the backup
+needs the Supabase **database password** and only the project's owner has it. To repeat it, it is also
+[RUNBOOK](RUNBOOK.md) §1 step 10. Do **not** reset the password to get around this: Render's
+`DATABASE_URL` would stop working until it is updated.
 
 The connection string is the **session pooler** URI (Supabase dashboard → *Connect* → Session pooler, or
 the `DATABASE_URL` value on Render). Paste it only into your own terminal, never into a chat or a file.
@@ -71,9 +72,10 @@ the `DATABASE_URL` value on Render). Paste it only into your own terminal, never
 | Restart 2: the #147 merge redeployed the API, 521b470 → 38898d5 (30/10) | Byte-identical |
 | Restart 3: the #152 merge, → e60c0c7 (31/10) | Byte-identical |
 | Restart 4: the freeze merges, → fce1e23 (02/11) | Byte-identical |
-| Server version printed by the backup | *Pending (#46)* |
-| Backup size and rows per table | *Pending (#46)* |
-| Local restore: the drill household equals production | *Pending (#46)* |
+| Server version printed by the backup | PostgreSQL **17** on Supabase, so the script dumped with pg_dump 17 (02/11) |
+| Backup size and rows per table | 3 644 bytes; households 13, members 31, expenses 11, expense_shares 32, settlements 5, schema_migrations 2. The password does not appear in the output or the file, which stays in the git-ignored `backups/` on Việt Tiến's laptop |
+| Local restore into PostgreSQL 16 (`fsdrill` project, `main` at fce1e23) | 90 s including starting the stack. The `SET transaction_timeout` line that pg_dump 17 writes was skipped as designed; same row counts; `schema_migrations` still 2, so no migration ran again, and the seed added nothing |
+| Local restore: the drill household equals production | Household 72 on the restored copy and on the live API, with the same key: all five pages (99, 264, 619, 166 and 436 bytes) **byte-identical** |
 
 **Found during run 2:** the Supabase dashboard shows *Last backup: No backups*. The free plan keeps no
 backups of its own, so `db-backup.sh` is the only way back after a lost table or a deleted project.
