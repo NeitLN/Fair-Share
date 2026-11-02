@@ -107,6 +107,9 @@ test('the verdict uses the right verb for one person or several, and never sound
   expect(transferText(t(1, 2, 1), 1, nameOf)).toBe('You owe Minh')
   expect(transferText(t(2, 1, 1), 1, nameOf)).toBe('Minh owes you')
   expect(transferText(t(2, 3, 1), 1, nameOf)).toBe('Minh owes Lan')
+  // A repayment marked as paid reads as done, in the card and its toasts (02/11 review)
+  expect(transferText(t(1, 2, 1), 1, nameOf, true)).toBe('You paid Minh')
+  expect(transferText(t(2, 3, 1), 1, nameOf, true)).toBe('Minh paid Lan')
 
   expect(reminderMessage('Room 302', 10, [t(2, 1, 100_000)], nameOf, 'https://x/households/1#k=k')).toBe(
     ['Room 302 — October repayments:', '• Minh owes Tiến 100,000 ₫', 'Details: https://x/households/1#k=k'].join(

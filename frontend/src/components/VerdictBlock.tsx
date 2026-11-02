@@ -196,7 +196,7 @@ function VerdictBlock({
               <li key={card.key} data-card={card.key} className={`transfer-card${done ? ' paid' : ''}`}>
                 <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
                 <span id={textId} className="transfer-text">
-                  {transferText(transfer, me, nameOf)} <Money amount={transfer.amount} />
+                  {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
                 </span>
                 {done ? (
                   <span className="transfer-done">

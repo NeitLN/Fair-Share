@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
+import { keys } from '../api/households'
 import type { Settlement, SettlementInput } from '../api/types'
 import { today } from '../lib/date'
 import { mockApi, renderApp } from '../test/renderApp'
@@ -298,6 +299,50 @@ test('a failed balances load says so in the block, and Thử lại tries again',
   fail = false
   await user.click(screen.getByRole('button', { name: 'Thử lại' }))
   expect(await screen.findByRole('heading', { name: /^Chưa có khoản chi nào/ })).toBeInTheDocument()
+})
+
+test('balances left over from before an expense was saved are not shown as the answer', async () => {
+  // Found in the 02/11 walkthrough: Overview said "Chưa có khoản chi nào" and 0đ for everyone while the
+  // month line already counted the new expense, until the slower balances request came back
+  let saved = false
+  let answerBalances: () => void = () => {}
+  const balancesWith = (paidByTien: number) => ({
+    balances: members.map((m) => ({
+      member_id: m.id,
+      name: m.name,
+      paid: m.id === 1 ? paidByTien : 0,
+      owed: paidByTien / 3,
+      sent: 0,
+      received: 0,
+      net: paidByTien ? startNets[m.id] : 0,
+    })),
+    suggested: paidByTien ? [2, 3].map((id) => ({ from_member_id: id, to_member_id: 1, amount: 100_000 })) : [],
+  })
+  api({
+    'GET /api/households/7/expenses': () => [200, saved ? [expense] : []],
+    'GET /api/households/7/balances': () =>
+      saved
+        ? new Promise((resolve) => {
+            answerBalances = () => resolve([200, balancesWith(300_000)])
+          })
+        : [200, balancesWith(0)],
+  })
+  const user = userEvent.setup()
+  const { client } = renderApp('/households/7')
+  expect(await screen.findByRole('heading', { name: /^Chưa có khoản chi nào/ })).toBeInTheDocument()
+
+  // On the expenses tab an expense is saved: the page refreshes everything cached for the household
+  await user.click(screen.getByRole('link', { name: 'Chi tiêu' }))
+  saved = true
+  await client.invalidateQueries({ queryKey: keys.household(7) })
+  await user.click(screen.getByRole('link', { name: 'Tổng quan' }))
+
+  expect(await screen.findByRole('heading', { name: 'Đang tính ai trả ai…' })).toBeInTheDocument()
+  expect(screen.queryByText(/^Chưa có khoản chi nào/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Đã trả' })).not.toBeInTheDocument()
+
+  answerBalances()
+  expect(await screen.findByRole('heading', { name: 'Còn 2 lần trả là cả nhà về 0đ' })).toBeInTheDocument()
 })
 
 test('a household without members is sent to the members tab', async () => {

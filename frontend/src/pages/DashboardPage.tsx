@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
 import { expenseKeys, listExpenses } from '../api/expenses'
@@ -52,6 +52,14 @@ function Dashboard({ householdId }: { householdId: number }) {
     queryKey: settlementKeys.balances(householdId),
     queryFn: () => getBalances(householdId),
   })
+  // Balances cached before an expense was saved on another tab are out of date: until they are fetched
+  // again they show as loading, never as the answer ("Chưa có khoản chi nào", 0đ for everyone). A refresh
+  // started here, after "Đã trả", keeps the last answer on screen as before.
+  const [outdatedOnOpen] = useState(
+    () => queryClient.getQueryState(settlementKeys.balances(householdId))?.isInvalidated ?? false,
+  )
+  const [openedAt] = useState(() => Date.now())
+  const balancesOutdated = outdatedOnOpen && balances.dataUpdatedAt < openedAt && !balances.isError
   const settlements = useQuery({
     queryKey: settlementKeys.list(householdId),
     queryFn: () => listSettlements(householdId),
@@ -91,7 +99,8 @@ function Dashboard({ householdId }: { householdId: number }) {
     return memberLooks(fromBalances)
   }, [members.data, balances.data, householdId])
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
-  const paid = usePaidTransfers(householdId, balances.data, (transfer) => transferText(transfer, me, nameOf))
+  // Its toasts ("Đã ghi: …", "Đã hoàn tác: …") are about a payment made, so they read as done
+  const paid = usePaidTransfers(householdId, balances.data, (transfer) => transferText(transfer, me, nameOf, true))
   // Without the transfers already marked paid, even before the refetched balances arrive
   const suggested = paid.outstanding
 
@@ -137,7 +146,7 @@ function Dashboard({ householdId }: { householdId: number }) {
         me={me}
         looks={looks}
         started={balances.data?.balances.some(tookPart) ?? false}
-        loading={balances.isPending}
+        loading={balances.isPending || balancesOutdated}
         // A failed first load replaces the verdict; a failed refresh keeps the last one and says so
         loadError={balances.data ? null : errorMessage(balances.error)}
         refreshError={balances.data ? errorMessage(balances.error) : null}
@@ -165,7 +174,7 @@ function Dashboard({ householdId }: { householdId: number }) {
           balances={balances.data?.balances ?? []}
           looks={looks}
           me={me}
-          loading={balances.isPending}
+          loading={balances.isPending || balancesOutdated}
           // The verdict block above already says why and offers Thử lại
           unavailable={balances.isError && !balances.data}
         />
