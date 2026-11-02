@@ -17,13 +17,13 @@ from app.access import household_not_found
 from app.auth import (
     CurrentUser,
     bearer_token,
-    count_hit,
     hash_password,
-    hits,
     not_authenticated,
     open_session,
     password_matches,
+    release,
     request_ip,
+    reserve,
     token_hash,
     too_many,
     user_for_token,
@@ -90,13 +90,14 @@ def normal_code(raw: str) -> str | None:
 
 @router.post("/auth/register", response_model=SessionOut, status_code=201)
 def register(body: RegisterIn, request: Request):
-    ip = request_ip(request)
-    password_hash = hash_password(body.password)  # slow on purpose: before taking a connection
-    bucket = f"register-ip:{ip}"
+    bucket = f"register-ip:{request_ip(request)}"
+    # The limit first: a refused request must not cost a 64 MiB hash (review of #166)
     with connection(request) as conn:
-        if hits(conn, bucket, REGISTER_WINDOW) >= REGISTER_PER_IP:
-            raise too_many(REGISTER_WINDOW)
-        count_hit(conn, bucket, REGISTER_WINDOW)
+        allowed = reserve(conn, bucket, REGISTER_WINDOW, REGISTER_PER_IP)
+    if not allowed:
+        raise too_many(REGISTER_WINDOW)
+    password_hash = hash_password(body.password)  # slow on purpose: without holding a connection
+    with connection(request) as conn:
         try:
             with conn.transaction():
                 user = fetch_one(
@@ -117,27 +118,27 @@ def register(body: RegisterIn, request: Request):
 def login(body: LoginIn, request: Request):
     email_bucket = f"login-email:{body.email}"
     ip_bucket = f"login-ip:{request_ip(request)}"
-    session = None
+    # Every attempt is counted (and committed) before the password is checked; one that succeeds
+    # is given back. So attempts at the same moment cannot slip past the limit together.
     with connection(request) as conn:
-        if (
-            hits(conn, email_bucket, LOGIN_WINDOW) >= LOGIN_PER_EMAIL
-            or hits(conn, ip_bucket, LOGIN_WINDOW) >= LOGIN_PER_IP
-        ):
-            raise too_many(LOGIN_WINDOW)
-        user = fetch_one(
+        allowed = reserve(conn, email_bucket, LOGIN_WINDOW, LOGIN_PER_EMAIL) and reserve(
+            conn, ip_bucket, LOGIN_WINDOW, LOGIN_PER_IP
+        )
+        user = allowed and fetch_one(
             conn,
             "SELECT id, email, display_name, password_hash FROM users WHERE lower(email) = %s",
             (body.email,),
         )
-        if password_matches(user["password_hash"] if user else None, body.password):
-            user.pop("password_hash")
-            session = {"token": open_session(conn, user["id"]), "user": user}
-        else:  # counted, then committed when the `with` ends, then refused
-            count_hit(conn, email_bucket, LOGIN_WINDOW)
-            count_hit(conn, ip_bucket, LOGIN_WINDOW)
-    if session is None:
-        raise invalid_credentials()
-    return session
+    if not allowed:
+        raise too_many(LOGIN_WINDOW)
+    if not password_matches(user["password_hash"] if user else None, body.password):
+        raise invalid_credentials()  # the attempt stays counted
+    with connection(request) as conn:
+        release(conn, email_bucket, LOGIN_WINDOW)
+        release(conn, ip_bucket, LOGIN_WINDOW)
+        token = open_session(conn, user["id"])
+    user.pop("password_hash")
+    return {"token": token, "user": user}
 
 
 @router.post("/auth/logout", status_code=204)
@@ -161,7 +162,6 @@ def me(user: CurrentUser):
 def join(body: JoinIn, request: Request, authorization: Authorization = None):
     """Asks to join the household of a valid code. The owner then approves (or not); until then
     the household shows nothing of itself, not even its name."""
-    user_bucket = ip_bucket = None
     result = None
     with connection(request) as conn:
         user = user_for_token(conn, bearer_token(authorization))
@@ -169,22 +169,20 @@ def join(body: JoinIn, request: Request, authorization: Authorization = None):
             raise not_authenticated()
         user_bucket = f"join-user:{user['id']}"
         ip_bucket = f"join-ip:{request_ip(request)}"
-        if (
-            hits(conn, user_bucket, JOIN_WINDOW) >= JOIN_PER_USER
-            or hits(conn, ip_bucket, JOIN_WINDOW) >= JOIN_PER_IP
-        ):
-            raise too_many(JOIN_WINDOW)
-        code = normal_code(body.code)
+        # Counted before the code is looked at, given back when it was right (see login)
+        allowed = reserve(conn, user_bucket, JOIN_WINDOW, JOIN_PER_USER) and reserve(
+            conn, ip_bucket, JOIN_WINDOW, JOIN_PER_IP
+        )
+        code = normal_code(body.code) if allowed else None
         found = code and fetch_one(
             conn,
             "SELECT household_id FROM invite_codes"
             " WHERE code = %s AND revoked_at IS NULL AND expires_at > now()",
             (code,),
         )
-        if not found:
-            count_hit(conn, user_bucket, JOIN_WINDOW)
-            count_hit(conn, ip_bucket, JOIN_WINDOW)
-        else:
+        if found:
+            release(conn, user_bucket, JOIN_WINDOW)
+            release(conn, ip_bucket, JOIN_WINDOW)
             household_id = found["household_id"]
             conn.execute(
                 "INSERT INTO household_users (household_id, user_id, role)"
@@ -200,6 +198,8 @@ def join(body: JoinIn, request: Request, authorization: Authorization = None):
                 if role == "pending"
                 else {"status": "member", "household_id": household_id}
             )
+    if not allowed:
+        raise too_many(JOIN_WINDOW)
     if result is None:
         raise invalid_code()
     return result
@@ -222,21 +222,32 @@ def ownerless_household(conn, household_id: int, key: str | None, lock: bool = F
     """The household, if `key` is its old invite key and nobody owns it yet.
 
     A wrong key gets the 404 of a household that does not exist, as before accounts. A right key
-    for a household that already has an owner is told so: its holder was invited once."""
+    for a household that already has an owner is told so: its holder was invited once.
+
+    With `lock`, the household is locked in a statement of its own first: a second person claiming
+    at the same moment waits, then sees the first one's owner (review of #166). In one statement
+    with the lock, its owner check would still read from before the wait.
+    """
+    if lock:
+        conn.execute("SELECT 1 FROM households WHERE id = %s FOR UPDATE", (household_id,))
     row = fetch_one(
         conn,
         "SELECT id, name, access_key, EXISTS (SELECT 1 FROM household_users hu"
         " WHERE hu.household_id = h.id AND hu.role = 'owner') AS owned"
-        f" FROM households h WHERE id = %s{' FOR UPDATE' if lock else ''}",
+        " FROM households h WHERE id = %s",
         (household_id,),
     )
     if row is None or not key or not hmac.compare_digest(row["access_key"].encode(), key.encode()):
         raise household_not_found()
     if row["owned"]:
-        raise ApiError(
-            409, "household_has_owner", "This household has an owner: ask them for an invite code"
-        )
+        raise household_has_owner()
     return row
+
+
+def household_has_owner() -> ApiError:
+    return ApiError(
+        409, "household_has_owner", "This household has an owner: ask them for an invite code"
+    )
 
 
 @router.get("/households/{household_id}/claim", response_model=ClaimInfo)
@@ -277,10 +288,13 @@ def claim(
         member_id = body.member_id
     else:
         member_id = add_name(conn, household_id, user["display_name"])
-    conn.execute(
-        "INSERT INTO household_users (household_id, user_id, role, member_id, approved_at)"
-        " VALUES (%s, %s, 'owner', %s, now())"
-        " ON CONFLICT (household_id, user_id) DO UPDATE"
-        " SET role = 'owner', member_id = EXCLUDED.member_id, approved_at = now()",
-        (household_id, user["id"], member_id),
-    )
+    try:
+        conn.execute(
+            "INSERT INTO household_users (household_id, user_id, role, member_id, approved_at)"
+            " VALUES (%s, %s, 'owner', %s, now())"
+            " ON CONFLICT (household_id, user_id) DO UPDATE"
+            " SET role = 'owner', member_id = EXCLUDED.member_id, approved_at = now()",
+            (household_id, user["id"], member_id),
+        )
+    except errors.UniqueViolation:  # the last line of defence: one owner per household (003)
+        raise household_has_owner() from None

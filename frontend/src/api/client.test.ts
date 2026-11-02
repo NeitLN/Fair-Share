@@ -119,6 +119,32 @@ describe('the session (docs/ACCOUNTS.md)', () => {
     expect(currentSession()?.token).toBe('still-good')
   })
 
+  // A request from the last account that answers after someone else signed in on this tab
+  function answersLate(status: number, body: unknown) {
+    let answer: (response: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))))
+    return () => answer(json(status, body))
+  }
+
+  test('a late 401 for the last account does not sign the new one out', async () => {
+    signIn({ token: 'old', user })
+    const answer = answersLate(401, { error: { code: 'not_authenticated', message: 'x' } })
+    const pending = api.get('/api/households')
+    signIn({ token: 'new', user: { ...user, id: 10 } })
+    answer()
+    await expect(pending).rejects.toMatchObject({ code: 'session_changed' })
+    expect(currentSession()?.token).toBe('new')
+  })
+
+  test("the last account's data is thrown away, not handed to the new one", async () => {
+    signIn({ token: 'old', user })
+    const answer = answersLate(200, [{ id: 1, name: 'Nhà của người trước' }])
+    const pending = api.get('/api/households')
+    signIn({ token: 'new', user: { ...user, id: 10 } })
+    answer()
+    await expect(pending).rejects.toMatchObject({ code: 'session_changed' })
+  })
+
   test('the old household key is only sent where the caller gives it', async () => {
     const headers = sent()
     await api.get('/api/households/7/claim', undefined, { [KEY_HEADER]: 'a'.repeat(32) })

@@ -126,6 +126,31 @@ test('approving someone with a new name puts them in the list', async () => {
   expect(JSON.parse(approve?.[1]?.body as string)).toEqual({})
 })
 
+test('when the group already has that name, the owner approves them under another one', async () => {
+  const fetchFn = api(asOwner, {
+    'POST /api/households/7/requests/30/approve': (body) =>
+      (body as { name?: string }).name
+        ? [200, { id: 4, household_id: 7, name: 'Lan Anh', created_at: T, role: 'member', user_id: 30 }]
+        : nameTaken,
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7/members')
+
+  const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
+  await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
+  expect(await within(asking).findByRole('alert')).toHaveTextContent('Nhà này đã có thành viên trùng tên.')
+
+  const field = within(asking).getByLabelText('Tên mới cho Lan')
+  await user.clear(field)
+  expect(within(asking).getByRole('button', { name: 'Duyệt' })).toBeDisabled()
+  await user.type(field, 'Lan Anh')
+  await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
+
+  expect(await screen.findByText('Lan Anh đã vào nhà.')).toBeInTheDocument()
+  const approvals = fetchFn.mock.calls.filter(([url]) => String(url).endsWith('/approve'))
+  expect(JSON.parse(approvals[1]?.[1]?.body as string)).toEqual({ name: 'Lan Anh' })
+})
+
 test('approving someone onto a name nobody has keeps that name and its history', async () => {
   const fetchFn = api()
   const user = userEvent.setup()

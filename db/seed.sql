@@ -22,22 +22,32 @@ people AS (
   FROM demo, (VALUES ('Tiến'), ('Minh'), ('Duy Anh')) AS member (name)
   RETURNING id, household_id, name
 ),
+demo_accounts (email, name) AS (
+  VALUES ('tien@demo.local', 'Tiến'), ('minh@demo.local', 'Minh'), ('duyanh@demo.local', 'Duy Anh')
+),
 accounts AS (
   INSERT INTO users (email, password_hash, display_name)
   SELECT account.email,
          '$argon2id$v=19$m=65536,t=3,p=4$a1Kc3nZXbcTi+1qQRHwrLA$5HZKXRFLYEZCBXKEfvtl+zKTSysAz8bjdp9KguT+X2A',
          account.name
-  FROM demo, (VALUES ('tien@demo.local', 'Tiến'), ('minh@demo.local', 'Minh'),
-                     ('duyanh@demo.local', 'Duy Anh')) AS account (email, name)
+  FROM demo, demo_accounts account
   ON CONFLICT DO NOTHING
-  RETURNING id, display_name
+  RETURNING id, email
+),
+-- The accounts just made, and the ones left from an earlier demo household that was deleted (its
+-- accounts stay): the new demo household is theirs too
+known AS (
+  SELECT id, email FROM accounts
+  UNION
+  SELECT u.id, u.email FROM users u JOIN demo_accounts a ON a.email = u.email
 ),
 linked AS (
   INSERT INTO household_users (household_id, user_id, role, member_id, approved_at)
-  SELECT person.household_id, account.id,
+  SELECT person.household_id, known.id,
          CASE WHEN person.name = 'Tiến' THEN 'owner' ELSE 'member' END, person.id, now()
   FROM people person
-  JOIN accounts account ON account.display_name = person.name
+  JOIN demo_accounts account ON account.name = person.name
+  JOIN known ON known.email = account.email
 ),
 -- months_back 1 = last month, 0 = this month; day = day of that month (today at the latest)
 bought (description, amount, payer, months_back, day, source, shares) AS (

@@ -63,12 +63,20 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     throw new ApiError(0, 'network_error', messages().failure.network)
   }
 
+  // Someone else signed in on this tab while the request was on its way (review of #166): its
+  // answer belongs to the last account, so it must neither sign the new one out nor reach its cache
+  const changed = () => currentSession()?.token !== session?.token
+  if (changed()) throw sessionChanged()
+
   // The session ended (logged out elsewhere, or expired): back to the sign-in page
   if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut()
   if (!response.ok) throw await toApiError(response)
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  const body = response.status === 204 ? undefined : await response.json()
+  if (changed()) throw sessionChanged()
+  return body as T
 }
+
+const sessionChanged = () => new ApiError(0, 'session_changed', messages().failure.unexpected)
 
 /**
  * The second argument of the routes addressed by a member, expense or settlement id used to say

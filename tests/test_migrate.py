@@ -239,6 +239,24 @@ def test_seed_gives_each_demo_member_an_account(conn):
     assert password_matches(stored.fetchone()[0], "fairshare-demo")
 
 
+def test_a_new_demo_household_belongs_to_the_demo_accounts_again(conn):
+    """Review of #166: delete the demo household and restart: its accounts stay, so the new demo
+    household must be linked to them, not to accounts the seed could not create."""
+    seed_sql = SEED_FILE.read_text(encoding="utf-8")
+    conn.execute("DELETE FROM households")  # rolled back by the fixture
+    conn.execute(seed_sql)
+    conn.execute("DELETE FROM expenses")
+    conn.execute("DELETE FROM households")
+    conn.execute(seed_sql)
+    linked = conn.execute(
+        "SELECT u.email, hu.role FROM household_users hu JOIN users u ON u.id = hu.user_id"
+        " ORDER BY hu.member_id"
+    ).fetchall()
+    assert linked == [
+        (DEMO_OWNER, "owner"), ("minh@demo.local", "member"), ("duyanh@demo.local", "member")
+    ]
+
+
 def test_seed_logs_which_demo_account_to_sign_in_with(db_url, tmp_path, caplog):
     # Every page needs an account (docs/ACCOUNTS.md): CLEAN_CLONE.md reads the demo account here.
     migrate(db_url)

@@ -99,7 +99,11 @@ def lock_household(conn: Connection, household_id: int) -> None:
 
 
 def new_invite_code(conn: Connection, household_id: int, user_id: int) -> dict:
-    """Revokes the current code, if any, and makes a new one."""
+    """Revokes the current code, if any, and makes a new one.
+
+    The household is locked first, so two renewals at the same moment take turns: the second one
+    revokes the first one's new code instead of clashing with it (review of #166)."""
+    lock_household(conn, household_id)
     conn.execute(
         "UPDATE invite_codes SET revoked_at = now() WHERE household_id = %s AND revoked_at IS NULL",
         (household_id,),
@@ -301,17 +305,21 @@ def leave_household(household_id: Id, access: AccessDep, conn: ConnDep):
 def current_invite(household_id: Id, access: AccessDep, conn: ConnDep):
     """Every member can show the current code; when there is none (or it expired) the owner gets
     a new one, a member gets none and asks the owner."""
-    row = fetch_one(
-        conn,
+    current = (
         "SELECT code, expires_at FROM invite_codes"
-        " WHERE household_id = %s AND revoked_at IS NULL AND expires_at > now()",
-        (household_id,),
+        " WHERE household_id = %s AND revoked_at IS NULL AND expires_at > now()"
     )
+    row = fetch_one(conn, current, (household_id,))
     if row is not None:
         return row
-    if access.is_owner:
-        return new_invite_code(conn, household_id, access.user_id)
-    return {"code": None, "expires_at": None}
+    if not access.is_owner:
+        return {"code": None, "expires_at": None}
+    # Two of the owner's devices asking at the same moment: the second waits for the lock, then
+    # finds and shows the code the first one just made
+    lock_household(conn, household_id)
+    return fetch_one(conn, current, (household_id,)) or new_invite_code(
+        conn, household_id, access.user_id
+    )
 
 
 @router.post("/households/{household_id}/invite", response_model=InviteCode)

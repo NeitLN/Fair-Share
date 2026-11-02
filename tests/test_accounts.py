@@ -3,7 +3,9 @@
 The rule ids (A1…, J1…, M1…, L1) and the examples (E1…) are the ones of docs/ACCOUNTS.md.
 """
 import random
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import psycopg
 import pytest
@@ -136,6 +138,53 @@ def test_one_address_trying_many_emails_is_slowed_down(make_client, monkeypatch)
         assert login(client, new_email(), headers=ip).status_code == 401
     assert login(client, new_email(), headers=ip).status_code == 429
     assert login(client, new_email(), headers=from_ip()).status_code == 401  # another address
+
+
+def at_once(calls):
+    """Runs the calls in threads released together, and returns their answers in order."""
+    barrier = threading.Barrier(len(calls))
+
+    def run(call):
+        barrier.wait()
+        return call()
+
+    with ThreadPoolExecutor(len(calls)) as pool:
+        return list(pool.map(run, calls))
+
+
+def test_wrong_passwords_at_the_same_moment_cannot_slip_past_the_limit(make_client, client):
+    """Review of #166: each attempt used to read the count, then add to it after checking the
+    password, so attempts at the same moment all saw 4 and all went through."""
+    email = new_email()
+    register(client, email=email)
+    clients = [make_client() for _ in range(8)]
+    answers = at_once([lambda c=c: login(c, email, "sai-mat-khau").status_code for c in clients])
+    limit = accounts.LOGIN_PER_EMAIL
+    assert sorted(answers) == [401] * limit + [429] * (8 - limit)
+
+
+def test_a_right_password_does_not_count_against_the_limit(client):
+    email = new_email()
+    register(client, email=email)
+    for _ in range(accounts.LOGIN_PER_EMAIL - 1):
+        assert login(client, email, "sai-mat-khau").status_code == 401
+    assert login(client, email).status_code == 200
+    assert login(client, email, "sai-mat-khau").status_code == 401  # still the 5th wrong one
+    assert login(client, email).status_code == 429
+
+
+def test_a_refused_registration_does_not_spend_a_password_hash(make_client, monkeypatch):
+    """Review of #166: the 64 MiB hash ran before the limit was checked."""
+    monkeypatch.setattr(accounts, "REGISTER_PER_IP", 1)
+    client = make_client(forwarded_hops=1)
+    ip = from_ip()
+    assert register(client, headers=ip).status_code == 201
+
+    def no_hash(_password):
+        pytest.fail("a refused registration hashed a password")
+
+    monkeypatch.setattr(accounts, "hash_password", no_hash)
+    assert register(client, headers=ip).status_code == 429
 
 
 def test_one_address_cannot_make_endless_accounts(make_client, monkeypatch):
@@ -293,6 +342,22 @@ def test_an_expired_code_leaves_a_member_without_one_and_gives_the_owner_a_new_o
     seen_by_minh = client.get(path, headers=bearer(client.member_tokens[minh["id"]])).json()
     assert seen_by_minh == {"code": None, "expires_at": None}
     assert client.get(path).json()["code"] not in (None, house["code"])
+
+
+def test_renewing_the_code_twice_at_the_same_moment_works(make_client, client, house):
+    """Review of #166: the second renewal used to clash with the first one's new code (503)."""
+    owner = client.token
+    clients = [make_client() for _ in range(4)]
+    path = f"/api/households/{house['id']}/invite"
+    renew = [lambda c=c: c.post(path, headers=bearer(owner)).status_code for c in clients]
+    answers = at_once(renew)
+    assert answers == [200] * 4
+    with psycopg.connect(client.app.state.settings.database_url) as conn:
+        current = conn.execute(
+            "SELECT count(*) FROM invite_codes WHERE household_id = %s AND revoked_at IS NULL",
+            (house["id"],),
+        ).fetchone()[0]
+    assert current == 1
 
 
 def test_guessing_codes_is_slowed_down(client, house):
@@ -463,6 +528,22 @@ def test_the_first_signed_in_person_with_the_key_becomes_the_owner(client, old_h
                                     headers={**with_key(old_household), **bearer(other)})
     assert taken.status_code == 409
     assert client.anonymous().get(f"/api/households/{h}", headers=bearer(other)).status_code == 404
+
+
+def test_two_people_taking_over_at_the_same_moment_get_one_owner(
+    make_client, client, old_household
+):
+    """Review of #166: the second claim used to fail on the one-owner index (500), not 409."""
+    h = old_household["id"]
+    people = [(make_client(), client.sign_up(name)) for name in ("Tiến", "Minh")]
+    answers = at_once([
+        lambda c=c, token=token, m=m: c.post(
+            f"/api/households/{h}/claim", json={"member_id": m},
+            headers={**with_key(old_household), **bearer(token)},
+        ).status_code
+        for (c, token), m in zip(people, old_household["members"][:2], strict=True)
+    ])
+    assert sorted(answers) == [204, 409]
 
 
 def test_taking_over_with_a_new_name(client, old_household):

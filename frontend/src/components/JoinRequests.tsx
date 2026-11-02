@@ -11,8 +11,9 @@ const NEW = 'new'
 
 /**
  * The owner's answer to people asking to join (docs/ACCOUNTS.md, M1–M3). Approving puts them in the
- * split: under a new name (their display name), or under a name from before accounts that nobody
- * has taken, which keeps that name's expenses and balance.
+ * split: under a new name (their display name, which the owner can change when the group already
+ * has someone called that), or under a name from before accounts that nobody has taken, which keeps
+ * that name's expenses and balance.
  */
 function JoinRequests({ householdId, members }: { householdId: number; members: Member[] }) {
   const t = useT()
@@ -24,16 +25,20 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
     queryFn: () => listRequests(householdId),
   })
   const [choices, setChoices] = useState<Record<number, string>>({})
+  const [names, setNames] = useState<Record<number, string>>({})
   const free = members.filter((m) => !m.role)
 
+  const newName = (request: JoinRequest) => (names[request.user_id] ?? request.display_name).trim()
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
   const approve = useMutation({
     mutationFn: (request: JoinRequest) => {
       const choice = choices[request.user_id] ?? NEW
-      return approveRequest(householdId, request.user_id, choice === NEW ? {} : { member_id: Number(choice) })
+      if (choice !== NEW) return approveRequest(householdId, request.user_id, { member_id: Number(choice) })
+      const name = newName(request)
+      return approveRequest(householdId, request.user_id, name === request.display_name ? {} : { name })
     },
-    onSuccess: (_member, request) => {
-      toast({ text: t.requests.approved(request.display_name) })
+    onSuccess: (member) => {
+      toast({ text: t.requests.approved(member.name) })
       return refresh()
     },
   })
@@ -58,6 +63,8 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
       <ul className="member-list">
         {waiting.map((request) => {
           const selectId = `${id}-as-${request.user_id}`
+          const nameId = `${id}-name-${request.user_id}`
+          const asNew = (choices[request.user_id] ?? NEW) === NEW
           return (
             <li key={request.user_id} className="member-row">
               <span className="who">
@@ -73,15 +80,35 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
                 disabled={busy}
                 onChange={(event) => setChoices({ ...choices, [request.user_id]: event.target.value })}
               >
-                <option value={NEW}>{t.requests.newName(request.display_name)}</option>
+                <option value={NEW}>{t.requests.newName}</option>
                 {free.map((m) => (
                   <option key={m.id} value={m.id}>
                     {t.requests.existingName(m.name)}
                   </option>
                 ))}
               </select>
+              {asNew && (
+                <>
+                  <label htmlFor={nameId} className="visually-hidden">
+                    {t.requests.newNameLabel(request.display_name)}
+                  </label>
+                  <input
+                    id={nameId}
+                    type="text"
+                    maxLength={40}
+                    value={names[request.user_id] ?? request.display_name}
+                    disabled={busy}
+                    onChange={(event) => setNames({ ...names, [request.user_id]: event.target.value })}
+                  />
+                </>
+              )}
               <span className="row-actions">
-                <button type="button" className="btn-primary" disabled={busy} onClick={() => approve.mutate(request)}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy || (asNew && !newName(request))}
+                  onClick={() => approve.mutate(request)}
+                >
                   {approve.isPending && approve.variables?.user_id === request.user_id
                     ? t.requests.approving
                     : t.requests.approve}

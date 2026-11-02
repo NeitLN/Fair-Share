@@ -13,6 +13,7 @@
 
 import hashlib
 import secrets
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -33,6 +34,10 @@ TOUCH_EVERY = timedelta(hours=1)
 _hasher = PasswordHasher()
 # Checked when the email is unknown, so the answer takes as long as for a wrong password
 _DUMMY_HASH = _hasher.hash("not a real password, only spends the same time")
+# Each hash or check takes 64 MiB: at most two at a time, so a burst of logins or sign-ups waits
+# instead of using up the memory of a 512 MB instance (review of #166)
+HASHING_AT_ONCE = 2
+_hashing = threading.BoundedSemaphore(HASHING_AT_ONCE)
 
 
 def not_authenticated() -> ApiError:
@@ -44,12 +49,14 @@ def forbidden(message: str = "You are not allowed to do this in this household")
 
 
 def hash_password(password: str) -> str:
-    return _hasher.hash(password)
+    with _hashing:
+        return _hasher.hash(password)
 
 
 def password_matches(stored_hash: str | None, password: str) -> bool:
     try:
-        return _hasher.verify(stored_hash or _DUMMY_HASH, password) and stored_hash is not None
+        with _hashing:
+            return _hasher.verify(stored_hash or _DUMMY_HASH, password) and stored_hash is not None
     except (VerificationError, InvalidHashError):
         return False
 
@@ -149,25 +156,30 @@ def seconds_left(window: timedelta) -> int:
     return max(1, int(left.total_seconds()))
 
 
-def hits(conn: Connection, bucket: str, window: timedelta) -> int:
-    row = conn.execute(
-        "SELECT hits FROM rate_limits WHERE bucket = %s AND window_start = %s",
-        (bucket, _window_start(window)),
-    ).fetchone()
-    return row[0] if row else 0
-
-
-def count_hit(conn: Connection, bucket: str, window: timedelta) -> None:
-    """One more attempt in the current window. Atomic, so two requests at once both count."""
-    conn.execute(
+def reserve(conn: Connection, bucket: str, window: timedelta, limit: int) -> bool:
+    """Counts this attempt and says whether it is within `limit`, in one statement: two requests at
+    the same moment get different counts, so neither slips past the limit (review of #166). The
+    caller commits it before answering, and gives it back with release() when it went well."""
+    count = conn.execute(
         "INSERT INTO rate_limits (bucket, window_start, hits) VALUES (%s, %s, 1)"
-        " ON CONFLICT (bucket, window_start) DO UPDATE SET hits = rate_limits.hits + 1",
+        " ON CONFLICT (bucket, window_start) DO UPDATE SET hits = rate_limits.hits + 1"
+        " RETURNING hits",
         (bucket, _window_start(window)),
-    )
+    ).fetchone()[0]
     # Old windows are of no use; a few rows at a time keeps the table small
     conn.execute(
         "DELETE FROM rate_limits WHERE ctid IN (SELECT ctid FROM rate_limits"
         " WHERE window_start < now() - interval '1 day' LIMIT 50)"
+    )
+    return count <= limit
+
+
+def release(conn: Connection, bucket: str, window: timedelta) -> None:
+    """An attempt that went well does not count against the limit."""
+    conn.execute(
+        "UPDATE rate_limits SET hits = greatest(hits - 1, 0)"
+        " WHERE bucket = %s AND window_start = %s",
+        (bucket, _window_start(window)),
     )
 
 

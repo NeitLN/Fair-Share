@@ -47,7 +47,7 @@ to use.
 | ID | Rule | Tests |
 |---|---|---|
 | A1 | Email trimmed and lower-cased, at most 254 characters, one account per email; password 8 to 128 characters; display name 1 to 40 characters, cleaned like a member name | `test_accounts.py`: register tests |
-| A2 | A wrong password and an unknown email get the same 401. Five failed logins in 15 minutes for one email, or 20 from one address, give 429 with the seconds to wait; ten registrations an hour from one address | `test_five_wrong_passwords_…`, `test_one_address_…` |
+| A2 | A wrong password and an unknown email get the same 401. Five failed logins in 15 minutes for one email, or 20 from one address, give 429 with the seconds to wait; 30 registrations an hour from one address (a class shares one campus address). An attempt is counted before the password is checked, so attempts at the same moment cannot slip past the limit, and a refused one costs no password hash | `test_five_wrong_passwords_…`, `test_one_address_…`, `test_wrong_passwords_at_the_same_moment_…`, `test_a_refused_registration_…` |
 | A3 | A session ends 30 days after it was last used and 90 days after the login at the latest; logging out ends it at once | `test_logout_…`, `test_an_old_session_…`, `test_a_session_in_use_…` |
 | A4 | Passwords are stored as argon2id hashes, session tokens as SHA-256; neither is ever logged | `test_passwords_and_tokens_…` |
 | A5 | No session: 401. Not in the household, or still waiting: the 404 of a household that does not exist. In it but not allowed: 403 | `test_access.py` |
@@ -91,8 +91,14 @@ are unchanged; `households.access_key` stays only for L1.
   blocks SMTP; a reset would go through an HTTPS email API).
 * The session token is kept in the browser's `localStorage`, so a script injected into the page
   could read it. The page loads no third-party script.
+* Anyone who knows an email can lock it out of signing in for 15 minutes with five wrong passwords
+  (A2). A lock per email is what stops guessing one account's password, so we keep it; a signed-in
+  session is not affected.
+* A password hash takes 64 MiB, so at most two run at a time (`HASHING_AT_ONCE` in `app/auth.py`)
+  and a burst of logins waits instead of running the 512 MB instance out of memory.
 * An old `#k=` link can make its holder the owner until someone takes the household over: owners
-  should open their old links right after the release.
+  should open their old links right after the release. Two people opening it at the same moment get
+  one owner; the other is told to ask for an invite code.
 * The `/join/CODE` link puts the code in the path, which the static host may log (found in review).
   A code alone only asks to join: the owner still approves, and a new code replaces it.
 * Each run of the live E2E tests leaves its two or three test accounts (`@fair-share.test`); their
