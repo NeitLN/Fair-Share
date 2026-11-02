@@ -44,14 +44,14 @@ version, while `/health` never touches the database.
 | API restarted or redeployed | Nothing is lost: the API keeps no data | Drill: restarting and recreating the API container kept every row |
 | Restore from our backup | `scripts/db-backup.sh` (pg_dump matched to the server) and `db-restore.sh` | Local drill, 22/10: wiped and restored, balances and expenses **byte-identical**, ids continued, no migration re-applied |
 | Supabase pauses an idle project | The API answers `503`, `/health` stays up | Daily keep-alive query; resumed from the dashboard before a demo |
-| Production backup and Render restart | Same scripts against the Supabase URL; data compared before and after | *To fill in from run 2 of the drill* |
+| Live API redeployed; production backup | A drill household fetched before and after each redeploy; the same scripts against Supabase, whose free plan keeps **no backups** of its own | Run 2: **byte-identical** after four redeploys (29/10–02/11), and restored from the backup into local PostgreSQL 16 |
 
 | Problem we met | Fix |
 |---|---|
 | Deleting a household with shared expenses failed: PostgreSQL checked the members' foreign keys before the nested cascade had run | Delete the expenses first, then the household, in one transaction; caught by a test (#83, #84) |
 | On 22 and 23/10 `/health/db` answered 503 for about half an hour with no code change; the log showed the pooler unreachable, then **blocking our project** (`ECIRCUITBREAKER`) because our pool kept retrying | Back off: the pool stops retrying after 60 s and requests get the 503 at once for 20 s (#127). No data lost; the cause on Supabase's side is still open |
 
-**How we know it works.** 320 backend tests run on every pull request against a real PostgreSQL 16: the
+**How we know it works.** Over 340 backend tests run on every pull request against a real PostgreSQL 16: the
 migration runner, every rule above written directly to the database, every endpoint, and property tests of
 the money logic (2 000 random splits, 5 000 random balance sets). The broken split in draft PR #113 is
 caught, and branch protection blocks it.

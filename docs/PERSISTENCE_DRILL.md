@@ -33,13 +33,21 @@ A throw-away Compose project (`COMPOSE_PROJECT_NAME=fsdrill`), so nobody's own l
 | `docker compose restart api`, then the `api` container recreated | Same data each time |
 | Remote mode (`DATABASE_URL`) against the drill database | Detected PostgreSQL 16, dumped with pg_dump 16; the password does not appear in the output or the file. With a wrong password: "Could not reach the database … Nothing written." |
 
-## Run 2: Supabase and Render, to do
+## Run 2: Supabase and Render (29/10 → 02/11), done
 
-Needs the Supabase **session pooler** connection string (Supabase dashboard → *Connect*, or the
-`DATABASE_URL` value on Render). Paste it only into your own terminal, never into a chat or a file.
+Hoàng Minh ran the restart part; Việt Tiến took the backup and the restore (#46), because the backup
+needs the Supabase **database password** and only the project's owner has it. To repeat it, it is also
+[RUNBOOK](RUNBOOK.md) §1 step 10. Do **not** reset the password to get around this: Render's
+`DATABASE_URL` would stop working until it is updated.
 
-1. **Before:** open one household (`https://fair-share-4bu9.onrender.com/api/households/<id>`) and its
-   balances (`/api/households/<id>/balances`); save both pages as `before-*.json` (not in the repo).
+The connection string is the **session pooler** URI (Supabase dashboard → *Connect* → Session pooler, or
+the `DATABASE_URL` value on Render). Paste it only into your own terminal, never into a chat or a file.
+
+1. **Before:** create a household for the drill, or use one whose invite link you have. Households open
+   only with their key (#132), so send it as a header:
+   `curl -H "X-Household-Key: <key>" https://fair-share-4bu9.onrender.com/api/households/<id>` and the same
+   for `/members`, `/expenses`, `/settlements` and `/balances`. Save each page as `before-*.json` (not in
+   the repo).
 2. **Backup:**
    ```bash
    read -rs DATABASE_URL && export DATABASE_URL     # paste, Enter (nothing is shown)
@@ -47,21 +55,30 @@ Needs the Supabase **session pooler** connection string (Supabase dashboard → 
    unset DATABASE_URL
    ```
    Write down the file size, the server version it prints and the rows per table.
-3. **Restore locally:** `sh scripts/db-restore.sh backups/<that file> --yes`, then open
-   `http://localhost:3000`: the households from production must be there, and
-   `http://localhost:8000/api/households/<id>/balances` must equal `before-balances.json`.
-4. **Restart the live API:** Render dashboard → `fair-share-4bu9` → *Manual Deploy → Restart service*
-   (or re-run the `deploy` job of the latest CI/CD run on `main`). Wait until `/health` answers, then
-   fetch the same two pages again: they must equal the `before-*.json` files.
+3. **Restore locally:** `COMPOSE_PROJECT_NAME=fsdrill sh scripts/db-restore.sh backups/<that file> --yes`
+   (the project name keeps your own local database untouched), then fetch the same pages from
+   `http://localhost:8000/api/households/<id>/...` with the same key: they must equal the `before-*.json`
+   files.
+4. **Restart the live API:** Render dashboard → `fair-share-4bu9` → *Manual Deploy → Restart service*,
+   or re-run the `deploy` job of the latest CI/CD run on `main`. Any merge to `main` redeploys it too.
+   Wait until `/api/version` answers, then fetch the same pages again: they must equal the `before-*.json`
+   files.
 5. Fill in the table below and tick #46.
 
-| Step | Result (fill in) |
+| Step | Result |
 |---|---|
-| Server version printed by the backup | |
-| Backup size and rows per table | |
-| Local restore: households and balances equal production | |
-| Render restart: time until `/health` answered | |
-| After the restart: households and balances equal the "before" files | |
+| Drill household | Created on the live site on 29/10 through the API, with the same kind of data as run 1: id 72, "Drill T-27 (giữ lại đến 12/11)", 3 members, an electricity bill of 450 001 đ split equally, a 240 000 đ dinner split by custom amounts, one settlement. Balances +190 000 / +10 000 / −200 000 đ (sum 0) |
+| Restart 1: the `deploy` job re-run on `main` (30/10), same commit 521b470 | All five pages **byte-identical** |
+| Restart 2: the #147 merge redeployed the API, 521b470 → 38898d5 (30/10) | Byte-identical |
+| Restart 3: the #152 merge, → e60c0c7 (31/10) | Byte-identical |
+| Restart 4: the freeze merges, → fce1e23 (02/11) | Byte-identical |
+| Server version printed by the backup | PostgreSQL **17** on Supabase, so the script dumped with pg_dump 17 (02/11) |
+| Backup size and rows per table | 3 644 bytes; households 13, members 31, expenses 11, expense_shares 32, settlements 5, schema_migrations 2. The password does not appear in the output or the file, which stays in the git-ignored `backups/` on Việt Tiến's laptop |
+| Local restore into PostgreSQL 16 (`fsdrill` project, `main` at fce1e23) | 90 s including starting the stack. The `SET transaction_timeout` line that pg_dump 17 writes was skipped as designed; same row counts; `schema_migrations` still 2, so no migration ran again, and the seed added nothing |
+| Local restore: the drill household equals production | Household 72 on the restored copy and on the live API, with the same key: all five pages (99, 264, 619, 166 and 436 bytes) **byte-identical** |
+
+**Found during run 2:** the Supabase dashboard shows *Last backup: No backups*. The free plan keeps no
+backups of its own, so `db-backup.sh` is the only way back after a lost table or a deleted project.
 
 ## Problems we met
 
