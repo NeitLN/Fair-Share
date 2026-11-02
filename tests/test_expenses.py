@@ -54,7 +54,7 @@ def test_equal_split_gives_the_leftover_dong_to_the_lowest_ids(client, house):
     assert expense["household_id"] == house["id"]
     assert set(expense) == {
         "id", "household_id", "description", "amount", "payer_id", "spent_at", "source",
-        "created_at", "split_type", "shares",
+        "created_at", "split_type", "shares", "created_by",
     }
 
 

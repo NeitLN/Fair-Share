@@ -143,6 +143,7 @@ class Member(BaseModel):
     created_at: datetime
     # Whose account this name belongs to; None for a name from before accounts nobody has taken yet
     role: Literal["owner", "member"] | None = None
+    user_id: int | None = None
 
 
 # --- Accounts (docs/ACCOUNTS.md) ----------------------------------------------------------------
@@ -302,6 +303,8 @@ class Expense(BaseModel):
     split_type: Literal["equal", "custom"]
     # One per participant, in member id order; they always add up to `amount`.
     shares: list[Share]
+    # The account that recorded it (who may change it); None for one from before accounts
+    created_by: int | None = None
 
 
 # --- Settlements (US-08) ------------------------------------------------------------------------
@@ -327,6 +330,7 @@ class Settlement(BaseModel):
     settled_at: date
     note: str | None
     created_at: datetime
+    created_by: int | None = None
 
 
 # --- Balances (US-06, US-07) --------------------------------------------------------------------

@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api", tags=["households"], dependencies=[HouseholdAc
 HOUSEHOLD_COLUMNS = "id, name, created_at"
 # A member with the role of the account that took the name, if any
 SELECT_MEMBERS = (
-    "SELECT m.id, m.household_id, m.name, m.created_at, hu.role FROM members m"
+    "SELECT m.id, m.household_id, m.name, m.created_at, hu.role, hu.user_id FROM members m"
     " LEFT JOIN household_users hu ON hu.household_id = m.household_id AND hu.member_id = m.id"
 )
 # No more members than one expense can be split between, so an equal split for the whole

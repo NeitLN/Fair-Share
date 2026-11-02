@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["expenses"], dependencies=[HouseholdAcce
 # One row per expense, its shares gathered into a JSON list. Every expense has at least one share.
 SELECT_EXPENSES = """
     SELECT e.id, e.household_id, e.description, e.amount, e.payer_id, e.spent_at, e.source,
-           e.created_at,
+           e.created_at, e.created_by,
            json_agg(json_build_object('member_id', s.member_id, 'amount', s.share_amount)
                     ORDER BY s.member_id) AS shares
     FROM expenses e

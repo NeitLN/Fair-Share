@@ -114,7 +114,7 @@ def test_list_members_in_order_with_their_role(client):
     minh = member(client, house["id"], " Minh ")
     assert minh["name"] == "Minh"
     assert minh["household_id"] == house["id"]
-    assert set(minh) == {"id", "household_id", "name", "created_at", "role"}
+    assert set(minh) == {"id", "household_id", "name", "created_at", "role", "user_id"}
 
     listed = client.get(f"/api/households/{house['id']}/members").json()
     assert [(m["name"], m["role"]) for m in listed] == [("Tiến", "owner"), ("Minh", "member")]

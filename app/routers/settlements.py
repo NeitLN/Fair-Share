@@ -19,7 +19,8 @@ from app.schemas import Id, Settlement, SettlementIn
 router = APIRouter(prefix="/api", tags=["settlements"], dependencies=[HouseholdAccess])
 
 SETTLEMENT_COLUMNS = (
-    "id, household_id, from_member_id, to_member_id, amount, settled_at, note, created_at"
+    "id, household_id, from_member_id, to_member_id, amount, settled_at, note, created_at,"
+    " created_by"
 )
 
 

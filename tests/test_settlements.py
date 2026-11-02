@@ -36,7 +36,7 @@ def test_record_and_list_a_settlement(client, house):
     assert created["note"] == "chuyển khoản"
     assert set(created) == {
         "id", "household_id", "from_member_id", "to_member_id", "amount", "settled_at", "note",
-        "created_at",
+        "created_at", "created_by",
     }
     assert client.get(f"/api/households/{house['id']}/settlements").json() == [created]
 
