@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.api import error_code, household, member
+from tests.api import error_code, household, member, remove_access
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 
@@ -109,10 +109,15 @@ def test_unknown_settlement_is_404(client):
 
 def test_members_in_a_settlement_cannot_be_removed(client, house):
     pay(client, house)
-    for person in (house["minh"], house["tien"]):
-        response = client.delete(f"/api/members/{person}")
-        assert response.status_code == 409
-        assert error_code(response) == "member_in_use"
+    # The owner keeps their name while they own the household
+    response = client.delete(f"/api/members/{house['tien']}")
+    assert response.status_code == 409
+    assert error_code(response) == "member_has_account"
+    # Minh's access can go, but not his name: it is in a settlement
+    remove_access(client, house["id"], house["minh"])
+    response = client.delete(f"/api/members/{house['minh']}")
+    assert response.status_code == 409
+    assert error_code(response) == "member_in_use"
 
 
 def test_deleting_the_household_deletes_its_settlements(client, house):

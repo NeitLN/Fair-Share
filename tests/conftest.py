@@ -6,6 +6,7 @@
 # usually unset, and the tests marked @pytest.mark.db are skipped.
 import os
 import re
+import uuid
 from dataclasses import replace
 
 import psycopg
@@ -14,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
+from app.routers import accounts
 
 os.environ.setdefault("APP_ENV", "test")
 
@@ -45,74 +47,91 @@ def db_url() -> str:
     return Settings.from_env().database_url
 
 
+@pytest.fixture(autouse=True)
+def generous_limits(monkeypatch):
+    """Every test request comes from the same address, and the suite signs up hundreds of accounts:
+    the real limits (app/routers/accounts.py) would stop it. The tests of those limits set them
+    back with monkeypatch."""
+    monkeypatch.setattr(accounts, "REGISTER_PER_IP", 1_000_000)
+    monkeypatch.setattr(accounts, "LOGIN_PER_IP", 1_000_000)
+    monkeypatch.setattr(accounts, "JOIN_PER_IP", 1_000_000)
+
+
 @pytest.fixture
 def cleanup(db_url, client):
-    """Remove the households a test created. API test modules use it with
+    """Remove the households and accounts a test created. API test modules use it with
     `pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]`.
 
     Depends on `client` so the app's start-up has applied the schema first.
     """
     with psycopg.connect(db_url) as conn:
         before = conn.execute("SELECT coalesce(max(id), 0) FROM households").fetchone()[0]
+        users_before = conn.execute("SELECT coalesce(max(id), 0) FROM users").fetchone()[0]
     yield
     with psycopg.connect(db_url) as conn:
         # Expenses first, as DELETE /api/households/{id} does (see db/migrations/001_init.sql).
         conn.execute("DELETE FROM expenses WHERE household_id > %s", (before,))
         conn.execute("DELETE FROM households WHERE id > %s", (before,))
+        conn.execute("DELETE FROM users WHERE id > %s", (users_before,))
 
 
-KEY_HEADER = "X-Household-Key"
-_HOUSEHOLD_PATH = re.compile(r"/api/households/(\d+)")
-_ITEM_PATH = re.compile(r"/api/(members|expenses|settlements)/(\d+)")
-_LIST_PATH = re.compile(r"/api/households/(\d+)/(members|expenses|settlements)$")
+def bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
 
 
-class KeyedClient(TestClient):
-    """Sends each household's key with the requests that need it, as the web app does (#132).
+# Requests that work without a session, so the client does not sign up for them
+_OPEN_PATHS = re.compile(r"^/($|health|api/version|api/auth/)")
+_SETTLEMENTS = re.compile(r"^/api/households/\d+/settlements$")
 
-    It learns the key from the answer to creating a household, and which household a member,
-    expense or settlement belongs to from the answers that list or create them. A request that sets
-    X-Household-Key itself keeps its own value; `without_key()` gives a client that never sends one.
+
+class AuthedClient(TestClient):
+    """Signed in, as the web app is: at its first request it signs up an account of its own, the
+    owner of every household it then creates, and sends its token with every request.
+
+    `sign_up()` makes more accounts (tests/api.py `member()` uses it to add housemates the way the
+    app does: an invite code, then the owner's approval), and it remembers which account has which
+    name. A repayment can only be recorded by the person who received it, so a POST of a settlement
+    goes out with the receiver's token. A request that sets Authorization itself keeps its own;
+    `anonymous()` gives a client that never sends one.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.household_keys: dict[int, str] = {}
-        self.owners: dict[tuple[str, int], int] = {}
+        self.token: str | None = None
+        self.user: dict | None = None
+        self.member_tokens: dict[int, str] = {}  # member id → the token of the account with it
+        self.unnamed_owner: dict[int, int] = {}  # household → the owner's name, not yet renamed
 
-    def without_key(self) -> TestClient:
+    def anonymous(self) -> TestClient:
         return TestClient(self.app, raise_server_exceptions=False)
 
-    def _key_for(self, path: str) -> str | None:
-        if match := _HOUSEHOLD_PATH.match(path):
-            return self.household_keys.get(int(match[1]))
-        if match := _ITEM_PATH.match(path):
-            household_id = self.owners.get((match[1], int(match[2])))
-            return self.household_keys.get(household_id) if household_id else None
-        return None
-
-    def _learn(self, method: str, path: str, response) -> None:
-        if not response.content or not response.headers.get("content-type", "").startswith(
-            "application/json"
-        ):
-            return
-        body = response.json()
-        if method == "POST" and path == "/api/households" and response.status_code == 201:
-            self.household_keys[body["id"]] = body["key"]
-        kind = _LIST_PATH.match(path) or _ITEM_PATH.match(path)
-        if kind:
-            table = kind[2] if _LIST_PATH.match(path) else kind[1]
-            for item in body if isinstance(body, list) else [body]:
-                if isinstance(item, dict) and "id" in item and "household_id" in item:
-                    self.owners[(table, item["id"])] = item["household_id"]
+    def sign_up(self, display_name: str = "Chủ nhà", email: str | None = None) -> str:
+        email = email or f"{uuid.uuid4().hex}@test.local"
+        response = super().request(
+            "POST",
+            "/api/auth/register",
+            json={"email": email, "password": "test-password", "display_name": display_name},
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["token"]
 
     def request(self, method, url, *args, headers=None, **kwargs):
         path = str(url).split("?")[0]
         headers = dict(headers or {})
-        if KEY_HEADER not in headers and (key := self._key_for(path)):
-            headers[KEY_HEADER] = key
+        if "Authorization" not in headers and not _OPEN_PATHS.match(path):
+            if self.token is None and self.app.state.settings.database_url:
+                self.token = self.sign_up()
+            token = self.token
+            body = kwargs.get("json")
+            if method.upper() == "POST" and _SETTLEMENTS.match(path) and isinstance(body, dict):
+                token = self.member_tokens.get(body.get("to_member_id"), token)
+            if token:
+                headers.update(bearer(token))
         response = super().request(method, url, *args, headers=headers, **kwargs)
-        self._learn(method.upper(), path, response)
+        if method.upper() == "POST" and path == "/api/households" and response.status_code == 201:
+            created = response.json()
+            self.unnamed_owner[created["id"]] = created["member_id"]
+            self.member_tokens[created["member_id"]] = headers["Authorization"].split()[1]
         return response
 
 
@@ -121,9 +140,9 @@ def make_client():
     """A started test client, optionally with other settings: make_client(database_url=None)."""
     clients = []
 
-    def _make(**overrides) -> KeyedClient:
+    def _make(**overrides) -> AuthedClient:
         settings = replace(Settings.from_env(), **overrides)
-        client = KeyedClient(create_app(settings), raise_server_exceptions=False)
+        client = AuthedClient(create_app(settings), raise_server_exceptions=False)
         clients.append(client)
         return client.__enter__()
 
@@ -133,5 +152,5 @@ def make_client():
 
 
 @pytest.fixture
-def client(make_client) -> KeyedClient:
+def client(make_client) -> AuthedClient:
     return make_client()

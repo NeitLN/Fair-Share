@@ -10,7 +10,8 @@ import psycopg
 import pytest
 from psycopg import errors
 
-from app.migrate import DEMO_HOUSEHOLD, MIGRATIONS_DIR, SEED_FILE, migrate, seed
+from app.auth import password_matches
+from app.migrate import DEMO_HOUSEHOLD, DEMO_OWNER, MIGRATIONS_DIR, SEED_FILE, migrate, seed
 
 pytestmark = pytest.mark.db
 
@@ -221,14 +222,35 @@ def test_seed_fills_only_an_empty_database(conn):
     assert counts == (1, 3, 5, 1)
 
 
-def test_seed_writes_only_the_demo_invite_link_to_the_log(db_url, tmp_path, caplog):
-    # Households open only with their key (#132): CLEAN_CLONE.md step 6 reads the link from here.
-    # A household someone made on their own laptop is not the demo: its key stays out of the log.
+def test_seed_gives_each_demo_member_an_account(conn):
+    conn.execute("DELETE FROM households")  # rolled back by the fixture
+    conn.execute(SEED_FILE.read_text(encoding="utf-8"))
+    rows = conn.execute(
+        "SELECT u.email, u.display_name, hu.role, m.name FROM household_users hu"
+        " JOIN users u ON u.id = hu.user_id JOIN members m ON m.id = hu.member_id ORDER BY m.id"
+    ).fetchall()
+    assert rows == [
+        (DEMO_OWNER, "Tiến", "owner", "Tiến"),
+        ("minh@demo.local", "Minh", "member", "Minh"),
+        ("duyanh@demo.local", "Duy Anh", "member", "Duy Anh"),
+    ]
+    # The password written in the README signs in
+    stored = conn.execute("SELECT password_hash FROM users WHERE email = %s", (DEMO_OWNER,))
+    assert password_matches(stored.fetchone()[0], "fairshare-demo")
+
+
+def test_seed_logs_which_demo_account_to_sign_in_with(db_url, tmp_path, caplog):
+    # Every page needs an account (docs/ACCOUNTS.md): CLEAN_CLONE.md reads the demo account here.
     migrate(db_url)
     with psycopg.connect(db_url, autocommit=True) as conn:
-        sql = "INSERT INTO households (name) VALUES (%s) RETURNING id, access_key"
-        demo, demo_key = conn.execute(sql, (DEMO_HOUSEHOLD,)).fetchone()
-        own, own_key = conn.execute(sql, ("Nhà của mình",)).fetchone()
+        user = conn.execute(
+            "INSERT INTO users (email, password_hash, display_name) VALUES (%s, 'x', 'Tiến')"
+            " ON CONFLICT DO NOTHING RETURNING id",
+            (DEMO_OWNER,),
+        ).fetchone()
+        key = conn.execute(
+            "INSERT INTO households (name) VALUES (%s) RETURNING id, access_key", (DEMO_HOUSEHOLD,)
+        ).fetchone()
     no_data = tmp_path / "seed.sql"
     no_data.write_text("SELECT 1", encoding="utf-8")
     caplog.set_level(logging.INFO, logger="uvicorn.error")
@@ -236,10 +258,11 @@ def test_seed_writes_only_the_demo_invite_link_to_the_log(db_url, tmp_path, capl
         seed(db_url, no_data)
     finally:
         with psycopg.connect(db_url, autocommit=True) as conn:
-            conn.execute("DELETE FROM households WHERE id = ANY(%s)", ([demo, own],))
-    assert f"/households/{demo}#k={demo_key}" in caplog.text
-    assert own_key not in caplog.text
-    assert f"/households/{own}#" not in caplog.text
+            conn.execute("DELETE FROM households WHERE id = %s", (key[0],))
+            if user:
+                conn.execute("DELETE FROM users WHERE id = %s", (user[0],))
+    assert f"sign in as {DEMO_OWNER}" in caplog.text
+    assert key[1] not in caplog.text and "#k=" not in caplog.text
 
 
 def test_the_demo_name_in_the_seed_is_the_one_the_log_looks_for():

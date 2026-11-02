@@ -13,15 +13,16 @@ A fast 5xx from Gemini is retried once, counted in the global budget.
 """
 
 import datetime as dt
-import ipaddress
 import logging
 import random
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 
-from app.access import HouseholdKey, household_not_found, key_matches
+from app.access import find_access
+from app.auth import bearer_token, not_authenticated, user_for_token
+from app.client_ip import UNRESOLVED, pick_client_ip  # noqa: F401 (UNRESOLVED: tests read it here)
 from app.db import connection
 from app.errors import ApiError
 from app.schemas import (
@@ -41,8 +42,6 @@ from app.services.rate_limit import AiBudget
 router = APIRouter(prefix="/api", tags=["ai"])
 logger = logging.getLogger("uvicorn.error")
 
-# Requests whose visitor address cannot be read share one limit, rather than each getting its own.
-UNRESOLVED = "unresolved"
 # One retry, only when Gemini failed fast with a 5xx; a timeout has already made the user wait.
 RETRY_IF_FAILED_WITHIN = 3.0
 
@@ -57,32 +56,6 @@ def get_gemini(request: Request) -> GeminiClient:
 
 def get_budget(request: Request) -> AiBudget:
     return request.app.state.ai_budget
-
-
-def pick_client_ip(forwarded: str, peer: str | None, hops: int) -> str:
-    """The visitor's address: `hops` entries from the end of X-Forwarded-For.
-
-    Each trusted proxy appends the address it saw, so the last `hops` entries are theirs and the
-    one they received from is the visitor. Anything further left was sent by the client and may be
-    made up ("1.2.3.4, visitor, edge" on Render still gives the visitor).
-    """
-    if hops <= 0:
-        candidate = peer or ""
-    else:
-        entries = [entry.strip() for entry in forwarded.split(",")] if forwarded.strip() else []
-        if len(entries) < hops:
-            return UNRESOLVED
-        candidate = entries[-hops]
-    try:
-        address = ipaddress.ip_address(candidate)
-    except ValueError:
-        return UNRESOLVED
-    if isinstance(address, ipaddress.IPv6Address):
-        if address.ipv4_mapped:  # ::ffff:1.2.3.4 is 1.2.3.4
-            return str(address.ipv4_mapped)
-        # One home line or phone owns a whole /64 and may switch address inside it on every call.
-        return str(ipaddress.ip_network(f"{address}/64", strict=False))
-    return str(address)
 
 
 def client_ip(request: Request) -> str:
@@ -111,18 +84,22 @@ def log_forwarding(forwarded: str, cf_connecting_ip: str | None, hops: int) -> N
     )
 
 
-def load_members(request: Request, household_id: int, key: str | None) -> dict[int, str]:
-    """{member_id: name} of the household. Uses its own short-lived connection instead of ConnDep:
-    the route then waits up to AI_TIMEOUT (20 s) for Gemini, and the pool only has 5 connections.
-    So it checks the household key itself (app/access.py does it for the other routers). The
+def load_members(request: Request, household_id: int, authorization: str | None) -> dict[int, str]:
+    """{member_id: name} of the people with an account in the household, the only ones a new
+    expense can be split between. Uses its own short-lived connection instead of ConnDep: the route
+    then waits up to AI_TIMEOUT (20 s) for Gemini, and the pool only has 5 connections. So it checks
+    the session and the membership itself (app/access.py does it for the other routers). The
     connection goes through the same database back-off as every other route (#155)."""
     with connection(request) as conn:
-        row = conn.execute("SELECT access_key FROM households WHERE id = %s", (household_id,))
-        found = row.fetchone()
-        if found is None or not key_matches(found[0], key):
-            raise household_not_found()
+        user = user_for_token(conn, bearer_token(authorization))
+        if user is None:
+            raise not_authenticated()
+        find_access(conn, "household_id", household_id, user["id"])
         rows = conn.execute(
-            "SELECT id, name FROM members WHERE household_id = %s ORDER BY id", (household_id,)
+            "SELECT m.id, m.name FROM members m JOIN household_users hu"
+            " ON hu.household_id = m.household_id AND hu.member_id = m.id"
+            " WHERE m.household_id = %s ORDER BY m.id",
+            (household_id,),
         ).fetchall()
     return {member_id: name for member_id, name in rows}
 
@@ -134,10 +111,10 @@ def parse_expense(
     request: Request,
     gemini: Annotated[GeminiClient, Depends(get_gemini)],
     budget: Annotated[AiBudget, Depends(get_budget)],
-    key: HouseholdKey = None,
+    authorization: Annotated[str | None, Header()] = None,
 ):
-    # Before the budget: a request without the key never spends anyone's quota
-    members = load_members(request, household_id, key)
+    # Before the budget: a request from outside the household never spends anyone's quota
+    members = load_members(request, household_id, authorization)
     if not members:
         raise ApiError(409, "no_members", "Add the household's members before using quick add")
     # Checked before the budget, so a missing key never uses it up.

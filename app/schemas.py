@@ -112,10 +112,24 @@ class Household(BaseModel):
     created_at: datetime
 
 
-class HouseholdCreated(Household):
-    """Only the answer to creating a household carries its key (#132, app/access.py)."""
+class MyHousehold(Household):
+    """A household as the signed-in user sees it: their role and their name in the split."""
 
-    key: str
+    role: Literal["owner", "member"]
+    member_id: int
+
+
+class PendingRequest(BaseModel):
+    """A request to join that the owner has not answered yet. Nothing about the household itself
+    (not even its name) is shown until it is approved."""
+
+    household_id: int
+    requested_at: datetime
+
+
+class MyHouseholds(BaseModel):
+    households: list[MyHousehold]
+    pending: list[PendingRequest]
 
 
 class MemberIn(BaseModel):
@@ -127,6 +141,110 @@ class Member(BaseModel):
     household_id: int
     name: str
     created_at: datetime
+    # Whose account this name belongs to; None for a name from before accounts nobody has taken yet
+    role: Literal["owner", "member"] | None = None
+
+
+# --- Accounts (docs/ACCOUNTS.md) ----------------------------------------------------------------
+
+# Display names become the user's name in a household's split, so they follow the member name rules.
+DisplayName = MemberName
+# A password is taken as typed: no trimming, no cleaning; only its length is checked.
+Password = Annotated[str, StringConstraints(min_length=8, max_length=128)]
+
+
+def clean_email(value: Any) -> Any:
+    """Trimmed and lower-cased; one "@" with something on both sides and a dot in the domain.
+    Not a full RFC 5322 check: no email is sent, it is only the name of the account."""
+    if not isinstance(value, str):
+        return value
+    value = value.strip().lower()
+    local, at, domain = value.rpartition("@")
+    if (
+        not at
+        or not local
+        or "." not in domain.strip(".")
+        or any(ch.isspace() or unicodedata.category(ch) in ("Cc", "Cs") for ch in value)
+    ):
+        raise ValueError("must be an email address")
+    return value
+
+
+Email = Annotated[
+    str, BeforeValidator(clean_email), StringConstraints(min_length=3, max_length=254)
+]
+
+
+class RegisterIn(BaseModel):
+    email: Email
+    password: Password
+    display_name: DisplayName
+
+
+class LoginIn(BaseModel):
+    email: Email
+    # Any length is checked against the hash; a too long one is simply wrong, not a 422
+    password: Annotated[str, StringConstraints(max_length=1024)]
+
+
+class User(BaseModel):
+    id: int
+    email: str
+    display_name: str
+
+
+class SessionOut(BaseModel):
+    """The token goes in `Authorization: Bearer <token>` on every later request."""
+
+    token: str
+    user: User
+
+
+class JoinIn(BaseModel):
+    # "k7qm 2xrt", "K7QM-2XRT": spaces and dashes are dropped and letters upper-cased in the route
+    code: Annotated[str, StringConstraints(max_length=40)]
+
+
+class JoinResult(BaseModel):
+    # "pending": asked, waiting for the owner. "member": already in it (then household_id is set).
+    status: Literal["pending", "member"]
+    household_id: int | None = None
+
+
+class InviteCode(BaseModel):
+    # None when there is no current code and only the owner can make one
+    code: str | None
+    expires_at: datetime | None
+
+
+class JoinRequest(BaseModel):
+    """Someone asking to join, as the owner sees them."""
+
+    user_id: int
+    display_name: str
+    email: str
+    requested_at: datetime
+
+
+class ApproveIn(BaseModel):
+    """Link the person to a name nobody has taken yet, or (member_id omitted) give them a new one:
+    their display name, or `name` when that is already taken in the household."""
+
+    member_id: MemberId | None = None
+    name: MemberName | None = None
+
+
+class ClaimInfo(BaseModel):
+    """An old household (from before accounts) whose invite link the user opened: its name and the
+    names nobody has taken, to pick theirs before becoming its owner."""
+
+    id: int
+    name: str
+    members: list[Member]
+
+
+class ClaimIn(BaseModel):
+    member_id: MemberId | None = None
 
 
 # --- Expenses (US-03, US-04, US-05) -----------------------------------------------------------

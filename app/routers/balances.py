@@ -12,7 +12,7 @@ from app.routers.households import require_household
 from app.schemas import Balances, Id
 from app.services.balances import net, suggest_settlements
 
-# The household key is required (app/access.py)
+# A session and an approved member of the household are required (app/access.py)
 router = APIRouter(prefix="/api", tags=["balances"], dependencies=[HouseholdAccess])
 
 # sum() of bigint is numeric in PostgreSQL; cast back so Python gets an int, not a Decimal.
