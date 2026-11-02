@@ -93,3 +93,7 @@ are unchanged; `households.access_key` stays only for L1.
   could read it. The page loads no third-party script.
 * An old `#k=` link can make its holder the owner until someone takes the household over: owners
   should open their old links right after the release.
+* The `/join/CODE` link puts the code in the path, which the static host may log (found in review).
+  A code alone only asks to join: the owner still approves, and a new code replaces it.
+* Each run of the live E2E tests leaves its two or three test accounts (`@fair-share.test`); their
+  households are deleted. A clean-up, or a way to delete an account, is future work.

@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -25,10 +25,16 @@ function AuthPage() {
   const [name, setName] = useState('')
   const [problems, setProblems] = useState<Partial<Record<'email' | 'password' | 'name', string>>>({})
 
+  const queryClient = useQueryClient()
   const send = useMutation({
     mutationFn: (): Promise<Session> =>
       mode === 'signIn' ? login(email.trim(), password) : register(email.trim(), password, name.trim()),
-    onSuccess: signIn,
+    // Whatever the last person on this device had loaded goes first: a session that expired (a 401)
+    // signs out without clearing it, and the next account must never see another's groups
+    onSuccess: (session) => {
+      queryClient.clear()
+      signIn(session)
+    },
   })
 
   function submit(event: FormEvent) {

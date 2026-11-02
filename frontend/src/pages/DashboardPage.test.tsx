@@ -304,6 +304,7 @@ test('a failed balances load says so in the block, and Thử lại tries again',
 test('balances left over from before an expense was saved are not shown as the answer', async () => {
   // Found in the 02/11 walkthrough: Overview said "Chưa có khoản chi nào" and 0đ for everyone while the
   // month line already counted the new expense, until the slower balances request came back
+  me = null // the household's own verdict, not one person's
   let saved = false
   let answerBalances: () => void = () => {}
   const balancesWith = (paidByTien: number) => ({
