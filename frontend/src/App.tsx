@@ -31,11 +31,9 @@ function App() {
         <Link to="/" className="home-link">
           <Wordmark className="wordmark" />
         </Link>
-        <div className="header-controls">
-          <LanguageSwitch />
-          <ThemeSwitch />
-          <AccountMenu />
-        </div>
+        {/* Signed in, language and theme live in the account menu, so the header stays one line on a
+            phone; signed out, they sit under the sign-in form */}
+        <AccountMenu />
       </header>
       <main>
         {/* Every page needs an account (docs/ACCOUNTS.md). Signed out, any address shows the sign-in
@@ -52,7 +50,13 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         ) : (
-          <AuthPage />
+          <>
+            <AuthPage />
+            <footer className="app-footer">
+              <LanguageSwitch />
+              <ThemeSwitch />
+            </footer>
+          </>
         )}
       </main>
     </ToastProvider>

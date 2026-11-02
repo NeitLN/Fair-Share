@@ -22,8 +22,8 @@ test('each household is one link, the ones you own marked', () => {
   show(mine)
   const links = screen.getAllByRole('link')
   expect(links.map((link) => link.getAttribute('href'))).toEqual(['/households/7', '/households/9'])
-  expect(within(links[0]).getByText('Chủ nhà')).toBeInTheDocument()
-  expect(within(links[1]).queryByText('Chủ nhà')).not.toBeInTheDocument()
+  expect(within(links[0]).getByText('Trưởng nhóm')).toBeInTheDocument()
+  expect(within(links[1]).queryByText('Trưởng nhóm')).not.toBeInTheDocument()
 })
 
 test('with none, it says how to get one', () => {

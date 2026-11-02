@@ -5,13 +5,17 @@ import { Link, useParams } from 'react-router'
 import { expenseKeys, listExpenses } from '../api/expenses'
 import { getHousehold, keys, listMembers } from '../api/households'
 import {
+  cancelNotice,
   createSettlement,
+  declineNotice,
   deleteSettlement,
   getBalances,
+  listNotices,
   listSettlements,
+  sendNotice,
   settlementKeys,
 } from '../api/settlements'
-import type { Settlement, SettlementInput } from '../api/types'
+import type { Settlement, SettlementInput, Transfer } from '../api/types'
 import BalanceRows from '../components/BalanceRows'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
@@ -70,8 +74,29 @@ function Dashboard({ householdId }: { householdId: number }) {
     queryFn: () => listExpenses(householdId),
   })
 
+  // "Tôi đã chuyển" (docs/ACCOUNTS.md, S3). Without them the cards still work, as before notices.
+  const notices = useQuery({
+    queryKey: settlementKeys.notices(householdId),
+    queryFn: () => listNotices(householdId),
+  })
+
   // A settlement changes the balances: refetch everything cached under this household
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
+  const refreshNotices = () => queryClient.invalidateQueries({ queryKey: settlementKeys.notices(householdId) })
+  type NoticeAction = { kind: 'send' | 'cancel' | 'decline'; transfer: Transfer }
+  const notice = useMutation({
+    mutationFn: ({ kind, transfer }: NoticeAction): Promise<unknown> =>
+      kind === 'send'
+        ? sendNotice(householdId, transfer.to_member_id, transfer.amount)
+        : kind === 'cancel'
+          ? cancelNotice(householdId, transfer.to_member_id)
+          : declineNotice(householdId, transfer.from_member_id),
+    onSuccess: (_result, { kind, transfer }) => {
+      if (kind === 'send') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
+      if (kind === 'decline') toast({ text: t.verdict.declined(nameOf(transfer.from_member_id)) })
+      return refreshNotices()
+    },
+  })
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
     onSuccess: refresh,
@@ -155,10 +180,17 @@ function Dashboard({ householdId }: { householdId: number }) {
         onUndo={paid.undo}
         focusIntent={paid.focusIntent}
         onFocusDone={paid.clearFocusIntent}
-        error={paid.error}
+        error={paid.error ?? errorMessage(notice.error)}
         reminder={reminder}
         onCopied={() => toast({ text: t.dashboard.reminderCopied })}
         onlyReceiver
+        notices={notices.data ?? []}
+        onNotify={(transfer) => notice.mutate({ kind: 'send', transfer })}
+        onCancelNotice={(transfer) => notice.mutate({ kind: 'cancel', transfer })}
+        onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
+        noticeBusy={
+          notice.isPending ? `${notice.variables.transfer.from_member_id}-${notice.variables.transfer.to_member_id}` : null
+        }
       />
 
       <Link to="expenses" className="btn-primary cta">

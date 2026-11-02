@@ -24,8 +24,8 @@ test("lists the account's own households, the ones it owns marked", async () => 
 
   const owned = await screen.findByRole('link', { name: /^Nhà 7/ })
   expect(owned).toHaveAttribute('href', '/households/7')
-  expect(within(owned).getByText('Chủ nhà')).toBeInTheDocument()
-  expect(within(screen.getByRole('link', { name: /^Nhà 9/ })).queryByText('Chủ nhà')).not.toBeInTheDocument()
+  expect(within(owned).getByText('Trưởng nhóm')).toBeInTheDocument()
+  expect(within(screen.getByRole('link', { name: /^Nhà 9/ })).queryByText('Trưởng nhóm')).not.toBeInTheDocument()
 })
 
 test('with no household yet, both ways in are open: join with a code, or create one', async () => {
@@ -80,8 +80,19 @@ test('a code asks to join and waits for the owner; the request shows without the
   const join = fetchFn.mock.calls.find(([url]) => url === '/api/join')
   expect(JSON.parse(join?.[1]?.body as string)).toEqual({ code: 'k7qm-2xrt' })
   const waiting = await screen.findByRole('region', { name: 'Đang chờ duyệt' })
-  expect(within(waiting).getByText(/đang chờ chủ nhà duyệt/)).toBeInTheDocument()
+  expect(within(waiting).getByText(/đang chờ trưởng nhóm duyệt/)).toBeInTheDocument()
   expect(listCalls(fetchFn).length).toBeGreaterThan(1)
+})
+
+test('while a request waits, the page is about the wait: no "no groups yet", both forms folded', async () => {
+  mockApi({ 'GET /api/households': mine([], [{ household_id: 7, requested_at: '2026-11-02T08:00:00Z' }]) })
+  renderApp('/')
+
+  const waiting = await screen.findByRole('region', { name: 'Đang chờ duyệt' })
+  expect(within(waiting).getByText(/Duyệt xong, nhà sẽ hiện ngay ở đây/)).toBeInTheDocument()
+  expect(screen.queryByText(/Bạn chưa ở nhà nào/)).not.toBeInTheDocument()
+  expect(screen.getByText('Nhập mã mời').closest('details')).not.toHaveAttribute('open')
+  expect(screen.getByText('+ Tạo nhà mới').closest('details')).not.toHaveAttribute('open')
 })
 
 test('a wrong code says so in Vietnamese and keeps what was typed', async () => {

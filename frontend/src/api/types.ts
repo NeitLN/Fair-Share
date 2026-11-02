@@ -129,6 +129,17 @@ export interface ExpenseInput {
 }
 
 /** "from_member_id" paid "amount" đồng to "to_member_id". */
+/** "Tôi đã chuyển": the person who owes told the receiver (docs/ACCOUNTS.md, S3). No balance changes. */
+export interface Notice {
+  from_member_id: number
+  to_member_id: number
+  /** The suggested amount when it was sent; "Đã nhận" records this. */
+  amount: number
+  /** declined: the receiver answered "Chưa nhận được". */
+  status: 'sent' | 'declined'
+  created_at: string
+}
+
 export interface Settlement {
   id: number
   household_id: number

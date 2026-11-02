@@ -67,7 +67,7 @@ test('lists the names, the owner and the ones without an account marked', async 
   api()
   renderApp('/households/7/members')
   expect(await screen.findByText('Minh', { selector: '.who strong' })).toBeInTheDocument()
-  expect(within(row('Tiến')).getByText('Chủ nhà')).toBeInTheDocument()
+  expect(within(row('Tiến')).getByText('Trưởng nhóm')).toBeInTheDocument()
   expect(within(row('Anh')).getByText('Chưa có tài khoản')).toBeInTheDocument()
   // Nobody adds a name by hand any more: people join with the code
   expect(screen.queryByLabelText('Tên thành viên')).not.toBeInTheDocument()
@@ -157,7 +157,7 @@ test('approving someone onto a name nobody has keeps that name and its history',
   renderApp('/households/7/members')
 
   const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
-  await user.selectOptions(within(asking).getByLabelText('Tên trong nhà'), 'Nhận tên có sẵn: Anh')
+  await user.selectOptions(within(asking).getByLabelText('Vào nhà với tên'), 'Nhận tên có sẵn: Anh')
   await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
 
   await waitFor(() => expect(within(row('Anh')).queryByText('Chưa có tài khoản')).not.toBeInTheDocument())
@@ -174,6 +174,20 @@ test('declining a request', async () => {
   await user.click(within(asking).getByRole('button', { name: 'Từ chối' }))
 
   expect(await screen.findByText('Đã từ chối Lan.')).toBeInTheDocument()
+  expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('nhập mã mời lại'))
+})
+
+test('declining asks first; answering no keeps the request', async () => {
+  const fetchFn = api()
+  vi.stubGlobal('confirm', vi.fn(() => false))
+  const user = userEvent.setup()
+  renderApp('/households/7/members')
+
+  const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
+  await user.click(within(asking).getByRole('button', { name: 'Từ chối' }))
+
+  expect(within(asking).getByText('lan@test.local')).toBeInTheDocument()
+  expect(fetchFn.mock.calls.some(([url]) => String(url).endsWith('/reject'))).toBe(false)
 })
 
 test('the owner takes someone out of the group; their name stays', async () => {
@@ -181,7 +195,7 @@ test('the owner takes someone out of the group; their name stays', async () => {
   const user = userEvent.setup()
   renderApp('/households/7/members')
 
-  await user.click(await screen.findByRole('button', { name: 'Mời Minh ra khỏi nhà' }))
+  await user.click(await screen.findByRole('button', { name: 'Bỏ quyền vào nhà của Minh' }))
 
   await waitFor(() => expect(within(row('Minh')).getByText('Chưa có tài khoản')).toBeInTheDocument())
   expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('vẫn giữ nguyên'))
@@ -195,7 +209,7 @@ test('a name nobody uses can be removed; the owner has no Remove on their own ro
   await user.click(await screen.findByRole('button', { name: 'Xoá Anh' }))
 
   await waitFor(() => expect(screen.queryByText('Anh', { selector: '.who strong' })).not.toBeInTheDocument())
-  expect(within(row('Tiến')).queryByRole('button', { name: /Xoá|Mời/ })).not.toBeInTheDocument()
+  expect(within(row('Tiến')).queryByRole('button', { name: /Xoá|Bỏ quyền/ })).not.toBeInTheDocument()
 })
 
 test('renaming keeps edit mode open when the name is taken', async () => {

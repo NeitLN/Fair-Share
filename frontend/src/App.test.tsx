@@ -51,6 +51,8 @@ describe('routes', () => {
 
   test('the theme switch forces light or dark and can go back to following the phone', async () => {
     renderApp('/')
+    // It lives in the account menu, so the header stays one line on a phone
+    await userEvent.click(await screen.findByLabelText(/^Tài khoản:/))
     const dark = await screen.findByRole('button', { name: 'Tối' })
     await userEvent.click(dark)
     expect(dark).toHaveAttribute('aria-pressed', 'true')
@@ -67,6 +69,15 @@ describe('routes', () => {
 
 describe('accounts (docs/ACCOUNTS.md)', () => {
   const session = { token: 'new-token', user: { id: 3, email: 'minh@test.local', display_name: 'Minh' } }
+
+  test('an invite link, signed out, says so and starts on Tạo tài khoản', async () => {
+    mockApi({})
+    renderApp('/join/K7QM2XRT', { signedOut: true })
+    expect(await screen.findByText(/Bạn được mời vào một nhà/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tạo tài khoản', pressed: true })).toBeInTheDocument()
+    // Language and theme sit under the form while signed out
+    expect(screen.getByRole('group', { name: 'Giao diện' })).toBeInTheDocument()
+  })
 
   test('signed out, every address shows the sign-in form and asks the API nothing', async () => {
     const fetchFn = mockApi({})

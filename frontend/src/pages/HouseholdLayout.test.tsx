@@ -84,7 +84,7 @@ describe('invite links from before accounts (docs/ACCOUNTS.md, L1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Nhận Nhà trọ Q7' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /Tôi là người mới \(Tiến\)/ })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'Võ Việt Tiến' }))
-    await user.click(screen.getByRole('button', { name: 'Nhận làm chủ nhà' }))
+    await user.click(screen.getByRole('button', { name: 'Nhận làm trưởng nhóm' }))
 
     expect(await screen.findByRole('navigation', { name: 'Mục của nhà' })).toBeInTheDocument()
     const claim = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/claim' && init?.method)
@@ -100,7 +100,7 @@ describe('invite links from before accounts (docs/ACCOUNTS.md, L1)', () => {
       'GET /api/households/7/claim': [409, { error: { code: 'household_has_owner', message: 'owned' } }],
     })
     renderApp(`/households/7#k=${OLD_KEY}`)
-    expect(await screen.findByText(/Nhà này đã có chủ/)).toBeInTheDocument()
+    expect(await screen.findByText(/Nhà này đã có trưởng nhóm/)).toBeInTheDocument()
     expect(screen.getByLabelText('Mã mời')).toBeInTheDocument()
   })
 

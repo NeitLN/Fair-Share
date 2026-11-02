@@ -59,6 +59,7 @@ test('VI switches the whole page, and the choice is remembered on this device', 
 
   expect(await screen.findByRole('heading', { level: 1, name: 'Your groups' })).toBeInTheDocument()
   expect(screen.getByText('+ New group')).toBeInTheDocument()
+  await user.click(screen.getByLabelText(/^Account:/))
   const switcher = screen.getByRole('group', { name: 'Language' })
   expect(within(switcher).getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true')
 

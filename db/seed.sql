@@ -87,7 +87,7 @@ shared AS (
 INSERT INTO settlements (household_id, from_member_id, to_member_id, amount, settled_at, note)
 SELECT tien.household_id, tien.id, minh.id, 1000000,
        LEAST(current_date, (date_trunc('month', current_date) - interval '1 month')::date + 14),
-       'Part of the rent'
+       'Trả trước một phần tiền nhà'
 FROM people tien
 JOIN people minh ON minh.name = 'Minh'
 WHERE tien.name = 'Tiến';

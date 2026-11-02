@@ -35,6 +35,7 @@ cookie that browsers block, and a header needs no CSRF protection.
 | Add an expense (paid by anyone in the household) | yes | yes | |
 | Change or delete an expense | any | the ones they recorded | |
 | Record a repayment ("received") | when they received it | when they received it | |
+| Tell the receiver "I've sent it"; say "not received" | when they owe it / received it | when they owe it / received it | |
 | Delete a repayment | any | the ones they recorded | |
 | Quick add | yes | yes | |
 | Leave | no (would need a new owner first) | yes | cancel the request |
@@ -59,6 +60,7 @@ to use.
 | M3 | Names are only added by approving someone. A name from before accounts stays in the expenses it is in, but a new expense is only split between people with an account | `test_a_new_expense_is_only_…` |
 | S1 | Expenses and repayments remember who recorded them (`created_by`); older ones belong to the owner | `test_a_member_adds_expenses_…` |
 | S2 | A repayment is recorded by the person who received it | `test_only_the_person_who_received_…` |
+| S3 | The person who owes can tell the receiver "Tôi đã chuyển" with the amount suggested then. It changes no balance; everyone in the household sees it. The receiver's "Đã nhận" records that amount and removes the notice; "Chưa nhận được" marks it declined until the payer tells again; the payer can take it back. One notice per pair (added 03/11 after the UI review) | `test_notices.py` |
 | L1 | The old key shows an ownerless household to take over; with an owner it answers "ask for an invite code"; a wrong key is a 404 | `test_the_first_signed_in_person_…` |
 
 ## API
@@ -77,13 +79,17 @@ to use.
 | `POST /api/households/{id}/requests/{user_id}/reject` | |
 | `DELETE /api/households/{id}/people/{user_id}` | take someone's access away (owner) |
 | `POST /api/households/{id}/leave` | |
+| `GET`, `PUT /api/households/{id}/notices` `{to_member_id, amount}` | the household's "Tôi đã chuyển" notices; tell someone (S3) |
+| `DELETE /api/households/{id}/notices/{to_member}` | take your own notice back |
+| `POST /api/households/{id}/notices/{from_member}/decline` | "Chưa nhận được" (the receiver) |
 | `GET`, `POST /api/households/{id}/claim` with `X-Household-Key` | take over a household from before accounts |
 
 ## Data
 
 `db/migrations/003_accounts.sql` adds `users`, `sessions`, `household_users` (role and linked
 name), `invite_codes` and `rate_limits`, and `created_by` on expenses and settlements. 001 and 002
-are unchanged; `households.access_key` stays only for L1.
+are unchanged; `households.access_key` stays only for L1. `004_payment_notices.sql` adds
+`payment_notices` (S3): one row per pair, removed with either name or when the repayment is recorded.
 
 ## Limits we accept
 

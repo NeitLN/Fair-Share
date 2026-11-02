@@ -277,10 +277,11 @@ function ExpenseForm({
   function check(): Problems {
     const found: Problems = {}
     const text = description.trim()
-    if (text.length < 1 || text.length > MAX_DESCRIPTION) {
-      found.description = t.form.descriptionProblem(MAX_DESCRIPTION)
-    }
-    if (amount === null || amount <= 0) found.amount = t.form.amountProblem
+    if (text.length === 0) found.description = t.form.descriptionEmpty
+    else if (text.length > MAX_DESCRIPTION) found.description = t.form.descriptionProblem(MAX_DESCRIPTION)
+    // An empty field says what to do; the format examples are for something typed that is not money
+    if (amountText.trim() === '') found.amount = t.form.amountEmpty
+    else if (amount === null || amount <= 0) found.amount = t.form.amountProblem
     if (payerId === '') found.payer = t.form.payerProblem
     if (!spentAt) found.date = t.form.dateMissing
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
@@ -418,7 +419,7 @@ function ExpenseForm({
             type="text"
             inputMode="numeric"
             value={amountText}
-            placeholder="240k"
+            placeholder={t.form.amountPlaceholder}
             {...invalid('amount', 'expense-amount-preview')}
             onChange={(e) => {
               edited('amount')

@@ -303,15 +303,24 @@ describe('ExpenseForm, checks and outcomes', () => {
     await save(user)
 
     expect(onSubmit).not.toHaveBeenCalled()
-    expect(screen.getByText('Nội dung phải từ 1 đến 120 ký tự.')).toBeInTheDocument()
+    // An empty field says what to enter; something typed that is not money gets the examples
+    expect(screen.getByText('Nhập nội dung khoản chi.')).toBeInTheDocument()
     expect(screen.getByText(/^Số tiền chưa hợp lệ/)).toBeInTheDocument()
     expect(screen.getByText('Chọn người trả.')).toBeInTheDocument()
     expect(screen.getByLabelText('Nội dung')).toHaveFocus()
 
     // Fixing a field takes its message away
     await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
-    expect(screen.queryByText('Nội dung phải từ 1 đến 120 ký tự.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nhập nội dung khoản chi.')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Nội dung')).not.toHaveAttribute('aria-invalid')
+  })
+
+  test('an empty amount asks for one, without the format examples', async () => {
+    const { user } = setup()
+    await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
+    await save(user)
+
+    expect(screen.getByLabelText('Số tiền')).toHaveAccessibleDescription(/Nhập số tiền\./)
   })
 
   test('a split problem opens the folded split and focuses it', async () => {

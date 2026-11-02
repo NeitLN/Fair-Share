@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useLocation } from 'react-router'
 
 import { login, register } from '../api/households'
 import type { Session } from '../api/types'
@@ -19,7 +20,10 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
  */
 function AuthPage() {
   const t = useT()
-  const [mode, setMode] = useState<Mode>('signIn')
+  // Someone opening a housemate's /join/CODE link is most likely new: they start on Tạo tài khoản and
+  // are told why they are here
+  const invited = useLocation().pathname.startsWith('/join/')
+  const [mode, setMode] = useState<Mode>(invited ? 'register' : 'signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -68,7 +72,11 @@ function AuthPage() {
   return (
     <section className="auth" aria-labelledby="auth-title">
       <h1 id="auth-title">{t.auth.title}</h1>
-      <p className="hint">{t.auth.intro}</p>
+      {invited ? (
+        <p className="note ok">{t.auth.invited}</p>
+      ) : (
+        <p className="hint">{t.auth.intro}</p>
+      )}
       <div className="segmented auth-tabs" role="group" aria-label={t.auth.title}>
         {(['signIn', 'register'] as const).map((value) => (
           <button

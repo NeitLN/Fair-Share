@@ -66,14 +66,12 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
           const nameId = `${id}-name-${request.user_id}`
           const asNew = (choices[request.user_id] ?? NEW) === NEW
           return (
-            <li key={request.user_id} className="member-row">
+            <li key={request.user_id} className="join-request">
               <span className="who">
                 <strong>{request.display_name}</strong>
                 <small>{request.email}</small>
               </span>
-              <label htmlFor={selectId} className="visually-hidden">
-                {t.requests.asName}
-              </label>
+              <label htmlFor={selectId}>{t.requests.asName}</label>
               <select
                 id={selectId}
                 value={choices[request.user_id] ?? NEW}
@@ -102,7 +100,7 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
                   />
                 </>
               )}
-              <span className="row-actions">
+              <span className="join-request-actions">
                 <button
                   type="button"
                   className="btn-primary"
@@ -113,7 +111,12 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
                     ? t.requests.approving
                     : t.requests.approve}
                 </button>
-                <button type="button" className="btn-ghost" disabled={busy} onClick={() => reject.mutate(request)}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={busy}
+                  onClick={() => confirm(t.requests.confirmReject(request.display_name)) && reject.mutate(request)}
+                >
                   {t.requests.reject}
                 </button>
               </span>

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { keys } from '../api/households'
-import type { Settlement, SettlementInput } from '../api/types'
+import type { Notice, Settlement, SettlementInput } from '../api/types'
 import { today } from '../lib/date'
 import { mockApi, renderApp } from '../test/renderApp'
 
@@ -40,8 +40,11 @@ const expense = {
 }
 
 /** A fake API whose balances follow the settlements, like the real one. */
-function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
+function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members, startNotices: Notice[] = []) {
   let settlements: Settlement[] = []
+  // "Tôi đã chuyển" (docs/ACCOUNTS.md, S3): sent by `me`, answered by the receiver, like the real API
+  let notices = [...startNotices]
+  const pair = (n: Notice, from: number, to: number) => n.from_member_id === from && n.to_member_id === to
   const nets = () => {
     const net = { ...startNets }
     for (const s of settlements) {
@@ -88,7 +91,23 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
         ...input,
       }
       settlements = [settlement, ...settlements]
+      notices = notices.filter((n) => !pair(n, input.from_member_id, input.to_member_id))
       return [201, settlement]
+    },
+    'GET /api/households/7/notices': () => [200, notices],
+    'PUT /api/households/7/notices': (body) => {
+      const { to_member_id, amount } = body as { to_member_id: number; amount: number }
+      const notice: Notice = { from_member_id: me as number, to_member_id, amount, status: 'sent', created_at: '' }
+      notices = [...notices.filter((n) => !pair(n, me as number, to_member_id)), notice]
+      return [200, notice]
+    },
+    'DELETE /api/households/7/notices/1': () => {
+      notices = notices.filter((n) => !pair(n, me as number, 1))
+      return [204]
+    },
+    'POST /api/households/7/notices/2/decline': () => {
+      notices = notices.map((n) => (pair(n, 2, me as number) ? { ...n, status: 'declined' as const } : n))
+      return [200, notices[0]]
     },
     'DELETE /api/settlements/30': () => {
       settlements = settlements.filter((s) => s.id !== 30)
@@ -121,19 +140,69 @@ test('before the household says who you are, the block counts the transfers left
     'An trả Tiến 100.000đ',
   ])
   // Only the person who received it records a repayment (docs/ACCOUNTS.md, S2)
-  expect(within(rows[0]).getByText('Chờ Tiến xác nhận đã nhận')).toBeInTheDocument()
+  expect(within(rows[0]).getByText('Chưa trả.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /^Đã (nhận|trả)$/ })).not.toBeInTheDocument()
 })
 
-test('someone who owes cannot mark their own debt as paid: the receiver confirms it', async () => {
+test('someone who owes cannot mark their own debt as paid; they tell the receiver instead', async () => {
   iAm(2)
-  api()
+  const fetchFn = api()
+  const user = userEvent.setup()
   renderApp('/households/7')
 
   const card = within(await transfers()).getAllByRole('listitem')[0]
   expect(card).toHaveTextContent('Bạn trả Tiến 100.000đ')
-  expect(within(card).getByText('Chờ Tiến xác nhận đã nhận')).toBeInTheDocument()
-  expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+  expect(within(card).queryByRole('button', { name: /^Đã (nhận|trả)$/ })).not.toBeInTheDocument()
+  await user.click(within(card).getByRole('button', { name: 'Tôi đã chuyển' }))
+
+  expect(await screen.findByText('Đã báo Tiến.')).toBeInTheDocument()
+  expect(await within(card).findByText('Đã báo Tiến, chờ xác nhận.')).toBeInTheDocument()
+  const told = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
+  expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000 })
+  // Telling changes no balance: the debt is still there until Tiến confirms
+  expect(screen.getByRole('heading', { name: 'Bạn cần trả Tiến' })).toBeInTheDocument()
+
+  // Pressed by mistake: taken back
+  await user.click(within(card).getByRole('button', { name: 'Huỷ báo' }))
+  expect(await within(card).findByRole('button', { name: 'Tôi đã chuyển' })).toBeInTheDocument()
+})
+
+test('the receiver sees who said they sent it; "Đã nhận" records the amount they told', async () => {
+  const fetchFn = api({}, members, [
+    { from_member_id: 2, to_member_id: 1, amount: 90_000, status: 'sent', created_at: '' },
+  ])
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  const card = within(await transfers()).getAllByRole('listitem')[0]
+  expect(within(card).getByText(/Minh báo đã chuyển/)).toHaveTextContent('Minh báo đã chuyển 90.000đ')
+  await user.click(within(card).getByRole('button', { name: 'Đã nhận' }))
+
+  await screen.findByText(/^Đã ghi:/)
+  const recorded = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/settlements' && init?.method === 'POST')
+  expect(JSON.parse(recorded?.[1]?.body as string)).toMatchObject({ from_member_id: 2, to_member_id: 1, amount: 90_000 })
+})
+
+test('"Chưa nhận được" goes back to the payer, who can tell again', async () => {
+  const startNotices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }]
+  api({}, members, startNotices)
+  const user = userEvent.setup()
+  renderApp('/households/7')
+
+  const card = within(await transfers()).getAllByRole('listitem')[0]
+  await user.click(within(card).getByRole('button', { name: 'Chưa nhận được' }))
+  expect(await screen.findByText('Đã báo Minh là chưa nhận được.')).toBeInTheDocument()
+  await waitFor(() => expect(within(card).queryByText(/Minh báo đã chuyển/)).not.toBeInTheDocument())
+})
+
+test('the payer sees "chưa nhận được" on their card', async () => {
+  iAm(2)
+  api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'declined', created_at: '' }])
+  renderApp('/households/7')
+
+  const card = within(await transfers()).getAllByRole('listitem')[0]
+  expect(await within(card).findByText(/Tiến báo chưa nhận được tiền/)).toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: 'Tôi đã chuyển' })).toBeInTheDocument()
 })
 
 test('someone who owes sees who to pay and how much, as "Bạn"', async () => {

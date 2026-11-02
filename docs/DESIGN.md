@@ -192,6 +192,11 @@ Lịch sử trả                      Ghi khoản trả khác
   suggests transfers, nobody has promised them.
 * **Đã trả** records the suggested transfer for today (existing API), slaps the stamp and shows the toast
   "Đã ghi: Bạn trả Minh 120.000đ · Hoàn tác" (*Hoàn tác* deletes that settlement).
+* **Since accounts** the button is **Đã nhận**, on the receiver's card only (ACCOUNTS.md S2). The person
+  who owes gets **Tôi đã chuyển** (S3), which tells the receiver and changes no balance; their card then
+  says "Đã báo Minh, chờ xác nhận" with *Huỷ báo*. The receiver sees "Tiến báo đã chuyển 120.000đ" and
+  *Chưa nhận được* under the text; anyone else sees "Chưa trả" or who is waiting for whom. A card never
+  says a payment is waiting for confirmation before anyone said it was sent (UI review, 03/11).
 * **Sao chép tin nhắn nhắc nợ** copies plain text for the household's Zalo group (below); on failure the
   text is shown selectable instead. No bank account, QR or payment of any kind (PROJECT_SPEC §3.3).
   ```
@@ -270,15 +275,18 @@ already typed is lost.
 | Ghi khoản chi · Lưu khoản chi | Thêm khoản chi mới · Submit |
 | Số dư từng người | Ai nợ ai (for the per-person table) |
 | Tin nhắn nhắc nợ | Đòi nợ |
-| Không phải bạn? | Đăng xuất |
+| Đăng xuất (in the account menu) | Không phải bạn? (before accounts) |
+| Trưởng nhóm | Chủ nhà (means the landlord in a nhà trọ) |
+| Tôi đã chuyển · Chưa nhận được | Đã chuyển khoản (as if it were already recorded) |
 
 Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm qua", "Thứ bảy, 18/10", full
 `18/10/2026` only in history older than this year.
 
 ### 7.1 English and Vietnamese
 
-The app speaks **English by default**; **EN / VI** in the header switches the whole page and is
-remembered on the device, like the theme. Every word lives in `frontend/src/i18n/` (`en.tsx`, `vi.tsx`,
+The app speaks **English by default**; **EN / VI** switches the whole page and is remembered on the
+device, like the theme. Both switches live in the account menu, so the header is one line on a phone
+(the wordmark and the account); signed out they sit under the sign-in form (UI review, 03/11). Every word lives in `frontend/src/i18n/` (`en.tsx`, `vi.tsx`,
 the same keys, checked by TypeScript); components take them from `useT()`, plain functions from
 `messages()`. The Vietnamese above is unchanged. The English terms were agreed in a translation review:
 

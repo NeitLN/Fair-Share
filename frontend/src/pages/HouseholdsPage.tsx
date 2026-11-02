@@ -42,11 +42,14 @@ function HouseholdsPage() {
   })
 
   // Nothing yet: both ways in start open. Once open (by the user, or because the list was empty) a
-  // fold stays open through a failure and the retry.
-  const none = mine.isSuccess && mine.data.households.length === 0
+  // fold stays open through a failure and the retry. Someone waiting for approval has done what
+  // they came for: the wait is the page, and the two ways in stay folded below it.
+  const pending = mine.data?.pending ?? []
+  const none = mine.isSuccess && mine.data.households.length === 0 && pending.length === 0
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(linkCode !== '')
-  const pending = mine.data?.pending ?? []
+  // "Bạn chưa ở nhà nào" above a request that is waiting read like a refusal
+  const showList = mine.isSuccess && (mine.data.households.length > 0 || pending.length === 0)
 
   return (
     <>
@@ -55,7 +58,7 @@ function HouseholdsPage() {
       {mine.error && (
         <ErrorNote message={errorMessage(mine.error) ?? ''} onRetry={() => mine.refetch()} retrying={mine.isFetching} />
       )}
-      {mine.isSuccess && <HouseholdList households={mine.data.households} />}
+      {showList && <HouseholdList households={mine.data.households} />}
 
       {pending.length > 0 && (
         <section aria-labelledby="pending-title" className="pending">

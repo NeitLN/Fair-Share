@@ -84,10 +84,16 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null 
         id="settlement-to"
         value={toId}
         disabled={receiver !== null}
+        aria-describedby={receiver !== null ? 'settlement-to-hint' : undefined}
         onChange={(e) => setToId(pick(e.target.value))}
       >
         {options}
       </select>
+      {receiver !== null && (
+        <span id="settlement-to-hint" className="hint">
+          {t.settlements.onlyReceived}
+        </span>
+      )}
 
       <label htmlFor="settlement-amount">{t.settlements.amountLabel}</label>
       <input

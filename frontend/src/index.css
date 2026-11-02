@@ -112,12 +112,13 @@ body {
   stroke: none;
 }
 
-/* Language and theme, side by side; they wrap under the wordmark only when there is no room */
-.header-controls {
+/* Signed out, language and theme sit under the sign-in form (signed in, in the account menu) */
+.app-footer {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .theme-switch,
@@ -531,6 +532,15 @@ button.ghost {
   color: var(--debt-text);
   padding: 0 10px;
   box-shadow: none;
+}
+
+/* A field that cannot be changed looks it: no white field, muted text */
+select:disabled,
+input:disabled {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 button:disabled {
@@ -1082,6 +1092,23 @@ button.ai:active:focus-visible {
   background: var(--surface-2);
 }
 
+/* Where a transfer stands ("Đã báo Minh, chờ xác nhận") and its small action, under the text like
+   the stamp, so the names keep the full width at 360 px */
+.transfer-status {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 8px;
+  margin-top: -4px;
+  color: var(--muted);
+}
+
+.transfer-status small {
+  font-size: 13px;
+}
+
 /* Under the text, so the names keep the full width at 360 px */
 .transfer-done {
   grid-column: 2 / -1;
@@ -1556,7 +1583,7 @@ button.ai:active:focus-visible {
   z-index: 20;
   display: grid;
   gap: 8px;
-  width: min(260px, calc(100vw - 32px));
+  width: min(300px, calc(100vw - 32px));
   margin-top: 6px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -1567,6 +1594,14 @@ button.ai:active:focus-visible {
 .account-panel p {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* "Ngôn ngữ" or "Giao diện" above its switch, which takes the panel's width */
+.account-setting {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 
 /* The invite code, big enough to read out loud */
@@ -1591,9 +1626,42 @@ button.ai:active:focus-visible {
   background: var(--surface);
 }
 
-.join-requests select {
+/* One person asking to join: who, the name they get, then Duyệt / Từ chối. Stacked, so it fits a
+   320 px phone and 200% zoom; a single row did not (it scrolled sideways) */
+.join-request {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.join-request:last-child {
+  border-bottom: 0;
+}
+
+.join-request .who {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.join-request label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.join-request select,
+.join-request input {
+  width: 100%;
+  min-width: 0;
   min-height: var(--target);
-  max-width: 100%;
+}
+
+.join-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .join-form {
@@ -1615,11 +1683,6 @@ button.ai:active:focus-visible {
 
 .household-row.pending-row:hover {
   box-shadow: none;
-}
-
-.transfer-waiting {
-  color: var(--muted);
-  text-align: right;
 }
 
 .choice {

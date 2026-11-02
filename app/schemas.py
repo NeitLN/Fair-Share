@@ -333,6 +333,22 @@ class Settlement(BaseModel):
     created_by: int | None = None
 
 
+class NoticeIn(BaseModel):
+    """Body of PUT /api/households/{id}/notices: "I have sent `to` this amount" (docs/ACCOUNTS.md,
+    S3). The sender is the signed-in member; the amount is the one suggested when they pressed."""
+
+    to_member_id: MemberId
+    amount: Amount
+
+
+class Notice(BaseModel):
+    from_member_id: int
+    to_member_id: int
+    amount: int
+    status: Literal["sent", "declined"]
+    created_at: datetime
+
+
 # --- Balances (US-06, US-07) --------------------------------------------------------------------
 
 

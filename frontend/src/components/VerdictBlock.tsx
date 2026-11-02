@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 
-import type { Transfer } from '../api/types'
+import type { Notice, Transfer } from '../api/types'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
@@ -44,11 +44,22 @@ interface VerdictBlockProps {
   /** The reminder is on the clipboard (the page says so in a toast). */
   onCopied: () => void
   /**
-   * Only the person a transfer goes to can record it ("Đã nhận"); everyone else sees who it waits for
-   * (docs/ACCOUNTS.md, S2).
+   * Only the person a transfer goes to can record it ("Đã nhận"); the person who owes can tell them
+   * "Tôi đã chuyển" (docs/ACCOUNTS.md, S2 and S3), and everyone else sees where it stands.
    */
   onlyReceiver?: boolean
+  /** The household's "Tôi đã chuyển" notices (with onlyReceiver). */
+  notices?: Notice[]
+  /** The person who owes tells the receiver; takes it back; the receiver says it has not arrived. */
+  onNotify?: (transfer: Transfer) => void
+  onCancelNotice?: (transfer: Transfer) => void
+  onDecline?: (transfer: Transfer) => void
+  /** The pair ("from-to") whose notice is being sent, taken back or declined. */
+  noticeBusy?: string | null
 }
+
+const pairOf = (transfer: { from_member_id: number; to_member_id: number }) =>
+  `${transfer.from_member_id}-${transfer.to_member_id}`
 
 /**
  * The taro block at the top of Tổng quan (DESIGN.md §6.2): one sentence about you, the total, the
@@ -76,6 +87,11 @@ function VerdictBlock({
   reminder,
   onCopied,
   onlyReceiver = false,
+  notices = [],
+  onNotify,
+  onCancelNotice,
+  onDecline,
+  noticeBusy = null,
 }: VerdictBlockProps) {
   const t = useT()
   const id = useId()
@@ -214,9 +230,20 @@ function VerdictBlock({
                       {card.state === 'undoing' ? t.common.undoing : t.common.undo}
                     </button>
                   </span>
-                ) : onlyReceiver && transfer.to_member_id !== me ? (
-                  // Only the person who received the money says so (docs/ACCOUNTS.md, S2)
-                  <small className="transfer-waiting">{t.verdict.waitingFor(nameOf(transfer.to_member_id))}</small>
+                ) : onlyReceiver ? (
+                  <ReceiverOnly
+                    transfer={transfer}
+                    card={card}
+                    textId={textId}
+                    me={me}
+                    nameOf={nameOf}
+                    notice={notices.find((n) => pairOf(n) === pairOf(transfer))}
+                    busy={noticeBusy === pairOf(transfer)}
+                    onPaid={onPaid}
+                    onNotify={onNotify}
+                    onCancelNotice={onCancelNotice}
+                    onDecline={onDecline}
+                  />
                 ) : (
                   <button
                     type="button"
@@ -226,7 +253,7 @@ function VerdictBlock({
                     disabled={card.state === 'paying'}
                     onClick={() => onPaid(transfer)}
                   >
-                    {card.state === 'paying' ? t.verdict.paying : onlyReceiver ? t.verdict.received : t.verdict.paid}
+                    {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
                   </button>
                 )}
               </li>
@@ -254,6 +281,122 @@ function VerdictBlock({
         </>
       )}
     </section>
+  )
+}
+
+interface ReceiverOnlyProps {
+  transfer: Transfer
+  card: TransferCard
+  textId: string
+  me: number | null
+  nameOf: (memberId: number) => string
+  notice: Notice | undefined
+  busy: boolean
+  onPaid: (transfer: Transfer) => void
+  onNotify?: (transfer: Transfer) => void
+  onCancelNotice?: (transfer: Transfer) => void
+  onDecline?: (transfer: Transfer) => void
+}
+
+/**
+ * An open transfer once only its receiver records it (docs/ACCOUNTS.md, S2 and S3). The receiver
+ * gets "Đã nhận", and "Chưa nhận được" when told it was sent. The person who owes gets "Tôi đã
+ * chuyển", which tells the receiver and changes no balance. Everyone else sees where it stands. The
+ * main button sits on the right like "Đã trả"; the status and its small action go under the text.
+ */
+function ReceiverOnly({
+  transfer,
+  card,
+  textId,
+  me,
+  nameOf,
+  notice,
+  busy,
+  onPaid,
+  onNotify,
+  onCancelNotice,
+  onDecline,
+}: ReceiverOnlyProps) {
+  const t = useT()
+  const from = nameOf(transfer.from_member_id)
+  const to = nameOf(transfer.to_member_id)
+  const told = notice?.status === 'sent'
+  const declined = notice?.status === 'declined'
+
+  if (transfer.to_member_id === me) {
+    return (
+      <>
+        <button
+          type="button"
+          className="btn-primary"
+          aria-describedby={textId}
+          data-action="pay"
+          disabled={card.state === 'paying' || busy}
+          // Told an amount: that is what arrived (it may differ from today's suggestion)
+          onClick={() => onPaid(told ? { ...transfer, amount: notice.amount } : transfer)}
+        >
+          {card.state === 'paying' ? t.verdict.paying : t.verdict.received}
+        </button>
+        {told && (
+          <span className="transfer-status">
+            <small>
+              {t.verdict.toldMe(from)} <Money amount={notice.amount} />
+            </small>
+            <button
+              type="button"
+              className="btn-ghost"
+              aria-describedby={textId}
+              disabled={busy || card.state === 'paying'}
+              onClick={() => onDecline?.(transfer)}
+            >
+              {t.verdict.notReceived}
+            </button>
+          </span>
+        )}
+      </>
+    )
+  }
+
+  if (transfer.from_member_id === me) {
+    if (told) {
+      return (
+        <span className="transfer-status">
+          <small>{t.verdict.toldWaiting(to)}</small>
+          <button
+            type="button"
+            className="btn-ghost"
+            aria-describedby={textId}
+            disabled={busy}
+            onClick={() => onCancelNotice?.(transfer)}
+          >
+            {t.verdict.cancelNotice}
+          </button>
+        </span>
+      )
+    }
+    return (
+      <>
+        <button
+          type="button"
+          className="btn-primary"
+          aria-describedby={textId}
+          data-action="notify"
+          disabled={busy}
+          onClick={() => onNotify?.(transfer)}
+        >
+          {busy ? t.verdict.notifying : t.verdict.notify}
+        </button>
+        <span className="transfer-status">
+          <small>{declined ? t.verdict.declinedBy(to) : t.verdict.notifyHint(to)}</small>
+        </span>
+      </>
+    )
+  }
+
+  return (
+    <span className="transfer-status">
+      <small>{told ? t.verdict.toldOthers(from, to) : t.verdict.notPaidYet}</small>
+    </span>
   )
 }
 
