@@ -145,7 +145,7 @@ describe('ExpenseForm, the 90% case', () => {
     await fillBasics(user)
     expect(screen.getByText('Hôm nay')).toBeInTheDocument()
     await openDate(user)
-    const date = screen.getByLabelText('Ngày')
+    const date = screen.getByLabelText('Ngày trả')
     await user.clear(date)
     await user.type(date, '2026-10-18')
     await save(user)
@@ -156,7 +156,7 @@ describe('ExpenseForm, the 90% case', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user)
     await openDate(user)
-    const date = screen.getByLabelText('Ngày')
+    const date = screen.getByLabelText('Ngày trả')
     expect(date).toHaveAttribute('min', '2000-01-01')
     expect(date).toHaveAttribute('max', '2099-12-31')
     await user.clear(date)
@@ -191,6 +191,36 @@ describe('ExpenseForm, equal split', () => {
     await save(user)
 
     expect(onSubmit.mock.calls[0][0].split).toEqual({ type: 'equal', member_ids: [1, 2] })
+  })
+
+  test('after a save the next expense is split equally between everyone again (DESIGN.md)', async () => {
+    // Found in the 02/11 review: the form kept the last split, so someone left out of one expense
+    // was silently left out of the next one too
+    const { user, onSubmit } = setup()
+    await fillBasics(user)
+    await openSplit(user)
+    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    await save(user)
+
+    expect(screen.getByText(/^Chia đều cả nhà \(3 người\)$/)).toBeInTheDocument()
+    await fillBasics(user)
+    await save(user)
+    expect(onSubmit.mock.calls[1][0].split).toEqual({ type: 'equal', member_ids: [1, 2, 3] })
+  })
+
+  test('after a custom split the next expense is split equally again', async () => {
+    const { user, onSubmit } = setup()
+    await fillBasics(user, '240000')
+    await openSplit(user)
+    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.type(screen.getByLabelText('Phần của Tiến'), '140000')
+    await user.type(screen.getByLabelText('Phần của Minh'), '100000')
+    await save(user)
+    expect(onSubmit.mock.calls[0][0].split.type).toBe('custom')
+
+    await fillBasics(user)
+    await save(user)
+    expect(onSubmit.mock.calls[1][0].split).toEqual({ type: 'equal', member_ids: [1, 2, 3] })
   })
 
   test('nobody selected is refused before reaching the API, under the split', async () => {
@@ -355,7 +385,7 @@ describe('ExpenseForm, editing', () => {
     expect(payer()).toBe('2')
     expect(screen.getByText('Chia riêng (2 người)')).toBeInTheDocument()
     await openDate(user)
-    expect(screen.getByLabelText('Ngày')).toHaveValue('2026-10-18')
+    expect(screen.getByLabelText('Ngày trả')).toHaveValue('2026-10-18')
     await openSplit(user)
     expect(screen.getByRole('button', { name: 'Chia riêng' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Phần của Minh')).toHaveValue('140000')
@@ -429,7 +459,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(screen.getByLabelText('Số tiền')).toHaveClass('just-filled')
     expect(screen.getByRole('group', { name: 'Ai trả?' })).toHaveClass('just-filled')
     await openDate(user)
-    expect(screen.getByLabelText('Ngày')).toHaveValue('2026-10-19')
+    expect(screen.getByLabelText('Ngày trả')).toHaveValue('2026-10-19')
 
     await save(user)
     expect(onSubmit).toHaveBeenCalledWith({
@@ -464,7 +494,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     const { user, form } = setupWithRef()
     await user.click(payerRadio('Anh'))
     await openDate(user)
-    const date = screen.getByLabelText('Ngày')
+    const date = screen.getByLabelText('Ngày trả')
     await user.clear(date)
     await user.type(date, '2026-10-17')
 
@@ -474,7 +504,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     })
     expect(result).toMatchObject({ kept: ['payer', 'date'] })
     expect(payer()).toBe('3')
-    expect(screen.getByLabelText('Ngày')).toHaveValue('2026-10-17')
+    expect(screen.getByLabelText('Ngày trả')).toHaveValue('2026-10-17')
   })
 
   test('a payer the AI filled stays when "Bạn là ai?" changes, even if it was the default person', () => {
@@ -792,7 +822,7 @@ describe('ExpenseForm, Escape closes the folds (DESIGN.md §8)', () => {
   test('Escape in the date fold closes it and focuses Đổi ngày', async () => {
     const { user } = setup()
     await openDate(user)
-    await user.click(screen.getByLabelText('Ngày'))
+    await user.click(screen.getByLabelText('Ngày trả'))
 
     await user.keyboard('{Escape}')
 

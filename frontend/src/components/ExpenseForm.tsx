@@ -330,10 +330,13 @@ function ExpenseForm({
     try {
       await onSubmit(toInput())
       if (!editing) {
-        // Ready for the next expense: same date and way of splitting, and the default payer again (you,
-        // or without an identity the payer just saved, which the page now remembers)
+        // Ready for the next expense: same date, but the default payer (you, or without an identity the
+        // payer just saved, which the page now remembers) and an equal split between everyone again, as
+        // DESIGN.md says. Keeping the last split left someone out of the next expense without a word.
         setDescription('')
         setAmountText('')
+        setSplitType('equal')
+        setSelected(new Set(members.map((m) => m.id)))
         setCustomText({})
         setPayerId(validPayer(defaultPayer))
         setPayerIsDefault(true)
