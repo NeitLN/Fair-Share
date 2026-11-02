@@ -1,11 +1,14 @@
 import { useEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
 
+import AccountMenu from './components/AccountMenu'
 import LanguageSwitch from './components/LanguageSwitch'
 import ThemeSwitch from './components/ThemeSwitch'
 import { ToastProvider } from './components/Toast'
 import { Wordmark } from './components/Wordmark'
 import { useT } from './i18n'
+import { useSession } from './lib/session'
+import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
 import HouseholdLayout from './pages/HouseholdLayout'
@@ -16,6 +19,7 @@ import NotFoundPage from './pages/NotFoundPage'
 // The router and the query client are provided in main.tsx, so tests can supply their own
 function App() {
   const t = useT()
+  const session = useSession()
   // The tab's title follows the language too
   useEffect(() => {
     document.title = t.pageTitle
@@ -30,18 +34,26 @@ function App() {
         <div className="header-controls">
           <LanguageSwitch />
           <ThemeSwitch />
+          <AccountMenu />
         </div>
       </header>
       <main>
-        <Routes>
-          <Route index element={<HouseholdsPage />} />
-          <Route path="households/:householdId" element={<HouseholdLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="expenses" element={<ExpensesPage />} />
-            <Route path="members" element={<MembersPage />} />
-          </Route>
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        {/* Every page needs an account (docs/ACCOUNTS.md). Signed out, any address shows the sign-in
+            form; once signed in, the page that was asked for (an invite link included) opens. */}
+        {session ? (
+          <Routes>
+            <Route index element={<HouseholdsPage />} />
+            <Route path="join/:code?" element={<HouseholdsPage />} />
+            <Route path="households/:householdId" element={<HouseholdLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="expenses" element={<ExpensesPage />} />
+              <Route path="members" element={<MembersPage />} />
+            </Route>
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        ) : (
+          <AuthPage />
+        )}
       </main>
     </ToastProvider>
   )

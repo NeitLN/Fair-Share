@@ -234,14 +234,15 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
 | `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — `{text}` (1–300 characters) in, a draft out; saves nothing | Response and error codes in §6 |
 
-**Household key** (#132). Every route below `POST /api/households` belongs to one household, and the
-request must send that household's key in the `X-Household-Key` header (`app/access.py`, a dependency on
-each router; the AI route checks it before it spends any of the AI budget). A missing or wrong key gets
-the same `404` as an id that does not exist (`household_not_found`, or `member_not_found` etc. for an
-item), so ids cannot be probed. The key is 32 random hex characters made by the database
-(`002_household_keys.sql`) and compared in constant time. The SPA learns it from the create answer or
-from an invite link `/households/{id}#k={key}`: after `#`, so it never reaches a server log or a
-`Referer` header; it is kept in `localStorage` and removed from the address bar.
+**Accounts and access** ([ACCOUNTS.md](ACCOUNTS.md), replacing the household key of #132). Every
+request needs a session: `Authorization: Bearer <token>` from `POST /api/auth/login` or `/register`
+(`app/auth.py`). Every route about a household's data checks that the account is an approved member of
+it (`app/access.py`, a dependency on each router; the AI route checks it before it spends any of the AI
+budget). Anyone else, someone waiting for approval included, gets the same `404` as an id that does not
+exist (`household_not_found`, or `member_not_found` etc. for an item), so ids cannot be probed; a
+member without the right gets `403 forbidden`. The accounts, invite code, approval and claim routes, and
+the table of rights, are in ACCOUNTS.md. The old `access_key` (`002_household_keys.sql`) is used only to
+take over a household from before accounts.
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.
@@ -421,9 +422,9 @@ Every one of them leaves the manual form open with the text kept.
 | `VITE_API_BASE_URL` | no (public) | empty (same origin) | empty | Static site env var, build time |
 | `RENDER_DEPLOY_HOOK_API` / `_WEB` | **yes** | — | Actions secrets | — |
 
-Household keys (#132) are not configuration: they are data, one per household in the database, sent to
-the browser that creates the household and never written to the server log. Only the local seed logs
-the demo households' invite links (`SEED_DEMO_DATA`, never set on Render).
+Passwords, session tokens and invite codes are not configuration: they are data in the database
+(passwords as argon2id hashes, tokens as SHA-256), never written to the server log. The local seed's
+demo accounts use a public test password written in the README (`SEED_DEMO_DATA`, never set on Render).
 
 **If a key leaks** (written into the report as our incident runbook):
 1. Revoke it at the provider immediately (AI Studio → delete key; Supabase → reset database password;

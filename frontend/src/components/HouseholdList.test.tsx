@@ -1,50 +1,33 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, test, vi } from 'vitest'
+import { expect, test } from 'vitest'
 
+import type { MyHousehold } from '../api/types'
 import HouseholdList from './HouseholdList'
 
-const renderList = (props: Partial<Parameters<typeof HouseholdList>[0]> = {}) =>
+const mine: MyHousehold[] = [
+  { id: 7, name: 'Nhà 7', created_at: '', role: 'owner', member_id: 1 },
+  { id: 9, name: 'Nhà 9', created_at: '', role: 'member', member_id: 5 },
+]
+
+function show(households: MyHousehold[]) {
   render(
     <MemoryRouter>
-      <HouseholdList
-        households={[
-          { id: 1, name: 'Nhà trọ 123' },
-          { id: 2, name: 'Chung cư 456' },
-        ]}
-        onRetry={vi.fn()}
-        onForget={vi.fn()}
-        {...props}
-      />
+      <HouseholdList households={households} />
     </MemoryRouter>,
   )
+}
 
-describe('HouseholdList', () => {
-  test('links every household to its own page', () => {
-    renderList()
-    expect(screen.getByRole('link', { name: 'Nhà trọ 123' })).toHaveAttribute('href', '/households/1')
-    expect(screen.getByRole('link', { name: 'Chung cư 456' })).toHaveAttribute('href', '/households/2')
-  })
+test('each household is one link, the ones you own marked', () => {
+  show(mine)
+  const links = screen.getAllByRole('link')
+  expect(links.map((link) => link.getAttribute('href'))).toEqual(['/households/7', '/households/9'])
+  expect(within(links[0]).getByText('Chủ nhà')).toBeInTheDocument()
+  expect(within(links[1]).queryByText('Chủ nhà')).not.toBeInTheDocument()
+})
 
-  test('says what to do when this browser knows no household yet', () => {
-    renderList({ households: [] })
-    expect(screen.getByText(/Máy này chưa có nhà nào\. Tạo nhà đầu tiên, hoặc mở đường dẫn/)).toBeInTheDocument()
-  })
-
-  test('a household still loading shows a placeholder, one that failed shows why and Thử lại', async () => {
-    const onRetry = vi.fn()
-    renderList({ households: [{ id: 1, loading: true }, { id: 2, error: 'Không kết nối được tới máy chủ.' }], onRetry })
-    expect(screen.getByRole('status')).toHaveTextContent('Đang tải nhà')
-    expect(screen.getByRole('alert')).toHaveTextContent('Không kết nối được tới máy chủ.')
-    await userEvent.click(screen.getByRole('button', { name: 'Thử lại' }))
-    expect(onRetry).toHaveBeenCalledWith(2)
-  })
-
-  test('each household can be taken off the list by its name', async () => {
-    const onForget = vi.fn()
-    renderList({ onForget })
-    await userEvent.click(screen.getByRole('button', { name: 'Bỏ Chung cư 456 khỏi danh sách' }))
-    expect(onForget).toHaveBeenCalledWith({ id: 2, name: 'Chung cư 456' })
-  })
+test('with none, it says how to get one', () => {
+  show([])
+  expect(screen.getByText(/Bạn chưa ở nhà nào/)).toBeInTheDocument()
+  expect(screen.queryByRole('list')).not.toBeInTheDocument()
 })

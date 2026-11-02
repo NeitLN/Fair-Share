@@ -1,66 +1,27 @@
 import { Link } from 'react-router'
 
-import ErrorNote from './ErrorNote'
-import Skeleton from './Skeleton'
+import type { MyHousehold } from '../api/types'
 import { useT } from '../i18n'
 
-/** One household this browser knows, as far as it has been loaded. */
-export interface KnownHousehold {
-  id: number
-  /** Known once it has loaded. */
-  name?: string
-  loading?: boolean
-  /** Loading it failed (not "it was deleted": those leave the list). */
-  error?: string | null
-}
-
-interface HouseholdListProps {
-  households: KnownHousehold[]
-  /** Loads one household again after a failure. */
-  onRetry: (id: number) => void
-  /** Takes a household off this browser's list (its data stays). */
-  onForget: (household: KnownHousehold) => void
-}
-
 /**
- * The households this browser created or opened (DESIGN.md §6.1, #132), each row one link, with a way
- * to take it off the list. Props only; the page loads them.
+ * The signed-in user's households (DESIGN.md §6.1, docs/ACCOUNTS.md), each row one link, the ones they
+ * own marked. Props only; the page loads them.
  */
-function HouseholdList({ households, onRetry, onForget }: HouseholdListProps) {
+function HouseholdList({ households }: { households: MyHousehold[] }) {
   const t = useT()
   if (households.length === 0) {
-    return (
-      <p className="empty">
-        {t.households.empty}
-      </p>
-    )
+    return <p className="empty">{t.households.empty}</p>
   }
   return (
     <ul className="household-list">
-      {households.map((household) => {
-        const label = household.name ?? t.households.fallbackName(household.id)
-        return (
-          <li key={household.id}>
-            {household.loading ? (
-              <Skeleton label={t.households.loading} rows={1} />
-            ) : household.error ? (
-              <ErrorNote message={household.error} onRetry={() => onRetry(household.id)} />
-            ) : (
-              <Link to={`/households/${household.id}`} className="household-row">
-                {label}
-              </Link>
-            )}
-            <button
-              type="button"
-              className="btn-ghost forget"
-              aria-label={t.households.forgetLabel(label)}
-              onClick={() => onForget(household)}
-            >
-              {t.households.forget}
-            </button>
-          </li>
-        )
-      })}
+      {households.map((household) => (
+        <li key={household.id}>
+          <Link to={`/households/${household.id}`} className="household-row">
+            {household.name}
+            {household.role === 'owner' && <span className="chip chip-zero">{t.households.owner}</span>}
+          </Link>
+        </li>
+      ))}
     </ul>
   )
 }

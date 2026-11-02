@@ -78,10 +78,10 @@ User accounts and login, multi-currency, receipts/images, notifications, real-ti
 of any kind. The brief warns against image processing, real-time sockets and payments; the free tiers
 will not carry them and they add nothing to the assessed pipeline.
 
-> **Known limitation, stated openly:** without login, anyone with a household's invite link can edit it
-> (the link carries a secret key since #132, so guessing another id is not enough). For a
-> classroom demo this is acceptable; the report explains how we would add authentication
-> (Supabase Auth or OAuth) and row-level ownership if the product went further.
+> **Since 02/11 (docs/ACCOUNTS.md):** everyone signs in; a household is reached through its members'
+> accounts, joined with an invite code the owner approves, with roles (owner, member). UX-01 below is
+> now the name the account has in the household. Emails are not verified and there is no password
+> reset yet.
 
 ### 3.4 Stretch goals (only after every Week 8 milestone is green)
 

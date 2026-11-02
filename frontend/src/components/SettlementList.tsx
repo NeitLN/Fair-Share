@@ -20,7 +20,11 @@ interface SettlementListProps {
   onRetry?: () => void
   /** The reload is running: Thử lại is disabled. */
   retrying?: boolean
+  /** Whether Xoá is offered: the owner, or whoever recorded it (docs/ACCOUNTS.md). */
+  canDelete?: (settlement: Settlement) => boolean
 }
+
+const always = () => true
 
 /** "Lịch sử trả": the payments already made, newest first. Props only; the page does the API calls. */
 function SettlementList({
@@ -32,6 +36,7 @@ function SettlementList({
   error = null,
   onRetry,
   retrying = false,
+  canDelete = always,
 }: SettlementListProps) {
   const t = useT()
   if (loading) {
@@ -75,15 +80,17 @@ function SettlementList({
                     {settlement.note && ` · ${settlement.note}`}
                   </small>
                 </span>
-                <button
-                  type="button"
-                  className="btn-danger"
-                  aria-label={t.settlements.deleteLabel(describe(settlement))}
-                  disabled={deleting}
-                  onClick={() => confirmDelete(settlement)}
-                >
-                  {deleting ? t.common.deleting : t.common.delete}
-                </button>
+                {canDelete(settlement) && (
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    aria-label={t.settlements.deleteLabel(describe(settlement))}
+                    disabled={deleting}
+                    onClick={() => confirmDelete(settlement)}
+                  >
+                    {deleting ? t.common.deleting : t.common.delete}
+                  </button>
+                )}
               </li>
             )
           })}

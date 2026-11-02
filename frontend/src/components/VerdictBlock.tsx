@@ -43,6 +43,11 @@ interface VerdictBlockProps {
   reminder: string
   /** The reminder is on the clipboard (the page says so in a toast). */
   onCopied: () => void
+  /**
+   * Only the person a transfer goes to can record it ("Đã nhận"); everyone else sees who it waits for
+   * (docs/ACCOUNTS.md, S2).
+   */
+  onlyReceiver?: boolean
 }
 
 /**
@@ -70,6 +75,7 @@ function VerdictBlock({
   error = null,
   reminder,
   onCopied,
+  onlyReceiver = false,
 }: VerdictBlockProps) {
   const t = useT()
   const id = useId()
@@ -208,6 +214,9 @@ function VerdictBlock({
                       {card.state === 'undoing' ? t.common.undoing : t.common.undo}
                     </button>
                   </span>
+                ) : onlyReceiver && transfer.to_member_id !== me ? (
+                  // Only the person who received the money says so (docs/ACCOUNTS.md, S2)
+                  <small className="transfer-waiting">{t.verdict.waitingFor(nameOf(transfer.to_member_id))}</small>
                 ) : (
                   <button
                     type="button"
@@ -217,7 +226,7 @@ function VerdictBlock({
                     disabled={card.state === 'paying'}
                     onClick={() => onPaid(transfer)}
                   >
-                    {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
+                    {card.state === 'paying' ? t.verdict.paying : onlyReceiver ? t.verdict.received : t.verdict.paid}
                   </button>
                 )}
               </li>

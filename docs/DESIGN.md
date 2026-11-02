@@ -172,10 +172,10 @@ Số dư từng người         đã chi · cần trả hoặc được nhận
  (L) Lan                                  0đ  SẠCH NỢ
 Lịch sử trả                      Ghi khoản trả khác
 ```
-* **Identity ("Bạn là ai?").** Stored per household in `localStorage` (`fair-share:me:<householdId>`),
-  never sent to the server. One line under the tabs, never in the way: "Bạn là ai trong nhà này? **Chọn**"
-  until someone is chosen, then "Bạn là Tiến · **Không phải bạn?**"; either button opens the chooser (pick
-  chips), Escape closes it. It powers "Bạn…" sentences and the default payer.
+* **Identity.** Since accounts ([ACCOUNTS.md](ACCOUNTS.md)) "bạn" is the name the signed-in account
+  has in the household, given by the API (`member_id`); there is nothing to choose. It powers "Bạn…"
+  sentences, the default payer, and who sees **Đã nhận** on a transfer (only its receiver). Before
+  accounts it was a "Bạn là ai?" chooser kept in this browser.
 * **Verdict sentence**, built from the suggested transfers that involve you (names, number of people and
   the big total all come from the same rows, which are always listed below):
 

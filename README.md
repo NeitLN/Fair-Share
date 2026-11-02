@@ -64,18 +64,20 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 | 🤝 | Record a settlement ("A paid B 120.000đ") | ✅ live |
 | ✨ | **Quick add (AI):** free-text sentence → pre-filled form via the Google Gemini API, called only from our server | ✅ live |
 | 🛟 | **AI failure fallback:** on 429, timeout or no key the user keeps their text and fills in the normal form; nothing breaks | ✅ live |
-| 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame with "Bạn là ai?", Thành viên; loading, empty and error states on every screen | ✅ live (T-42, T-32) |
+| 🎨 | **"Sticker pop" design** ([DESIGN.md](docs/DESIGN.md)), light and dark: households list, household frame, Thành viên; loading, empty and error states on every screen | ✅ live (T-42, T-32) |
 | 🌐 | **English and Vietnamese**: English by default, **EN / VI** in the header for the whole page, remembered on the device; money and dates written each language's way ([DESIGN.md §7.1](docs/DESIGN.md#71-english-and-vietnamese)) | in review |
 | 🧾 | Tổng quan verdict ("Bạn cần trả Minh 120.000đ") with **Đã trả** + undo and a copyable reminder; Chi tiêu form with you as payer by default, list grouped by day | ✅ live (T-43) |
 | 📤 | Export a household's expenses as CSV, opening correctly in Excel and Google Sheets | ✅ live (T-46) |
 
-Out of scope by design: user accounts, payments, receipts/images, real-time updates.
-**Known limitation:** there is no login. Instead each household has a secret **invite link**
-(`/households/7#k=…`, #132): the home page lists only the households this browser created or opened,
-and every request about a household must carry its key, so guessing `/households/2` gets a 404. Anyone
-who has the link can read and edit the household, so it is shared only in the household's group chat.
-Acceptable for a classroom demo and discussed in the report. See [PROJECT_SPEC.md §3](docs/PROJECT_SPEC.md#3-scope) for the
-user stories and acceptance criteria.
+**Accounts** ([docs/ACCOUNTS.md](docs/ACCOUNTS.md)): everyone signs in with an email and a password.
+The creator of a household is its owner; housemates join with its 8-character **invite code** (or the
+`/join/CODE` link) and the owner approves them. Members add expenses and change the ones they
+recorded; a repayment is confirmed by the person who received it. A household is invisible (404) to
+anyone who is not in it, and your groups follow your account on any device.
+
+Out of scope by design: payments, receipts/images, real-time updates. **Known limitations:** emails
+are not verified and there is no password reset yet (no email is sent). See
+[PROJECT_SPEC.md §3](docs/PROJECT_SPEC.md#3-scope) for the user stories and acceptance criteria.
 
 ## Architecture
 
@@ -147,6 +149,10 @@ household if the database is empty ([`db/seed.sql`](db/seed.sql), Compose only):
 expenses over last month and this month (equal and custom splits, one from Quick add) and one
 settlement, so every screen has something to show.
 Your data survives `docker compose down` and later starts; `down -v` gives you the demo household again.
+
+Sign in with a demo account to see it: **`tien@demo.local`** (the owner), `minh@demo.local` or
+`duyanh@demo.local`, all with the password **`fairshare-demo`**. These are test values for the local
+stack only: the seed never runs on Render.
 
 The rehearsal of these steps on a machine that never had the project, with timings and the
 demo-day plan, is in [docs/CLEAN_CLONE.md](docs/CLEAN_CLONE.md); the checklist for the demo itself (waking

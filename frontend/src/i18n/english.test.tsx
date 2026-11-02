@@ -126,14 +126,16 @@ test("the API's error codes read as English sentences", () => {
 test('a household frame in English: tabs, invite, members and their chips', async () => {
   const T = '2026-10-20T10:00:00Z'
   mockApi({
-    'GET /api/households/7': [200, { id: 7, name: 'Room 302', created_at: T }],
+    'GET /api/households/7': [200, { id: 7, name: 'Room 302', created_at: T, role: 'owner', member_id: 1 }],
     'GET /api/households/7/members': [
       200,
       [
-        { id: 1, household_id: 7, name: 'Võ Việt Tiến', created_at: T },
-        { id: 2, household_id: 7, name: 'Hoàng Minh', created_at: T },
+        { id: 1, household_id: 7, name: 'Võ Việt Tiến', created_at: T, role: 'owner', user_id: 9 },
+        { id: 2, household_id: 7, name: 'Hoàng Minh', created_at: T, role: 'member', user_id: 3 },
       ],
     ],
+    'GET /api/households/7/invite': [200, { code: 'K7QM2XRT', expires_at: '2026-11-09T00:00:00Z' }],
+    'GET /api/households/7/requests': [200, []],
     'GET /api/households/7/balances': [
       200,
       {
@@ -155,10 +157,21 @@ test('a household frame in English: tabs, invite, members and their chips', asyn
     'Members',
   ])
   expect(screen.getByRole('heading', { name: 'Invite housemates' })).toBeInTheDocument()
+  expect(await screen.findByText('K7QM-2XRT')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Copy code' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Copy invite link' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'New code' })).toBeInTheDocument()
   // The page joins number and ₫ with a no-break space
   expect(await screen.findByText(/^owes 100,000\s₫$/)).toBeInTheDocument()
   expect(screen.getByText(/^gets back 100,000\s₫$/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Rename Võ Việt Tiến' })).toBeInTheDocument()
-  expect(screen.getByText('Which one are you?')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Hoàng Minh from the group' })).toBeInTheDocument()
+  expect(screen.getAllByText('Owner').length).toBeGreaterThan(0)
+})
+
+test('the sign-in page in English', async () => {
+  renderApp('/', { signedOut: true })
+  expect(await screen.findByRole('heading', { level: 1, name: 'Sign in to see your groups' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Password')).toBeInTheDocument()
 })

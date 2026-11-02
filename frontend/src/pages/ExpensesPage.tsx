@@ -19,6 +19,7 @@ import { filterExpenses, isFiltered, monthsOf, monthTotals, NO_FILTER } from '..
 import type { ExpenseFilter } from '../lib/expenseFilters'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import { useSession } from '../lib/session'
 import ErrorNote from '../components/ErrorNote'
 import Skeleton from '../components/Skeleton'
 import { useT } from '../i18n'
@@ -29,6 +30,7 @@ function ExpensesPage() {
   const householdId = Number(useParams().householdId)
   const queryClient = useQueryClient()
   const { me } = useMe()
+  const session = useSession()
   const formRef = useRef<HTMLElement>(null)
   const [editing, setEditing] = useState<Expense | null>(null)
   // The AI fills this form; a new key clears the composer after each saved expense
@@ -88,6 +90,8 @@ function ExpensesPage() {
 
   const noMembers = members.isSuccess && members.data.length === 0
   const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  // Names from before accounts that nobody has taken (role null) stay in old expenses only (M3)
+  const withAccount = useMemo(() => (members.data ?? []).filter((m) => m.role !== null), [members.data])
   // You, else whoever paid last on this device (DESIGN.md §6.3)
   const defaultPayer = me ?? readLastPayer(householdId)
   const form = editing ? update : create
@@ -155,7 +159,8 @@ function ExpensesPage() {
               ref={expenseForm}
               // A new key gives the form fresh state for each household and each expense it edits
               key={`${householdId}-${editing?.id ?? 'new'}`}
-              members={members.data}
+              // A new expense is shared only between people with an account; an old one keeps its people
+              members={editing ? members.data : withAccount}
               looks={looks}
               me={me}
               defaultPayer={defaultPayer}
@@ -210,6 +215,7 @@ function ExpensesPage() {
             onEdit={startEditing}
             onDelete={(expense) => remove.mutate(expense)}
             deletingId={remove.isPending ? remove.variables?.id : null}
+            canChange={(expense) => household.data?.role === 'owner' || expense.created_by === session?.user.id}
           />
         )}
       </section>

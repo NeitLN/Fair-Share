@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import type { Settlement, SettlementInput } from '../api/types'
 import { today } from '../lib/date'
-import { mockApi, renderApp, testKey } from '../test/renderApp'
+import { mockApi, renderApp } from '../test/renderApp'
 
 beforeEach(() => {
   // The user answers "OK" to "Xoá khoản …?"
@@ -14,6 +14,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   localStorage.clear()
+  me = 1
 })
 
 const household = { id: 7, name: 'Nhà 7', created_at: '' }
@@ -49,7 +50,8 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
     return net
   }
   return mockApi({
-    'GET /api/households/7': [200, household],
+    // The account's own name in the household: "bạn" (docs/ACCOUNTS.md)
+    'GET /api/households/7': () => [200, { ...household, role: 'member', member_id: me }],
     'GET /api/households/7/members': [200, memberList],
     'GET /api/households/7/expenses': [200, [expense]],
     'GET /api/households/7/balances': () => {
@@ -80,6 +82,8 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
         household_id: 7,
         note: input.note ?? null,
         created_at: '',
+        // Recorded by the signed-in account (testUser), so it may delete it
+        created_by: 9,
         ...input,
       }
       settlements = [settlement, ...settlements]
@@ -93,12 +97,16 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
   })
 }
 
-const iAm = (memberId: number) => localStorage.setItem('fair-share:me:7', String(memberId))
+let me: number | null = 1
+const iAm = (memberId: number) => {
+  me = memberId
+}
 const transfers = () => screen.findByRole('list', { name: 'Các lần trả gợi ý' })
 const region = (name: string) => within(screen.getByRole('region', { name }))
 const month = Number(today().slice(5, 7))
 
-test('without an identity the block counts the transfers left, and lists them all', async () => {
+test('before the household says who you are, the block counts the transfers left and lists them all', async () => {
+  me = null
   api()
   renderApp('/households/7')
 
@@ -111,9 +119,20 @@ test('without an identity the block counts the transfers left, and lists them al
     'Minh trả Tiến 100.000đ',
     'An trả Tiến 100.000đ',
   ])
-  expect(within(rows[0]).getByRole('button', { name: 'Đã trả' })).toHaveAccessibleDescription(
-    'Minh trả Tiến 100.000đ',
-  )
+  // Only the person who received it records a repayment (docs/ACCOUNTS.md, S2)
+  expect(within(rows[0]).getByText('Chờ Tiến xác nhận đã nhận')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Đã (nhận|trả)$/ })).not.toBeInTheDocument()
+})
+
+test('someone who owes cannot mark their own debt as paid: the receiver confirms it', async () => {
+  iAm(2)
+  api()
+  renderApp('/households/7')
+
+  const card = within(await transfers()).getAllByRole('listitem')[0]
+  expect(card).toHaveTextContent('Bạn trả Tiến 100.000đ')
+  expect(within(card).getByText('Chờ Tiến xác nhận đã nhận')).toBeInTheDocument()
+  expect(within(card).queryByRole('button')).not.toBeInTheDocument()
 })
 
 test('someone who owes sees who to pay and how much, as "Bạn"', async () => {
@@ -152,9 +171,9 @@ test('"Đã trả" records the suggested transfer, paid today', async () => {
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
 
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1))
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(1))
   expect(
     await region('Lịch sử trả').findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }),
   ).toBeInTheDocument()
@@ -172,9 +191,9 @@ test('after the last suggested payment the household is settled, and everyone ge
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1))
-  await user.click(screen.getByRole('button', { name: 'Đã trả' }))
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(1))
+  await user.click(screen.getByRole('button', { name: 'Đã nhận' }))
 
   expect(await screen.findByRole('heading', { name: 'Cả nhà sạch nợ. Nhà trọ bình yên.' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' })).not.toBeInTheDocument()
@@ -189,15 +208,17 @@ test('a payment that is not a suggestion is recorded with the folded form', asyn
   const history = region('Lịch sử trả')
   await user.click(await history.findByText('Ghi khoản trả khác'))
   await user.selectOptions(history.getByLabelText('Người trả'), 'An')
-  await user.selectOptions(history.getByLabelText('Người nhận'), 'Tiến')
+  // The receiver is you, and cannot be changed: only the receiver records a repayment
+  expect(history.getByLabelText('Người nhận')).toHaveValue('1')
+  expect(history.getByLabelText('Người nhận')).toBeDisabled()
   await user.type(history.getByLabelText('Số tiền (đồng)'), '40k')
   await user.click(history.getByRole('button', { name: 'Ghi nhận khoản trả' }))
 
   expect(await history.findByText(/40\.000/)).toBeInTheDocument()
   // An still owes 60 000
   await waitFor(() =>
-    expect(within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getByText(/^An trả Tiến/)).toHaveTextContent(
-      'An trả Tiến 60.000đ',
+    expect(within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getByText(/^An trả bạn/)).toHaveTextContent(
+      'An trả bạn 60.000đ',
     ),
   )
 })
@@ -207,12 +228,12 @@ test('a mistaken payment can be deleted, and the debt comes back', async () => {
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   const history = region('Lịch sử trả')
   await user.click(await history.findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }))
 
   expect(await history.findByText(/^Chưa có khoản trả nào/)).toBeInTheDocument()
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(2))
 })
 
 test('the reminder goes to the clipboard, ready for the group chat', async () => {
@@ -228,7 +249,7 @@ test('the reminder goes to the clipboard, ready for the group chat', async () =>
       '• Minh trả Tiến 100.000đ',
       '• An trả Tiến 100.000đ',
       // The invite link, so everyone in the group chat can open the household (#132)
-      `Xem chi tiết: ${window.location.origin}/households/7#k=${testKey(7)}`,
+      `Xem chi tiết: ${window.location.origin}/households/7`,
     ].join('\n'),
   )
   expect(await screen.findByRole('status')).toHaveTextContent('Đã sao chép. Dán vào nhóm chat của nhà nhé.')
@@ -311,7 +332,7 @@ test('names come from the balances while the members are still loading or failed
   renderApp('/households/7')
 
   const rows = within(await transfers()).getAllByRole('listitem')
-  expect(rows[0]).toHaveTextContent('Minh trả Tiến 100.000đ')
+  expect(rows[0]).toHaveTextContent('Minh trả bạn 100.000đ')
   expect(screen.queryByText(/Thành viên đã xoá/)).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' }))
   expect(await navigator.clipboard.readText()).toContain('• Minh trả Tiến 100.000đ')
@@ -345,17 +366,17 @@ test('"Đã trả" stamps the card, keeps it in place and offers Hoàn tác, in 
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
 
   const status = screen.getByRole('status')
-  expect(await within(status).findByText('Đã ghi: Minh trả Tiến 100.000đ')).toBeInTheDocument()
+  expect(await within(status).findByText('Đã ghi: Minh trả bạn 100.000đ')).toBeInTheDocument()
   const rows = within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getAllByRole('listitem')
   expect(rows).toHaveLength(2)
-  expect(rows[0]).toHaveTextContent('Minh trả Tiến 100.000đ')
+  expect(rows[0]).toHaveTextContent('Minh trả bạn 100.000đ')
   expect(within(rows[0]).getByText('ĐÃ TRẢ')).toBeInTheDocument()
   // Keyboard focus moved from the pressed button to this card's Hoàn tác
   expect(within(rows[0]).getByRole('button', { name: 'Hoàn tác' })).toHaveFocus()
-  expect(within(rows[1]).getByRole('button', { name: 'Đã trả' })).toBeInTheDocument()
+  expect(within(rows[1]).getByRole('button', { name: 'Đã nhận' })).toBeInTheDocument()
 })
 
 test('Hoàn tác in the toast deletes exactly the payment that was recorded', async () => {
@@ -363,14 +384,14 @@ test('Hoàn tác in the toast deletes exactly the payment that was recorded', as
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   const status = screen.getByRole('status')
   await user.click(await within(status).findByRole('button', { name: 'Hoàn tác' }))
 
-  expect(await within(status).findByText('Đã hoàn tác: Minh trả Tiến 100.000đ')).toBeInTheDocument()
+  expect(await within(status).findByText('Đã hoàn tác: Minh trả bạn 100.000đ')).toBeInTheDocument()
   const deletes = fetchFn.mock.calls.filter(([, init]) => init?.method === 'DELETE')
   expect(deletes.map(([url]) => url)).toEqual(['/api/settlements/30'])
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(2))
   expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument()
 })
 
@@ -379,7 +400,7 @@ test('a double click records the transfer once', async () => {
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  const button = within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0]
+  const button = within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0]
   await user.dblClick(button)
 
   expect(await screen.findByText('ĐÃ TRẢ')).toBeInTheDocument()
@@ -391,7 +412,7 @@ test('undoing twice, from the card and the toast, deletes once', async () => {
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   const toastUndo = await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' })
   const cardUndo = within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getByRole('button', {
     name: 'Hoàn tác',
@@ -399,7 +420,7 @@ test('undoing twice, from the card and the toast, deletes once', async () => {
   await user.click(cardUndo)
   await user.click(toastUndo)
 
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(2))
   expect(fetchFn.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(1)
 })
 
@@ -408,7 +429,7 @@ test('undoing a payment that was already deleted says so and drops the stamp', a
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   await user.click(await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' }))
 
   expect(await screen.findByText('Khoản trả này đã được xoá trước đó.')).toBeInTheDocument()
@@ -420,7 +441,7 @@ test('a failed undo keeps the stamp and offers Thử lại', async () => {
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   await user.click(await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' }))
 
   const status = screen.getByRole('status')
@@ -434,10 +455,10 @@ test('a failed "Đã trả" says why and leaves the card to try again', async ()
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
 
   expect(await screen.findByRole('alert')).toHaveTextContent('Máy chủ tạm thời không kết nối được dữ liệu.')
-  expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2)
+  expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(2)
   expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument()
 })
 
@@ -446,12 +467,12 @@ test('deleting the recorded payment from the history removes its stamped card', 
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   expect(await screen.findByText('ĐÃ TRẢ')).toBeInTheDocument()
   await user.click(await region('Lịch sử trả').findByRole('button', { name: /^Xoá khoản Minh trả Tiến/ }))
 
   await waitFor(() => expect(screen.queryByText('ĐÃ TRẢ')).not.toBeInTheDocument())
-  expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2)
+  expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(2)
 })
 
 test('Hoàn tác from the toast puts keyboard focus on the verdict once the card is gone', async () => {
@@ -459,11 +480,11 @@ test('Hoàn tác from the toast puts keyboard focus on the verdict once the card
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
   await user.click(await within(screen.getByRole('status')).findByRole('button', { name: 'Hoàn tác' }))
 
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(2))
-  expect(screen.getByRole('heading', { name: 'Còn 2 lần trả là cả nhà về 0đ' })).toHaveFocus()
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(2))
+  expect(screen.getByRole('heading', { name: 'Bạn được nhận từ Minh và An' })).toHaveFocus()
 })
 
 test('if the balances cannot be refreshed after "Đã trả", the paid transfer is not offered again', async () => {
@@ -485,7 +506,7 @@ test('if the balances cannot be refreshed after "Đã trả", the paid transfer 
   const user = userEvent.setup()
   renderApp('/households/7')
 
-  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã trả' })[0])
+  await user.click(within(await transfers()).getAllByRole('button', { name: 'Đã nhận' })[0])
 
   expect(await screen.findByText('ĐÃ TRẢ')).toBeInTheDocument()
   await waitFor(() => expect(fetchFn.mock.calls.filter(([u]) => String(u).endsWith('/balances')).length).toBeGreaterThan(1))
@@ -493,8 +514,8 @@ test('if the balances cannot be refreshed after "Đã trả", the paid transfer 
   expect(await screen.findByText(/^Chưa cập nhật được số dư mới nhất/)).toBeInTheDocument()
   const rows = within(screen.getByRole('list', { name: 'Các lần trả gợi ý' })).getAllByRole('listitem')
   expect(rows).toHaveLength(2)
-  expect(screen.getAllByRole('button', { name: 'Đã trả' })).toHaveLength(1)
-  expect(within(rows[1]).getByText(/^An trả Tiến/)).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Đã nhận' })).toHaveLength(1)
+  expect(within(rows[1]).getByText(/^An trả bạn/)).toBeInTheDocument()
 })
 
 test('Escape closes "Ghi khoản trả khác" and focuses its summary', async () => {

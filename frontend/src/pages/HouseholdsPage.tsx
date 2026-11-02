@@ -1,94 +1,100 @@
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 
-import { ApiError } from '../api/client'
-import { createHousehold, getHousehold, keys } from '../api/households'
+import { cancelRequest, createHousehold, keys, listMyHouseholds } from '../api/households'
+import ErrorNote from '../components/ErrorNote'
 import HouseholdCreateForm from '../components/HouseholdCreateForm'
 import HouseholdList from '../components/HouseholdList'
-import type { KnownHousehold } from '../components/HouseholdList'
+import JoinForm from '../components/JoinForm'
+import Skeleton from '../components/Skeleton'
+import { formatDate } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { closeFoldOnEscape } from '../lib/fold'
-import { forget, putBack, readKnown, remember } from '../lib/knownHouseholds'
 import { useToast } from '../lib/toast'
 import { useT } from '../i18n'
 
-const gone = (error: unknown) => error instanceof ApiError && error.status === 404
-
-// US-01: the households this browser knows, and creating one (docs/DESIGN.md §6.1). The API does not
-// list every household (#132): this browser keeps the ones it created or opened, with their keys.
+// US-01: the signed-in user's households, creating one, and joining one with an invite code
+// (docs/DESIGN.md §6.1, docs/ACCOUNTS.md). Also the page of a `/join/CODE` link, with the code filled in.
 function HouseholdsPage() {
   const t = useT()
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
-  const [known, setKnown] = useState(readKnown)
-  // The same query the household frame uses, so opening one from here is instant
-  const loaded = useQueries({
-    queries: known.map((id) => ({ queryKey: keys.household(id), queryFn: () => getHousehold(id) })),
-  })
-
-  // A household that answers 404 was deleted: it leaves this browser's list for good
-  useEffect(() => {
-    known.forEach((id, index) => {
-      if (gone(loaded[index]?.error)) forget(id)
-    })
-  }, [known, loaded])
-
-  const households: KnownHousehold[] = known
-    .map((id, index) => {
-      const query = loaded[index]
-      return {
-        id,
-        name: query?.data?.name,
-        loading: query?.isPending ?? true,
-        gone: gone(query?.error),
-        error: query?.error && !gone(query.error) ? errorMessage(query.error) : null,
-      }
-    })
-    .filter((household) => !household.gone)
+  const linkCode = useParams().code ?? ''
+  const mine = useQuery({ queryKey: keys.households, queryFn: listMyHouseholds })
 
   const create = useMutation({
     mutationFn: createHousehold,
     onSuccess: (household) => {
-      // The key comes only in this answer: keep it, or the household could not be opened again
-      remember(household.id, household.key)
-      // A new household has nobody in it yet: go straight to adding members
+      // Shown at once with its name, then the members page to invite people
+      queryClient.setQueryData(keys.household(household.id), household)
+      void queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
       navigate(`/households/${household.id}/members`)
     },
   })
+  const cancel = useMutation({
+    mutationFn: cancelRequest,
+    onSuccess: () => {
+      toast({ text: t.pending.cancelled })
+      return queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
+    },
+  })
 
-  function forgetOne(household: KnownHousehold) {
-    const forgotten = forget(household.id)
-    setKnown(readKnown())
-    // What was loaded goes too: a made-up invite link must not show it from the cache
-    queryClient.removeQueries({ queryKey: keys.household(household.id) })
-    const label = household.name ?? t.households.fallbackName(household.id)
-    toast({
-      text: t.households.forgotten(label),
-      action: {
-        label: t.common.undo,
-        onAction: () => {
-          putBack(household.id, forgotten)
-          setKnown(readKnown())
-        },
-      },
-    })
-  }
-
-  // Nothing known yet: the form is the only thing to do, so it starts open. Once open (by the user,
-  // or because the list was empty) it stays open through a failure and the retry.
-  const none = households.length === 0
+  // Nothing yet: both ways in start open. Once open (by the user, or because the list was empty) a
+  // fold stays open through a failure and the retry.
+  const none = mine.isSuccess && mine.data.households.length === 0
   const [creating, setCreating] = useState(false)
+  const [joining, setJoining] = useState(linkCode !== '')
+  const pending = mine.data?.pending ?? []
 
   return (
     <>
       <h1>{t.households.title}</h1>
-      <HouseholdList
-        households={households}
-        onRetry={(id) => loaded[known.indexOf(id)]?.refetch()}
-        onForget={forgetOne}
-      />
+      {mine.isPending && <Skeleton label={t.households.loading} rows={2} />}
+      {mine.error && (
+        <ErrorNote message={errorMessage(mine.error) ?? ''} onRetry={() => mine.refetch()} retrying={mine.isFetching} />
+      )}
+      {mine.isSuccess && <HouseholdList households={mine.data.households} />}
+
+      {pending.length > 0 && (
+        <section aria-labelledby="pending-title" className="pending">
+          <h2 id="pending-title">{t.pending.title}</h2>
+          <ul className="household-list">
+            {pending.map((request) => (
+              <li key={request.household_id}>
+                <span className="household-row pending-row">
+                  {t.pending.row(formatDate(request.requested_at.slice(0, 10)))}
+                </span>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={cancel.isPending}
+                  onClick={() => cancel.mutate(request.household_id)}
+                >
+                  {t.pending.cancel}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">{t.pending.hint}</p>
+          {cancel.error && <p role="alert">{errorMessage(cancel.error)}</p>}
+        </section>
+      )}
+
+      <details
+        className="fold join-household"
+        open={none || joining}
+        onToggle={(event) => {
+          if (event.currentTarget.open) setJoining(true)
+        }}
+        onKeyDown={(event) => {
+          if (!none && closeFoldOnEscape(event)) setJoining(false)
+        }}
+      >
+        <summary className="btn-secondary">{t.join.open}</summary>
+        <JoinForm initialCode={linkCode} />
+      </details>
       <details
         className="fold create-household"
         open={none || creating}

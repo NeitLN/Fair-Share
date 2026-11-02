@@ -2,8 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import { keyFor } from '../lib/knownHouseholds'
-import { mockApi, renderApp, testKey } from '../test/renderApp'
+import { mockApi, renderApp } from '../test/renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -16,35 +15,36 @@ const people = ['Võ Việt Tiến', 'Hoàng Minh', 'Nguyễn Duy Anh', 'Lan'].m
   household_id: 7,
   name,
   created_at: T,
+  role: i === 0 ? 'owner' : 'member',
 }))
+const nha7 = { id: 7, name: 'Nhà trọ Q7', created_at: T, role: 'member', member_id: 12 }
 const house: Record<string, [number, unknown]> = {
-  'GET /api/households/7': [200, { id: 7, name: 'Nhà trọ Q7', created_at: T }],
+  'GET /api/households/7': [200, nha7],
   'GET /api/households/7/members': [200, people],
 }
+const notFound: [number, unknown] = [
+  404,
+  { error: { code: 'household_not_found', message: 'This household does not exist' } },
+]
+const OLD_KEY = 'a'.repeat(32)
 
 test('shows the household name above its tabs', async () => {
-  mockApi({
-    'GET /api/households/7': [200, { id: 7, name: 'Nhà trọ Q7', created_at: '' }],
-  })
+  mockApi({ 'GET /api/households/7': [200, nha7] })
   renderApp('/households/7')
   expect(await screen.findByText('Nhà trọ Q7')).toBeInTheDocument()
 })
 
-test('a household that does not exist says so instead of empty tabs', async () => {
-  mockApi({})
+test('a household this account is not in says so instead of empty tabs', async () => {
+  mockApi({ 'GET /api/households/99': notFound })
   renderApp('/households/99/members')
-  expect(
-    await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' }),
-  ).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: 'Mục của nhà' })).not.toBeInTheDocument()
 })
 
 test('a non-numeric id never reaches the API', async () => {
   const fetchFn = mockApi({})
   renderApp('/households/abc')
-  expect(
-    await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' }),
-  ).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
   expect(fetchFn).not.toHaveBeenCalled()
 })
 
@@ -57,141 +57,63 @@ test('the house shows three of its people, then how many more, named for screen 
   expect(stack).toHaveTextContent('TMA+1')
 })
 
-test('"Bạn là ai?": choosing a member is remembered for this household and can be changed', async () => {
-  mockApi(house)
-  renderApp('/households/7')
-  await userEvent.click(await screen.findByRole('button', { name: 'Chọn' }))
-  // Moving through the people with the keyboard does not choose anyone
-  expect(screen.getByRole('button', { name: 'Tiến' })).toHaveFocus()
-  await userEvent.tab()
-  expect(screen.getByRole('button', { name: 'Minh' })).toHaveFocus()
-  expect(localStorage.getItem('fair-share:me:7')).toBeNull()
-
-  await userEvent.click(screen.getByRole('button', { name: 'Anh' }))
-  expect(screen.getByText('Anh', { selector: '.who-am-i b' })).toBeInTheDocument()
-  expect(localStorage.getItem('fair-share:me:7')).toBe('13')
-  expect(screen.queryByRole('group', { name: 'Bạn là ai trong nhà này?' })).not.toBeInTheDocument()
-
-  // Reopening starts on the current choice; Escape keeps it and returns to the button
-  await userEvent.click(screen.getByRole('button', { name: 'Không phải bạn?' }))
-  const anh = screen.getByRole('button', { name: 'Anh' })
-  expect(anh).toHaveAttribute('aria-pressed', 'true')
-  expect(anh).toHaveFocus()
-  await userEvent.keyboard('{Escape}')
-  expect(await screen.findByRole('button', { name: 'Không phải bạn?' })).toHaveFocus()
-})
-
-test('a saved choice greets you on the next visit', async () => {
-  localStorage.setItem('fair-share:me:7', '12')
+test('"bạn" is the name this account has in the household: there is nothing to choose', async () => {
   mockApi(house)
   renderApp('/households/7/members')
-  expect(await screen.findByText('Minh', { selector: '.who-am-i b' })).toBeInTheDocument()
+  expect(await screen.findByText('Hoàng Minh')).toBeInTheDocument()
+  const minh = screen.getByText('Hoàng Minh').closest('li') as HTMLElement
+  expect(minh).toHaveTextContent('bạn')
+  expect(screen.queryByRole('button', { name: 'Chọn' })).not.toBeInTheDocument()
 })
 
-describe('invite links (#132)', () => {
-  const key = 'f'.repeat(32)
-
-  test('an invite link keeps its key, opens the household and leaves the address bar', async () => {
-    const fetchFn = mockApi(house)
-    renderApp(`/households/7#k=${key}`, { withoutKey: true })
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
-    expect(keyFor(7)).toBe(key)
-    const [, init] = fetchFn.mock.calls.find(([url]) => url === '/api/households/7') as unknown as [
-      string,
-      RequestInit,
-    ]
-    expect(new Headers(init.headers).get('X-Household-Key')).toBe(key)
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/households\/7$/)
-  })
-
-  test('without a key this browser asks for the invite link, and asks the API nothing', async () => {
-    const fetchFn = mockApi(house)
-    renderApp('/households/7/expenses', { withoutKey: true })
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cần đường dẫn mời' })).toBeInTheDocument()
-    expect(screen.getByText(/Sao chép đường dẫn mời/)).toBeInTheDocument()
-    expect(fetchFn).not.toHaveBeenCalled()
-  })
-
-  test('a key that no longer opens it (deleted, or a wrong link) says so and is forgotten', async () => {
-    mockApi({})
-    renderApp(`/households/7#k=${key}`, { withoutKey: true })
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
-    await waitFor(() => expect(keyFor(7)).toBeNull())
-  })
-
-  test('a wrong invite link for a household this browser already opens does not lose the key that works', async () => {
-    // The API answers only to the right key, like app/access.py
-    const right = (init: RequestInit): [number, unknown] =>
-      new Headers(init.headers).get('X-Household-Key') === testKey(7)
-        ? (house['GET /api/households/7'] as [number, unknown])
-        : [404, { error: { code: 'household_not_found', message: 'No such household' } }]
-    mockApi({
-      'GET /api/households/7': (_body, init) => right(init),
-      'GET /api/households/7/members': (_body, init) =>
-        right(init)[0] === 200 ? house['GET /api/households/7/members'] : right(init),
-    })
-    // this browser holds testKey(7); the link carries another (its own: refused keys last the visit)
-    renderApp(`/households/7#k=${'c'.repeat(32)}`)
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
-    expect(keyFor(7)).toBe(testKey(7))
-    expect(await screen.findByRole('status')).toHaveTextContent('Đường dẫn mời này không đúng')
-  })
-
-  test('when this browser cannot store anything, the key works for this visit and the link stays', async () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
-    // Keys refused earlier in this file stay refused for the page's life, so each case has its own
-    const link = 'e'.repeat(32)
-    mockApi(house)
-    renderApp(`/households/7#k=${link}`, { withoutKey: true })
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
-    // Changing tabs drops the #k= part, so the note points to the invite link in Thành viên
-    expect(screen.getByText(/không lưu được khoá/)).toHaveTextContent('Sao chép đường dẫn mời')
-    expect(screen.getByTestId('location')).toHaveTextContent(`/households/7#k=${link}`)
-    vi.restoreAllMocks()
-  })
-
-  test('with no key to fall back on, a wrong link that stays in the address bar is asked once', async () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
-    const fetchFn = mockApi({})
-    renderApp(`/households/7#k=${'b'.repeat(32)}`, { withoutKey: true })
-
-    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    expect(fetchFn.mock.calls.filter(([url]) => url === '/api/households/7').length).toBe(1)
-    expect(keyFor(7)).toBeNull()
-    vi.restoreAllMocks()
-  })
-
-  test('a wrong link that stays in the address bar is not tried again and again', async () => {
-    // Storage blocked, so the link stays in the address bar; this browser already holds the right key
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
-    const answer = (init: RequestInit): [number, unknown] =>
-      new Headers(init.headers).get('X-Household-Key') === testKey(7)
-        ? (house['GET /api/households/7'] as [number, unknown])
-        : [404, { error: { code: 'household_not_found', message: 'No such household' } }]
+describe('invite links from before accounts (docs/ACCOUNTS.md, L1)', () => {
+  test('an ownerless household is offered to take over, as one of its names or a new one', async () => {
+    let owned = false
     const fetchFn = mockApi({
-      'GET /api/households/7': (_body, init) => answer(init),
+      'GET /api/households/7': () => (owned ? [200, { ...nha7, role: 'owner', member_id: 11 }] : [...notFound]),
+      'GET /api/households/7/claim': [200, { id: 7, name: 'Nhà trọ Q7', members: people.slice(0, 2) }],
+      'POST /api/households/7/claim': () => {
+        owned = true
+        return [204]
+      },
       'GET /api/households/7/members': [200, people],
     })
-    renderApp(`/households/7#k=${'d'.repeat(32)}`)
+    const user = userEvent.setup()
+    renderApp(`/households/7#k=${OLD_KEY}`)
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nhà trọ Q7' })).toBeInTheDocument()
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    const asked = fetchFn.mock.calls.filter(([url]) => url === '/api/households/7').length
-    expect(asked).toBeLessThanOrEqual(3)
-    expect(keyFor(7)).toBe(testKey(7))
-    vi.restoreAllMocks()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhận Nhà trọ Q7' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Tôi là người mới \(Tiến\)/ })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'Võ Việt Tiến' }))
+    await user.click(screen.getByRole('button', { name: 'Nhận làm chủ nhà' }))
+
+    expect(await screen.findByRole('navigation', { name: 'Mục của nhà' })).toBeInTheDocument()
+    const claim = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/claim' && init?.method)
+    expect(JSON.parse(claim?.[1]?.body as string)).toEqual({ member_id: 11 })
+    expect(new Headers(claim?.[1]?.headers).get('X-Household-Key')).toBe(OLD_KEY)
+    // The old key leaves the address bar once in
+    await waitFor(() => expect(screen.getByTestId('location')).not.toHaveTextContent('#k='))
+  })
+
+  test('a household that has an owner asks for an invite code instead', async () => {
+    mockApi({
+      'GET /api/households/7': [...notFound],
+      'GET /api/households/7/claim': [409, { error: { code: 'household_has_owner', message: 'owned' } }],
+    })
+    renderApp(`/households/7#k=${OLD_KEY}`)
+    expect(await screen.findByText(/Nhà này đã có chủ/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Mã mời')).toBeInTheDocument()
+  })
+
+  test('a wrong old key is like a household that does not exist', async () => {
+    mockApi({ 'GET /api/households/7': [...notFound], 'GET /api/households/7/claim': [...notFound] })
+    renderApp(`/households/7#k=${OLD_KEY}`)
+    expect(await screen.findByText(/Có thể nhà đã bị xoá/)).toBeInTheDocument()
+  })
+
+  test('a member opening an old link simply opens the household', async () => {
+    const fetchFn = mockApi(house)
+    renderApp(`/households/7#k=${OLD_KEY}`)
+    expect(await screen.findByRole('navigation', { name: 'Mục của nhà' })).toBeInTheDocument()
+    expect(fetchFn.mock.calls.some(([url]) => String(url).endsWith('/claim'))).toBe(false)
   })
 })
-

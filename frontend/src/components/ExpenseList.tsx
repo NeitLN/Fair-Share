@@ -27,7 +27,11 @@ interface ExpenseListProps {
   onDelete: (expense: Expense) => void
   /** The expense being deleted right now: its buttons are disabled so a double click sends one request. */
   deletingId?: number | null
+  /** Whether Sửa and Xoá are offered: the owner, or whoever recorded it (docs/ACCOUNTS.md). */
+  canChange?: (expense: Expense) => boolean
 }
+
+const always = () => true
 
 /**
  * "chia đều 4 người", "chia riêng 2 người", and "chia đều 3/4 người" only when the people sharing are
@@ -75,6 +79,7 @@ function ExpenseList({
   onEdit,
   onDelete,
   deletingId = null,
+  canChange = always,
 }: ExpenseListProps) {
   const t = useT()
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
@@ -123,7 +128,7 @@ function ExpenseList({
                         </span>
                         <Money amount={expense.amount} className="expense-amount" />
                       </summary>
-                      <div className="expense-actions">
+                      {canChange(expense) && <div className="expense-actions">
                         <button
                           type="button"
                           className="btn-secondary"
@@ -142,7 +147,7 @@ function ExpenseList({
                         >
                           {deleting ? t.common.deleting : t.common.delete}
                         </button>
-                      </div>
+                      </div>}
                     </details>
                   </li>
                 )

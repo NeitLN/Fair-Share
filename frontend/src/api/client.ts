@@ -1,6 +1,6 @@
 // Every call to the FastAPI backend goes through request(), so error handling lives in one place.
 import { messages } from '../i18n'
-import { keyFor } from '../lib/knownHouseholds'
+import { currentSession, signOut } from '../lib/session'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -40,29 +40,20 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, 'error', messages().failure.server(response.status))
 }
 
-/** Header carrying a household's secret key (#132, app/access.py). */
+/**
+ * Header carrying the old secret key of a household from before accounts, only to take it over
+ * (docs/ACCOUNTS.md, L1). Everything else is reached through the signed-in account.
+ */
 export const KEY_HEADER = 'X-Household-Key'
 
-/**
- * Which household a request is about: the id in `/api/households/{id}/…`, or the one the caller names
- * for routes addressed by a member, expense or settlement id.
- */
-function householdOf(path: string, household?: number): number | null {
-  if (household !== undefined) return household
-  const match = /^\/api\/households\/(\d+)/.exec(path)
-  return match ? Number(match[1]) : null
-}
+// A wrong password is a 401 too, but it does not mean the session ended
+const SIGN_IN_ROUTES = /^\/api\/auth\/(login|register)$/
 
-export async function request<T>(
-  path: string,
-  init: RequestInit = {},
-  household?: number,
-): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body !== undefined) headers.set('Content-Type', 'application/json')
-  const householdId = householdOf(path, household)
-  const key = householdId === null ? null : keyFor(householdId)
-  if (key) headers.set(KEY_HEADER, key)
+  const session = currentSession()
+  if (session) headers.set('Authorization', `Bearer ${session.token}`)
 
   let response: Response
   try {
@@ -72,20 +63,24 @@ export async function request<T>(
     throw new ApiError(0, 'network_error', messages().failure.network)
   }
 
+  // The session ended (logged out elsewhere, or expired): back to the sign-in page
+  if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut()
   if (!response.ok) throw await toApiError(response)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
 
-/** `household`: for routes addressed by a member, expense or settlement id, whose household it is. */
+/**
+ * The second argument of the routes addressed by a member, expense or settlement id used to say
+ * which household's key to send; the session covers every household now, so it is ignored.
+ */
 export const api = {
-  get: <T>(path: string, household?: number) => request<T>(path, {}, household),
-  post: <T>(path: string, body: unknown, household?: number) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }, household),
-  patch: <T>(path: string, body: unknown, household?: number) =>
-    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }, household),
-  put: <T>(path: string, body: unknown, household?: number) =>
-    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }, household),
-  delete: <T = void>(path: string, household?: number) =>
-    request<T>(path, { method: 'DELETE' }, household),
+  get: <T>(path: string, _household?: number, headers?: HeadersInit) => request<T>(path, { headers }),
+  post: <T>(path: string, body: unknown, _household?: number, headers?: HeadersInit) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
+  patch: <T>(path: string, body: unknown, _household?: number) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  put: <T>(path: string, body: unknown, _household?: number) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: <T = void>(path: string, _household?: number) => request<T>(path, { method: 'DELETE' }),
 }

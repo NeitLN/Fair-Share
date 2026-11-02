@@ -34,6 +34,10 @@ interface MemberListProps {
   removingId?: number | null
   /** A rename or remove that failed, shown under that member's row. */
   rowError?: { id: number; message: string } | null
+  /** The signed-in user owns the household: only then are Rename and Remove shown (docs/ACCOUNTS.md). */
+  canManage?: boolean
+  /** Takes away the access of someone with an account; their name and expenses stay. */
+  onRemoveAccess?: (member: Member) => void
 }
 
 /**
@@ -62,6 +66,8 @@ function MemberList({
   onRemove,
   removingId = null,
   rowError = null,
+  canManage = true,
+  onRemoveAccess,
 }: MemberListProps) {
   const t = useT()
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -89,9 +95,14 @@ function MemberList({
     return <Skeleton label={t.members.loading} />
   }
 
-  // Removing cannot be undone from the UI, so ask first
+  // Removing cannot be undone from the UI, so ask first. Someone with an account loses their access;
+  // a name nobody uses goes away.
   function confirmRemove(member: Member) {
-    if (window.confirm(t.members.confirmRemove(member.name))) onRemove(member.id)
+    if (member.role && onRemoveAccess) {
+      if (window.confirm(t.people.confirmRemoveAccess(member.name))) onRemoveAccess(member)
+    } else if (window.confirm(t.members.confirmRemove(member.name))) {
+      onRemove(member.id)
+    }
   }
 
   // While a rename is being saved nothing else may open or close an editor: its answer belongs to it
@@ -171,14 +182,16 @@ function MemberList({
                     <strong>
                       {member.name}
                       {me === member.id && <Chip kind="me">{t.common.you}</Chip>}
+                      {member.role === 'owner' && <Chip kind="zero">{t.people.owner}</Chip>}
                     </strong>
                     {look && look.short !== member.name.trim() && <small>{t.members.calledAs(look.short)}</small>}
+                    {member.role === null && <small>{t.people.noAccount}</small>}
                     <span className="standing">
                       <Standing balance={balances?.get(member.id)} />
                     </span>
                   </div>
                 )}
-                {editingId !== member.id && (
+                {editingId !== member.id && canManage && (
                   <div className="row-actions">
                     <button
                       ref={(button) => {
@@ -193,16 +206,26 @@ function MemberList({
                     >
                       {t.members.rename}
                     </button>
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      aria-label={t.members.removeLabel(member.name)}
-                      aria-describedby={note ? `member-note-${member.id}` : undefined}
-                      disabled={removing}
-                      onClick={() => confirmRemove(member)}
-                    >
-                      {removing ? t.members.removing : t.members.remove}
-                    </button>
+                    {member.role !== 'owner' && (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        aria-label={
+                          member.role && onRemoveAccess
+                            ? t.people.removeAccessLabel(member.name)
+                            : t.members.removeLabel(member.name)
+                        }
+                        aria-describedby={note ? `member-note-${member.id}` : undefined}
+                        disabled={removing}
+                        onClick={() => confirmRemove(member)}
+                      >
+                        {removing
+                          ? t.members.removing
+                          : member.role && onRemoveAccess
+                            ? t.people.removeAccess
+                            : t.members.remove}
+                      </button>
+                    )}
                   </div>
                 )}
                 {(note || (editingId === member.id && validation)) && (

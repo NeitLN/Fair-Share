@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import { remember } from '../lib/knownHouseholds'
+import { currentSession, signIn, signOut } from '../lib/session'
 import { api, ApiError, KEY_HEADER } from './client'
 
 function mockFetch(response: Response | Error) {
@@ -80,39 +80,49 @@ describe('api client', () => {
   })
 })
 
-describe('the household key (#132)', () => {
-  afterEach(() => localStorage.clear())
+describe('the session (docs/ACCOUNTS.md)', () => {
+  const user = { id: 9, email: 'tien@test.local', display_name: 'Tiến' }
+  afterEach(() => signOut())
 
-  const sentKey = () => {
-    const fetchFn = vi.fn(() =>
-      Promise.resolve(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } })),
-    )
+  const sent = (status = 200) => {
+    const fetchFn = vi.fn(() => Promise.resolve(json(status, { error: { code: 'x', message: 'x' } })))
     vi.stubGlobal('fetch', fetchFn)
-    return () => new Headers((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].headers).get(KEY_HEADER)
+    return () => new Headers((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].headers)
   }
 
-  test('is sent with every request about a household this browser holds the key of', async () => {
-    remember(7, 'a'.repeat(32))
-    const key = sentKey()
-    await api.get('/api/households/7/balances')
-    expect(key()).toBe('a'.repeat(32))
-  })
-
-  test('is sent for a member, expense or settlement when the caller names the household', async () => {
-    remember(7, 'b'.repeat(32))
-    const key = sentKey()
+  test('its token goes in the Authorization header of every request', async () => {
+    signIn({ token: 'abc', user })
+    const headers = sent()
     await api.delete('/api/expenses/12', 7)
-    expect(key()).toBe('b'.repeat(32))
+    expect(headers().get('Authorization')).toBe('Bearer abc')
   })
 
-  test('is not sent for another household, nor when creating one', async () => {
-    remember(7, 'c'.repeat(32))
-    const other = sentKey()
-    await api.get('/api/households/8')
-    expect(other()).toBeNull()
-    const create = sentKey()
-    await api.post('/api/households', { name: 'Nhà' })
-    expect(create()).toBeNull()
+  test('signed out, no Authorization header is sent', async () => {
+    const headers = sent()
+    await api.post('/api/auth/login', { email: 'a@b.vn', password: 'x' })
+    expect(headers().get('Authorization')).toBeNull()
+  })
+
+  test('a 401 means the session ended: this browser signs out', async () => {
+    signIn({ token: 'old', user })
+    sent(401)
+    await expect(api.get('/api/households')).rejects.toMatchObject({ status: 401 })
+    expect(currentSession()).toBeNull()
+  })
+
+  test('a wrong password is a 401 too, but signing in again does not sign anyone out', async () => {
+    signIn({ token: 'still-good', user })
+    sent(401)
+    await expect(api.post('/api/auth/login', { email: 'a@b.vn', password: 'x' })).rejects.toMatchObject({
+      status: 401,
+    })
+    expect(currentSession()?.token).toBe('still-good')
+  })
+
+  test('the old household key is only sent where the caller gives it', async () => {
+    const headers = sent()
+    await api.get('/api/households/7/claim', undefined, { [KEY_HEADER]: 'a'.repeat(32) })
+    expect(headers().get(KEY_HEADER)).toBe('a'.repeat(32))
   })
 })
 

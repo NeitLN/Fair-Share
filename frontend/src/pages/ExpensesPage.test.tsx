@@ -8,8 +8,8 @@ import { mockApi, renderApp } from '../test/renderApp'
 beforeEach(() => {
   // The user answers "OK" to "Xoá khoản …?"
   vi.stubGlobal('confirm', vi.fn(() => true))
-  // Tiến is using this device ("Bạn là ai?"), so he is the default payer
-  localStorage.setItem('fair-share:me:7', '1')
+  // Tiến is signed in (his account has member 1), so he is the default payer
+  me = 1
 })
 
 afterEach(() => {
@@ -17,7 +17,9 @@ afterEach(() => {
   localStorage.clear()
 })
 
-const household = { id: 7, name: 'Nhà 7', created_at: '' }
+// The test account owns the household, so it may change every expense (docs/ACCOUNTS.md)
+let me: number | null = 1
+const household = { id: 7, name: 'Nhà 7', created_at: '', role: 'owner' }
 const members = [
   { id: 1, household_id: 7, name: 'Tiến', created_at: '' },
   { id: 2, household_id: 7, name: 'Minh', created_at: '' },
@@ -58,7 +60,7 @@ const electricity = saved(10, {
 function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
   let expenses = [electricity]
   return mockApi({
-    'GET /api/households/7': [200, household],
+    'GET /api/households/7': () => [200, { ...household, member_id: me }],
     'GET /api/households/7/members': [200, memberList],
     'GET /api/households/7/expenses': () => [200, expenses],
     'POST /api/households/7/expenses': (body) => {
@@ -288,7 +290,7 @@ test('you are the default payer; without an identity, whoever paid last on this 
 })
 
 test('with no identity, the last payer on this device is chosen for the next expense', async () => {
-  localStorage.removeItem('fair-share:me:7')
+  me = null
   localStorage.setItem('fair-share:last-payer:7', '1')
   api()
   const user = userEvent.setup()
@@ -305,7 +307,7 @@ test('with no identity, the last payer on this device is chosen for the next exp
 })
 
 test('with no identity and no last payer, nobody is chosen and saving asks who paid', async () => {
-  localStorage.removeItem('fair-share:me:7')
+  me = null
   const fetchFn = api()
   const user = userEvent.setup()
   renderApp('/households/7/expenses')

@@ -19,7 +19,7 @@ import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
-import { inviteLink } from '../lib/knownHouseholds'
+import { useSession } from '../lib/session'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
@@ -39,6 +39,7 @@ function Dashboard({ householdId }: { householdId: number }) {
   const t = useT()
   const queryClient = useQueryClient()
   const { me } = useMe()
+  const session = useSession()
   const toast = useToast()
 
   // The same queries as the household frame and the other tabs: served from the cache
@@ -112,8 +113,8 @@ function Dashboard({ householdId }: { householdId: number }) {
     month,
     suggested,
     nameOf,
-    // The invite link, so everyone in the group chat can open the household
-    inviteLink(householdId) ?? `${window.location.origin}/households/${householdId}`,
+    // The household's page: everyone in the group chat is a member and opens it signed in
+    `${window.location.origin}/households/${householdId}`,
   )
 
   return (
@@ -148,6 +149,7 @@ function Dashboard({ householdId }: { householdId: number }) {
         error={paid.error}
         reminder={reminder}
         onCopied={() => toast({ text: t.dashboard.reminderCopied })}
+        onlyReceiver
       />
 
       <Link to="expenses" className="btn-primary cta">
@@ -171,7 +173,7 @@ function Dashboard({ householdId }: { householdId: number }) {
 
       <section aria-labelledby="settlements-title">
         <h2 id="settlements-title">{t.dashboard.historyTitle}</h2>
-        {memberList.length >= 2 && (
+        {memberList.length >= 2 && me !== null && (
           <details className="fold other-payment" onKeyDown={closeFoldOnEscape}>
             <summary>{t.dashboard.otherPayment}</summary>
             <p className="hint">{t.dashboard.otherPaymentHint}</p>
@@ -180,6 +182,7 @@ function Dashboard({ householdId }: { householdId: number }) {
               onSubmit={record.mutateAsync}
               submitting={record.isPending}
               error={errorMessage(record.error)}
+              receiver={me}
             />
           </details>
         )}
@@ -192,6 +195,9 @@ function Dashboard({ householdId }: { householdId: number }) {
           retrying={settlements.isFetching}
           onDelete={(settlement) => remove.mutate(settlement)}
           deletingId={remove.isPending ? remove.variables?.id : null}
+          canDelete={(settlement) =>
+            household.data?.role === 'owner' || settlement.created_by === session?.user.id
+          }
         />
       </section>
     </>

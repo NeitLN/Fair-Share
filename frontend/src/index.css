@@ -421,7 +421,7 @@ main {
   font-size: 14px;
 }
 
-:where(input:not([type]), input[type='text'], input[type='date'], input[type='number'], select, textarea) {
+:where(input:not([type]), input[type='text'], input[type='email'], input[type='password'], input[type='date'], input[type='number'], select, textarea) {
   flex: 1 1 12rem;
   min-width: 0;
   min-height: 48px;
@@ -434,7 +434,7 @@ main {
   border-radius: var(--radius-control);
 }
 
-:where(input:not([type]), input[type='text'], input[type='date'], select, textarea):hover {
+:where(input:not([type]), input[type='text'], input[type='email'], input[type='password'], input[type='date'], select, textarea):hover {
   border-color: var(--muted);
 }
 
@@ -1493,4 +1493,138 @@ button.ai:active:focus-visible {
   margin: 0 -14px;
   padding-inline: 14px;
   background: var(--surface-2);
+}
+
+/* ---------------------------------------------------------------- accounts (docs/ACCOUNTS.md) */
+
+.auth {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.auth form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth .field {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-tabs {
+  justify-self: start;
+}
+
+/* The account's initial in the header, opening to its name, email and Đăng xuất */
+.account-menu {
+  position: relative;
+}
+
+.account-menu > summary {
+  display: grid;
+  place-items: center;
+  width: var(--target);
+  height: var(--target);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+  list-style: none;
+}
+
+.account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-initial {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+}
+
+.account-panel {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  width: min(260px, calc(100vw - 32px));
+  margin-top: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.account-panel p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The invite code, big enough to read out loud */
+.invite-code {
+  margin: 6px 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.join-requests {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.join-requests select {
+  min-height: var(--target);
+  max-width: 100%;
+}
+
+.join-form {
+  display: grid;
+  gap: 6px;
+}
+
+.join-form input {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.household-row.pending-row {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.household-row.pending-row:hover {
+  box-shadow: none;
+}
+
+.transfer-waiting {
+  color: var(--muted);
+  text-align: right;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target);
 }
