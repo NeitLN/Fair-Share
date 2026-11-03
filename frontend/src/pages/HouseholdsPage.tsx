@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
 import { cancelRequest, createHousehold, keys, listMyHouseholds } from '../api/households'
@@ -48,6 +48,15 @@ function HouseholdsPage() {
   const none = mine.isSuccess && mine.data.households.length === 0 && pending.length === 0
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(linkCode !== '')
+  // Sent a request just now: the forms fold and focus goes to the wait once it shows
+  const pendingTitle = useRef<HTMLHeadingElement>(null)
+  const requested = useRef(false)
+  useEffect(() => {
+    if (requested.current && pending.length > 0) {
+      requested.current = false
+      pendingTitle.current?.focus()
+    }
+  }, [pending.length])
   // "Bạn chưa ở nhà nào" above a request that is waiting read like a refusal
   const showList = mine.isSuccess && (mine.data.households.length > 0 || pending.length === 0)
 
@@ -62,7 +71,9 @@ function HouseholdsPage() {
 
       {pending.length > 0 && (
         <section aria-labelledby="pending-title" className="pending">
-          <h2 id="pending-title">{t.pending.title}</h2>
+          <h2 id="pending-title" ref={pendingTitle} tabIndex={-1}>
+            {t.pending.title}
+          </h2>
           <ul className="household-list">
             {pending.map((request) => (
               <li key={request.household_id}>
@@ -96,7 +107,14 @@ function HouseholdsPage() {
         }}
       >
         <summary className="btn-secondary">{t.join.open}</summary>
-        <JoinForm initialCode={linkCode} />
+        <JoinForm
+          initialCode={linkCode}
+          onRequested={() => {
+            setJoining(false)
+            setCreating(false)
+            requested.current = true
+          }}
+        />
       </details>
       <details
         className="fold create-household"

@@ -60,7 +60,7 @@ to use.
 | M3 | Names are only added by approving someone. A name from before accounts stays in the expenses it is in, but a new expense is only split between people with an account | `test_a_new_expense_is_only_…` |
 | S1 | Expenses and repayments remember who recorded them (`created_by`); older ones belong to the owner | `test_a_member_adds_expenses_…` |
 | S2 | A repayment is recorded by the person who received it | `test_only_the_person_who_received_…` |
-| S3 | The person who owes can tell the receiver "Tôi đã chuyển" with the amount suggested then. It changes no balance; everyone in the household sees it. The receiver's "Đã nhận" records that amount and removes the notice; "Chưa nhận được" marks it declined until the payer tells again; the payer can take it back. One notice per pair (added 03/11 after the UI review) | `test_notices.py` |
+| S3 | The person who owes can tell the receiver "Tôi đã chuyển" with the amount suggested then; the server checks it is a transfer suggested right now, for that amount (else 409 `suggestion_changed`). It changes no balance; everyone in the household sees it. The receiver's "Đã nhận" records that amount and removes the notice in one transaction, once however often it is pressed; "Chưa nhận được" marks it declined until the payer tells again; the payer can take it back. Both answers name the amount the receiver saw, so one from an old screen never touches a notice told again (409 `notice_changed`). A repayment typed in by hand removes the notice only if it is the told amount. A notice whose pair is no longer suggested keeps its own card until it is answered or taken back. One notice per pair (added 03/11 after the UI review) | `test_notices.py` |
 | L1 | The old key shows an ownerless household to take over; with an owner it answers "ask for an invite code"; a wrong key is a 404 | `test_the_first_signed_in_person_…` |
 
 ## API
@@ -81,7 +81,8 @@ to use.
 | `POST /api/households/{id}/leave` | |
 | `GET`, `PUT /api/households/{id}/notices` `{to_member_id, amount}` | the household's "Tôi đã chuyển" notices; tell someone (S3) |
 | `DELETE /api/households/{id}/notices/{to_member}` | take your own notice back |
-| `POST /api/households/{id}/notices/{from_member}/decline` | "Chưa nhận được" (the receiver) |
+| `POST /api/households/{id}/notices/{from_member}/accept` `{amount, settled_at}` | "Đã nhận" on a notice (the receiver): records it, 201 with the settlement |
+| `POST /api/households/{id}/notices/{from_member}/decline` `{amount}` | "Chưa nhận được" (the receiver) |
 | `GET`, `POST /api/households/{id}/claim` with `X-Household-Key` | take over a household from before accounts |
 
 ## Data
@@ -89,7 +90,8 @@ to use.
 `db/migrations/003_accounts.sql` adds `users`, `sessions`, `household_users` (role and linked
 name), `invite_codes` and `rate_limits`, and `created_by` on expenses and settlements. 001 and 002
 are unchanged; `households.access_key` stays only for L1. `004_payment_notices.sql` adds
-`payment_notices` (S3): one row per pair, removed with either name or when the repayment is recorded.
+`payment_notices` (S3): one row per pair, removed with either name, when it is answered "Đã nhận", or when
+the told amount is recorded by hand.
 
 ## Limits we accept
 

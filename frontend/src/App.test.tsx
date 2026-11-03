@@ -74,6 +74,7 @@ describe('accounts (docs/ACCOUNTS.md)', () => {
     mockApi({})
     renderApp('/join/K7QM2XRT', { signedOut: true })
     expect(await screen.findByText(/Bạn được mời vào một nhà/)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1, name: 'Vào nhà bạn được mời' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tạo tài khoản', pressed: true })).toBeInTheDocument()
     // Language and theme sit under the form while signed out
     expect(screen.getByRole('group', { name: 'Giao diện' })).toBeInTheDocument()

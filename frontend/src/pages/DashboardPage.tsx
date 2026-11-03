@@ -1,5 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+
+import { ApiError } from '../api/client'
 import { Link, useParams } from 'react-router'
 
 import { expenseKeys, listExpenses } from '../api/expenses'
@@ -74,7 +76,8 @@ function Dashboard({ householdId }: { householdId: number }) {
     queryFn: () => listExpenses(householdId),
   })
 
-  // "Tôi đã chuyển" (docs/ACCOUNTS.md, S3). Without them the cards still work, as before notices.
+  // "Tôi đã chuyển" (docs/ACCOUNTS.md, S3). Until they load, nothing that depends on them is pressed:
+  // Đã nhận must record the told amount, and nobody tells twice
   const notices = useQuery({
     queryKey: settlementKeys.notices(householdId),
     queryFn: () => listNotices(householdId),
@@ -83,18 +86,33 @@ function Dashboard({ householdId }: { householdId: number }) {
   // A settlement changes the balances: refetch everything cached under this household
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
   const refreshNotices = () => queryClient.invalidateQueries({ queryKey: settlementKeys.notices(householdId) })
+  // Declining carries the told amount: one told again since is left alone (409 notice_changed)
   type NoticeAction = { kind: 'send' | 'cancel' | 'decline'; transfer: Transfer }
+  const noticeKey = ['notice', householdId]
   const notice = useMutation({
+    mutationKey: noticeKey,
     mutationFn: ({ kind, transfer }: NoticeAction): Promise<unknown> =>
       kind === 'send'
         ? sendNotice(householdId, transfer.to_member_id, transfer.amount)
         : kind === 'cancel'
           ? cancelNotice(householdId, transfer.to_member_id)
-          : declineNotice(householdId, transfer.from_member_id),
+          : declineNotice(householdId, transfer.from_member_id, transfer.amount),
     onSuccess: (_result, { kind, transfer }) => {
       if (kind === 'send') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
       if (kind === 'decline') toast({ text: t.verdict.declined(nameOf(transfer.from_member_id)) })
       return refreshNotices()
+    },
+    // The balances or the notice changed since the page loaded: show what is true now
+    onError: (failure) => {
+      if (failure instanceof ApiError && failure.status === 409) void refresh()
+    },
+  })
+  // Every pair with a notice press on its way, not only the latest one
+  const noticeBusy = useMutationState({
+    filters: { mutationKey: noticeKey, status: 'pending' },
+    select: (mutation) => {
+      const { transfer } = mutation.state.variables as NoticeAction
+      return `${transfer.from_member_id}-${transfer.to_member_id}`
     },
   })
   const record = useMutation({
@@ -149,6 +167,11 @@ function Dashboard({ householdId }: { householdId: number }) {
     nameOf,
     // The household's page: everyone in the group chat is a member and opens it signed in
     `${window.location.origin}/households/${householdId}`,
+    new Set(
+      (notices.data ?? [])
+        .filter((n) => n.status === 'sent')
+        .map((n) => `${n.from_member_id}-${n.to_member_id}`),
+    ),
   )
 
   return (
@@ -184,13 +207,13 @@ function Dashboard({ householdId }: { householdId: number }) {
         reminder={reminder}
         onCopied={() => toast({ text: t.dashboard.reminderCopied })}
         onlyReceiver
-        notices={notices.data ?? []}
+        notices={notices.data}
+        noticesError={notices.data ? null : errorMessage(notices.error)}
+        onRetryNotices={() => notices.refetch()}
         onNotify={(transfer) => notice.mutate({ kind: 'send', transfer })}
         onCancelNotice={(transfer) => notice.mutate({ kind: 'cancel', transfer })}
         onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
-        noticeBusy={
-          notice.isPending ? `${notice.variables.transfer.from_member_id}-${notice.variables.transfer.to_member_id}` : null
-        }
+        noticeBusy={noticeBusy}
       />
 
       <Link to="expenses" className="btn-primary cta">

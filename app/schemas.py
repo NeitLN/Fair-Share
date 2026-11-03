@@ -341,6 +341,19 @@ class NoticeIn(BaseModel):
     amount: Amount
 
 
+class NoticeAnswer(BaseModel):
+    """Body of the receiver's "Chưa nhận được": the amount they were shown. A notice told again
+    with another amount since then is not the one they answered."""
+
+    amount: Amount
+
+
+class NoticeAccept(NoticeAnswer):
+    """Body of the receiver's "Đã nhận" on a notice: that amount arrived on `settled_at`."""
+
+    settled_at: Day
+
+
 class Notice(BaseModel):
     from_member_id: int
     to_member_id: int

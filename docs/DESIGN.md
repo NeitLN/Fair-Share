@@ -194,9 +194,14 @@ Lịch sử trả                      Ghi khoản trả khác
   "Đã ghi: Bạn trả Minh 120.000đ · Hoàn tác" (*Hoàn tác* deletes that settlement).
 * **Since accounts** the button is **Đã nhận**, on the receiver's card only (ACCOUNTS.md S2). The person
   who owes gets **Tôi đã chuyển** (S3), which tells the receiver and changes no balance; their card then
-  says "Đã báo Minh, chờ xác nhận" with *Huỷ báo*. The receiver sees "Tiến báo đã chuyển 120.000đ" and
-  *Chưa nhận được* under the text; anyone else sees "Chưa trả" or who is waiting for whom. A card never
-  says a payment is waiting for confirmation before anyone said it was sent (UI review, 03/11).
+  says "Đã báo Minh là đã chuyển 120.000đ, chờ xác nhận" with *Huỷ báo*. The receiver sees "Tiến báo đã
+  chuyển 120.000đ" and *Chưa nhận được* under the text; *Đã nhận* records that told amount, and the line
+  says so when it is not today's suggestion. Anyone else sees "Chưa trả" or who is waiting for whom. A
+  card never says a payment is waiting for confirmation before anyone said it was sent (UI review, 03/11).
+  A notice whose transfer is no longer suggested keeps a card of its own ("Số dư đã đổi sau lần báo
+  này"), and the reminder adds "(đã báo chuyển, chờ Minh xác nhận)" to a told line. Until the notices
+  load, Đã nhận and Tôi đã chuyển cannot be pressed. In English the card's button takes its own row
+  under 480 px.
 * **Sao chép tin nhắn nhắc nợ** copies plain text for the household's Zalo group (below); on failure the
   text is shown selectable instead. No bank account, QR or payment of any kind (PROJECT_SPEC §3.3).
   ```

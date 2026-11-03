@@ -52,6 +52,14 @@ describe('SettlementForm', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('hai người khác nhau')
   })
 
+  test('an empty amount says what to enter', async () => {
+    const { user, onSubmit } = setup()
+    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Nhập số tiền.')
+  })
+
   test('an amount that is not a number is refused', async () => {
     const { user, onSubmit } = setup()
     await user.type(screen.getByLabelText('Số tiền (đồng)'), 'một trăm')

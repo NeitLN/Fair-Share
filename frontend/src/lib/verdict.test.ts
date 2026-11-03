@@ -69,6 +69,13 @@ test('the reminder names everyone and links to the household', () => {
   )
 })
 
+test('the reminder does not ask for money someone already said they sent', () => {
+  const told = new Set(['3-2'])
+  expect(
+    reminderMessage('Nhà trọ Q7', 10, [t(1, 2, 120_000), t(3, 2, 80_000)], nameOf, 'https://x.test/households/1', told),
+  ).toContain('• Anh trả Minh 80.000đ (đã báo chuyển, chờ Minh xác nhận)')
+})
+
 test('only this month counts towards what the household spent', () => {
   const e = (spent_at: string, amount: number) => ({ spent_at, amount }) as Expense
   expect(spentInMonth([e('2026-10-01', 100), e('2026-10-31', 50), e('2026-09-30', 7), e('2025-10-10', 9)], '2026-10-21')).toBe(150)

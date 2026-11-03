@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import type { Messages } from './vi'
 
 /** "1 person", "3 people": English counts need the right noun. */
@@ -54,6 +56,8 @@ const en: Messages = {
     unknown_member: "Someone isn't in this group. Reload the page and try again.",
     duplicate_member: 'One person was picked twice in the split.',
     same_member: "Someone can't repay themselves.",
+    notice_changed: 'This notice just changed or was answered. The page is up to date now; have another look.',
+    suggestion_changed: 'The suggested amount just changed. The page is up to date now; check it and tell them again.',
     database_unavailable: "We can't load your data right now. Try again in a few minutes.",
     database_not_configured: "The server's database is not set up.",
     database_not_initialized: "The database isn't ready yet. Try again in a few minutes.",
@@ -158,8 +162,9 @@ const en: Messages = {
     signInTab: 'Sign in',
     registerTab: 'Create account',
     title: 'Sign in to see your groups',
+    invitedTitle: "Join the group you're invited to",
     intro: 'Share expenses with your housemates and see who owes who. Your groups follow your account, on any device.',
-    invited: 'You were invited to a group. Create an account (or sign in if you have one) and your request to join is sent; you are in once the owner approves it.',
+    invited: 'You were invited to a group. Create an account (or sign in if you have one), then send your request to join; you are in once the owner approves it.',
     email: 'Email',
     password: 'Password',
     passwordHint: 'At least 8 characters.',
@@ -292,7 +297,14 @@ const en: Messages = {
     notify: "I've sent it",
     notifying: 'Telling them…',
     notifyHint: (to: string) => `Once you've sent it, tap to tell ${to}; they confirm.`,
-    toldWaiting: (to: string) => `You told ${to}. Waiting for them to confirm.`,
+    toldWaiting: (to: string, amount: ReactNode) => (
+      <>
+        You told {to} you sent {amount}. Waiting for them to confirm.
+      </>
+    ),
+    amountDiffers: "Not today's suggestion. Received records the amount they told you.",
+    outdated: 'The balances changed after this was told.',
+    noticesFailed: "Couldn't load the “I've sent it” notices.",
     cancelNotice: 'Take back',
     declinedBy: (to: string) => `${to} says it hasn't arrived. Check, then tell them again.`,
     toldMe: (from: string) => `${from} says they sent`,
@@ -301,6 +313,7 @@ const en: Messages = {
     toldOthers: (from: string, to: string) => `${from} says it's sent. Waiting for ${to} to confirm.`,
     notified: (to: string) => `Told ${to}.`,
     declined: (from: string) => `Told ${from} it hasn't arrived.`,
+    youDeclined: (from: string) => `You told ${from} it hasn't arrived.`,
     copyReminder: 'Copy reminder message',
     allSquare: "Everyone's settled up. Peace at home.",
     nothingYet: 'No expenses yet. Add the first one to see who owes who.',
@@ -316,6 +329,7 @@ const en: Messages = {
     paidTo: (from: string, to: string) => `${from} paid ${to}`,
     reminderHead: (group: string, month: number) => `${group} — ${MONTHS[month - 1] ?? month} repayments:`,
     reminderLine: (from: string, to: string, amount: string) => `• ${from} owes ${to} ${amount}`,
+    reminderTold: (to: string) => ` (says it's sent, waiting for ${to} to confirm)`,
     reminderLink: (link: string) => `Details: ${link}`,
   },
   paid: {

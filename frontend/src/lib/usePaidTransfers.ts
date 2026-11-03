@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '../api/client'
 import { keys } from '../api/households'
-import { balancesFetchCount, createSettlement, deleteSettlement } from '../api/settlements'
+import { acceptNotice, balancesFetchCount, createSettlement, deleteSettlement } from '../api/settlements'
 import type { Balances, Transfer } from '../api/types'
 import { messages } from '../i18n'
 import { today } from './date'
@@ -109,8 +109,12 @@ export function usePaidTransfers(
     )
   }
 
-  /** Records `transfer`; returns the new card's payment id (null when this pair is already being recorded). */
-  function pay(transfer: Transfer): number | null {
+  /**
+   * Records `transfer`; returns the new card's payment id (null when this pair is already being recorded).
+   * `told`: the receiver's "Đã nhận" on a "Tôi đã chuyển" for exactly this amount, which records it and
+   * answers the notice in one go, once however many times it is pressed (docs/ACCOUNTS.md, S3).
+   */
+  function pay(transfer: Transfer, told = false): number | null {
     const pair = pairKey(transfer)
     if (recording.current.has(pair)) return null
     recording.current.add(pair)
@@ -132,13 +136,15 @@ export function usePaidTransfers(
     setLayout((current) =>
       arrange(current, shown.map((c) => c.key)).map((key) => (key === `open-${pair}` ? `pay-${id}` : key)),
     )
-    void record(id, transfer, pair)
+    void record(id, transfer, pair, told)
     return id
   }
 
-  async function record(id: number, transfer: Transfer, pair: string) {
+  async function record(id: number, transfer: Transfer, pair: string, told: boolean) {
     try {
-      const settlement = await createSettlement(householdId, { ...transfer, settled_at: today() })
+      const settlement = told
+        ? await acceptNotice(householdId, transfer.from_member_id, transfer.amount, today())
+        : await createSettlement(householdId, { ...transfer, settled_at: today() })
       if (deletedSettlements.current.has(settlement.id)) {
         // Deleted from Lịch sử trả before this answer arrived: nothing to stamp or undo
         change(id, null)
@@ -153,6 +159,8 @@ export function usePaidTransfers(
     } catch (failure) {
       change(id, null)
       if (alive.current) setError(errorMessage(failure))
+      // Taken back or told again since: what is on screen is old
+      if (failure instanceof ApiError && failure.code === 'notice_changed') void refresh()
     } finally {
       recording.current.delete(pair)
     }

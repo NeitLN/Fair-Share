@@ -165,6 +165,15 @@ test('approving someone onto a name nobody has keeps that name and its history',
   expect(JSON.parse(approve?.[1]?.body as string)).toEqual({ member_id: 3 })
 })
 
+test('with no name left to take over, there is no menu: just the name they join under', async () => {
+  api(asOwner, { 'GET /api/households/7/members': [200, [minh, tien]] })
+  renderApp('/households/7/members')
+
+  const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
+  expect(await within(asking).findByLabelText('Vào nhà với tên')).toHaveValue('Lan')
+  expect(within(asking).queryByRole('combobox')).not.toBeInTheDocument()
+})
+
 test('declining a request', async () => {
   api()
   const user = userEvent.setup()

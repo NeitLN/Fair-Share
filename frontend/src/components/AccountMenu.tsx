@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { logout } from '../api/households'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -20,6 +20,21 @@ function AccountMenu() {
   const session = useSession()
   const queryClient = useQueryClient()
   const [leaving, setLeaving] = useState(false)
+  const menu = useRef<HTMLDetailsElement>(null)
+  // It covers part of the page, so it closes like a menu: a tap outside, or the keyboard leaving it
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const outside = (event: Event) => {
+      if (menu.current && !menu.current.contains(event.target as Node)) menu.current.open = false
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('focusin', outside)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('focusin', outside)
+    }
+  }, [open])
   if (!session) return null
   const { display_name: name, email } = session.user
 
@@ -35,7 +50,12 @@ function AccountMenu() {
   }
 
   return (
-    <details className="account-menu" onKeyDown={closeFoldOnEscape}>
+    <details
+      ref={menu}
+      className="account-menu"
+      onKeyDown={closeFoldOnEscape}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       <summary aria-label={t.account.menu(name)}>
         <span className="account-initial" aria-hidden="true">
           {name.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}

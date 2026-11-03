@@ -12,7 +12,8 @@ from app.access import AccessDep, HouseholdAccess, require_owner_or_author, sett
 from app.auth import forbidden
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
-from app.schemas import Id, Notice, NoticeIn, Settlement, SettlementIn
+from app.routers.balances import compute
+from app.schemas import Id, Notice, NoticeAccept, NoticeAnswer, NoticeIn, Settlement, SettlementIn
 
 # A session and an approved member are required, also for /settlements/{id} through its household
 # (app/access.py)
@@ -64,11 +65,12 @@ def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, c
         )
     except errors.ForeignKeyViolation:  # a member was removed while this request ran
         raise unknown_member() from None
-    # The money arrived: a "Tôi đã chuyển" about it has been answered
+    # The told amount, recorded by hand ("Ghi khoản trả khác"): that notice has been answered. Any
+    # other repayment between the two leaves it for the receiver to answer
     conn.execute(
-        "DELETE FROM payment_notices"
-        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s",
-        (household_id, body.from_member_id, body.to_member_id),
+        "DELETE FROM payment_notices WHERE household_id = %s AND from_member_id = %s"
+        " AND to_member_id = %s AND status = 'sent' AND amount = %s",
+        (household_id, body.from_member_id, body.to_member_id, body.amount),
     )
     return settlement
 
@@ -78,8 +80,9 @@ def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, c
 NOTICE_COLUMNS = "from_member_id, to_member_id, amount, status, created_at"
 
 
-def notice_not_found() -> ApiError:
-    return ApiError(404, "notice_not_found", "There is no such notice")
+def notice_changed() -> ApiError:
+    message = "This notice was taken back, answered or told again with another amount"
+    return ApiError(409, "notice_changed", message)
 
 
 @router.get("/households/{household_id}/notices", response_model=list[Notice])
@@ -95,9 +98,19 @@ def list_notices(household_id: Id, conn: ConnDep):
 @router.put("/households/{household_id}/notices", response_model=Notice)
 def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnDep):
     """The signed-in member tells `to` they sent the money. It changes no balance: `to` records the
-    repayment (S2). Telling again, after a "Chưa nhận được" too, replaces the notice."""
+    repayment (S2). Telling again, after a "Chưa nhận được" too, replaces the notice.
+
+    Only a transfer suggested right now can be told, for its exact amount: the one who owes tells
+    the one they owe. Balances that changed since the page loaded give suggestion_changed, and the
+    page shows the new suggestion before anyone tells again."""
     if body.to_member_id == access.member_id:
         raise ApiError(422, "same_member", "A member cannot pay themselves")
+    balances, transfers = compute(conn, household_id)
+    if body.to_member_id not in {row["member_id"] for row in balances}:
+        raise unknown_member()
+    if (access.member_id, body.to_member_id, body.amount) not in transfers:
+        message = "This transfer is not suggested any more; reload the balances"
+        raise ApiError(409, "suggestion_changed", message)
     try:
         return fetch_one(
             conn,
@@ -110,13 +123,14 @@ def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnD
             f" RETURNING {NOTICE_COLUMNS}",
             (household_id, access.member_id, body.to_member_id, body.amount, access.user_id),
         )
-    except errors.ForeignKeyViolation:  # not a name in this household, or removed meanwhile
+    except errors.ForeignKeyViolation:  # removed while this request ran
         raise unknown_member() from None
 
 
 @router.delete("/households/{household_id}/notices/{to_member}", status_code=204)
 def cancel_notice(household_id: Id, to_member: Id, access: AccessDep, conn: ConnDep):
-    """The payer takes their own notice back (pressed by mistake). Nobody else can."""
+    """The payer takes their own notice back (pressed by mistake, or after "Chưa nhận được").
+    Nobody else can."""
     conn.execute(
         "DELETE FROM payment_notices"
         " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s",
@@ -125,20 +139,56 @@ def cancel_notice(household_id: Id, to_member: Id, access: AccessDep, conn: Conn
 
 
 @router.post(
+    "/households/{household_id}/notices/{from_member}/accept",
+    response_model=Settlement,
+    status_code=201,
+)
+def accept_notice(
+    household_id: Id, from_member: Id, body: NoticeAccept, access: AccessDep, conn: ConnDep
+):
+    """The receiver's "Đã nhận" on a notice: records the told amount and answers the notice, in one
+    transaction. The notice row is taken first, so a second "Đã nhận" (another tab, a retry after
+    a lost answer) finds nothing and records nothing; so does one for an amount told differently
+    since."""
+    taken = fetch_one(
+        conn,
+        "DELETE FROM payment_notices"
+        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s"
+        " AND status = 'sent' AND amount = %s RETURNING amount",
+        (household_id, from_member, access.member_id, body.amount),
+    )
+    if taken is None:
+        raise notice_changed()
+    try:
+        return fetch_one(
+            conn,
+            "INSERT INTO settlements"
+            " (household_id, from_member_id, to_member_id, amount, settled_at, created_by)"
+            f" VALUES (%s, %s, %s, %s, %s, %s) RETURNING {SETTLEMENT_COLUMNS}",
+            (household_id, from_member, access.member_id, taken["amount"], body.settled_at,
+             access.user_id),
+        )
+    except errors.ForeignKeyViolation:  # a member was removed while this request ran
+        raise unknown_member() from None
+
+
+@router.post(
     "/households/{household_id}/notices/{from_member}/decline", response_model=Notice
 )
-def decline_notice(household_id: Id, from_member: Id, access: AccessDep, conn: ConnDep):
-    """The receiver's "Chưa nhận được". The payer's card shows it until they tell again or the
-    repayment is recorded."""
+def decline_notice(
+    household_id: Id, from_member: Id, body: NoticeAnswer, access: AccessDep, conn: ConnDep
+):
+    """The receiver's "Chưa nhận được" on the amount they were shown. The payer's card shows it
+    until they tell again, take it back, or the repayment is recorded."""
     row = fetch_one(
         conn,
         "UPDATE payment_notices SET status = 'declined'"
         " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s"
-        f" AND status = 'sent' RETURNING {NOTICE_COLUMNS}",
-        (household_id, from_member, access.member_id),
+        f" AND status = 'sent' AND amount = %s RETURNING {NOTICE_COLUMNS}",
+        (household_id, from_member, access.member_id, body.amount),
     )
     if row is None:
-        raise notice_not_found()
+        raise notice_changed()
     return row
 
 

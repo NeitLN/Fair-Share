@@ -15,7 +15,14 @@ const CODE_CHARS = /[^0-9a-z]/gi
  * from a `/join/CODE` link. Joining waits for the owner, so the answer is usually "request sent"; a
  * member who uses the code again goes straight to the group.
  */
-function JoinForm({ initialCode = '' }: { initialCode?: string }) {
+function JoinForm({
+  initialCode = '',
+  onRequested,
+}: {
+  initialCode?: string
+  /** The request was sent and now waits for the owner. */
+  onRequested?: () => void
+}) {
   const t = useT()
   const toast = useToast()
   const navigate = useNavigate()
@@ -33,6 +40,7 @@ function JoinForm({ initialCode = '' }: { initialCode?: string }) {
       } else {
         setCode('')
         toast({ text: t.join.sent })
+        onRequested?.()
       }
     },
   })

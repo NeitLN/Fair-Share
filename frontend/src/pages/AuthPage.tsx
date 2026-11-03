@@ -71,7 +71,7 @@ function AuthPage() {
 
   return (
     <section className="auth" aria-labelledby="auth-title">
-      <h1 id="auth-title">{t.auth.title}</h1>
+      <h1 id="auth-title">{invited ? t.auth.invitedTitle : t.auth.title}</h1>
       {invited ? (
         <p className="note ok">{t.auth.invited}</p>
       ) : (

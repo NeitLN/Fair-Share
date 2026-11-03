@@ -38,6 +38,8 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null 
   function problem(): string | null {
     if (fromId === '' || toId === '') return t.settlements.pickBoth
     if (fromId === toId) return t.settlements.samePerson
+    // Like the expense form: an empty box says what to enter, not the rules
+    if (!amountText.trim()) return t.form.amountEmpty
     if (amount === null || amount <= 0) return t.settlements.badAmount
     if (!settledAt) return t.form.dateMissing
     if (!isDayInRange(settledAt)) return t.form.dateRange

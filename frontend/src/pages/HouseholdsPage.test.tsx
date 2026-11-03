@@ -82,6 +82,30 @@ test('a code asks to join and waits for the owner; the request shows without the
   const waiting = await screen.findByRole('region', { name: 'Đang chờ duyệt' })
   expect(within(waiting).getByText(/đang chờ trưởng nhóm duyệt/)).toBeInTheDocument()
   expect(listCalls(fetchFn).length).toBeGreaterThan(1)
+  // Done what they came for: the forms fold and the keyboard is taken to the wait
+  expect(within(waiting).getByRole('heading', { name: 'Đang chờ duyệt' })).toHaveFocus()
+  expect(screen.getByText('Nhập mã mời').closest('details')).not.toHaveAttribute('open')
+  expect(screen.getByText('+ Tạo nhà mới').closest('details')).not.toHaveAttribute('open')
+})
+
+test('from an invite link too, sending the request folds the form that opened with the code', async () => {
+  let asked = false
+  mockApi({
+    'GET /api/households': () =>
+      asked ? mine([nha9], [{ household_id: 7, requested_at: '2026-11-02T08:00:00Z' }]) : mine([nha9]),
+    'POST /api/join': () => {
+      asked = true
+      return [200, { status: 'pending', household_id: null }]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/join/K7QM2XRT')
+
+  expect(await screen.findByLabelText('Mã mời')).toHaveValue('K7QM2XRT')
+  await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu vào nhà' }))
+
+  expect(await screen.findByRole('heading', { name: 'Đang chờ duyệt' })).toHaveFocus()
+  expect(screen.getByText('Nhập mã mời').closest('details')).not.toHaveAttribute('open')
 })
 
 test('while a request waits, the page is about the wait: no "no groups yet", both forms folded', async () => {

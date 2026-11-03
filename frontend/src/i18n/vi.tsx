@@ -45,6 +45,8 @@ const vi = {
     unknown_member: 'Có người không thuộc nhà này. Hãy tải lại trang rồi thử lại.',
     duplicate_member: 'Một người bị chọn hai lần trong phần chia.',
     same_member: 'Một người không thể tự trả cho chính mình.',
+    notice_changed: 'Lời báo này vừa đổi hoặc đã được trả lời. Trang đã cập nhật, bạn xem lại nhé.',
+    suggestion_changed: 'Số tiền gợi ý vừa đổi. Trang đã cập nhật, bạn xem lại rồi báo lại nhé.',
     database_unavailable: 'Máy chủ tạm thời không kết nối được dữ liệu. Thử lại sau ít phút.',
     database_not_configured: 'Máy chủ chưa được cấu hình cơ sở dữ liệu.',
     database_not_initialized: 'Cơ sở dữ liệu chưa sẵn sàng. Thử lại sau ít phút.',
@@ -149,8 +151,9 @@ const vi = {
     signInTab: 'Đăng nhập',
     registerTab: 'Tạo tài khoản',
     title: 'Đăng nhập để vào nhà của bạn',
+    invitedTitle: 'Vào nhà bạn được mời',
     intro: 'Ghi chi tiêu chung với bạn cùng phòng, xem ai cần trả ai. Nhà của bạn đi theo tài khoản, mở trên máy nào cũng thấy.',
-    invited: 'Bạn được mời vào một nhà. Tạo tài khoản (hoặc đăng nhập nếu đã có) để gửi yêu cầu vào nhà; trưởng nhóm duyệt xong là bạn vào được.',
+    invited: 'Bạn được mời vào một nhà. Tạo tài khoản (hoặc đăng nhập nếu đã có), rồi gửi yêu cầu vào nhà; trưởng nhóm duyệt xong là bạn vào được.',
     email: 'Email',
     password: 'Mật khẩu',
     passwordHint: 'Ít nhất 8 ký tự.',
@@ -287,7 +290,14 @@ const vi = {
     notify: 'Tôi đã chuyển',
     notifying: 'Đang báo…',
     notifyHint: (to: string) => `Chuyển cho ${to} xong thì bấm để báo, ${to} sẽ xác nhận.`,
-    toldWaiting: (to: string) => `Đã báo ${to}, chờ xác nhận.`,
+    toldWaiting: (to: string, amount: ReactNode) => (
+      <>
+        Đã báo {to} là đã chuyển {amount}, chờ xác nhận.
+      </>
+    ),
+    amountDiffers: 'Khác số gợi ý hiện tại. Bấm Đã nhận sẽ ghi đúng số đã báo.',
+    outdated: 'Số dư đã đổi sau lần báo này.',
+    noticesFailed: 'Chưa tải được các lần báo “Tôi đã chuyển”.',
     cancelNotice: 'Huỷ báo',
     declinedBy: (to: string) => `${to} báo chưa nhận được tiền. Kiểm tra lại rồi báo lại.`,
     toldMe: (from: string) => `${from} báo đã chuyển`,
@@ -296,6 +306,7 @@ const vi = {
     toldOthers: (from: string, to: string) => `${from} đã báo chuyển, chờ ${to} xác nhận.`,
     notified: (to: string) => `Đã báo ${to}.`,
     declined: (from: string) => `Đã báo ${from} là chưa nhận được.`,
+    youDeclined: (from: string) => `Bạn đã báo ${from} là chưa nhận được.`,
     copyReminder: 'Sao chép tin nhắn nhắc nợ',
     allSquare: 'Cả nhà sạch nợ. Nhà trọ bình yên.',
     nothingYet: 'Chưa có khoản chi nào. Ghi khoản đầu tiên để xem ai trả ai.',
@@ -311,6 +322,7 @@ const vi = {
     paidTo: (from: string, to: string, _fromIsYou: boolean) => `${from} trả ${to}`,
     reminderHead: (household: string, month: number) => `${household} chốt sổ tháng ${month} nè:`,
     reminderLine: (from: string, to: string, amount: string) => `• ${from} trả ${to} ${amount}`,
+    reminderTold: (to: string) => ` (đã báo chuyển, chờ ${to} xác nhận)`,
     reminderLink: (link: string) => `Xem chi tiết: ${link}`,
   },
   paid: {

@@ -1087,6 +1087,15 @@ button.ai:active:focus-visible {
   padding: 0 14px;
 }
 
+/* "Mark as received" and "I've sent it" are twice "Đã nhận": on a phone they take their own row on the
+   right, so the names and the amount keep the width */
+@media (max-width: 480px) {
+  :lang(en) .transfer-card > .btn-primary {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+}
+
 /* Recorded: the card turns surface-2 (never faded) and gets the stamp, slapped on once */
 .transfer-card.paid {
   background: var(--surface-2);
@@ -1584,6 +1593,9 @@ button.ai:active:focus-visible {
   display: grid;
   gap: 8px;
   width: min(300px, calc(100vw - 32px));
+  /* A short screen, or text made larger: the panel scrolls inside instead of running off */
+  max-height: calc(100dvh - 80px);
+  overflow-y: auto;
   margin-top: 6px;
   padding: 14px;
   border: 1px solid var(--line);

@@ -71,24 +71,29 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
                 <strong>{request.display_name}</strong>
                 <small>{request.email}</small>
               </span>
-              <label htmlFor={selectId}>{t.requests.asName}</label>
-              <select
-                id={selectId}
-                value={choices[request.user_id] ?? NEW}
-                disabled={busy}
-                onChange={(event) => setChoices({ ...choices, [request.user_id]: event.target.value })}
-              >
-                <option value={NEW}>{t.requests.newName}</option>
-                {free.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {t.requests.existingName(m.name)}
-                  </option>
-                ))}
-              </select>
+              {/* With no name left to take over, the only choice is the new name: no menu of one */}
+              {free.length > 0 && (
+                <>
+                  <label htmlFor={selectId}>{t.requests.asName}</label>
+                  <select
+                    id={selectId}
+                    value={choices[request.user_id] ?? NEW}
+                    disabled={busy}
+                    onChange={(event) => setChoices({ ...choices, [request.user_id]: event.target.value })}
+                  >
+                    <option value={NEW}>{t.requests.newName}</option>
+                    {free.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {t.requests.existingName(m.name)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
               {asNew && (
                 <>
-                  <label htmlFor={nameId} className="visually-hidden">
-                    {t.requests.newNameLabel(request.display_name)}
+                  <label htmlFor={nameId}>
+                    {free.length > 0 ? t.requests.newNameLabel(request.display_name) : t.requests.asName}
                   </label>
                   <input
                     id={nameId}

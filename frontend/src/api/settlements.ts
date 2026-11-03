@@ -19,8 +19,15 @@ export const sendNotice = (householdId: number, toMemberId: number, amount: numb
 export const cancelNotice = (householdId: number, toMemberId: number) =>
   api.delete(`/api/households/${householdId}/notices/${toMemberId}`)
 
-export const declineNotice = (householdId: number, fromMemberId: number) =>
-  api.post<Notice>(`/api/households/${householdId}/notices/${fromMemberId}/decline`, {})
+// The receiver's answers name the amount they saw: one told again since is not changed (409 notice_changed)
+export const acceptNotice = (householdId: number, fromMemberId: number, amount: number, settledAt: string) =>
+  api.post<Settlement>(`/api/households/${householdId}/notices/${fromMemberId}/accept`, {
+    amount,
+    settled_at: settledAt,
+  })
+
+export const declineNotice = (householdId: number, fromMemberId: number, amount: number) =>
+  api.post<Notice>(`/api/households/${householdId}/notices/${fromMemberId}/decline`, { amount })
 
 export const listSettlements = (householdId: number) =>
   api.get<Settlement[]>(`/api/households/${householdId}/settlements`)
