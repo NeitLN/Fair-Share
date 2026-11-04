@@ -78,10 +78,17 @@ User accounts and login, multi-currency, receipts/images, notifications, real-ti
 of any kind. The brief warns against image processing, real-time sockets and payments; the free tiers
 will not carry them and they add nothing to the assessed pipeline.
 
-> **Known limitation, stated openly:** without login, anyone with a household's invite link can edit it
-> (the link carries a secret key since #132, so guessing another id is not enough). For a
-> classroom demo this is acceptable; the report explains how we would add authentication
-> (Supabase Auth or OAuth) and row-level ownership if the product went further.
+> **Since 02/11 (docs/ACCOUNTS.md):** everyone signs in; a household is reached through its members'
+> accounts, joined with an invite code the owner approves, with roles (owner, member). UX-01 below is
+> now the name the account has in the household. Emails are not verified and there is no password
+> reset yet.
+
+> **Since 04/11 (UI review, approved by the owner):** a narrow in-app refresh, not notifications or
+> sockets. While a page is open and in front, the app asks again every 30 s for what a housemate's step
+> changes: the owner's requests to join, the "Tôi đã chuyển" notices, and on Tổng quan the balances and
+> repayment history; on Nhà của bạn, the list while a request is waiting. A background tab sends
+> nothing. A count on the Thành viên tab shows requests to approve, one on Tổng quan notices waiting
+> for you. There is no push, no email and no "your request was answered" message.
 
 ### 3.4 Stretch goals (only after every Week 8 milestone is green)
 

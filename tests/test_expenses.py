@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.api import error_code, household, member
+from tests.api import error_code, household, member, remove_access
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 
@@ -54,7 +54,7 @@ def test_equal_split_gives_the_leftover_dong_to_the_lowest_ids(client, house):
     assert expense["household_id"] == house["id"]
     assert set(expense) == {
         "id", "household_id", "description", "amount", "payer_id", "spent_at", "source",
-        "created_at", "split_type", "shares",
+        "created_at", "split_type", "shares", "created_by",
     }
 
 
@@ -192,7 +192,8 @@ def test_delete_expense(client, house):
     response = client.delete(f"/api/expenses/{created['id']}")
     assert response.status_code == 204
     assert client.get(f"/api/expenses/{created['id']}").status_code == 404
-    # nobody is "in an expense" any more, so a member can now be removed
+    # nobody is "in an expense" any more, so once Duy Anh's access is taken away, the name can go
+    remove_access(client, house["id"], ids(house)[2])
     assert client.delete(f"/api/members/{ids(house)[2]}").status_code == 204
 
 
@@ -205,9 +206,16 @@ def test_unknown_expense_is_404(client, house, method):
 
 def test_members_in_an_expense_cannot_be_removed(client, house):
     create(client, house)
-    response = client.delete(f"/api/members/{ids(house)[2]}")  # a participant, not the payer
+    remove_access(client, house["id"], ids(house)[2])  # a participant, not the payer
+    response = client.delete(f"/api/members/{ids(house)[2]}")
     assert response.status_code == 409
     assert error_code(response) == "member_in_use"
+
+
+def test_a_name_someone_uses_cannot_be_removed(client, house):
+    response = client.delete(f"/api/members/{ids(house)[2]}")
+    assert response.status_code == 409
+    assert error_code(response) == "member_has_account"
 
 
 def test_deleting_the_household_deletes_its_expenses(client, house):

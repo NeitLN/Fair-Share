@@ -1,28 +1,38 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+
+import { ApiError } from '../api/client'
 import { Link, useParams } from 'react-router'
 
 import { expenseKeys, listExpenses } from '../api/expenses'
 import { getHousehold, keys, listMembers } from '../api/households'
 import {
+  cancelNotice,
   createSettlement,
+  declineNotice,
   deleteSettlement,
   getBalances,
+  listNotices,
   listSettlements,
+  sendNotice,
   settlementKeys,
 } from '../api/settlements'
-import type { Settlement, SettlementInput } from '../api/types'
+import type { Settlement, SettlementInput, Transfer } from '../api/types'
 import BalanceRows from '../components/BalanceRows'
+import { Money } from '../components/Money'
+import RecentExpenses from '../components/RecentExpenses'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
 import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
-import { inviteLink } from '../lib/knownHouseholds'
+import { useSession } from '../lib/session'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
+import { REFRESH_MS } from '../lib/refresh'
 import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
+import { useWide } from '../lib/useWide'
 import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/verdict'
 import ErrorNote from '../components/ErrorNote'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -39,7 +49,9 @@ function Dashboard({ householdId }: { householdId: number }) {
   const t = useT()
   const queryClient = useQueryClient()
   const { me } = useMe()
+  const session = useSession()
   const toast = useToast()
+  const wide = useWide()
 
   // The same queries as the household frame and the other tabs: served from the cache
   const household = useQuery({ queryKey: keys.household(householdId), queryFn: () => getHousehold(householdId) })
@@ -47,9 +59,11 @@ function Dashboard({ householdId }: { householdId: number }) {
     queryKey: keys.members(householdId),
     queryFn: () => listMembers(householdId),
   })
+  // Asked again while the page is open (lib/refresh.ts): a housemate's "Đã nhận" settles your card
   const balances = useQuery({
     queryKey: settlementKeys.balances(householdId),
     queryFn: () => getBalances(householdId),
+    refetchInterval: REFRESH_MS,
   })
   // Balances cached before an expense was saved on another tab are out of date: until they are fetched
   // again they show as loading, never as the answer ("Chưa có khoản chi nào", 0đ for everyone). A refresh
@@ -62,6 +76,7 @@ function Dashboard({ householdId }: { householdId: number }) {
   const settlements = useQuery({
     queryKey: settlementKeys.list(householdId),
     queryFn: () => listSettlements(householdId),
+    refetchInterval: REFRESH_MS,
   })
   // Only for "cả nhà đã chi …" this month: if it fails, the line names the month alone
   const expenses = useQuery({
@@ -69,8 +84,45 @@ function Dashboard({ householdId }: { householdId: number }) {
     queryFn: () => listExpenses(householdId),
   })
 
+  // "Tôi đã chuyển" (docs/ACCOUNTS.md, S3). Until they load, nothing that depends on them is pressed:
+  // Đã nhận must record the told amount, and nobody tells twice
+  const notices = useQuery({
+    queryKey: settlementKeys.notices(householdId),
+    queryFn: () => listNotices(householdId),
+  })
+
   // A settlement changes the balances: refetch everything cached under this household
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
+  const refreshNotices = () => queryClient.invalidateQueries({ queryKey: settlementKeys.notices(householdId) })
+  // Declining carries the told amount: one told again since is left alone (409 notice_changed)
+  type NoticeAction = { kind: 'send' | 'cancel' | 'decline'; transfer: Transfer }
+  const noticeKey = ['notice', householdId]
+  const notice = useMutation({
+    mutationKey: noticeKey,
+    mutationFn: ({ kind, transfer }: NoticeAction): Promise<unknown> =>
+      kind === 'send'
+        ? sendNotice(householdId, transfer.to_member_id, transfer.amount)
+        : kind === 'cancel'
+          ? cancelNotice(householdId, transfer.to_member_id)
+          : declineNotice(householdId, transfer.from_member_id, transfer.amount),
+    onSuccess: (_result, { kind, transfer }) => {
+      if (kind === 'send') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
+      if (kind === 'decline') toast({ text: t.verdict.declined(nameOf(transfer.from_member_id)) })
+      return refreshNotices()
+    },
+    // The balances or the notice changed since the page loaded: show what is true now
+    onError: (failure) => {
+      if (failure instanceof ApiError && failure.status === 409) void refresh()
+    },
+  })
+  // Every pair with a notice press on its way, not only the latest one
+  const noticeBusy = useMutationState({
+    filters: { mutationKey: noticeKey, status: 'pending' },
+    select: (mutation) => {
+      const { transfer } = mutation.state.variables as NoticeAction
+      return `${transfer.from_member_id}-${transfer.to_member_id}`
+    },
+  })
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
     onSuccess: refresh,
@@ -121,8 +173,46 @@ function Dashboard({ householdId }: { householdId: number }) {
     month,
     suggested,
     nameOf,
-    // The invite link, so everyone in the group chat can open the household
-    inviteLink(householdId) ?? `${window.location.origin}/households/${householdId}`,
+    // The household's page: everyone in the group chat is a member and opens it signed in
+    `${window.location.origin}/households/${householdId}`,
+    new Set(
+      (notices.data ?? [])
+        .filter((n) => n.status === 'sent')
+        .map((n) => `${n.from_member_id}-${n.to_member_id}`),
+    ),
+  )
+
+  // Lịch sử trả: under the balances on a phone, under the verdict on a computer (DESIGN.md §6.6)
+  const history = (
+    <section aria-labelledby="settlements-title">
+      <h2 id="settlements-title">{t.dashboard.historyTitle}</h2>
+      {memberList.length >= 2 && me !== null && (
+        <details className="fold other-payment" onKeyDown={closeFoldOnEscape}>
+          <summary>{t.dashboard.otherPayment}</summary>
+          <p className="hint">{t.dashboard.otherPaymentHint}</p>
+          <SettlementForm
+            members={memberList}
+            onSubmit={record.mutateAsync}
+            submitting={record.isPending}
+            error={errorMessage(record.error)}
+            receiver={me}
+          />
+        </details>
+      )}
+      <SettlementList
+        settlements={settlements.data ?? []}
+        looks={looks}
+        loading={settlements.isPending}
+        error={errorMessage(settlements.error ?? remove.error)}
+        onRetry={settlements.error ? () => settlements.refetch() : undefined}
+        retrying={settlements.isFetching}
+        onDelete={(settlement) => remove.mutate(settlement)}
+        deletingId={remove.isPending ? remove.variables?.id : null}
+        canDelete={(settlement) =>
+          household.data?.role === 'owner' || settlement.created_by === session?.user.id
+        }
+      />
+    </section>
   )
 
   return (
@@ -136,73 +226,86 @@ function Dashboard({ householdId }: { householdId: number }) {
         />
       )}
 
-      <VerdictBlock
-        month={month}
-        spent={expenses.isSuccess ? spentInMonth(expenses.data, now) : null}
-        spentUnavailable={expenses.isError}
-        suggested={suggested}
-        cards={paid.cards}
-        me={me}
-        looks={looks}
-        started={balances.data?.balances.some(tookPart) ?? false}
-        loading={balances.isPending || balancesOutdated}
-        // A failed first load replaces the verdict; a failed refresh keeps the last one and says so
-        loadError={balances.data ? null : errorMessage(balances.error)}
-        refreshError={balances.data ? errorMessage(balances.error) : null}
-        onRetry={() => balances.refetch()}
-        onPaid={paid.pay}
-        onUndo={paid.undo}
-        focusIntent={paid.focusIntent}
-        onFocusDone={paid.clearFocusIntent}
-        error={paid.error}
-        reminder={reminder}
-        onCopied={() => toast({ text: t.dashboard.reminderCopied })}
-      />
-
-      <Link to="expenses" className="btn-primary cta">
-        {t.dashboard.addExpense}
-      </Link>
-
-      <section aria-labelledby="balances-title">
-        <div className="section-head">
-          <h2 id="balances-title">{t.dashboard.balancesTitle}</h2>
-          <span className="section-note">{t.dashboard.balancesNote}</span>
+      {/* Side by side on a computer: who pays whom and the repayments on the left, where everyone stands
+          and the latest expenses on the right */}
+      <div className="page-split dashboard-split">
+        <div className="split-lead">
+          {/* Logging an expense is the first job: before the verdict, however long it gets. Filled but
+              without the sticker shadow, so it does not shout with the block under it (DESIGN.md §6.2) */}
+          <Link to="expenses" state={{ focus: 'description' }} className="btn-primary cta cta-add">
+            {t.dashboard.addExpense}
+          </Link>
+          <VerdictBlock
+            suggested={suggested}
+            owed={paid.owed}
+            cards={paid.cards}
+            me={me}
+            looks={looks}
+            started={balances.data?.balances.some(tookPart) ?? false}
+            loading={balances.isPending || balancesOutdated}
+            // A failed first load replaces the verdict; a failed refresh keeps the last one and says so
+            loadError={balances.data ? null : errorMessage(balances.error)}
+            refreshError={balances.data ? errorMessage(balances.error) : null}
+            onRetry={() => balances.refetch()}
+            onPaid={paid.pay}
+            onUndo={paid.undo}
+            focusIntent={paid.focusIntent}
+            onFocusDone={paid.clearFocusIntent}
+            error={paid.error ?? errorMessage(notice.error)}
+            reminder={reminder}
+            onCopied={() => toast({ text: t.dashboard.reminderCopied })}
+            onlyReceiver
+            notices={notices.data}
+            noticesError={notices.data ? null : errorMessage(notices.error)}
+            onRetryNotices={() => notices.refetch()}
+            onNotify={(transfer) => notice.mutate({ kind: 'send', transfer })}
+            onCancelNotice={(transfer) => notice.mutate({ kind: 'cancel', transfer })}
+            onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
+            noticeBusy={noticeBusy}
+          />
+          {wide && history}
         </div>
-        <BalanceRows
-          balances={balances.data?.balances ?? []}
-          looks={looks}
-          me={me}
-          loading={balances.isPending || balancesOutdated}
-          // The verdict block above already says why and offers Thử lại
-          unavailable={balances.isError && !balances.data}
-        />
-      </section>
 
-      <section aria-labelledby="settlements-title">
-        <h2 id="settlements-title">{t.dashboard.historyTitle}</h2>
-        {memberList.length >= 2 && (
-          <details className="fold other-payment" onKeyDown={closeFoldOnEscape}>
-            <summary>{t.dashboard.otherPayment}</summary>
-            <p className="hint">{t.dashboard.otherPaymentHint}</p>
-            <SettlementForm
-              members={memberList}
-              onSubmit={record.mutateAsync}
-              submitting={record.isPending}
-              error={errorMessage(record.error)}
+        <div className="split-rest">
+          <section aria-labelledby="balances-title">
+            <div className="section-head">
+              <h2 id="balances-title">{t.dashboard.balancesTitle}</h2>
+              <span className="section-note">{t.dashboard.balancesNote}</span>
+            </div>
+            {/* This month's spending, apart from the balances, which add up everything since the start */}
+            <p className="month-spent">
+              {t.verdict.month(month)}
+              {expenses.isSuccess && (
+                <>
+                  {' '}
+                  · {t.verdict.spent} <Money amount={spentInMonth(expenses.data, now)} />
+                </>
+              )}
+              {expenses.isError && t.verdict.spentUnavailable}
+            </p>
+            <BalanceRows
+              balances={balances.data?.balances ?? []}
+              looks={looks}
+              me={me}
+              loading={balances.isPending || balancesOutdated}
+              // The verdict block above already says why and offers Thử lại
+              unavailable={balances.isError && !balances.data}
             />
-          </details>
-        )}
-        <SettlementList
-          settlements={settlements.data ?? []}
-          looks={looks}
-          loading={settlements.isPending}
-          error={errorMessage(settlements.error ?? remove.error)}
-          onRetry={settlements.error ? () => settlements.refetch() : undefined}
-          retrying={settlements.isFetching}
-          onDelete={(settlement) => remove.mutate(settlement)}
-          deletingId={remove.isPending ? remove.variables?.id : null}
-        />
-      </section>
+          </section>
+          {!wide && history}
+          {wide && (
+            <RecentExpenses
+              expenses={expenses.data}
+              members={memberList}
+              looks={looks}
+              loading={expenses.isPending}
+              error={errorMessage(expenses.error)}
+              onRetry={() => expenses.refetch()}
+              retrying={expenses.isFetching}
+            />
+          )}
+        </div>
+      </div>
     </>
   )
 }

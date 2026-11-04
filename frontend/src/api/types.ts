@@ -11,13 +11,75 @@ export interface Household {
   created_at: string
 }
 
-/** A member of a household. Names are unique inside one household (US-02). */
+export type Role = 'owner' | 'member'
+
+/** A household as the signed-in user sees it: their role and their name in the split. */
+export interface MyHousehold extends Household {
+  role: Role
+  member_id: number
+}
+
+/** A request to join that is still waiting: nothing about the household until it is approved. */
+export interface PendingRequest {
+  household_id: number
+  requested_at: string
+}
+
+export interface MyHouseholds {
+  households: MyHousehold[]
+  pending: PendingRequest[]
+}
+
+/** A name in a household's split. Names are unique inside one household (US-02). */
 export interface Member {
   id: number
   household_id: number
   name: string
   /** ISO 8601 timestamp from `timestamptz`. */
   created_at: string
+  /** The role of the account using this name; null for a name from before accounts nobody took. */
+  role?: Role | null
+  user_id?: number | null
+}
+
+// --- Accounts (docs/ACCOUNTS.md) -----------------------------------------------------------------
+
+export interface User {
+  id: number
+  email: string
+  display_name: string
+}
+
+/** What signing up or in answers: the token goes in `Authorization: Bearer …`. */
+export interface Session {
+  token: string
+  user: User
+}
+
+export interface InviteCode {
+  /** 8 characters; null when there is none and only the owner can make one. */
+  code: string | null
+  expires_at: string | null
+}
+
+export interface JoinResult {
+  status: 'pending' | 'member'
+  household_id: number | null
+}
+
+/** Someone asking to join, as the owner sees them. */
+export interface JoinRequest {
+  user_id: number
+  display_name: string
+  email: string
+  requested_at: string
+}
+
+/** A household from before accounts whose old invite link was opened, to take it over. */
+export interface ClaimInfo {
+  id: number
+  name: string
+  members: Member[]
 }
 
 // --- Expenses, settlements and balances (US-03 to US-08) ---------------------------------------
@@ -48,6 +110,8 @@ export interface Expense {
   split_type: SplitType
   /** One per participant, in member id order. */
   shares: Share[]
+  /** The account that recorded it; null for one from before accounts (the owner's to change). */
+  created_by?: number | null
 }
 
 /** Body of POST /api/households/{id}/expenses and PUT /api/expenses/{id}. */
@@ -65,6 +129,17 @@ export interface ExpenseInput {
 }
 
 /** "from_member_id" paid "amount" đồng to "to_member_id". */
+/** "Tôi đã chuyển": the person who owes told the receiver (docs/ACCOUNTS.md, S3). No balance changes. */
+export interface Notice {
+  from_member_id: number
+  to_member_id: number
+  /** The suggested amount when it was sent; "Đã nhận" records this. */
+  amount: number
+  /** declined: the receiver answered "Chưa nhận được". */
+  status: 'sent' | 'declined'
+  created_at: string
+}
+
 export interface Settlement {
   id: number
   household_id: number
@@ -76,6 +151,8 @@ export interface Settlement {
   note: string | null
   /** ISO 8601 timestamp from `timestamptz`. */
   created_at: string
+  /** The account that recorded it (the person who received it); null before accounts. */
+  created_by?: number | null
 }
 
 /** Body of POST /api/households/{id}/settlements. */

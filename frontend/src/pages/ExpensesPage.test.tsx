@@ -4,12 +4,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { Expense, ExpenseInput } from '../api/types'
 import { mockApi, renderApp } from '../test/renderApp'
+import { onAComputer } from '../test/screen'
 
 beforeEach(() => {
   // The user answers "OK" to "Xoá khoản …?"
   vi.stubGlobal('confirm', vi.fn(() => true))
-  // Tiến is using this device ("Bạn là ai?"), so he is the default payer
-  localStorage.setItem('fair-share:me:7', '1')
+  // Tiến is signed in (his account has member 1), so he is the default payer
+  me = 1
 })
 
 afterEach(() => {
@@ -17,7 +18,9 @@ afterEach(() => {
   localStorage.clear()
 })
 
-const household = { id: 7, name: 'Nhà 7', created_at: '' }
+// The test account owns the household, so it may change every expense (docs/ACCOUNTS.md)
+let me: number | null = 1
+const household = { id: 7, name: 'Nhà 7', created_at: '', role: 'owner' }
 const members = [
   { id: 1, household_id: 7, name: 'Tiến', created_at: '' },
   { id: 2, household_id: 7, name: 'Minh', created_at: '' },
@@ -58,7 +61,7 @@ const electricity = saved(10, {
 function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
   let expenses = [electricity]
   return mockApi({
-    'GET /api/households/7': [200, household],
+    'GET /api/households/7': () => [200, { ...household, member_id: me }],
     'GET /api/households/7/members': [200, memberList],
     'GET /api/households/7/expenses': () => [200, expenses],
     'POST /api/households/7/expenses': (body) => {
@@ -288,7 +291,7 @@ test('you are the default payer; without an identity, whoever paid last on this 
 })
 
 test('with no identity, the last payer on this device is chosen for the next expense', async () => {
-  localStorage.removeItem('fair-share:me:7')
+  me = null
   localStorage.setItem('fair-share:last-payer:7', '1')
   api()
   const user = userEvent.setup()
@@ -305,7 +308,7 @@ test('with no identity, the last payer on this device is chosen for the next exp
 })
 
 test('with no identity and no last payer, nobody is chosen and saving asks who paid', async () => {
-  localStorage.removeItem('fair-share:me:7')
+  me = null
   const fetchFn = api()
   const user = userEvent.setup()
   renderApp('/households/7/expenses')
@@ -446,4 +449,57 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(await list().findByText(/Chưa có khoản chi nào/)).toBeInTheDocument()
     expect(list().queryByLabelText('Tháng')).not.toBeInTheDocument()
   })
+})
+
+test('on a computer the expenses read as a table, and Sửa marks the row it opens in the form', async () => {
+  onAComputer()
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  const table = await screen.findByRole('table')
+  expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+    'Ngày',
+    'Nội dung',
+    'Người trả',
+    'Số tiền',
+    'Sửa hoặc xoá',
+  ])
+  const row = within(table).getByRole('row', { name: /Tiền điện/ })
+  expect(row).toHaveTextContent(/Tiền điện.*Tiến.*chia đều 2 người.*450\.000/)
+  expect(screen.getByText('mới nhất ở trên')).toBeInTheDocument()
+
+  await user.click(within(row).getByRole('button', { name: 'Sửa Tiền điện' }))
+  expect(await screen.findByRole('heading', { name: 'Sửa: Tiền điện' })).toBeInTheDocument()
+  expect(row).toHaveClass('editing')
+})
+
+test('a saved expense is said in a toast; Xem lifts a filter hiding it and marks its row', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  // Only October is shown; the new expense is today's
+  await user.selectOptions(await screen.findByLabelText('Tháng'), '2026-10')
+  await user.type(screen.getByLabelText('Nội dung'), 'Ăn tối')
+  await user.type(screen.getByLabelText('Số tiền'), '240000')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+
+  expect(await screen.findByText('Đã lưu: Ăn tối 240.000đ')).toBeInTheDocument()
+  expect(list().queryByText('Ăn tối')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Xem' }))
+
+  const row = (await list().findByText('Ăn tối')).closest('li') as HTMLElement
+  expect(row).toHaveClass('just-saved')
+  expect(screen.getByLabelText('Tháng')).toHaveValue('')
+})
+
+test('a row the user may not change is a plain row, not one that opens', async () => {
+  me = 2
+  api({ 'GET /api/households/7': () => [200, { ...household, role: 'member', member_id: 2 }] })
+  renderApp('/households/7/expenses')
+
+  const row = (await list().findByText('Tiền điện')).closest('li') as HTMLElement
+  expect(row.querySelector('details')).toBeNull()
+  expect(within(row).queryByRole('button', { name: /Sửa/ })).not.toBeInTheDocument()
 })

@@ -56,7 +56,7 @@ The same values as the UI tokens ([DESIGN.md §3](DESIGN.md#3-tokens)).
 |---|---|---|
 | Taro | `#5A3CF0` | the brand colour; drenched covers, the verdict block in the app |
 | Ink | `#17132B` | text, outlines, sticker shadows |
-| Lilac | `#F3F0FC` | light backgrounds |
+| Mist | `#E3E1E9` | light backgrounds: a grey lilac, so taro stays the one purple mass (white cards sit on it at 1.30:1) |
 | Yellow | `#FFE14D` | **attention**: the coin in the logo, Gõ nhanh (AI), the focus ring |
 | Mint | `#3DDC97` | *được nhận*, the ĐÃ TRẢ and SẠCH NỢ stickers |
 | Pink | `#FF5C8A` | *cần trả* |

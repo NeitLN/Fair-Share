@@ -55,9 +55,9 @@ body {
   text-underline-offset: 3px;
 }
 
-/* One focus ring everywhere: ink, with a yellow halo that stays visible on every surface */
+/* One focus ring everywhere: a dark ring with a yellow halo, visible on every surface in both themes */
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
   box-shadow: 0 0 0 5px var(--ai);
 }
@@ -112,12 +112,13 @@ body {
   stroke: none;
 }
 
-/* Language and theme, side by side; they wrap under the wordmark only when there is no room */
-.header-controls {
+/* Signed out, language and theme sit under the sign-in form (signed in, in the account menu) */
+.app-footer {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .theme-switch,
@@ -212,9 +213,9 @@ body {
   box-shadow: inset 0 0 0 2px var(--ink);
 }
 
+/* Nothing here yet: a sentence, not a frame (a dashed edge read as something to press) */
 .empty {
   padding: 18px;
-  border: 1.5px dashed var(--line);
   border-radius: var(--radius-section);
   color: var(--muted);
   text-align: center;
@@ -282,6 +283,19 @@ body {
   margin-top: 4px;
 }
 
+/* A member's money: the signed amount and a word, as on Tổng quan */
+.member-money {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+
+.member-money small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 /* Under the name, aligned with it: room for long names and two 44 px buttons at 360 px */
 .member-row .row-actions,
 .member-row .row-note,
@@ -312,7 +326,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0 16px;
-  border: 2px solid var(--line);
+  border: 2px solid var(--control-line);
   border-radius: var(--radius-control);
   background: var(--surface);
   font-weight: 700;
@@ -343,8 +357,39 @@ main {
 
 :where(section) {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+}
+
+/* The frames a computer lays out in columns (end of this file). On a phone they only stack, with main's own gap,
+   so the page reads exactly as one column */
+.house-frame,
+.house-side,
+.house-body,
+.page-split,
+.split-lead,
+.split-rest {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  align-content: start;
+}
+
+/* Rhythm (DESIGN.md §4): 8 px from the house to its tabs, 28 px between the sections of a page */
+.house-side {
+  gap: 8px;
+}
+
+.page-split,
+.split-lead,
+.split-rest {
+  gap: 28px;
+}
+
+/* The house name is the page's title on a phone, not a second wordmark */
+.house-head h1 {
+  font-size: 22px;
+  line-height: 28px;
 }
 
 .household-name {
@@ -392,6 +437,26 @@ main {
   color: var(--bg);
 }
 
+/* Something waits for you there: a count on the tab, in the debt pink with dark figures (DESIGN.md §3) */
+.tabs a {
+  grid-auto-flow: column;
+  gap: 6px;
+}
+
+.tab-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--debt);
+  color: var(--on-fill);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 /* ---------------------------------------------------------------- forms */
 
 :where(form) {
@@ -421,7 +486,7 @@ main {
   font-size: 14px;
 }
 
-:where(input:not([type]), input[type='text'], input[type='date'], input[type='number'], select, textarea) {
+:where(input:not([type]), input[type='text'], input[type='email'], input[type='password'], input[type='date'], input[type='number'], select, textarea) {
   flex: 1 1 12rem;
   min-width: 0;
   min-height: 48px;
@@ -430,12 +495,29 @@ main {
   font-size: 16px; /* 16 px stops iOS zooming into the field */
   color: var(--ink);
   background: var(--surface);
-  border: 2px solid var(--line);
+  border: 2px solid var(--control-line);
   border-radius: var(--radius-control);
 }
 
-:where(input:not([type]), input[type='text'], input[type='date'], select, textarea):hover {
+:where(input:not([type]), input[type='text'], input[type='email'], input[type='password'], input[type='date'], select, textarea):hover {
   border-color: var(--muted);
+}
+
+/* Examples in an empty field ("VD: 240k"): readable, and the "VD:" keeps them from passing for a value */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* Something to press, under a mouse: its edge darkens like a field's. Selected and invalid keep theirs */
+@media (hover: hover) {
+  .btn-secondary:not(:disabled):hover,
+  button.secondary:not(:disabled):hover,
+  .fold > summary:hover,
+  .pick button:not([aria-pressed='true'], :disabled):hover,
+  .pick input:not(:checked, :disabled) + label:hover {
+    border-color: var(--muted);
+  }
 }
 
 /* After the hover rule and with a real attribute selector, so an invalid field stays red on hover */
@@ -474,7 +556,7 @@ label.inline {
   font-weight: 700;
   color: var(--ink);
   background: var(--surface);
-  border: 2px solid var(--line);
+  border: 2px solid var(--control-line);
   border-radius: var(--radius-control);
   cursor: pointer;
   transition:
@@ -512,7 +594,7 @@ button.ai:active {
 button.secondary {
   background: var(--surface);
   color: var(--ink);
-  border-color: var(--line);
+  border-color: var(--control-line);
   box-shadow: none;
 }
 
@@ -531,6 +613,16 @@ button.ghost {
   color: var(--debt-text);
   padding: 0 10px;
   box-shadow: none;
+}
+
+/* A field that cannot be changed looks it: no white field, muted text */
+select:disabled,
+input:disabled {
+  border-style: dashed;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 button:disabled {
@@ -783,7 +875,7 @@ button.ai:active:focus-visible {
   max-width: 100%;
   min-height: var(--target);
   padding: 4px 14px 4px 6px;
-  border: 2px solid var(--line);
+  border: 2px solid var(--control-line);
   border-radius: var(--radius-pill);
   background: var(--surface);
   font-size: 14px;
@@ -805,7 +897,7 @@ button.ai:active:focus-visible {
 }
 
 .pick input:focus-visible + label {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
   box-shadow: 0 0 0 5px var(--ai);
 }
@@ -966,9 +1058,10 @@ button.ai:active:focus-visible {
   border-bottom: 0;
 }
 
-.expense-row summary {
+.expense-row summary,
+.expense-row .expense-summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   min-height: 60px;
@@ -979,6 +1072,41 @@ button.ai:active:focus-visible {
 
 .expense-row summary::-webkit-details-marker {
   display: none;
+}
+
+/* A row the user may not change does not open, so it does not look like it does */
+.expense-row .expense-summary {
+  cursor: default;
+}
+
+/* The row opens to Sửa and Xoá: a drawn chevron says so, and turns down when it is open */
+.row-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: rotate var(--press) ease-out;
+}
+
+.expense-row details[open] .row-chevron {
+  rotate: 90deg;
+}
+
+/* The list's title with Xuất CSV beside it; the hint goes under both */
+.list-head .section-note {
+  order: 3;
+  flex-basis: 100%;
+}
+
+/* "Xem" in the saved toast: the row is tinted for a moment, then fades back */
+.expense-row.just-saved,
+.expense-table tr.just-saved td {
+  background: var(--surface-2);
+  transition: background 600ms ease-out;
+}
+
+.expense-row.just-saved {
+  margin: 0 -14px;
+  padding: 0 14px;
 }
 
 .expense-main {
@@ -1021,10 +1149,18 @@ button.ai:active:focus-visible {
   color: var(--on-block);
 }
 
-.verdict-month {
+/* What you told someone you sent, under the amount: it still counts until they confirm */
+.verdict-pending {
+  margin-top: 6px;
   color: var(--on-block-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
+}
+
+/* This month's spending, under the balances title: apart from the balances, which add up everything */
+.month-spent {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .verdict-sentence {
@@ -1054,14 +1190,15 @@ button.ai:active:focus-visible {
   gap: 8px;
 }
 
-/* A transfer card: who pays whom on the left, Đã trả on the right */
+/* A transfer card: who pays whom, where it stands, then what you can do, each on its own line beside
+   the avatar, the same in every language (DESIGN.md §6.2) */
 .transfer-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
   align-items: center;
   min-height: 60px;
-  padding: 8px 8px 8px 12px;
+  padding: 12px;
   border: 0;
   border-radius: var(--radius-card);
   background: var(--surface);
@@ -1077,19 +1214,57 @@ button.ai:active:focus-visible {
   padding: 0 14px;
 }
 
+.transfer-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+/* Text actions keep their 44 px height but not the side padding, so their words line up with the
+   status above them whether they lead the row or wrap onto their own */
+.transfer-actions > .btn-ghost {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Repeated on every card, so flat: the one shadowed button of a screen is its form's Lưu */
+.transfer-card .btn-primary {
+  box-shadow: none;
+}
+
+.transfer-card .btn-primary:active {
+  translate: none;
+}
+
+.transfer-card .btn-primary:focus-visible {
+  box-shadow: 0 0 0 5px var(--ai);
+}
+
 /* Recorded: the card turns surface-2 (never faded) and gets the stamp, slapped on once */
 .transfer-card.paid {
   background: var(--surface-2);
 }
 
+/* Where a transfer stands ("Đã báo Minh, chờ xác nhận") and its small action, under the text like
+   the stamp, so the names keep the full width at 360 px */
+.transfer-status {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+.transfer-status small {
+  font-size: 13px;
+}
+
 /* Under the text, so the names keep the full width at 360 px */
 .transfer-done {
-  grid-column: 2 / -1;
+  grid-column: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: -4px;
 }
 
 .transfer-done .stamp {
@@ -1103,8 +1278,19 @@ button.ai:active:focus-visible {
   }
 }
 
+/* Last in the block, about the transfers above it: an outline on the taro, quieter than the cards */
 .verdict-copy {
   width: 100%;
+  margin-top: 12px;
+  border-color: var(--edge);
+  background: transparent;
+  color: var(--on-block);
+}
+
+@media (hover: hover) {
+  .verdict-copy:hover {
+    background: color-mix(in srgb, var(--on-block) 12%, transparent);
+  }
 }
 
 .copy-fallback label {
@@ -1151,6 +1337,25 @@ button.ai:active:focus-visible {
   box-shadow:
     3px 3px 0 var(--sticker-shadow),
     0 0 0 5px var(--ai);
+}
+
+/* + Ghi khoản chi, above the verdict: filled (the first job) but flat, so the block stays the loud place */
+.btn-primary.cta-add {
+  min-height: 48px;
+  box-shadow: none;
+}
+
+/* Close to the block it belongs to, not a section of its own */
+.split-lead > .cta-add {
+  margin-bottom: -16px;
+}
+
+.btn-primary.cta-add:active {
+  translate: none;
+}
+
+.btn-primary.cta-add:focus-visible {
+  box-shadow: 0 0 0 5px var(--ai);
 }
 
 /* A section title with a small note on the right, wrapping under it on narrow phones */
@@ -1255,20 +1460,39 @@ button.ai:active:focus-visible {
 
 /* ---------------------------------------------------------------- AI quick add (DESIGN.md §6.3, T-19) */
 
-.ai-composer {
+/* Adding an expense: one white surface, the AI line on top and the fields it fills under a hairline */
+.entry-card {
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
-  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.entry-card .expense-form {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.ai-composer {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .ai-composer h2 {
-  font-size: 16px;
+  font-size: 15px;
 }
 
+.ai-composer form {
+  align-items: stretch;
+}
+
+/* One line with Điền giúp beside it; under it on the narrowest phones */
 .ai-composer textarea {
-  flex: 1 1 100%;
-  min-height: 72px;
+  flex: 1 1 12rem;
+  min-height: 48px;
   line-height: 1.4;
   resize: vertical;
 }
@@ -1493,4 +1717,540 @@ button.ai:active:focus-visible {
   margin: 0 -14px;
   padding-inline: 14px;
   background: var(--surface-2);
+}
+
+/* ---------------------------------------------------------------- accounts (docs/ACCOUNTS.md) */
+
+.auth {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.auth form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth .field {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-tabs {
+  justify-self: start;
+}
+
+/* The account's initial in the header, opening to its name, email and Đăng xuất */
+.account-menu {
+  position: relative;
+}
+
+.account-menu > summary {
+  display: grid;
+  place-items: center;
+  width: var(--target);
+  height: var(--target);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+  list-style: none;
+}
+
+.account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-initial {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 800;
+}
+
+.account-panel {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100vw - 32px));
+  /* A short screen, or text made larger: the panel scrolls inside instead of running off */
+  max-height: calc(100dvh - 80px);
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 14px;
+  /* A menu over the page, not a card: its edge is what separates it from what is under it */
+  border: 2px solid var(--control-line);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.account-panel p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* "Ngôn ngữ" or "Giao diện" above its switch, which takes the panel's width */
+.account-setting {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* The invite code, big enough to read out loud */
+.invite-code {
+  margin: 6px 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.join-requests {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+/* One person asking to join: who, the name they get, then Duyệt / Từ chối. Stacked, so it fits a
+   320 px phone and 200% zoom; a single row did not (it scrolled sideways) */
+.join-request {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.join-request:last-child {
+  border-bottom: 0;
+}
+
+.join-request .who {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.join-request label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.join-request select,
+.join-request input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target);
+}
+
+.join-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.join-form {
+  display: grid;
+  gap: 6px;
+}
+
+.join-form input {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A request waiting for approval: where it stands, Kiểm tra lại and Hủy yêu cầu in one card */
+.household-list > li.pending-card {
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.pending-row {
+  font-weight: 600;
+}
+
+.pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target);
+}
+
+/* ---------------------------------------------------------------- computer layout (DESIGN.md §6.6)
+   Last in the file, so it overrides the phone rules above. Only the parts a computer renders on its
+   own (the expense table, Khoản chi gần đây) are styled outside the media query. */
+
+/* "Các khoản chi" as a table: one white surface, quiet dividers, money right-aligned */
+.expense-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.expense-table th {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.expense-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.expense-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.expense-table :is(th, td):first-child {
+  padding-left: 16px;
+}
+
+.expense-table :is(th, td):last-child {
+  padding-right: 8px;
+}
+
+.expense-table tbody tr:hover td,
+.expense-table tbody tr:focus-within td,
+.expense-table tr.editing td {
+  background: var(--surface-2);
+}
+
+.expense-table .col-date {
+  width: 128px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.expense-table .col-payer {
+  width: 176px;
+}
+
+.expense-table .col-amount {
+  width: 128px;
+  text-align: right;
+}
+
+.expense-table .col-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.expense-table .payer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.expense-table .payer small {
+  display: block;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.expense-table .row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.expense-table .row-actions button {
+  padding: 0 10px;
+}
+
+/* 1024–1279 px: the date and the payer fold under the description instead of squeezing it */
+.expense-meta {
+  display: none;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 1279px) {
+  .expense-table :is(.col-date, .col-payer) {
+    display: none;
+  }
+
+  .expense-meta {
+    display: block;
+  }
+}
+
+/* Khoản chi gần đây, under the balances */
+.recent-list {
+  padding: 0 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.recent-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 0;
+}
+
+.recent-row:last-child {
+  border-bottom: 0;
+}
+
+.recent-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recent-description {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.recent-main small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.section-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+@media (min-width: 1024px) {
+  /* The page uses the whole screen, with 32 px sides (40 px from 1440): no empty bands left and right on
+     a wide monitor. The columns below grow in proportion, so a 1920 px screen looks like a 1280 px one */
+  .app-header,
+  main {
+    max-width: none;
+    padding-left: clamp(32px, 2.8vw, 40px);
+    padding-right: clamp(32px, 2.8vw, 40px);
+  }
+
+  .app-header {
+    min-height: 64px;
+    padding-top: 12px;
+    padding-bottom: 4px;
+  }
+
+  main {
+    gap: 24px;
+    padding-bottom: 56px;
+  }
+
+  /* The household's row: its name and people on the left, the tabs on the right. Not sticky, so it
+     never covers a focused field on a short laptop screen */
+  .house-frame {
+    gap: 24px;
+  }
+
+  .house-side {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 400px);
+    align-items: center;
+    gap: 12px 24px;
+  }
+
+  .house-side > [role='alert'] {
+    grid-column: 1 / -1;
+  }
+
+  .house-head {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px 16px;
+  }
+
+  .tabs a:not([aria-current='page']):hover {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
+  .page-split {
+    gap: 32px 24px;
+    align-items: start;
+  }
+
+  .page-split > .split-lead,
+  .page-split > .split-rest {
+    gap: 32px;
+  }
+
+  /* Section titles side by side sit on one line, whether or not one has a button beside it */
+  .page-split .section-head {
+    min-height: var(--target);
+    align-items: center;
+  }
+
+  .house-head h1 {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  /* Tổng quan: the answer and its repayments on the left, the balances and the latest expenses that
+     explain them on the right */
+  .dashboard-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Chi tiêu: the form is the tool, the table is what is read, so the table gets the width */
+  .expenses-split {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  /* Thành viên: the people first and wide; approving someone and the invite beside them */
+  .members-split {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  /* Nhà của bạn: the groups and the wait on the left, the two ways in on the right */
+  .households-split {
+    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  }
+
+  .households-split > .split-rest {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .section-head:has(.section-link) {
+    align-items: center;
+  }
+
+  .households-split > .split-rest > .fold:not([open]) > summary {
+    width: auto;
+    padding: 0 20px;
+  }
+
+  .households-split > .split-rest > :is(.fold[open], .hint) {
+    flex: 1 1 100%;
+  }
+
+  .household-row {
+    min-height: 72px;
+    gap: 12px;
+  }
+
+  /* The whole form is in view on a computer: Lưu khoản chi sits at its end, not over the fields */
+  .form-actions {
+    position: static;
+  }
+
+  /* Signing in is one small form: it stays form-sized in the middle */
+  .auth,
+  .app-footer {
+    width: 100%;
+    max-width: 440px;
+    justify-self: center;
+  }
+
+  .auth {
+    margin-top: 24px;
+    padding: 24px;
+  }
+}
+
+/* From 1280 px the columns keep the proportions they have at 1280 (2 : 3, 1 : 2, 2 : 1) as the screen
+   widens, with a floor so the form and the verdict never get narrower than at 1280 */
+@media (min-width: 1280px) {
+  /* Wide rows read across, not down: who, then what they spent, then where they stand */
+  .balance-row .who {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 220px);
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  .balance-row .who small {
+    text-align: right;
+  }
+
+  /* A member: name and "gọi là" on the left, their money in its own column, the actions on the right */
+  .member-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .member-row .who {
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px);
+    column-gap: 16px;
+  }
+
+  .member-row .who > :not(.standing) {
+    grid-column: 1;
+  }
+
+  .member-row .who .standing {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+    justify-self: end;
+    margin-top: 0;
+  }
+
+  .member-row .row-actions {
+    grid-column: 3;
+    grid-row: 1;
+    margin-left: 0;
+  }
+
+  /* Filters at the width of what they hold, not stretched across the table */
+  .expenses-split .expense-filters {
+    grid-template-columns: repeat(2, minmax(0, 320px));
+  }
+
+  /* A little more room inside the verdict block on a wide screen; the amount stays 44 px */
+  .verdict {
+    padding: 22px 24px 20px;
+  }
+
+  .dashboard-split {
+    grid-template-columns: minmax(480px, 2fr) minmax(0, 3fr);
+  }
+
+  .expenses-split {
+    grid-template-columns: minmax(380px, 1fr) minmax(0, 2fr);
+  }
+
+  .members-split {
+    grid-template-columns: minmax(0, 2fr) minmax(360px, 1fr);
+  }
 }

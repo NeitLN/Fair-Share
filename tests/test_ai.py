@@ -167,13 +167,6 @@ def test_unknown_household_is_404(client):
     assert error_code(parse(client, 2**62)) == "household_not_found"
 
 
-def test_a_household_without_members_is_409(client):
-    use(client, FakeGemini(DINNER))
-    empty = household(client, "Nhà trống")
-    response = parse(client, empty["id"])
-    assert response.status_code == 409 and error_code(response) == "no_members"
-
-
 @pytest.mark.parametrize("text", ["", "   ", "x" * 301])
 def test_empty_or_too_long_text_is_422_before_anything_else(client, house, text):
     fake = use(client, FakeGemini(DINNER))

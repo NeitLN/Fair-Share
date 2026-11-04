@@ -13,15 +13,21 @@ interface SettlementFormProps {
   onSubmit: (input: SettlementInput) => Promise<unknown>
   submitting: boolean
   error: string | null
+  /**
+   * Who received it, fixed: only the person who received money records it (docs/ACCOUNTS.md, S2).
+   * Without it either side can be picked.
+   */
+  receiver?: number | null
 }
 
 const MAX_NOTE = 200
 
 // US-08: "A paid B x đồng", for payments that do not match a suggested transfer exactly
-function SettlementForm({ members, onSubmit, submitting, error }: SettlementFormProps) {
+function SettlementForm({ members, onSubmit, submitting, error, receiver = null }: SettlementFormProps) {
   const t = useT()
-  const [fromId, setFromId] = useState<number | ''>(members[0]?.id ?? '')
-  const [toId, setToId] = useState<number | ''>(members[1]?.id ?? '')
+  const firstOther = members.find((m) => m.id !== receiver)?.id ?? ''
+  const [fromId, setFromId] = useState<number | ''>(receiver === null ? (members[0]?.id ?? '') : firstOther)
+  const [toId, setToId] = useState<number | ''>(receiver ?? members[1]?.id ?? '')
   const [amountText, setAmountText] = useState('')
   const [settledAt, setSettledAt] = useState(today())
   const [note, setNote] = useState('')
@@ -32,6 +38,8 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
   function problem(): string | null {
     if (fromId === '' || toId === '') return t.settlements.pickBoth
     if (fromId === toId) return t.settlements.samePerson
+    // Like the expense form: an empty box says what to enter, not the rules
+    if (!amountText.trim()) return t.form.amountEmpty
     if (amount === null || amount <= 0) return t.settlements.badAmount
     if (!settledAt) return t.form.dateMissing
     if (!isDayInRange(settledAt)) return t.form.dateRange
@@ -74,9 +82,20 @@ function SettlementForm({ members, onSubmit, submitting, error }: SettlementForm
       </select>
 
       <label htmlFor="settlement-to">{t.settlements.toLabel}</label>
-      <select id="settlement-to" value={toId} onChange={(e) => setToId(pick(e.target.value))}>
+      <select
+        id="settlement-to"
+        value={toId}
+        disabled={receiver !== null}
+        aria-describedby={receiver !== null ? 'settlement-to-hint' : undefined}
+        onChange={(e) => setToId(pick(e.target.value))}
+      >
         {options}
       </select>
+      {receiver !== null && (
+        <span id="settlement-to-hint" className="hint">
+          {t.settlements.onlyReceived}
+        </span>
+      )}
 
       <label htmlFor="settlement-amount">{t.settlements.amountLabel}</label>
       <input

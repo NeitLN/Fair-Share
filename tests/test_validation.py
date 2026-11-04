@@ -29,10 +29,10 @@ def assert_error_shape(response, status: int, code: str) -> None:
     assert isinstance(body["error"]["message"], str) and body["error"]["message"]
 
 
-def post_raw(client, path: str, raw: str):
+def post_raw(client, path: str, raw: str, method: str = "POST"):
     """Send JSON text as is (json= would refuse a lone surrogate before it reached the API)."""
-    return client.post(path, content=raw.encode("utf-8", "surrogatepass"),
-                       headers={"Content-Type": "application/json"})
+    return client.request(method, path, content=raw.encode("utf-8", "surrogatepass"),
+                          headers={"Content-Type": "application/json"})
 
 
 # --- Without a database -------------------------------------------------------------------
@@ -161,7 +161,8 @@ def test_control_characters_and_broken_unicode_are_422_not_500(client, house, ta
     hid = house["id"]
     path, body, field = {
         "household name": ("/api/households", '{"name": "%s"}', "name"),
-        "member name": (f"/api/households/{hid}/members", '{"name": "%s"}', "name"),
+        # Names come from accounts now; renaming one checks the same rules
+        "member name": (f"/api/members/{house['minh']}", '{"name": "%s"}', "name"),
         "expense description": (
             f"/api/households/{hid}/expenses",
             json.dumps(expense_body(house, description="@@")).replace('"@@"', '"%s"'),
@@ -174,7 +175,7 @@ def test_control_characters_and_broken_unicode_are_422_not_500(client, house, ta
         ),
         "ai text": (f"/api/households/{hid}/ai/parse-expense", '{"text": "%s"}', "text"),
     }[target]
-    response = post_raw(client, path, body % bad)
+    response = post_raw(client, path, body % bad, "PATCH" if target == "member name" else "POST")
     assert_error_shape(response, 422, "validation_error")
     assert response.json()["error"]["details"][0]["loc"] == ["body", field]
 
@@ -183,7 +184,7 @@ def test_control_characters_and_broken_unicode_are_422_not_500(client, house, ta
 @pytest.mark.usefixtures("cleanup")
 def test_a_decomposed_name_is_the_same_member(client, house):
     """"Tiến" typed as e + combining marks is stored in the composed form, so it is a duplicate."""
-    response = client.post(f"/api/households/{house['id']}/members", json={"name": NFD_TIEN})
+    response = client.patch(f"/api/members/{house['minh']}", json={"name": NFD_TIEN})
     assert_error_shape(response, 409, "member_name_taken")
 
 
@@ -239,8 +240,10 @@ def test_invisible_characters_are_removed_but_emoji_keep_their_joiner(typed, kep
     ],
 )
 def test_a_name_made_only_of_invisible_characters_is_422(client, house, path, name):
-    url = "/api/households" if path == "household" else f"/api/households/{house['id']}/members"
-    response = client.post(url, json={"name": name})
+    if path == "household":
+        response = client.post("/api/households", json={"name": name})
+    else:
+        response = client.patch(f"/api/members/{house['tien']}", json={"name": name})
     assert_error_shape(response, 422, "validation_error")
     assert response.json()["error"]["details"][0]["loc"] == ["body", "name"]
 
@@ -252,7 +255,7 @@ def test_a_name_made_only_of_invisible_characters_is_422(client, house, path, na
 )
 def test_an_invisible_character_does_not_make_a_second_minh(client, house, lookalike):
     """The house already has Minh: the same name with an invisible character is a duplicate."""
-    response = client.post(f"/api/households/{house['id']}/members", json={"name": lookalike})
+    response = client.patch(f"/api/members/{house['tien']}", json={"name": lookalike})
     assert_error_shape(response, 409, "member_name_taken")
 
 
@@ -274,7 +277,7 @@ def test_text_is_stored_composed_and_the_limit_counts_what_the_user_sees(client)
     long_ok = unicodedata.normalize("NFD", "Nguyễn Thị Ánh Tuyết Hoàng Phương Lê")
     assert len(long_ok) > 40
     assert member(client, created["id"], long_ok)["name"] == unicodedata.normalize("NFC", long_ok)
-    too_long = client.post(f"/api/households/{created['id']}/members", json={"name": name})
+    too_long = client.patch(f"/api/members/{created['member_id']}", json={"name": name})
     assert too_long.status_code == 422
 
 
@@ -331,9 +334,8 @@ def test_every_api_error_uses_the_one_shape(client, house):
         (client.patch("/api/members/999999999", json={"name": "X"}), 404, "member_not_found"),
         (client.get("/api/expenses/999999999"), 404, "expense_not_found"),
         (client.delete("/api/settlements/999999999"), 404, "settlement_not_found"),
-        (client.post(f"/api/households/{hid}/members", json={"name": "minh"}), 409,
-         "member_name_taken"),
-        (client.delete(f"/api/members/{tien}"), 409, "member_in_use"),
+        (client.patch(f"/api/members/{tien}", json={"name": "minh"}), 409, "member_name_taken"),
+        (client.delete(f"/api/members/{tien}"), 409, "member_has_account"),
         (client.post("/api/households", json={"name": ""}), 422, "validation_error"),
         (client.post(f"/api/households/{hid}/expenses", json=expense_body(
             house, split={"type": "custom", "shares": [{"member_id": tien, "amount": 1}]})),

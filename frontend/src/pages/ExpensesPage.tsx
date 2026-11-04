@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
@@ -11,6 +11,7 @@ import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
 import ExpenseFilters from '../components/ExpenseFilters'
 import ExpenseList from '../components/ExpenseList'
+import ExpenseTable from '../components/ExpenseTable'
 import ExportCsvButton from '../components/ExportCsvButton'
 import MonthTotals from '../components/MonthTotals'
 import { warningMessage } from '../lib/aiWarnings'
@@ -19,6 +20,10 @@ import { filterExpenses, isFiltered, monthsOf, monthTotals, NO_FILTER } from '..
 import type { ExpenseFilter } from '../lib/expenseFilters'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import { formatVND } from '../lib/money'
+import { useSession } from '../lib/session'
+import { useToast } from '../lib/toast'
+import { useWide } from '../lib/useWide'
 import ErrorNote from '../components/ErrorNote'
 import Skeleton from '../components/Skeleton'
 import { useT } from '../i18n'
@@ -27,13 +32,19 @@ import { useT } from '../i18n'
 function ExpensesPage() {
   const t = useT()
   const householdId = Number(useParams().householdId)
+  const wide = useWide()
   const queryClient = useQueryClient()
   const { me } = useMe()
+  const session = useSession()
   const formRef = useRef<HTMLElement>(null)
   const [editing, setEditing] = useState<Expense | null>(null)
   // The AI fills this form; a new key clears the composer after each saved expense
   const expenseForm = useRef<ExpenseFormHandle>(null)
   const [composerKey, setComposerKey] = useState(0)
+  const toast = useToast()
+  // "Xem" in the saved toast: the expense to scroll to and tint for a moment, and the rows on screen now
+  const [revealId, setRevealId] = useState<number | null>(null)
+  const onScreen = useRef(new Set<number>())
   // The list filter belongs to one household: another household starts unfiltered
   const [filterOf, setFilterOf] = useState<{ householdId: number; filter: ExpenseFilter }>({
     householdId,
@@ -56,18 +67,32 @@ function ExpensesPage() {
 
   // An expense changes the balances too: refetch everything cached under this household
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
+  // Saved: said in a toast, since on a phone the new row lands below the screen (UI review 04/11)
+  function saved(expense: Expense) {
+    toast({
+      text: t.expenses.saved(expense.description, formatVND(expense.amount)),
+      action: { label: t.expenses.show, onAction: () => reveal(expense.id) },
+    })
+  }
+  function reveal(id: number) {
+    // A filter hiding it is lifted first
+    if (!onScreen.current.has(id)) setFilter(NO_FILTER)
+    setRevealId(id)
+  }
   const create = useMutation({
     mutationFn: (input: ExpenseInput) => createExpense(householdId, input),
-    onSuccess: (_expense, input) => {
+    onSuccess: (expense, input) => {
       writeLastPayer(householdId, input.payer_id)
       setComposerKey((key) => key + 1)
+      saved(expense)
       return refresh()
     },
   })
   const update = useMutation({
     mutationFn: ({ id, input }: { id: number; input: ExpenseInput }) => updateExpense(id, input, householdId),
-    onSuccess: () => {
+    onSuccess: (expense) => {
       setEditing(null)
+      saved(expense)
       return refresh()
     },
   })
@@ -83,11 +108,26 @@ function ExpensesPage() {
   function startEditing(expense: Expense) {
     update.reset()
     setEditing(expense)
-    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    // Smooth only for those who have not asked the system for less motion
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    formRef.current?.scrollIntoView?.({ behavior: still ? 'auto' : 'smooth', block: 'start' })
   }
 
   const noMembers = members.isSuccess && members.data.length === 0
+
+  // "+ Ghi khoản chi" on Tổng quan opens this page ready to type: the description has the focus once the
+  // form is there, and the request is dropped so going back and forth does not move the focus again
+  const location = useLocation()
+  const navigate = useNavigate()
+  const wantsDescription = (location.state as { focus?: string } | null)?.focus === 'description'
+  useEffect(() => {
+    if (!wantsDescription || !members.isSuccess) return
+    expenseForm.current?.focusDescription()
+    navigate(location.pathname, { replace: true, state: null })
+  }, [wantsDescription, members.isSuccess, navigate, location.pathname])
   const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  // Names from before accounts that nobody has taken (role null) stay in old expenses only (M3)
+  const withAccount = useMemo(() => (members.data ?? []).filter((m) => m.role !== null), [members.data])
   // You, else whoever paid last on this device (DESIGN.md §6.3)
   const defaultPayer = me ?? readLastPayer(householdId)
   const form = editing ? update : create
@@ -102,6 +142,19 @@ function ExpensesPage() {
   }
   const setFilter = (next: ExpenseFilter) => setFilterOf({ householdId, filter: next })
   const shown = filterExpenses(allExpenses, filter)
+  useEffect(() => {
+    onScreen.current = new Set(shown.map((expense) => expense.id))
+  })
+  // Scroll to the revealed row once it is on screen, tint it, and let the tint go after a moment
+  useEffect(() => {
+    if (revealId === null) return
+    const row = document.querySelector<HTMLElement>(`[data-expense="${revealId}"]`)
+    if (!row) return
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    row.scrollIntoView?.({ behavior: still ? 'auto' : 'smooth', block: 'center' })
+    const done = setTimeout(() => setRevealId(null), 2000)
+    return () => clearTimeout(done)
+  }, [revealId, shown.length])
   const totals =
     filter.month === null
       ? null
@@ -111,108 +164,152 @@ function ExpensesPage() {
     <>
       <h2 className="visually-hidden">{t.expenses.title}</h2>
 
-      {members.isPending && <Skeleton rows={4} label={t.expenses.loadingForm} />}
-      {members.error && (
-        <ErrorNote
-          message={errorMessage(members.error) ?? ''}
-          onRetry={() => members.refetch()}
-          retrying={members.isFetching}
-        />
-      )}
-      {noMembers && (
-        <p>
-          {t.expenses.noMembers(<Link to="../members">{t.expenses.addMembers}</Link>)}
-        </p>
-      )}
-
-      {members.isSuccess && !noMembers && (
-        <>
-          {!editing && (
-            <AiComposer
-              // A new household or a saved expense starts a fresh composer; pending answers are dropped
-              key={`${householdId}-${composerKey}`}
-              members={members.data}
-              onParse={(text) => parseExpense(householdId, text)}
-              onDraft={(draft, warnings) =>
-                expenseForm.current?.fill({
-                  description: draft.description,
-                  amount: draft.amount,
-                  payer_id: draft.payer_id,
-                  spent_at: draft.spent_at,
-                  member_ids: draft.split.member_ids,
-                splitNote: warnings.some((w) => w.code === 'participants_assumed')
-                  ? warningMessage({ code: 'participants_assumed', message: '' })
-                  : null,
-                }) ?? { filled: [], kept: [], cleared: [] }
-              }
-              onUndo={() => expenseForm.current?.undoFill()}
-              onManual={() => expenseForm.current?.focusDescription()}
+      {/* On a computer the form stays on the left and the list gets the width on the right */}
+      <div className="page-split expenses-split">
+        <div className="split-lead">
+          {members.isPending && <Skeleton rows={4} label={t.expenses.loadingForm} />}
+          {members.error && (
+            <ErrorNote
+              message={errorMessage(members.error) ?? ''}
+              onRetry={() => members.refetch()}
+              retrying={members.isFetching}
             />
           )}
-          <section ref={formRef} aria-labelledby="expense-form-title">
-            <h2 id="expense-form-title">{editing ? t.expenses.editing(editing.description) : t.expenses.add}</h2>
-            <ExpenseForm
-              ref={expenseForm}
-              // A new key gives the form fresh state for each household and each expense it edits
-              key={`${householdId}-${editing?.id ?? 'new'}`}
-              members={members.data}
-              looks={looks}
-              me={me}
-              defaultPayer={defaultPayer}
-              initial={editing}
-              onSubmit={(input) =>
-                editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
-              }
-              onCancel={editing ? () => setEditing(null) : undefined}
-              submitting={form.isPending}
-              error={errorMessage(form.error)}
-            />
-          </section>
-        </>
-      )}
+          {noMembers && (
+            <p>
+              {t.expenses.noMembers(<Link to="../members">{t.expenses.addMembers}</Link>)}
+            </p>
+          )}
 
-      <section aria-labelledby="expense-list-title">
-        <div className="section-head">
-          <h2 id="expense-list-title">{t.expenses.listTitle}</h2>
-          <span className="section-note" aria-live="polite">
-            {isFiltered(filter) ? t.expenses.filteredCount(shown.length, allExpenses.length) : t.expenses.listHint}
-          </span>
-          {/* The whole household, whatever the filter: the file is the record, not the current view */}
-          <ExportCsvButton
-            expenses={expenses.data ?? []}
-            members={members.data ?? []}
-            householdName={household.data?.name ?? ''}
-          />
+          {members.isSuccess && !noMembers && (
+            // One surface to add an expense: the AI line first (the quick way, and the demo), then the
+            // fields it fills. Two sibling forms inside it (DESIGN.md §6.3)
+            <section ref={formRef} aria-labelledby="expense-form-title">
+              <div className="section-head">
+                <h2 id="expense-form-title">{editing ? t.expenses.editing(editing.description) : t.expenses.add}</h2>
+                {/* A phone has the list two screens down; a computer shows it beside the form */}
+                {!editing && !wide && (
+                  <a href="#expense-list-title" className="section-link">
+                    {t.expenses.jumpToList}
+                  </a>
+                )}
+              </div>
+              <div className="entry-card">
+                {!editing && (
+                  <AiComposer
+                    // A new household or a saved expense starts a fresh composer; pending answers are dropped
+                    key={`${householdId}-${composerKey}`}
+                    members={members.data}
+                    onParse={(text) => parseExpense(householdId, text)}
+                    onDraft={(draft, warnings) =>
+                      expenseForm.current?.fill({
+                        description: draft.description,
+                        amount: draft.amount,
+                        payer_id: draft.payer_id,
+                        spent_at: draft.spent_at,
+                        member_ids: draft.split.member_ids,
+                      splitNote: warnings.some((w) => w.code === 'participants_assumed')
+                        ? warningMessage({ code: 'participants_assumed', message: '' })
+                        : null,
+                      }) ?? { filled: [], kept: [], cleared: [] }
+                    }
+                    onUndo={() => expenseForm.current?.undoFill()}
+                    onManual={() => expenseForm.current?.focusDescription()}
+                  />
+                )}
+                <ExpenseForm
+                  ref={expenseForm}
+                  // A new key gives the form fresh state for each household and each expense it edits
+                  key={`${householdId}-${editing?.id ?? 'new'}`}
+                  // A new expense is shared only between people with an account; an old one keeps its people
+                  members={editing ? members.data : withAccount}
+                  looks={looks}
+                  me={me}
+                  defaultPayer={defaultPayer}
+                  initial={editing}
+                  onSubmit={(input) =>
+                    editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
+                  }
+                  onCancel={editing ? () => setEditing(null) : undefined}
+                  submitting={form.isPending}
+                  error={errorMessage(form.error)}
+                />
+              </div>
+            </section>
+          )}
         </div>
-        {allExpenses.length > 0 && (
-          <ExpenseFilters months={months} members={members.data ?? []} filter={filter} onChange={setFilter} />
-        )}
-        {totals && filter.month && (
-          <MonthTotals month={filter.month} totals={totals} looks={looks} me={me} highlight={filter.memberId} />
-        )}
-        {isFiltered(filter) && shown.length === 0 ? (
-          <p className="empty">
-            {t.expenses.noMatch}{' '}
-            <button type="button" className="ghost" onClick={() => setFilter(NO_FILTER)}>
-              {t.expenses.showAll}
-            </button>
-          </p>
-        ) : (
-          <ExpenseList
-            expenses={shown}
-            members={members.data ?? []}
-            looks={looks}
-            loading={expenses.isPending}
-            error={errorMessage(expenses.error ?? remove.error)}
-            // Thử lại reloads the list; a failed delete is retried from its row
-            onRetry={expenses.error ? () => expenses.refetch() : undefined}
-            retrying={expenses.isFetching}
-            onEdit={startEditing}
-            onDelete={(expense) => remove.mutate(expense)}
-            deletingId={remove.isPending ? remove.variables?.id : null}
-          />
-        )}
-      </section>
+
+        <div className="split-rest">
+          <section aria-labelledby="expense-list-title">
+            <div className="section-head list-head">
+              <h2 id="expense-list-title" tabIndex={-1}>
+                {t.expenses.listTitle}
+              </h2>
+              <span className="section-note" aria-live="polite">
+                {isFiltered(filter)
+                  ? t.expenses.filteredCount(shown.length, allExpenses.length)
+                  : wide
+                    ? t.expenses.listHintWide
+                    : t.expenses.listHint}
+              </span>
+              {/* The whole household, whatever the filter: the file is the record, not the current view */}
+              <ExportCsvButton
+                expenses={expenses.data ?? []}
+                members={members.data ?? []}
+                householdName={household.data?.name ?? ''}
+              />
+            </div>
+            {allExpenses.length > 0 && (
+              <ExpenseFilters months={months} members={members.data ?? []} filter={filter} onChange={setFilter} />
+            )}
+            {totals && filter.month && (
+              <MonthTotals month={filter.month} totals={totals} looks={looks} me={me} highlight={filter.memberId} />
+            )}
+            {isFiltered(filter) && shown.length === 0 ? (
+              <p className="empty">
+                {t.expenses.noMatch}{' '}
+                <button type="button" className="ghost" onClick={() => setFilter(NO_FILTER)}>
+                  {t.expenses.showAll}
+                </button>
+              </p>
+            ) : wide ? (
+              // A computer reads them as a table (DESIGN.md §6.6); a phone keeps the rows that open
+              <ExpenseTable
+                expenses={shown}
+                members={members.data ?? []}
+                looks={looks}
+                loading={expenses.isPending}
+                error={errorMessage(expenses.error ?? remove.error)}
+                // Thử lại reloads the list; a failed delete is retried from its row
+                onRetry={expenses.error ? () => expenses.refetch() : undefined}
+                retrying={expenses.isFetching}
+                onEdit={startEditing}
+                onDelete={(expense) => remove.mutate(expense)}
+                deletingId={remove.isPending ? remove.variables?.id : null}
+                canChange={(expense) => household.data?.role === 'owner' || expense.created_by === session?.user.id}
+                editingId={editing?.id ?? null}
+                highlightId={revealId}
+              />
+            ) : (
+              <ExpenseList
+                expenses={shown}
+                members={members.data ?? []}
+                looks={looks}
+                loading={expenses.isPending}
+                error={errorMessage(expenses.error ?? remove.error)}
+                // Thử lại reloads the list; a failed delete is retried from its row
+                onRetry={expenses.error ? () => expenses.refetch() : undefined}
+                retrying={expenses.isFetching}
+                onEdit={startEditing}
+                onDelete={(expense) => remove.mutate(expense)}
+                deletingId={remove.isPending ? remove.variables?.id : null}
+                canChange={(expense) => household.data?.role === 'owner' || expense.created_by === session?.user.id}
+                highlightId={revealId}
+              />
+            )}
+          </section>
+        </div>
+      </div>
     </>
   )
 }

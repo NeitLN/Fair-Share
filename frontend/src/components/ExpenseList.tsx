@@ -10,7 +10,8 @@ import { Money } from './Money'
 import ErrorNote from './ErrorNote'
 import Skeleton from './Skeleton'
 import { closeFoldOnEscape } from '../lib/fold'
-import { messages, useT } from '../i18n'
+import { byDay, splitText } from '../lib/expenseRows'
+import { useT } from '../i18n'
 
 interface ExpenseListProps {
   expenses: Expense[]
@@ -27,38 +28,13 @@ interface ExpenseListProps {
   onDelete: (expense: Expense) => void
   /** The expense being deleted right now: its buttons are disabled so a double click sends one request. */
   deletingId?: number | null
+  /** Whether Sửa and Xoá are offered: the owner, or whoever recorded it (docs/ACCOUNTS.md). */
+  canChange?: (expense: Expense) => boolean
+  /** The expense just saved and asked for ("Xem" in the toast): tinted for a moment. */
+  highlightId?: number | null
 }
 
-/**
- * "chia đều 4 người", "chia riêng 2 người", and "chia đều 3/4 người" only when the people sharing are
- * some of today's members. Members come and go, so an old expense is compared by who, not by how many.
- */
-function splitText(expense: Expense, memberIds: Set<number>): string {
-  const t = messages().expenses
-  const people = expense.shares.length
-  if (expense.split_type === 'custom') return t.splitCustom(people)
-  const someOfToday =
-    people < memberIds.size && expense.shares.every((share) => memberIds.has(share.member_id))
-  return someOfToday ? t.splitEqualOf(people, memberIds.size) : t.splitEqual(people)
-}
-
-const instant = (timestamp: string) => Date.parse(timestamp) || 0
-
-/** Newest day first; inside a day, the one entered last first. */
-function byDay(expenses: Expense[]): [string, Expense[]][] {
-  const sorted = [...expenses].sort(
-    (a, b) =>
-      b.spent_at.slice(0, 10).localeCompare(a.spent_at.slice(0, 10)) ||
-      instant(b.created_at) - instant(a.created_at) ||
-      b.id - a.id,
-  )
-  const days = new Map<string, Expense[]>()
-  for (const expense of sorted) {
-    const day = expense.spent_at.slice(0, 10)
-    days.set(day, [...(days.get(day) ?? []), expense])
-  }
-  return [...days]
-}
+const always = () => true
 
 /**
  * "Các khoản chi" (DESIGN.md §6.3): grouped by day, each row a <details> that reveals Sửa and Xoá when
@@ -75,6 +51,8 @@ function ExpenseList({
   onEdit,
   onDelete,
   deletingId = null,
+  canChange = always,
+  highlightId = null,
 }: ExpenseListProps) {
   const t = useT()
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
@@ -108,9 +86,61 @@ function ExpenseList({
                 const deleting = deletingId === expense.id
                 const payer = lookOf(expense.payer_id)
                 return (
-                  <li key={expense.id} className="expense-row">
-                    <details onKeyDown={closeFoldOnEscape}>
-                      <summary>
+                  <li
+                    key={expense.id}
+                    data-expense={expense.id}
+                    className={`expense-row${highlightId === expense.id ? ' just-saved' : ''}`}
+                  >
+                    {/* Only a row the user may change opens; the others are plain rows (no hint of a
+                        menu that would be empty) */}
+                    {canChange(expense) ? (
+                      <details onKeyDown={closeFoldOnEscape}>
+                        <summary>
+                          <Avatar look={payer} decorative />
+                          <span className="expense-main">
+                            <span className="expense-description">
+                              {expense.description}
+                              {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
+                            </span>
+                            <small>
+                              {t.expenses.paidBy(payer.short, splitText(expense, memberIds))}
+                            </small>
+                          </span>
+                          <Money amount={expense.amount} className="expense-amount" />
+                          <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                            <path
+                              d="M6 3.5 10.5 8 6 12.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </summary>
+                        <div className="expense-actions">
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            aria-label={t.expenses.editLabel(expense.description)}
+                            disabled={deleting}
+                            onClick={() => onEdit(expense)}
+                          >
+                            {t.common.edit}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-danger"
+                            aria-label={t.expenses.deleteLabel(expense.description)}
+                            disabled={deleting}
+                            onClick={() => confirmDelete(expense)}
+                          >
+                            {deleting ? t.common.deleting : t.common.delete}
+                          </button>
+                        </div>
+                      </details>
+                    ) : (
+                      <div className="expense-summary">
                         <Avatar look={payer} decorative />
                         <span className="expense-main">
                           <span className="expense-description">
@@ -122,28 +152,8 @@ function ExpenseList({
                           </small>
                         </span>
                         <Money amount={expense.amount} className="expense-amount" />
-                      </summary>
-                      <div className="expense-actions">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          aria-label={t.expenses.editLabel(expense.description)}
-                          disabled={deleting}
-                          onClick={() => onEdit(expense)}
-                        >
-                          {t.common.edit}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger"
-                          aria-label={t.expenses.deleteLabel(expense.description)}
-                          disabled={deleting}
-                          onClick={() => confirmDelete(expense)}
-                        >
-                          {deleting ? t.common.deleting : t.common.delete}
-                        </button>
                       </div>
-                    </details>
+                    )}
                   </li>
                 )
               })}

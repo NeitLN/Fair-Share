@@ -5,6 +5,10 @@
 -- One statement, so it is all or nothing: the household, its three members, a few expenses over
 -- last month and this month (dates counted from today and never in the future, so the month filter
 -- always has two months to show), and one settlement. Every expense's shares add up to its amount.
+--
+-- Each member has a demo account (docs/ACCOUNTS.md), Tiến as the owner: tien@demo.local,
+-- minh@demo.local and duyanh@demo.local, all with the password "fairshare-demo". These are test
+-- values for this local stack, written in the README; the hash below is argon2id of that password.
 
 WITH demo AS (
   INSERT INTO households (name)
@@ -17,6 +21,33 @@ people AS (
   SELECT demo.id, member.name
   FROM demo, (VALUES ('Tiến'), ('Minh'), ('Duy Anh')) AS member (name)
   RETURNING id, household_id, name
+),
+demo_accounts (email, name) AS (
+  VALUES ('tien@demo.local', 'Tiến'), ('minh@demo.local', 'Minh'), ('duyanh@demo.local', 'Duy Anh')
+),
+accounts AS (
+  INSERT INTO users (email, password_hash, display_name)
+  SELECT account.email,
+         '$argon2id$v=19$m=65536,t=3,p=4$a1Kc3nZXbcTi+1qQRHwrLA$5HZKXRFLYEZCBXKEfvtl+zKTSysAz8bjdp9KguT+X2A',
+         account.name
+  FROM demo, demo_accounts account
+  ON CONFLICT DO NOTHING
+  RETURNING id, email
+),
+-- The accounts just made, and the ones left from an earlier demo household that was deleted (its
+-- accounts stay): the new demo household is theirs too
+known AS (
+  SELECT id, email FROM accounts
+  UNION
+  SELECT u.id, u.email FROM users u JOIN demo_accounts a ON a.email = u.email
+),
+linked AS (
+  INSERT INTO household_users (household_id, user_id, role, member_id, approved_at)
+  SELECT person.household_id, known.id,
+         CASE WHEN person.name = 'Tiến' THEN 'owner' ELSE 'member' END, person.id, now()
+  FROM people person
+  JOIN demo_accounts account ON account.name = person.name
+  JOIN known ON known.email = account.email
 ),
 -- months_back 1 = last month, 0 = this month; day = day of that month (today at the latest)
 bought (description, amount, payer, months_back, day, source, shares) AS (
@@ -56,7 +87,7 @@ shared AS (
 INSERT INTO settlements (household_id, from_member_id, to_member_id, amount, settled_at, note)
 SELECT tien.household_id, tien.id, minh.id, 1000000,
        LEAST(current_date, (date_trunc('month', current_date) - interval '1 month')::date + 14),
-       'Part of the rent'
+       'Trả trước một phần tiền nhà'
 FROM people tien
 JOIN people minh ON minh.name = 'Minh'
 WHERE tien.name = 'Tiến';

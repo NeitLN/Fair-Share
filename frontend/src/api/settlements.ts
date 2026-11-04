@@ -1,12 +1,33 @@
 // Settlements and balances endpoints, exactly as listed in docs/ARCHITECTURE.md §5
 import { api } from './client'
-import type { Balances, Settlement, SettlementInput } from './types'
+import type { Balances, Notice, Settlement, SettlementInput } from './types'
 
 /** Nested under ['households', id], like the expenses, so one invalidation refreshes them all. */
 export const settlementKeys = {
   list: (householdId: number) => ['households', householdId, 'settlements'] as const,
   balances: (householdId: number) => ['households', householdId, 'balances'] as const,
+  notices: (householdId: number) => ['households', householdId, 'notices'] as const,
 }
+
+// "Tôi đã chuyển" (docs/ACCOUNTS.md, S3). The sender is always the signed-in member.
+export const listNotices = (householdId: number) =>
+  api.get<Notice[]>(`/api/households/${householdId}/notices`)
+
+export const sendNotice = (householdId: number, toMemberId: number, amount: number) =>
+  api.put<Notice>(`/api/households/${householdId}/notices`, { to_member_id: toMemberId, amount })
+
+export const cancelNotice = (householdId: number, toMemberId: number) =>
+  api.delete(`/api/households/${householdId}/notices/${toMemberId}`)
+
+// The receiver's answers name the amount they saw: one told again since is not changed (409 notice_changed)
+export const acceptNotice = (householdId: number, fromMemberId: number, amount: number, settledAt: string) =>
+  api.post<Settlement>(`/api/households/${householdId}/notices/${fromMemberId}/accept`, {
+    amount,
+    settled_at: settledAt,
+  })
+
+export const declineNotice = (householdId: number, fromMemberId: number, amount: number) =>
+  api.post<Notice>(`/api/households/${householdId}/notices/${fromMemberId}/decline`, { amount })
 
 export const listSettlements = (householdId: number) =>
   api.get<Settlement[]>(`/api/households/${householdId}/settlements`)

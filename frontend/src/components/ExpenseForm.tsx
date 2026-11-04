@@ -230,7 +230,8 @@ function ExpenseForm({
       }
       setJustFilled(fill)
       if (fill.size > 0) setFromAi(true)
-      setProblems({})
+      // Only the fields the AI filled lose their message; one still empty keeps saying what it needs
+      fill.forEach((field) => clearProblem(field))
       return result
     },
     undoFill() {
@@ -277,10 +278,11 @@ function ExpenseForm({
   function check(): Problems {
     const found: Problems = {}
     const text = description.trim()
-    if (text.length < 1 || text.length > MAX_DESCRIPTION) {
-      found.description = t.form.descriptionProblem(MAX_DESCRIPTION)
-    }
-    if (amount === null || amount <= 0) found.amount = t.form.amountProblem
+    if (text.length === 0) found.description = t.form.descriptionEmpty
+    else if (text.length > MAX_DESCRIPTION) found.description = t.form.descriptionProblem(MAX_DESCRIPTION)
+    // An empty field says what to do; the format examples are for something typed that is not money
+    if (amountText.trim() === '') found.amount = t.form.amountEmpty
+    else if (amount === null || amount <= 0) found.amount = t.form.amountProblem
     if (payerId === '') found.payer = t.form.payerProblem
     if (!spentAt) found.date = t.form.dateMissing
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
@@ -330,11 +332,13 @@ function ExpenseForm({
     try {
       await onSubmit(toInput())
       if (!editing) {
-        // Ready for the next expense: same date, but the default payer (you, or without an identity the
-        // payer just saved, which the page now remembers) and an equal split between everyone again, as
-        // DESIGN.md says. Keeping the last split left someone out of the next expense without a word.
+        // Ready for the next expense: today, the default payer (you, or without an identity the payer
+        // just saved, which the page now remembers) and an equal split between everyone again, as
+        // DESIGN.md says. Keeping the last split left someone out of the next expense without a word, and
+        // keeping the date filed the next purchase on the day of the one before (UI review 04/11).
         setDescription('')
         setAmountText('')
+        setSpentAt(today())
         setSplitType('equal')
         setSelected(new Set(members.map((m) => m.id)))
         setCustomText({})
@@ -418,7 +422,7 @@ function ExpenseForm({
             type="text"
             inputMode="numeric"
             value={amountText}
-            placeholder="240k"
+            placeholder={t.form.amountPlaceholder}
             {...invalid('amount', 'expense-amount-preview')}
             onChange={(e) => {
               edited('amount')

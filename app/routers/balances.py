@@ -5,6 +5,7 @@ shows up immediately. The maths is in app/services/balances.py.
 """
 
 from fastapi import APIRouter
+from psycopg import Connection
 
 from app.access import HouseholdAccess
 from app.db import ConnDep, fetch_all
@@ -12,7 +13,7 @@ from app.routers.households import require_household
 from app.schemas import Balances, Id
 from app.services.balances import net, suggest_settlements
 
-# The household key is required (app/access.py)
+# A session and an approved member of the household are required (app/access.py)
 router = APIRouter(prefix="/api", tags=["balances"], dependencies=[HouseholdAccess])
 
 # sum() of bigint is numeric in PostgreSQL; cast back so Python gets an int, not a Decimal.
@@ -31,13 +32,19 @@ MEMBER_TOTALS = """
 """
 
 
-@router.get("/households/{household_id}/balances", response_model=Balances)
-def get_balances(household_id: Id, conn: ConnDep):
-    require_household(conn, household_id)
+def compute(conn: Connection, household_id: int) -> tuple[list[dict], list[tuple[int, int, int]]]:
+    """Each member's row with its net, and the suggested (from, to, amount) transfers. Also used
+    to check a "Tôi đã chuyển" against what is suggested now (app/routers/settlements.py)."""
     balances = fetch_all(conn, MEMBER_TOTALS, (household_id,))
     for row in balances:
         row["net"] = net(row["paid"], row["owed"], row["sent"], row["received"])
-    transfers = suggest_settlements({row["member_id"]: row["net"] for row in balances})
+    return balances, suggest_settlements({row["member_id"]: row["net"] for row in balances})
+
+
+@router.get("/households/{household_id}/balances", response_model=Balances)
+def get_balances(household_id: Id, conn: ConnDep):
+    require_household(conn, household_id)
+    balances, transfers = compute(conn, household_id)
     return {
         "balances": balances,
         "suggested": [

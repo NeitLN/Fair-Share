@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Member, MemberBalance } from '../api/types'
-import { formatVND } from '../lib/money'
 import { memberLooks } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
 import ErrorNote from './ErrorNote'
+import { Money } from './Money'
 import Skeleton from './Skeleton'
 import { useT } from '../i18n'
 
@@ -34,17 +34,28 @@ interface MemberListProps {
   removingId?: number | null
   /** A rename or remove that failed, shown under that member's row. */
   rowError?: { id: number; message: string } | null
+  /** The signed-in user owns the household: only then are Rename and Remove shown (docs/ACCOUNTS.md). */
+  canManage?: boolean
+  /** Takes away the access of someone with an account; their name and expenses stay. */
+  onRemoveAccess?: (member: Member) => void
 }
 
 /**
- * A member's money in one chip (DESIGN.md §6.4): cần trả / được nhận with the amount, SẠCH NỢ once
+ * A member's money (DESIGN.md §6.4): the signed amount with cần trả / được nhận, SẠCH NỢ once
  * they took part in something and are back to 0, nothing for someone who has not taken part yet.
  */
 function Standing({ balance }: { balance?: MemberBalance }) {
   const t = useT()
   if (!balance) return null
-  if (balance.net > 0) return <Chip kind="credit">{t.money.gets(formatVND(balance.net))}</Chip>
-  if (balance.net < 0) return <Chip kind="debt">{t.money.owes(formatVND(-balance.net))}</Chip>
+  // Signed money and a word, as on Tổng quan's balances: one look for money everywhere
+  if (balance.net !== 0) {
+    return (
+      <span className="member-money">
+        <Money amount={balance.net} kind="balance" />{' '}
+        <small>{balance.net > 0 ? t.money.getsShort : t.money.owesShort}</small>
+      </span>
+    )
+  }
   return tookPart(balance) ? <Stamp kind="settled" decorative={false} /> : null
 }
 
@@ -62,6 +73,8 @@ function MemberList({
   onRemove,
   removingId = null,
   rowError = null,
+  canManage = true,
+  onRemoveAccess,
 }: MemberListProps) {
   const t = useT()
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -89,9 +102,14 @@ function MemberList({
     return <Skeleton label={t.members.loading} />
   }
 
-  // Removing cannot be undone from the UI, so ask first
+  // Removing cannot be undone from the UI, so ask first. Someone with an account loses their access;
+  // a name nobody uses goes away.
   function confirmRemove(member: Member) {
-    if (window.confirm(t.members.confirmRemove(member.name))) onRemove(member.id)
+    if (member.role && onRemoveAccess) {
+      if (window.confirm(t.people.confirmRemoveAccess(member.name))) onRemoveAccess(member)
+    } else if (window.confirm(t.members.confirmRemove(member.name))) {
+      onRemove(member.id)
+    }
   }
 
   // While a rename is being saved nothing else may open or close an editor: its answer belongs to it
@@ -171,14 +189,16 @@ function MemberList({
                     <strong>
                       {member.name}
                       {me === member.id && <Chip kind="me">{t.common.you}</Chip>}
+                      {member.role === 'owner' && <Chip kind="zero">{t.people.owner}</Chip>}
                     </strong>
                     {look && look.short !== member.name.trim() && <small>{t.members.calledAs(look.short)}</small>}
+                    {member.role === null && <small>{t.people.noAccount}</small>}
                     <span className="standing">
                       <Standing balance={balances?.get(member.id)} />
                     </span>
                   </div>
                 )}
-                {editingId !== member.id && (
+                {editingId !== member.id && canManage && (
                   <div className="row-actions">
                     <button
                       ref={(button) => {
@@ -193,16 +213,26 @@ function MemberList({
                     >
                       {t.members.rename}
                     </button>
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      aria-label={t.members.removeLabel(member.name)}
-                      aria-describedby={note ? `member-note-${member.id}` : undefined}
-                      disabled={removing}
-                      onClick={() => confirmRemove(member)}
-                    >
-                      {removing ? t.members.removing : t.members.remove}
-                    </button>
+                    {member.role !== 'owner' && (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        aria-label={
+                          member.role && onRemoveAccess
+                            ? t.people.removeAccessLabel(member.name)
+                            : t.members.removeLabel(member.name)
+                        }
+                        aria-describedby={note ? `member-note-${member.id}` : undefined}
+                        disabled={removing}
+                        onClick={() => confirmRemove(member)}
+                      >
+                        {removing
+                          ? t.members.removing
+                          : member.role && onRemoveAccess
+                            ? t.people.removeAccess
+                            : t.members.remove}
+                      </button>
+                    )}
                   </div>
                 )}
                 {(note || (editingId === member.id && validation)) && (

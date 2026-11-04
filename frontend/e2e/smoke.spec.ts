@@ -1,83 +1,101 @@
 import { expect, test } from '@playwright/test'
 
-// The main flow on a real browser, against the live site by default (playwright.config.ts).
-// It writes to the real database, so the household it creates has an obvious name and is always
-// deleted at the end, even when a step fails. It never uses AI Quick add (no Gemini quota spent).
+import { deleteHousehold } from './accounts.js'
+import type { TestAccount } from './accounts.js'
 
-// The API is a different origin in production; locally (Compose) it is the web origin's /api.
-const API = process.env.E2E_API_URL ?? 'https://fair-share-4bu9.onrender.com'
+// The main flow with two people, each in their own browser, against the live site by default
+// (playwright.config.ts): sign up, create a household, join it with the invite code, the owner
+// approves, an expense, and the person who received the money confirms it. It writes to the real
+// database, so the household has an obvious name and is always deleted at the end, even when a step
+// fails. It never uses AI Quick add (no Gemini quota spent).
 
 // The steps name buttons by their Vietnamese words; English is the default, so pick Vietnamese first
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
 })
 
-test('a household from creation to everyone settled', async ({ page, request }) => {
+test('two housemates, from signing up to everyone settled', async ({ page, browser, request }) => {
   const name = `E2E smoke ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
   let householdId: number | null = null
+  let owner: TestAccount | null = null
+  const minhContext = await browser.newContext({ viewport: { width: 360, height: 800 } })
+  await minhContext.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+  const minh = await minhContext.newPage()
 
   try {
-    // 1. Create the household. The first load may wait for the free API instance to wake up.
+    // 1. Tiến signs up in the page (the first load may wait for the free API instance to wake up)
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeVisible()
-    // A fresh browser knows no household yet (#132), so the form is already open; otherwise unfold it
-    const create = page.getByText('+ Tạo nhà mới')
-    if (await create.isVisible()) await create.click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeVisible()
+    await page.getByRole('button', { name: 'Tạo tài khoản' }).first().click()
+    const email = `e2e-${Date.now()}@fair-share.test`
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Tên của bạn').fill('Tiến')
+    await page.getByLabel('Mật khẩu').fill('e2e-password-not-secret')
+    await page.getByRole('button', { name: 'Tạo tài khoản' }).nth(1).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Nhà của bạn', exact: true })).toBeVisible({ timeout: 60_000 })
+    owner = await page.evaluate(() => JSON.parse(localStorage.getItem('fair-share:session') ?? 'null'))
+
+    // 2. He creates the household and lands on its members page, with its invite code
     await page.getByLabel('Tên nhà').fill(name)
     await page.getByRole('button', { name: 'Tạo nhà' }).click()
     await page.waitForURL(/\/households\/\d+\/members$/, { timeout: 60_000 })
     householdId = Number(/\/households\/(\d+)\//.exec(page.url())?.[1])
+    const code = (await page.locator('.invite-code').innerText()).replace('-', '')
 
-    // 2. Three members
-    for (const member of ['Tiến', 'Minh', 'Duy Anh']) {
-      await page.getByLabel('Tên thành viên').fill(member)
-      await page.getByRole('button', { name: 'Thêm thành viên' }).click()
-      await expect(page.getByRole('listitem').filter({ hasText: member }).first()).toBeVisible()
-    }
+    // 3. Minh signs up on his phone and opens the invite link: he asks to join, and sees nothing yet
+    await minh.goto('/')
+    await minh.getByRole('button', { name: 'Tạo tài khoản' }).first().click()
+    await minh.getByLabel('Email').fill(`e2e-${Date.now()}-minh@fair-share.test`)
+    await minh.getByLabel('Tên của bạn').fill('Minh')
+    await minh.getByLabel('Mật khẩu').fill('e2e-password-not-secret')
+    await minh.getByRole('button', { name: 'Tạo tài khoản' }).nth(1).click()
+    await expect(minh.getByRole('heading', { level: 1, name: 'Nhà của bạn', exact: true })).toBeVisible()
+    await minh.goto(`/join/${code}`)
+    await minh.getByRole('button', { name: 'Gửi yêu cầu vào nhà' }).click()
+    await expect(minh.getByRole('region', { name: 'Đang chờ duyệt' })).toBeVisible()
 
-    // 3. "Bạn là ai?": this device is Tiến
-    await page.getByRole('button', { name: 'Chọn' }).click()
-    await page.locator('[aria-labelledby="chooser-title"]').getByRole('button', { name: 'Tiến' }).click()
-    await expect(page.getByText('Bạn là')).toContainText('Tiến')
+    // 4. Tiến approves him
+    await page.reload()
+    const asking = page.getByRole('region', { name: 'Người xin vào nhà' })
+    await asking.getByRole('button', { name: 'Duyệt' }).click()
+    await expect(page.getByText('Minh đã vào nhà.')).toBeVisible()
 
-    // 4. Tiến pays 300.000đ for the three of them (payer defaults to you, split to everyone)
-    await page.getByRole('link', { name: 'Chi tiêu' }).click()
-    await page.getByLabel('Nội dung').fill('Lẩu E2E')
-    await page.getByLabel('Số tiền').fill('300k')
-    await page.getByRole('button', { name: 'Lưu khoản chi' }).click()
-    await expect(page.getByText('Lẩu E2E')).toBeVisible()
+    // 5. Minh records 300.000đ he paid for both of them (payer defaults to him, split to everyone)
+    await minh.goto(`/households/${householdId}/expenses`)
+    await minh.getByLabel('Nội dung').fill('Lẩu E2E')
+    await minh.getByLabel('Số tiền').fill('300k')
+    await minh.getByRole('button', { name: 'Lưu khoản chi' }).click()
+    await expect(minh.getByText('Lẩu E2E')).toBeVisible()
 
-    // 5. Tổng quan: the others owe Tiến, two transfers to settle it
-    await page.getByRole('link', { name: 'Tổng quan' }).click()
-    const verdict = page.locator('.verdict-sentence')
-    await expect(verdict).toContainText('Bạn được nhận từ')
-    const transfers = page.getByRole('list', { name: 'Các lần trả gợi ý' })
-    await expect(transfers.getByRole('button', { name: 'Đã trả' })).toHaveCount(2)
+    // 6. Tiến owes Minh 150.000đ, and only Minh can say he received it
+    await page.goto(`/households/${householdId}`)
+    await expect(page.locator('.verdict-sentence')).toContainText('Bạn cần trả Minh')
+    await expect(page.getByText('Chờ Minh xác nhận đã nhận')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Đã nhận' })).toHaveCount(0)
 
-    // 6. Đã trả stamps one transfer; Hoàn tác takes it back
-    await transfers.getByRole('button', { name: 'Đã trả' }).first().click()
-    await expect(transfers.getByRole('button', { name: 'Hoàn tác' })).toHaveCount(1)
-    await expect(page.getByRole('status').filter({ hasText: 'Đã ghi' })).toBeVisible()
+    // 7. Minh confirms; Hoàn tác takes it back; he confirms again and the house is settled
+    await minh.goto(`/households/${householdId}`)
+    const transfers = minh.getByRole('list', { name: 'Các lần trả gợi ý' })
+    await transfers.getByRole('button', { name: 'Đã nhận' }).click()
+    await expect(minh.getByRole('status').filter({ hasText: 'Đã ghi' })).toBeVisible()
     await transfers.getByRole('button', { name: 'Hoàn tác' }).click()
-    await expect(transfers.getByRole('button', { name: 'Đã trả' })).toHaveCount(2)
-
-    // 7. Pay both: the house is settled
-    await transfers.getByRole('button', { name: 'Đã trả' }).first().click()
+    await transfers.getByRole('button', { name: 'Đã nhận' }).click()
     await expect(transfers.getByRole('button', { name: 'Hoàn tác' })).toHaveCount(1)
-    await transfers.getByRole('button', { name: 'Đã trả' }).click()
-    await expect(verdict).toContainText('Cả nhà sạch nợ')
+    await page.reload()
+    await expect(page.locator('.verdict-sentence')).toContainText('Cả nhà sạch nợ')
   } finally {
+    await minhContext.close()
     // Always remove the test household and everything in it from the real database
-    if (householdId) {
-      // The key the browser was given when it created the household (#132)
-      const key = await page.evaluate(
-        (id) => JSON.parse(localStorage.getItem('fair-share:household-keys') ?? '{}')[id] as string,
-        householdId,
-      )
-      const response = await request.delete(`${API}/api/households/${householdId}`, {
-        headers: { 'X-Household-Key': key },
-      })
+    if (householdId && owner) {
+      const response = await deleteHousehold(request, householdId, owner)
       expect(response.status(), 'test household deleted').toBe(204)
     }
   }
+})
+
+test('signed out, a household address shows the sign-in form', async ({ page }) => {
+  await page.goto('/households/1')
+  await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeVisible({
+    timeout: 60_000,
+  })
 })

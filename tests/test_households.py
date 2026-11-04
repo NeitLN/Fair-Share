@@ -1,13 +1,15 @@
 """Households and members API (US-01, US-02) against a real PostgreSQL.
 
 Shapes and status codes are the ones the SPA expects (frontend/src/api/households.ts): 201 on
-create, 204 on delete, {"error": {"code", "message"}} on failure.
+create, 204 on delete, {"error": {"code", "message"}} on failure. Who may do what is in
+tests/test_access.py; joining and approving in tests/test_accounts.py.
 """
 import psycopg
 import pytest
 
 from app.routers.households import MAX_MEMBERS
-from tests.api import error_code, household, member
+from tests.api import error_code, household, member, remove_access
+from tests.conftest import bearer
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 
@@ -18,21 +20,22 @@ pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 def test_create_then_get(client):
     created = household(client, "  Nhà trọ Q7  ")
     assert created["name"] == "Nhà trọ Q7"  # trimmed
-    # The key comes with the answer to creating it, and only there (#132)
-    assert set(created) == {"id", "name", "created_at", "key"}
-    key = created.pop("key")
-    assert len(key) >= 32
+    # The creator owns it, with a name of their own in the split; no key any more
+    assert set(created) == {"id", "name", "created_at", "role", "member_id"}
+    assert created["role"] == "owner"
 
     assert client.get(f"/api/households/{created['id']}").json() == created
 
 
-def test_there_is_no_list_of_every_household(client):
-    """#132: with no logins, such a list would show every group's households to anyone."""
-    household(client, "Nhà của nhóm khác")
-    response = client.get("/api/households")
-    assert response.status_code == 405
-    assert error_code(response) == "method_not_allowed"
-    assert "Nhà của nhóm khác" not in response.text
+def test_the_list_has_only_your_own_households(client):
+    mine = household(client, "Nhà của mình")
+    other = client.sign_up()
+    client.post("/api/households", json={"name": "Nhà của nhóm khác"}, headers=bearer(other))
+
+    listed = client.get("/api/households").json()
+    assert [h["name"] for h in listed["households"]] == ["Nhà của mình"]
+    assert listed["households"][0]["id"] == mine["id"]
+    assert listed["pending"] == []
 
 
 @pytest.mark.parametrize("name", ["", "   ", "x" * 61])
@@ -61,7 +64,7 @@ def test_rename_household(client):
         ("PATCH", "/api/households/{id}"),
         ("DELETE", "/api/households/{id}"),
         ("GET", "/api/households/{id}/members"),
-        ("POST", "/api/households/{id}/members"),
+        ("GET", "/api/households/{id}/invite"),
     ],
 )
 def test_unknown_household_is_404(client, method, path):
@@ -80,7 +83,7 @@ def test_delete_household_removes_its_members_and_expenses(client, db_url):
     created = household(client)
     minh = member(client, created["id"], "Minh")
     anh = member(client, created["id"], "Duy Anh")
-    with psycopg.connect(db_url) as conn:  # no expenses API yet (T-15): insert one directly
+    with psycopg.connect(db_url) as conn:
         expense = conn.execute(
             "INSERT INTO expenses (household_id, description, amount, payer_id)"
             " VALUES (%s, 'Dinner', 90000, %s) RETURNING id",
@@ -97,37 +100,49 @@ def test_delete_household_removes_its_members_and_expenses(client, db_url):
     assert response.content == b""
     assert client.get(f"/api/households/{created['id']}").status_code == 404
     with psycopg.connect(db_url) as conn:
-        sql = "SELECT count(*) FROM members WHERE household_id = %s"
-        assert conn.execute(sql, (created["id"],)).fetchone()[0] == 0
+        for table in ("members", "household_users", "invite_codes"):
+            sql = f"SELECT count(*) FROM {table} WHERE household_id = %s"
+            assert conn.execute(sql, (created["id"],)).fetchone()[0] == 0
 
 
 # --- Members (US-02) --------------------------------------------------------------------------
 
 
-def test_add_and_list_members_in_order(client):
+def test_list_members_in_order_with_their_role(client):
     house = household(client)
-    tien = member(client, house["id"], "Tiến")
+    tien = member(client, house["id"], "Tiến")  # the owner's own name
     minh = member(client, house["id"], " Minh ")
     assert minh["name"] == "Minh"
     assert minh["household_id"] == house["id"]
-    assert set(minh) == {"id", "household_id", "name", "created_at"}
+    assert set(minh) == {"id", "household_id", "name", "created_at", "role", "user_id"}
 
     listed = client.get(f"/api/households/{house['id']}/members").json()
-    assert [m["name"] for m in listed] == ["Tiến", "Minh"]  # oldest first
+    assert [(m["name"], m["role"]) for m in listed] == [("Tiến", "owner"), ("Minh", "member")]
     assert listed[0] == tien
 
 
-def test_a_new_household_has_no_members(client):
+def test_a_new_household_has_only_its_owner(client):
     house = household(client)
-    assert client.get(f"/api/households/{house['id']}/members").json() == []
+    listed = client.get(f"/api/households/{house['id']}/members").json()
+    assert [(m["id"], m["role"]) for m in listed] == [(house["member_id"], "owner")]
 
 
-def test_duplicate_member_name_is_409_ignoring_case(client):
+def test_a_new_person_cannot_take_a_name_already_used_ignoring_case(client):
     house = household(client)
     member(client, house["id"], "Minh")
-    response = client.post(f"/api/households/{house['id']}/members", json={"name": "MINH"})
+    token = client.sign_up(display_name="MINH")
+    code = client.get(f"/api/households/{house['id']}/invite").json()["code"]
+    client.post("/api/join", json={"code": code}, headers=bearer(token))
+    user_id = client.get("/api/auth/me", headers=bearer(token)).json()["id"]
+
+    response = client.post(f"/api/households/{house['id']}/requests/{user_id}/approve", json={})
     assert response.status_code == 409
     assert error_code(response) == "member_name_taken"
+    # The owner gives them another name instead
+    approve = f"/api/households/{house['id']}/requests/{user_id}/approve"
+    response = client.post(approve, json={"name": "Minh B"})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Minh B"
 
 
 def test_a_household_has_no_more_members_than_one_expense_can_be_split_between(client):
@@ -136,14 +151,23 @@ def test_a_household_has_no_more_members_than_one_expense_can_be_split_between(c
     members_url = f"/api/households/{house['id']}/members"
     ids = [member(client, house["id"], f"Người {i}")["id"] for i in range(MAX_MEMBERS)]
 
-    response = client.post(members_url, json={"name": "Người thêm"})
+    token = client.sign_up(display_name="Người thêm")
+    code = client.get(f"/api/households/{house['id']}/invite").json()["code"]
+    client.post("/api/join", json={"code": code}, headers=bearer(token))
+    user_id = client.get("/api/auth/me", headers=bearer(token)).json()["id"]
+    approve = f"/api/households/{house['id']}/requests/{user_id}/approve"
+    response = client.post(approve, json={})
     assert response.status_code == 409
     assert error_code(response) == "too_many_members"
     assert len(client.get(members_url).json()) == MAX_MEMBERS
 
-    # Someone leaves: there is room for one again
+    # Someone leaves and their name goes: there is room for one again
+    remove_access(client, house["id"], ids[-1])
     assert client.delete(f"/api/members/{ids.pop()}").status_code == 204
-    ids.append(member(client, house["id"], "Người thêm")["id"])
+    added = client.post(approve, json={})
+    assert added.status_code == 200
+    ids.append(added.json()["id"])
+    client.member_tokens[ids[-1]] = token
 
     # And the whole household can share one expense equally
     response = client.post(
@@ -163,7 +187,7 @@ def test_the_same_name_in_two_households_is_fine(client):
 @pytest.mark.parametrize("name", ["", "  ", "x" * 41])
 def test_member_name_must_be_1_to_40_characters(client, name):
     house = household(client)
-    response = client.post(f"/api/households/{house['id']}/members", json={"name": name})
+    response = client.patch(f"/api/members/{house['member_id']}", json={"name": name})
     assert response.status_code == 422
 
 
@@ -184,12 +208,15 @@ def test_rename_member_to_a_taken_name_is_409(client):
     assert error_code(response) == "member_name_taken"
 
 
-def test_remove_member(client):
+def test_remove_a_name_nobody_uses(client):
     house = household(client)
+    member(client, house["id"], "Tiến")
     minh = member(client, house["id"], "Minh")
+    remove_access(client, house["id"], minh["id"])
     response = client.delete(f"/api/members/{minh['id']}")
     assert response.status_code == 204
-    assert client.get(f"/api/households/{house['id']}/members").json() == []
+    names = [m["name"] for m in client.get(f"/api/households/{house['id']}/members").json()]
+    assert names == ["Tiến"]
 
 
 @pytest.mark.parametrize("method", ["PATCH", "DELETE"])
@@ -201,6 +228,7 @@ def test_unknown_member_is_404(client, method):
 
 def test_member_in_an_expense_cannot_be_removed(client, db_url):
     house = household(client)
+    member(client, house["id"], "Tiến")
     minh = member(client, house["id"], "Minh")
     anh = member(client, house["id"], "Duy Anh")
     with psycopg.connect(db_url) as conn:
@@ -216,7 +244,8 @@ def test_member_in_an_expense_cannot_be_removed(client, db_url):
         )
 
     for person in (minh, anh):  # the payer, and someone who only shares it
+        remove_access(client, house["id"], person["id"])
         response = client.delete(f"/api/members/{person['id']}")
         assert response.status_code == 409
         assert error_code(response) == "member_in_use"
-    assert len(client.get(f"/api/households/{house['id']}/members").json()) == 2
+    assert len(client.get(f"/api/households/{house['id']}/members").json()) == 3

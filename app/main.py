@@ -10,12 +10,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import errors
-from app.access import KEY_HEADER
 from app.config import APP_VERSION, Settings
 from app.db import DatabaseCooldown, create_pool
 from app.limits import BodySizeLimit
 from app.migrate import prepare_database
-from app.routers import ai, balances, expenses, households, members, settlements, system
+from app.routers import accounts, ai, balances, expenses, households, members, settlements, system
+from app.routers.accounts import KEY_HEADER
 from app.services.gemini import GeminiClient
 from app.services.rate_limit import AiBudget
 
@@ -51,17 +51,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # and the browser can still read a 413 sent to the web app's origin.
     app.add_middleware(BodySizeLimit)
     if settings.allowed_origins:
-        # Only the listed origins (never "*"); the SPA sends JSON, so Content-Type must be allowed
-        # for the browser's preflight. No cookies are used, so credentials stay off.
+        # Only the listed origins (never "*"); the SPA sends JSON and its session token, so
+        # Content-Type and Authorization must be allowed for the browser's preflight (the old
+        # household key only to take over a household from before accounts). No cookies are used,
+        # so credentials stay off.
         app.add_middleware(
             CORSMiddleware,
             allow_origins=list(settings.allowed_origins),
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-            allow_headers=["Content-Type", KEY_HEADER],
+            allow_headers=["Content-Type", "Authorization", KEY_HEADER],
             max_age=600,
         )
     errors.install(app)
     app.include_router(system.router)
+    app.include_router(accounts.router)
     app.include_router(households.router)
     app.include_router(members.router)
     app.include_router(expenses.router)

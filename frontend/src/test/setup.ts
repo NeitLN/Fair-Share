@@ -3,7 +3,7 @@ import { cleanup, configure } from '@testing-library/react'
 import { afterEach, beforeEach } from 'vitest'
 
 import { setLanguage } from '../i18n'
-import { resetVisit } from '../lib/knownHouseholds'
+import { reloadSession } from '../lib/session'
 
 // findBy*/waitFor give up after 1 s by default. Rendering the whole app on a busy laptop or CI
 // runner can take longer than that, which made page tests fail at random; 5 s is still quick
@@ -16,10 +16,10 @@ beforeEach(() => {
   setLanguage('vi')
 })
 
-// Unmount whatever the previous test rendered, so tests never see each other's DOM, nor its storage
-// (household keys, "Bạn là ai?"), nor the keys a visit keeps in memory (lib/knownHouseholds.ts)
+// Unmount whatever the previous test rendered, so tests never see each other's DOM, nor its storage,
+// nor the session it signed in with (lib/session.ts)
 afterEach(() => {
   cleanup()
   localStorage.clear()
-  resetVisit()
+  reloadSession()
 })

@@ -71,10 +71,14 @@ export function reminderMessage(
   suggested: Transfer[],
   nameOf: NameOf,
   link: string,
+  /** The pairs ("from-to") already told "Tôi đã chuyển": their line says it waits for the receiver. */
+  told: ReadonlySet<string> = new Set(),
 ): string {
   const t = messages().verdict
-  const lines = suggested.map((p) =>
-    t.reminderLine(nameOf(p.from_member_id), nameOf(p.to_member_id), formatVND(p.amount)),
+  const lines = suggested.map(
+    (p) =>
+      t.reminderLine(nameOf(p.from_member_id), nameOf(p.to_member_id), formatVND(p.amount)) +
+      (told.has(`${p.from_member_id}-${p.to_member_id}`) ? t.reminderTold(nameOf(p.to_member_id)) : ''),
   )
   return [t.reminderHead(householdName, month), ...lines, t.reminderLink(link)].join('\n')
 }

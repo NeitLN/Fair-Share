@@ -48,7 +48,14 @@ def install(app: FastAPI) -> None:
 
     @app.exception_handler(ApiError)
     async def api_error(request: Request, exc: ApiError):
-        return error_response(exc.status, exc.code, exc.message)
+        # A 429 from the guessing limits (app/auth.py) says how long to wait, in the body for the
+        # page and in Retry-After for anything else
+        retry_after = getattr(exc, "retry_after", None)
+        if retry_after is None:
+            return error_response(exc.status, exc.code, exc.message)
+        response = error_response(exc.status, exc.code, exc.message, retry_after=retry_after)
+        response.headers["Retry-After"] = str(retry_after)
+        return response
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException):

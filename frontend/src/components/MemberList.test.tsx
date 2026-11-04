@@ -123,8 +123,9 @@ describe('MemberList', () => {
       />,
     )
     const rows = screen.getAllByRole('listitem')
-    expect(rows[0]).toHaveTextContent('Hoàng Minhgọi là Minhđược nhận 200.000đ')
-    expect(rows[1]).toHaveTextContent('Võ Việt Tiếnbạngọi là Tiếncần trả 120.000đ')
+    // Signed money and a word, the same look as Tổng quan's balances
+    expect(rows[0]).toHaveTextContent(/Hoàng Minhgọi là Minh\+200\.000\s?đ được nhận/)
+    expect(rows[1]).toHaveTextContent(/Võ Việt Tiếnbạngọi là Tiến−120\.000\s?đ cần trả/)
     // Took part and is back to 0: SẠCH NỢ; never took part: nothing to say yet
     expect(rows[2]).toHaveTextContent('SẠCH NỢ')
     expect(rows[3]).not.toHaveTextContent('SẠCH NỢ')
