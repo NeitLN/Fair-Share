@@ -25,7 +25,7 @@ DB_DIR = Path(__file__).resolve().parent.parent / "db"
 MIGRATIONS_DIR = DB_DIR / "migrations"
 SEED_FILE = DB_DIR / "seed.sql"
 # The household seed.sql creates, and the account of its owner (password in the README)
-DEMO_HOUSEHOLD = "Demo house"
+DEMO_HOUSEHOLD = "Nhà trọ Bình Thạnh"
 DEMO_OWNER = "tien@demo.local"
 
 # Any fixed number works, as long as every API instance uses the same one.
