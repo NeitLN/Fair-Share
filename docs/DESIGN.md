@@ -322,6 +322,9 @@ keyboard goes through the page in the order it is seen.
   widens, with a floor so the verdict and the form never get narrower than at 1280. The header keeps the
   wordmark and the account; under it, one row for the household: its name and avatars on the left, the
   three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
+  Above that row, on every screen size, *‹ Nhà của bạn* leads back to the list, and for an account in
+  more than one house *Chuyển nhà* opens a short list of the others (design review 05/11: only the
+  wordmark led out, and changing house took two pages).
   Nothing is sticky, so nothing covers a focused field on a short laptop screen.
 * **Tổng quan:** two columns (equal at 1024, `minmax(480px, 2fr) 3fr` from 1280). Left: the verdict block,
   *+ Ghi khoản chi*, then Lịch sử trả. Right: this month, Số dư từng người, then **Khoản chi gần đây**, the last five

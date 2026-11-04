@@ -3,12 +3,13 @@ import { useEffect, useMemo } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 
 import { ApiError } from '../api/client'
-import { getHousehold, keys, listMembers, listRequests } from '../api/households'
+import { getHousehold, keys, listMembers, listMyHouseholds, listRequests } from '../api/households'
 import { listNotices, settlementKeys } from '../api/settlements'
 import { REFRESH_MS } from '../lib/refresh'
 import { AvatarStack } from '../components/Avatar'
 import ClaimPanel from '../components/ClaimPanel'
 import { IdentityProvider } from '../components/IdentityProvider'
+import { closeFoldOnEscape } from '../lib/fold'
 import { keyFromHash } from '../lib/invite'
 import { memberLooks } from '../lib/names'
 import { useT } from '../i18n'
@@ -34,6 +35,13 @@ function HouseholdLayout() {
     enabled: validId && household.isSuccess,
   })
   const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  // The account's other houses, for Chuyển nhà (design review 05/11); the same query as Nhà của bạn
+  const mine = useQuery({
+    queryKey: keys.households,
+    queryFn: listMyHouseholds,
+    enabled: validId && household.isSuccess,
+  })
+  const others = (mine.data?.households ?? []).filter((h) => h.id !== householdId)
 
   // What waits for you, shown on the tabs (UI review 04/11): someone asking the owner to join, and a
   // "Tôi đã chuyển" sent to you. While the page is open they are asked again every 30 s (never in a
@@ -88,6 +96,28 @@ function HouseholdLayout() {
       {/* A phone stacks these; a computer puts the name on the left and the tabs on the right of one row */}
       <div className="house-frame">
         <div className="house-side">
+          {/* The way back, and to another house; only the wordmark led out before (design review 05/11) */}
+          <nav className="house-crumbs" aria-label={t.household.where}>
+            <Link to="/" className="crumb-back">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              {t.households.title}
+            </Link>
+            {others.length > 0 && (
+              // Keyed by the house, so it is closed again once another house opens
+              <details key={householdId} className="house-switch" onKeyDown={closeFoldOnEscape}>
+                <summary>{t.household.switchHouse}</summary>
+                <ul>
+                  {others.map((h) => (
+                    <li key={h.id}>
+                      <Link to={`/households/${h.id}`}>{h.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </nav>
           <div className="house-head">
             <h1>{household.data?.name ?? (household.isPending ? t.common.loading : t.household.fallbackName)}</h1>
             {people.length > 0 && <AvatarStack looks={people.map((m) => looks.get(m.id)!)} />}

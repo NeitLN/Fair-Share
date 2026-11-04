@@ -100,6 +100,8 @@ const vi = {
   },
   household: {
     tabs: 'Mục của nhà',
+    where: 'Vị trí',
+    switchHouse: 'Chuyển nhà',
     toldYou: (count: number) => `, ${count} lời báo đã chuyển chờ bạn xác nhận`,
     asking: (count: number) => `, ${count} người xin vào nhà`,
     overview: 'Tổng quan',

@@ -110,6 +110,8 @@ const en: Messages = {
     creating: 'Creating…',
   },
   household: {
+    where: 'You are here',
+    switchHouse: 'Switch group',
     tabs: 'Group sections',
     toldYou: (count: number) => `, ${count} sent ${count === 1 ? 'payment' : 'payments'} to confirm`,
     asking: (count: number) => `, ${count} asking to join`,

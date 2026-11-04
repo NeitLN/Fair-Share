@@ -419,6 +419,86 @@ main {
   gap: 8px;
 }
 
+/* Nhà của bạn ‹ and Chuyển nhà above the house (design review 05/11) */
+.house-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  font-size: 14px;
+}
+
+.crumb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--target);
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.house-switch {
+  position: relative;
+}
+
+.house-switch > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  padding: 0 14px;
+  border: 2px solid var(--control-line);
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.house-switch > summary::-webkit-details-marker {
+  display: none;
+}
+
+.house-switch > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.house-switch[open] > summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.house-switch > ul {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 240px;
+  max-width: min(360px, 90vw);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.house-switch a {
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
 .page-split,
 .split-lead,
 .split-rest {
@@ -554,9 +634,18 @@ main {
   .btn-secondary:not(:disabled):hover,
   button.secondary:not(:disabled):hover,
   .fold > summary:hover,
+  .house-switch > summary:hover,
   .pick button:not([aria-pressed='true'], :disabled):hover,
   .pick input:not(:checked, :disabled) + label:hover {
     border-color: var(--muted);
+  }
+
+  .crumb-back:hover {
+    color: var(--ink);
+  }
+
+  .house-switch a:hover {
+    background: var(--surface-2);
   }
 }
 
@@ -2132,7 +2221,8 @@ button.ai:active:focus-visible {
     gap: 12px 24px;
   }
 
-  .house-side > [role='alert'] {
+  .house-side > [role='alert'],
+  .house-side > .house-crumbs {
     grid-column: 1 / -1;
   }
 
