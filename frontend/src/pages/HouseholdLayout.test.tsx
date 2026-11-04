@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
@@ -32,6 +32,43 @@ test('shows the household name above its tabs', async () => {
   mockApi({ 'GET /api/households/7': [200, nha7] })
   renderApp('/households/7')
   expect(await screen.findByText('Nhà trọ Q7')).toBeInTheDocument()
+})
+
+// Design review 05/11: inside a house only the wordmark led back, and nothing led to another house
+describe('the way back and to another house', () => {
+  const nha9 = { id: 9, name: 'Nhóm Đà Lạt', created_at: T, role: 'owner', member_id: 30 }
+  const mine = (households: object[]) => [200, { households, pending: [] }] as [number, unknown]
+
+  test('a link above the house leads back to Nhà của bạn', async () => {
+    mockApi({ ...house, 'GET /api/households': mine([nha7]) })
+    renderApp('/households/7')
+
+    const where = await screen.findByRole('navigation', { name: 'Vị trí' })
+    expect(within(where).getByRole('link', { name: 'Nhà của bạn' })).toHaveAttribute('href', '/')
+    // One house: nothing to switch to
+    expect(within(where).queryByText('Chuyển nhà')).not.toBeInTheDocument()
+  })
+
+  test('with another house, Chuyển nhà lists only the others and opens one', async () => {
+    mockApi({
+      ...house,
+      'GET /api/households': mine([nha7, nha9]),
+      'GET /api/households/9': [200, nha9],
+      'GET /api/households/9/members': [200, []],
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+
+    const where = await screen.findByRole('navigation', { name: 'Vị trí' })
+    await user.click(await within(where).findByText('Chuyển nhà'))
+    const others = within(where).getAllByRole('link').filter((link) => link.getAttribute('href') !== '/')
+    expect(others.map((link) => link.textContent)).toEqual(['Nhóm Đà Lạt'])
+
+    await user.click(others[0])
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nhóm Đà Lạt' })).toBeInTheDocument()
+    // The fold does not stay open over the next house
+    expect(within(screen.getByRole('navigation', { name: 'Vị trí' })).getByText('Chuyển nhà').closest('details')).not.toHaveAttribute('open')
+  })
 })
 
 test('a household this account is not in says so instead of empty tabs', async () => {
