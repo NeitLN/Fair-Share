@@ -35,7 +35,9 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     await expect(page.getByRole('heading', { level: 1, name: 'Nhà của bạn', exact: true })).toBeVisible({ timeout: 60_000 })
     owner = await page.evaluate(() => JSON.parse(localStorage.getItem('fair-share:session') ?? 'null'))
 
-    // 2. He creates the household and lands on its members page, with its invite code
+    // 2. He creates the household and lands on its members page, with its invite code. With no house
+    //    yet, joining with a code is open and "+ Tạo nhà mới" waits folded under it
+    await page.getByText('+ Tạo nhà mới').click()
     await page.getByLabel('Tên nhà').fill(name)
     await page.getByRole('button', { name: 'Tạo nhà' }).click()
     await page.waitForURL(/\/households\/\d+\/members$/, { timeout: 60_000 })
@@ -65,12 +67,15 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     await minh.getByLabel('Nội dung').fill('Lẩu E2E')
     await minh.getByLabel('Số tiền').fill('300k')
     await minh.getByRole('button', { name: 'Lưu khoản chi' }).click()
-    await expect(minh.getByText('Lẩu E2E')).toBeVisible()
+    // The toast "Đã lưu: Lẩu E2E 300.000đ" repeats it: the row is the exact text
+    await expect(minh.getByText('Lẩu E2E', { exact: true })).toBeVisible()
 
-    // 6. Tiến owes Minh 150.000đ, and only Minh can say he received it
+    // 6. Tiến owes Minh 150.000đ: he can only tell Minh he sent it, and only Minh can say he received it
+    //    (docs/ACCOUNTS.md S2, S3)
     await page.goto(`/households/${householdId}`)
     await expect(page.locator('.verdict-sentence')).toContainText('Bạn cần trả Minh')
-    await expect(page.getByText('Chờ Minh xác nhận đã nhận')).toBeVisible()
+    await expect(page.getByText('Chuyển cho Minh xong thì bấm để báo, Minh sẽ xác nhận.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tôi đã chuyển' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Đã nhận' })).toHaveCount(0)
 
     // 7. Minh confirms; Hoàn tác takes it back; he confirms again and the house is settled
