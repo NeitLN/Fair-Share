@@ -36,8 +36,8 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     owner = await page.evaluate(() => JSON.parse(localStorage.getItem('fair-share:session') ?? 'null'))
 
     // 2. He creates the household and lands on its members page, with its invite code. With no house
-    //    yet, joining with a code is open and "+ Tạo nhà mới" waits folded under it
-    await page.getByText('+ Tạo nhà mới').click()
+    //    yet, the start shows joining and creating side by side, no fold to open
+    await expect(page.getByRole('heading', { level: 2, name: 'Chào Tiến, bắt đầu thôi' })).toBeVisible()
     await page.getByLabel('Tên nhà').fill(name)
     await page.getByRole('button', { name: 'Tạo nhà' }).click()
     await page.waitForURL(/\/households\/\d+\/members$/, { timeout: 60_000 })

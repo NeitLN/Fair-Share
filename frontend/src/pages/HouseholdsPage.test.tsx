@@ -28,14 +28,42 @@ test("lists the account's own households, the ones it owns marked", async () => 
   expect(within(screen.getByRole('link', { name: /^Nhà 9/ })).queryByText('Trưởng nhóm')).not.toBeInTheDocument()
 })
 
-test('with no household yet, joining with a code is open and creating one waits folded under it', async () => {
+test('with no household yet, one place to start: a greeting, then joining and creating side by side', async () => {
   mockApi({ 'GET /api/households': mine() })
   renderApp('/')
 
-  expect(await screen.findByText(/Bạn chưa ở nhà nào/)).toBeInTheDocument()
-  // Most people in a house join with a code; one of them creates it
-  expect(screen.getByText('Nhập mã mời').closest('details')).toHaveAttribute('open')
-  expect(screen.getByText('+ Tạo nhà mới').closest('details')).not.toHaveAttribute('open')
+  // Design review 05/11: a grey line on the left and a lone code field on the right read as nothing to do
+  const start = await screen.findByRole('region', { name: 'Chào Tiến, bắt đầu thôi' })
+  expect(screen.queryByText(/Bạn chưa ở nhà nào/)).not.toBeInTheDocument()
+
+  // Most people in a house join with a code, and they are told the owner approves it
+  const join = within(start).getByRole('region', { name: 'Có mã mời?' })
+  expect(within(join).getByText(/Trưởng nhóm duyệt xong/)).toBeInTheDocument()
+  expect(within(join).getByLabelText('Mã mời')).toBeVisible()
+
+  // The one who creates it sees the form at once, and what it makes them
+  const create = within(start).getByRole('region', { name: 'Chưa ai tạo nhà?' })
+  expect(within(create).getByText(/Bạn sẽ là trưởng nhóm/)).toBeInTheDocument()
+  expect(within(create).getByLabelText('Tên nhà')).toBeVisible()
+  expect(screen.queryByText('+ Tạo nhà mới')).not.toBeInTheDocument()
+})
+
+test('with no household yet, creating one takes no extra click and opens its members page', async () => {
+  mockApi({
+    'GET /api/households': mine(),
+    'POST /api/households': (body) => [201, { ...nha9, name: (body as { name: string }).name, role: 'owner' }],
+    'GET /api/households/9': [200, { ...nha9, role: 'owner' }],
+    'GET /api/households/9/members': [200, [{ id: 5, household_id: 9, name: 'Tiến', created_at: '', role: 'owner' }]],
+    'GET /api/households/9/invite': [200, { code: 'K7QM2XRT', expires_at: '2026-11-09T00:00:00Z' }],
+    'GET /api/households/9/requests': [200, []],
+  })
+  const user = userEvent.setup()
+  renderApp('/')
+
+  await user.type(await screen.findByLabelText('Tên nhà'), 'Nhà 9')
+  await user.click(screen.getByRole('button', { name: 'Tạo nhà' }))
+
+  expect(await screen.findByRole('heading', { level: 1, name: 'Nhà 9' })).toBeInTheDocument()
 })
 
 test('creating a household opens its members page, to invite people', async () => {
@@ -249,20 +277,6 @@ test('with households the list comes first and both folds start closed; Escape c
 
   expect(fold.open).toBe(false)
   expect(screen.getByText('+ Tạo nhà mới')).toHaveFocus()
-})
-
-test('with no household yet, Tạo nhà mới opens on demand and Escape folds it back', async () => {
-  mockApi({ 'GET /api/households': mine() })
-  renderApp('/')
-  const user = userEvent.setup()
-  await user.click(await screen.findByText('+ Tạo nhà mới'))
-  await user.click(screen.getByLabelText('Tên nhà'))
-
-  await user.keyboard('{Escape}')
-
-  const fold = screen.getByText('+ Tạo nhà mới')
-  expect(fold.closest('details')).not.toHaveAttribute('open')
-  expect(fold).toHaveFocus()
 })
 
 test('the waiting card checks again on demand', async () => {

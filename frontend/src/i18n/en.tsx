@@ -190,6 +190,13 @@ const en: Messages = {
     signOut: 'Sign out',
     signingOut: 'Signing out…',
   },
+  start: {
+    title: (name: string) => `Hi ${name}, let's get started`,
+    joinTitle: 'Got an invite code?',
+    joinHint: "Enter the code a housemate sent you. You're in once the group's owner approves.",
+    createTitle: 'Nobody has made the group yet?',
+    createHint: "Make it, then invite everyone with its invite code. You'll be the owner.",
+  },
   join: {
     title: 'Join a group with a code',
     open: 'Enter invite code',
