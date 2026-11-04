@@ -161,6 +161,7 @@ body {
 }
 
 .chooser {
+  border: 1px solid var(--card-edge);
   display: grid;
   gap: 10px;
   padding: 14px;
@@ -194,6 +195,7 @@ body {
 }
 
 .household-row {
+  border: 1px solid var(--card-edge);
   display: flex;
   align-items: center;
   min-height: 76px;
@@ -224,6 +226,7 @@ body {
 /* ---------------------------------------------------------------- members (DESIGN.md §6.4) */
 
 .invite {
+  border: 1px solid var(--card-edge);
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
@@ -235,12 +238,14 @@ body {
 }
 
 .member-add {
+  border: 1px solid var(--card-edge);
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
 }
 
 .member-list {
+  border: 1px solid var(--card-edge);
   border-radius: var(--radius-section);
   background: var(--surface);
   padding: 0 14px;
@@ -342,6 +347,7 @@ body {
 }
 
 .create-household form {
+  border: 1px solid var(--card-edge);
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
@@ -411,6 +417,7 @@ main {
 
 /* Household tabs as a segmented control (DESIGN.md §5) */
 .tabs {
+  border: 1px solid var(--card-edge);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
@@ -1044,6 +1051,7 @@ button.ai:active:focus-visible {
 }
 
 .expense-list {
+  border: 1px solid var(--card-edge);
   padding: 0 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
@@ -1374,6 +1382,7 @@ button.ai:active:focus-visible {
 
 .balance-list,
 .settlement-list {
+  border: 1px solid var(--card-edge);
   padding: 0 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
@@ -1453,6 +1462,7 @@ button.ai:active:focus-visible {
 }
 
 .other-payment form {
+  border: 1px solid var(--card-edge);
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
@@ -1462,12 +1472,14 @@ button.ai:active:focus-visible {
 
 /* Adding an expense: one white surface, the AI line on top and the fields it fills under a hairline */
 .entry-card {
+  border: 1px solid var(--card-edge);
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
 }
 
 .entry-card .expense-form {
+  border: 0;
   padding: 0;
   border-radius: 0;
   background: none;
@@ -1722,6 +1734,7 @@ button.ai:active:focus-visible {
 /* ---------------------------------------------------------------- accounts (docs/ACCOUNTS.md) */
 
 .auth {
+  border: 1px solid var(--card-edge);
   display: grid;
   gap: 12px;
   padding: 16px;
@@ -1821,6 +1834,7 @@ button.ai:active:focus-visible {
 }
 
 .join-requests {
+  border: 1px solid var(--card-edge);
   margin-top: 14px;
   padding: 14px;
   border-radius: var(--radius-section);
@@ -1878,6 +1892,7 @@ button.ai:active:focus-visible {
 
 /* A request waiting for approval: where it stands, Kiểm tra lại and Hủy yêu cầu in one card */
 .household-list > li.pending-card {
+  border: 1px solid var(--card-edge);
   gap: 12px;
   padding: 16px;
   border-radius: var(--radius-section);
@@ -1908,6 +1923,7 @@ button.ai:active:focus-visible {
 
 /* "Các khoản chi" as a table: one white surface, quiet dividers, money right-aligned */
 .expense-table {
+  border: 1px solid var(--card-edge);
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -2013,6 +2029,7 @@ button.ai:active:focus-visible {
 
 /* Khoản chi gần đây, under the balances */
 .recent-list {
+  border: 1px solid var(--card-edge);
   padding: 0 14px;
   border-radius: var(--radius-section);
   background: var(--surface);

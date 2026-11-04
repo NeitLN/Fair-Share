@@ -30,11 +30,16 @@ How we got here:
 ## 2. Five rules (read these before any CSS)
 
 1. **One loud place per screen.** Only the taro verdict block on Tổng quan is drenched. Everything else
-   sits on the lilac background as borderless white surfaces. Yellow means *attention*: the coin in the
+   sits on the lilac background as white surfaces with a quiet 1 px edge. Yellow means *attention*: the coin in the
    logo, the AI and the focus ring, nothing else ([BRAND.md](BRAND.md)).
-2. **Hard shadows only on stickers and a form's primary button.** Avatars, the two stamps, a form's submit and the AI button
-   get the 2–3 px offset shadow; pressing a button moves it down by exactly its shadow. Cards never get a
-   shadow or a border.
+2. **Flat panels; hard shadows only on stickers and a form's primary action.** A white panel on the
+   page (a list, a table, a form, the invite, the tab track) has one 1 px solid `--card-edge`
+   (`#B2ABC8` light, `#514765` dark) and no shadow. Inside a panel, spacing and quiet `--line` dividers
+   group things, never a second frame; fields and controls keep their own 2 px `--control-line`. The
+   taro verdict block and its transfer cards stay borderless (their fill already stands out, 6.3:1).
+   Avatars, the two stamps, a form's submit and the AI button keep their 2–3 px offset shadow, and
+   pressing one moves it down by exactly its shadow. (UI review 04/11: on a laptop the white panels
+   vanished against the page at 1.30:1; the edge is 1.70:1 to the page.)
 3. **Money is sacred.** Bold, tabular figures, right-aligned in lists, always with a sign or a word
    (*cần trả*, *được nhận*), never colour alone. The *đ* is smaller and never wraps away from its number.
 4. **No uppercase except the two stamps.** Secondary labels are 13 px sentence case. People are shown by
@@ -56,6 +61,7 @@ never a literal colour. Dark values apply under `prefers-color-scheme: dark` unl
 | `--ink` | `#17132B` | `#F3F0FF` | text |
 | `--muted` | `#5B5675` | `#B1A9D4` | secondary text |
 | `--line` | `#E4DEF7` | `#382F63` | row dividers only (quiet on purpose) |
+| `--card-edge` | `#B2ABC8` | `#514765` | the 1 px edge of a white panel on the page (rule 2): 1.70:1 to bg, 2.20:1 to surface (light); 2.21 / 2.01 (dark) |
 | `--control-line` | `#7C72AB` | `#7366B3` | the 2 px edge of fields, selects, secondary buttons, folds, payer chips, the account menu |
 | `--focus-outline` | `#17132B` | `#17132B` | the ring inside the yellow focus halo |
 | `--primary` | `#5A3CF0` | `#8C74FF` | primary button fill |
@@ -125,7 +131,7 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 | **Segmented** | Pill track on `--surface`, selected segment ink with `--bg` text; 44 px. Used for the household tabs and Chia đều / Chia riêng |
 | **Fold row** | `--surface-2` row "**Hôm nay**, 21/10 · Đổi" / "**Chia đều cả nhà** (4 người) · Sửa"; shows exclusions ("Chia đều (3/4 người)"). Opens the full control in place |
 | **Pick chips** | Radio group as avatar + short name pills (Ai trả?, Bạn là ai?); checked = ink border on `--surface-2`; long names ellipsize |
-| **Section** | Title row (17 px 700 + optional 13 px muted note) above a borderless `--surface` panel with 1 px `--line` dividers between rows; rows ≥ 60 px |
+| **Section** | Title row (17 px 700 + optional 13 px muted note) above a `--surface` panel with a 1 px `--card-edge` and 1 px `--line` dividers between rows; rows ≥ 60 px |
 | **Toast** | Bottom centre, `min(420px, 100vw − 32px)` wide, one line where possible, action button on the right (*Hoàn tác*). Stays 7 s. `role="status"` |
 | **Note** | `--surface-2` box with a mint (ok) or pink (attention) dot; used for AI results and blocked actions, placed next to what it is about |
 | **Composer (T-19)** | See §6.3 |
