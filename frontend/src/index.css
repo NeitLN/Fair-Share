@@ -487,6 +487,25 @@ main {
   background: var(--surface);
 }
 
+/* On a phone the list hangs from the whole row, as wide as the page: under the button it went past the
+   right edge and the page scrolled sideways (review of #180) */
+@media (max-width: 719px) {
+  .house-crumbs {
+    position: relative;
+  }
+
+  .house-switch {
+    position: static;
+  }
+
+  .house-switch > ul {
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
 .house-switch a {
   display: flex;
   align-items: center;
