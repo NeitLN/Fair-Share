@@ -1165,12 +1165,6 @@ button.ai:active:focus-visible {
   font-weight: 500;
 }
 
-/* This month's spending, under the balances title: apart from the balances, which add up everything */
-.month-spent {
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .verdict-sentence {
   font-family: var(--font-display);
   font-size: 22px;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
-import type { Expense, MemberBalance, Transfer } from '../api/types'
-import { reminderMessage, spentInMonth, tookPart, transferText, verdict } from './verdict'
+import type { MemberBalance, Transfer } from '../api/types'
+import { reminderMessage, tookPart, transferText, verdict } from './verdict'
 
 const names: Record<number, string> = { 1: 'Tiến', 2: 'Minh', 3: 'Anh', 4: 'Lan', 5: 'Hương' }
 const nameOf = (id: number) => names[id] ?? 'Thành viên đã xoá'
@@ -74,12 +74,6 @@ test('the reminder does not ask for money someone already said they sent', () =>
   expect(
     reminderMessage('Nhà trọ Q7', 10, [t(1, 2, 120_000), t(3, 2, 80_000)], nameOf, 'https://x.test/households/1', told),
   ).toContain('• Anh trả Minh 80.000đ (đã báo chuyển, chờ Minh xác nhận)')
-})
-
-test('only this month counts towards what the household spent', () => {
-  const e = (spent_at: string, amount: number) => ({ spent_at, amount }) as Expense
-  expect(spentInMonth([e('2026-10-01', 100), e('2026-10-31', 50), e('2026-09-30', 7), e('2025-10-10', 9)], '2026-10-21')).toBe(150)
-  expect(spentInMonth([], '2026-10-21')).toBe(0)
 })
 
 test('taking part means any money at all, not a non-zero balance', () => {

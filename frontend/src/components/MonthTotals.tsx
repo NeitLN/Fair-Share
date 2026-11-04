@@ -15,20 +15,23 @@ interface MonthTotalsProps {
   me?: number | null
   /** The member the list is filtered on: their row is marked. */
   highlight?: number | null
+  /** h3 under Chi tiêu's list; h2 on Tổng quan, where it is a section of its own. */
+  level?: 2 | 3
 }
 
 /**
  * "Tổng tháng" (PROJECT_SPEC §3.4): what the household spent in a month, and for each member what they
  * paid and what their share was. Paid minus share is how far the month moved them. Props only.
  */
-function MonthTotals({ month, totals, looks, me = null, highlight = null }: MonthTotalsProps) {
+function MonthTotals({ month, totals, looks, me = null, highlight = null, level = 3 }: MonthTotalsProps) {
   const t = useT()
   const label = monthLabel(month)
+  const Heading = level === 2 ? 'h2' : 'h3'
   return (
     <section className="month-totals" aria-labelledby="month-totals-title">
-      <h3 id="month-totals-title">
+      <Heading id="month-totals-title">
         {label}: {t.filters.monthTotal} <Money amount={totals.total} />
-      </h3>
+      </Heading>
       <ul className="balance-list" aria-label={t.filters.eachPerson(label)}>
         {totals.members.map((row) => {
           const look = looks.get(row.memberId) ?? REMOVED_MEMBER
