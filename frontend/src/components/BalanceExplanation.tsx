@@ -29,7 +29,8 @@ const SIGN: Record<LineKind, 1 | -1> = { spent: 1, share: -1, paidBack: 1, gotBa
 function BalanceExplanation({ explanation, looks, me, householdId }: BalanceExplanationProps) {
   const t = useT()
   const id = useId()
-  // The items of a line are only built while it is open: a house can have hundreds of expenses
+  // A line's items are only rendered while it is open (explain() has already listed them): a house can have
+  // hundreds of expenses
   const [open, setOpen] = useState<ReadonlySet<LineKind>>(new Set())
   const you = me !== null && explanation.memberId === me
   const nameOf = (memberId: number) => (looks.get(memberId) ?? REMOVED_MEMBER).short

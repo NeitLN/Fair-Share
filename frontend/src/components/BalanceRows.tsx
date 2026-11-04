@@ -41,7 +41,8 @@ function BalanceRows({
   householdId,
 }: BalanceRowsProps) {
   const t = useT()
-  // An explanation is only built while its row is open; several rows can be open at once
+  // An explanation is only rendered while its row is open (the page has already worked it out); several
+  // rows can be open at once
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   function toggle(memberId: number, isOpen: boolean) {
     setOpen((current) => {
