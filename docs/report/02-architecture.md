@@ -20,14 +20,20 @@ preflight from another origin is refused, checked live). The browser never talks
 Gemini: the connection string and the AI key exist only on the API, because anything shipped to a browser
 is public. Row Level Security on every table closes Supabase's own public REST API.
 
-**No accounts, but private households** (#132). There is no login, so each household has a secret key,
-made by the database and given only to the browser that creates it. Housemates get it through an invite
-link (`/households/7#k=…`: after `#`, so it never reaches a server log). Every request about a household
-sends the key in a header; without the right key the API answers the same `404` as for a household that
-does not exist, so ids cannot be probed. There is no API that lists households.
+**Accounts and private households** (#166, [ACCOUNTS.md](../ACCOUNTS.md)). Everyone signs in with an
+email and a password. The API stores the password as an argon2id hash and gives back a random session
+token, which the page sends as `Authorization: Bearer` on every request. We use a header and not a cookie
+because the web app and the API are on two different sites, so a cookie would be a third-party cookie that
+browsers block. We did not use Supabase Auth, because `docker compose up` from a clean clone and CI both run
+without Supabase. Housemates join with an 8-character invite code and the owner approves them. Every route
+about a household checks that the account is an approved member of it: anyone else, someone still waiting
+included, gets the same `404` as for a household that does not exist, so ids cannot be probed, and a member
+without the right for an action gets `403`. Before accounts, a household was opened by a secret key in an
+invite link (#132); that key is now used only once, to let the first signed-in person take over a
+household made before accounts.
 
 **One request end to end: adding an expense.** The page posts to `POST /api/households/7/expenses`.
-FastAPI checks the key and validates the body first (lengths, a whole positive amount in đồng, dates,
+FastAPI checks the session and the membership and validates the body first (lengths, a whole positive amount in đồng, dates,
 members of this household; otherwise `422` naming the field). The route computes the shares (the equal
 split gives the leftover đồng to the lowest member ids, so shares always add up), inserts the expense and
 its shares **in one transaction**, and **commits before the response is sent**; only then does the page
@@ -50,3 +56,4 @@ the live commit (section 4).
 | The AI per-visitor limit counted a proxy, not the visitor: Cloudflare and two more proxies each append to `X-Forwarded-For` | Read the entry `FORWARDED_HOPS` from the end (3 on Render, 1 behind nginx), confirmed in the live logs (#96, #97) |
 | Bad input (a NUL byte, broken Unicode) reached PostgreSQL and became a 500 | One cleaned text type, strict numbers, a date range and a body size limit, all before the database (#107) |
 | Anyone could list and open every group's households (peer review) | Secret household keys and invite links; ids written as `+7` or `7.0` are checked too (#132, #137, #138) |
+| With only a key, access lived in one browser and anyone with the link could change anything, even mark someone else's debt as paid (walkthrough as three users, 02/11) | Accounts with an owner, members and people waiting for approval; only the person who received a repayment can record it (#166) |

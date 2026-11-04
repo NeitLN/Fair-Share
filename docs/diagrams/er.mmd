@@ -1,6 +1,8 @@
-%% The database schema, exactly as db/migrations/001_init.sql creates it (plus schema_migrations,
-%% which app/migrate.py keeps). Money is a whole number of đồng (bigint).
+%% The database schema, exactly as db/migrations/001_init.sql to 004_payment_notices.sql create it
+%% (plus schema_migrations, which app/migrate.py keeps). Money is a whole number of đồng (bigint).
+%% The created_by columns point at users; they have no lines, so the diagram stays readable.
 erDiagram
+    direction LR
     households ||--o{ members : "has"
     households ||--o{ expenses : "has"
     households ||--o{ settlements : "has"
@@ -9,11 +11,19 @@ erDiagram
     members ||--o{ expense_shares : "owes a share"
     members ||--o{ settlements : "pays (from_member_id)"
     members ||--o{ settlements : "is paid (to_member_id)"
+    users ||--o{ sessions : "signs in with"
+    users ||--o{ household_users : "is in"
+    households ||--o{ household_users : "has people"
+    members |o--o| household_users : "is the name of"
+    households ||--o{ invite_codes : "invites with"
+    households ||--o{ payment_notices : "has"
+    members ||--o{ payment_notices : "tells (from_member_id)"
+    members ||--o{ payment_notices : "is told (to_member_id)"
 
     households {
         bigint id PK
         text name "1-60 characters"
-        text access_key "secret, 32+ characters"
+        text access_key "secret, only to take over an old household"
         timestamptz created_at
     }
     members {
@@ -30,6 +40,7 @@ erDiagram
         bigint payer_id FK "member of the same household"
         date spent_at
         text source "manual or ai"
+        bigint created_by FK "user, empty before accounts"
         timestamptz created_at
     }
     expense_shares {
@@ -45,7 +56,52 @@ erDiagram
         bigint amount "dong, > 0"
         date settled_at
         text note "0-200 characters, optional"
+        bigint created_by FK "user, empty before accounts"
         timestamptz created_at
+    }
+    users {
+        bigint id PK
+        text email "3-254, unique ignoring case"
+        text password_hash "argon2id"
+        text display_name "1-40 characters"
+        timestamptz created_at
+    }
+    sessions {
+        bytea token_hash PK "SHA-256 of the token"
+        bigint user_id FK "cascade on user delete"
+        timestamptz created_at
+        timestamptz last_used_at
+        timestamptz expires_at
+    }
+    household_users {
+        bigint household_id PK, FK
+        bigint user_id PK, FK
+        text role "owner, member or pending; one owner"
+        bigint member_id FK "same household; empty only while pending"
+        timestamptz requested_at
+        timestamptz approved_at
+    }
+    invite_codes {
+        text code PK "8 characters, Crockford base32"
+        bigint household_id FK "one current code per household"
+        bigint created_by FK "user"
+        timestamptz created_at
+        timestamptz expires_at
+        timestamptz revoked_at
+    }
+    payment_notices {
+        bigint household_id PK, FK
+        bigint from_member_id PK, FK "same household"
+        bigint to_member_id PK, FK "same household, not from"
+        bigint amount "dong, > 0"
+        text status "sent or declined"
+        bigint created_by FK "user"
+        timestamptz created_at
+    }
+    rate_limits {
+        text bucket PK "e.g. login-email, login-ip, register-ip"
+        timestamptz window_start PK
+        integer hits
     }
     schema_migrations {
         text version PK "e.g. 001_init"
