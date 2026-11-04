@@ -42,8 +42,13 @@ function ExpensesPage() {
   const expenseForm = useRef<ExpenseFormHandle>(null)
   const [composerKey, setComposerKey] = useState(0)
   const toast = useToast()
-  // "Xem" in the saved toast: the expense to scroll to and tint for a moment, and the rows on screen now
-  const [revealId, setRevealId] = useState<number | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  // "Xem" in the saved toast: the expense to scroll to and tint for a moment, and the rows on screen now.
+  // Arriving from "Vì sao ra số này?" on Tổng quan (specs/002-balance-explanation) starts with that expense;
+  // the page has just opened, so no filter can hide it
+  const revealExpense = (location.state as { revealExpense?: number } | null)?.revealExpense
+  const [revealId, setRevealId] = useState<number | null>(revealExpense ?? null)
   const onScreen = useRef(new Set<number>())
   // The list filter belongs to one household: another household starts unfiltered
   const [filterOf, setFilterOf] = useState<{ householdId: number; filter: ExpenseFilter }>({
@@ -117,8 +122,6 @@ function ExpensesPage() {
 
   // "+ Ghi khoản chi" on Tổng quan opens this page ready to type: the description has the focus once the
   // form is there, and the request is dropped so going back and forth does not move the focus again
-  const location = useLocation()
-  const navigate = useNavigate()
   const wantsDescription = (location.state as { focus?: string } | null)?.focus === 'description'
   useEffect(() => {
     if (!wantsDescription || !members.isSuccess) return
@@ -142,6 +145,10 @@ function ExpensesPage() {
   }
   const setFilter = (next: ExpenseFilter) => setFilterOf({ householdId, filter: next })
   const shown = filterExpenses(allExpenses, filter)
+  // Revealed once: going back and forth does not reveal it again
+  useEffect(() => {
+    if (revealExpense !== undefined) navigate(location.pathname, { replace: true, state: null })
+  }, [revealExpense, navigate, location.pathname])
   useEffect(() => {
     onScreen.current = new Set(shown.map((expense) => expense.id))
   })

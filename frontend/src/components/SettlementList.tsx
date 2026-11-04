@@ -68,7 +68,7 @@ function SettlementList({
           {settlements.map((settlement) => {
             const deleting = deletingId === settlement.id
             return (
-              <li key={settlement.id} className="settlement-row">
+              <li key={settlement.id} id={`settlement-${settlement.id}`} className="settlement-row">
                 <span className="settlement-text">
                   {t.settlements.row(
                     <strong>{nameOf(settlement.from_member_id)}</strong>,

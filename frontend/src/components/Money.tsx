@@ -2,8 +2,9 @@ import { formatSignedVND, formatVND } from '../lib/money'
 
 interface MoneyProps {
   amount: number
-  /** "balance": a + or − sign and the credit/debt colour; the words next to it carry the meaning. */
-  kind?: 'plain' | 'balance'
+  /** "balance": a + or − sign and the credit/debt colour; the words next to it carry the meaning.
+   *  "signed": the sign only, for a part of a balance that is neither owed nor owing on its own. */
+  kind?: 'plain' | 'balance' | 'signed'
   className?: string
 }
 
@@ -12,7 +13,7 @@ interface MoneyProps {
  * never wrapped away from its number (docs/DESIGN.md §2 rule 3). The text is the same string formatVND gives.
  */
 export function Money({ amount, kind = 'plain', className }: MoneyProps) {
-  const text = kind === 'balance' ? formatSignedVND(amount) : formatVND(amount)
+  const text = kind === 'plain' ? formatVND(amount) : formatSignedVND(amount)
   const tone = kind === 'balance' ? (amount > 0 ? ' credit-text' : amount < 0 ? ' debt-text' : '') : ''
   return (
     <span className={`money${tone}${className ? ` ${className}` : ''}`}>

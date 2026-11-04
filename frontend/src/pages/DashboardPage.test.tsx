@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { keys } from '../api/households'
 import type { Notice, Settlement, SettlementInput } from '../api/types'
@@ -161,6 +161,97 @@ test("this month's spending has its own block, apart from the balances that add 
   expect(balances.queryByText(/cả nhà/)).not.toBeInTheDocument()
   expect(balances.getByText(/tổng đã chi/)).toHaveTextContent('tổng đã chi 300.000đ')
   expect(thisMonth.closest('section')).not.toBe(screen.getByRole('region', { name: 'Số dư từng người' }))
+})
+
+// "Vì sao ra số này?" (specs/002-balance-explanation)
+describe('why this number', () => {
+  test('under the verdict, your own balance opens as four lines whose total is your balance (US1)', async () => {
+    api()
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    const why = await screen.findByText('Vì sao ra số này?')
+    await user.click(why)
+    const mine = screen.getByRole('group', { name: 'Số dư của bạn' })
+    expect(within(mine).getAllByRole('listitem').map((l) => l.textContent?.replace(/\s+/g, ' '))).toEqual([
+      'Bạn đã chi cho cả nhà+300.000đ',
+      'Phần của bạn trong các khoản chi−100.000đ',
+      'Bạn đã trả lạiKhông có khoản nào0đ',
+      'Bạn đã nhận lạiKhông có khoản nào0đ',
+    ])
+    // The same number as your row in Số dư từng người
+    expect(within(mine).getByText('Số dư').closest('p')).toHaveTextContent('Số dư+200.000đđược nhận')
+    const rows = await region('Số dư từng người').findAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('+200.000đ')
+
+    // Escape folds it and gives the focus back to what opened it
+    await user.keyboard('{Escape}')
+    expect(why.closest('details')).not.toHaveAttribute('open')
+    expect(why).toHaveFocus()
+  })
+
+  test('with a balance of 0 there is nothing to explain under the verdict', async () => {
+    api({
+      'GET /api/households/7/balances': [
+        200,
+        {
+          balances: members.map((m) => ({ member_id: m.id, name: m.name, paid: 0, owed: 0, sent: 0, received: 0, net: 0 })),
+          suggested: [],
+        },
+      ],
+    })
+    renderApp('/households/7')
+
+    await region('Số dư từng người').findAllByRole('listitem')
+    expect(screen.queryByText('Vì sao ra số này?')).not.toBeInTheDocument()
+  })
+
+  test('an expense in the explanation opens Chi tiêu with that expense revealed (US2, FR-010)', async () => {
+    api({ 'GET /api/households/7': [200, { ...household, role: 'member', member_id: 1 }] })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    await user.click(await screen.findByText('Vì sao ra số này?'))
+    await user.click(screen.getByText('Bạn đã chi cho cả nhà'))
+    await user.click(within(screen.getByRole('list', { name: 'Bạn đã chi cho cả nhà' })).getByRole('link', { name: 'Lẩu' }))
+
+    expect(await screen.findByRole('heading', { name: /Các khoản chi/ })).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('[data-expense="50"]')).toHaveClass('just-saved'))
+  })
+
+  test("each row of Số dư từng người opens that person's explanation, worded with their name (US3)", async () => {
+    api()
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    const rows = await region('Số dư từng người').findAllByRole('listitem')
+    expect(rows).toHaveLength(3)
+    await user.click(within(rows[1]).getByText('Minh'))
+    const minh = within(rows[1]).getByRole('group', { name: 'Số dư của Minh' })
+    expect(within(minh).getAllByRole('listitem')[1]).toHaveTextContent('Phần của Minh trong các khoản chi−100.000đ')
+    // The same number as the row it opens from (FR-002)
+    expect(within(minh).getByText('Số dư').closest('p')).toHaveTextContent('Số dư−100.000đcần trả')
+    expect(rows[1]).toHaveTextContent('−100.000đ')
+
+    // Two at once: your own row says "bạn"
+    await user.click(within(rows[0]).getByText('Tiến'))
+    expect(within(rows[0]).getByRole('group', { name: 'Số dư của bạn' })).toBeInTheDocument()
+    expect(within(rows[1]).getByRole('group', { name: 'Số dư của Minh' })).toBeInTheDocument()
+  })
+
+  test('a "Tôi đã chuyển" waiting for you is said apart and changes no number', async () => {
+    const startNotices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }]
+    api({}, members, startNotices)
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    await user.click(await screen.findByText('Vì sao ra số này?'))
+    const mine = screen.getByRole('group', { name: 'Số dư của bạn' })
+    expect(await within(mine).findByText(/Minh đã báo chuyển/)).toHaveTextContent(
+      'Minh đã báo chuyển 100.000đ cho bạn, chờ xác nhận: chưa tính vào số dư.',
+    )
+    expect(within(mine).getByText('Số dư').closest('p')).toHaveTextContent('+200.000đ')
+  })
 })
 
 test("while the expenses load, a placeholder holds this month's place so the column does not jump", async () => {

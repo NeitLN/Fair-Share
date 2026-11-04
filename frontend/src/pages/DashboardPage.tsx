@@ -20,6 +20,7 @@ import {
 import type { Settlement, SettlementInput, Transfer } from '../api/types'
 import BalanceRows from '../components/BalanceRows'
 import MonthTotals from '../components/MonthTotals'
+import BalanceExplanation from '../components/BalanceExplanation'
 import RecentExpenses from '../components/RecentExpenses'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
@@ -28,6 +29,7 @@ import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
+import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
 import { useSession } from '../lib/session'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
@@ -139,6 +141,18 @@ function Dashboard({ householdId }: { householdId: number }) {
   })
 
   const memberList = useMemo(() => members.data ?? [], [members.data])
+  // "Vì sao ra số này?": each balance explained from what the page already has (specs/002-balance-explanation)
+  const explanations = useMemo(
+    () =>
+      new Map(
+        (balances.data?.balances ?? []).map((b) => [
+          b.member_id,
+          explain(b, expenses.data ?? [], settlements.data ?? [], notices.data ?? []),
+        ]),
+      ),
+    [balances.data, expenses.data, settlements.data, notices.data],
+  )
+  const mine = me === null ? undefined : explanations.get(me)
   // Names come from the members; until they load (or if they fail) the balances carry the same names,
   // so a transfer is never shown as "Thành viên đã xoá" just because its member is not loaded yet
   const looks = useMemo(() => {
@@ -239,6 +253,11 @@ function Dashboard({ householdId }: { householdId: number }) {
             {t.dashboard.addExpense}
           </Link>
           <VerdictBlock
+            explanation={
+              mine && mine.net !== 0 ? (
+                <BalanceExplanation explanation={mine} looks={looks} me={me} householdId={householdId} />
+              ) : undefined
+            }
             suggested={suggested}
             owed={paid.owed}
             cards={paid.cards}
@@ -295,6 +314,8 @@ function Dashboard({ householdId }: { householdId: number }) {
               loading={balances.isPending || balancesOutdated}
               // The verdict block above already says why and offers Thử lại
               unavailable={balances.isError && !balances.data}
+              explanations={explanations}
+              householdId={householdId}
             />
           </section>
           {!wide && history}

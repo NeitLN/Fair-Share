@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import type { Notice, Transfer } from '../api/types'
+import { closeFoldOnEscape } from '../lib/fold'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
@@ -64,6 +66,8 @@ interface VerdictBlockProps {
   onDecline?: (transfer: Transfer) => void
   /** The pairs ("from-to") whose notice is being sent, taken back or declined. */
   noticeBusy?: string[]
+  /** "Vì sao ra số này?" under the amount: your own balance explained (specs/002-balance-explanation). */
+  explanation?: ReactNode
 }
 
 /** Where focus goes once a notice press is answered and the pressed button has gone. */
@@ -103,6 +107,7 @@ function VerdictBlock({
   onCancelNotice,
   onDecline,
   noticeBusy = [],
+  explanation,
 }: VerdictBlockProps) {
   const t = useT()
   const id = useId()
@@ -228,6 +233,12 @@ function VerdictBlock({
         <p className="verdict-total">
           <Money amount={total} />
         </p>
+      )}
+      {explanation && (
+        <details className="explain-fold" onKeyDown={closeFoldOnEscape}>
+          <summary>{t.explain.open}</summary>
+          {explanation}
+        </details>
       )}
       {ownTold.map((n) => (
         <p key={pairOf(n)} className="verdict-pending">

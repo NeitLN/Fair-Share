@@ -296,6 +296,30 @@ const vi = {
     unavailable: 'Chưa tải được số dư.',
     empty: 'Chưa có số dư. Thêm thành viên và ghi khoản chi đầu tiên để xem ai trả ai.',
   },
+  // "Vì sao ra số này?" (specs/002-balance-explanation)
+  explain: {
+    open: 'Vì sao ra số này?',
+    title: (you: boolean, name: string) => (you ? 'Số dư của bạn' : `Số dư của ${name}`),
+    spent: (you: boolean, name: string) => (you ? 'Bạn đã chi cho cả nhà' : `${name} đã chi cho cả nhà`),
+    share: (you: boolean, name: string) =>
+      you ? 'Phần của bạn trong các khoản chi' : `Phần của ${name} trong các khoản chi`,
+    paidBack: (you: boolean, name: string) => (you ? 'Bạn đã trả lại' : `${name} đã trả lại`),
+    gotBack: (you: boolean, name: string) => (you ? 'Bạn đã nhận lại' : `${name} đã nhận lại`),
+    total: 'Số dư',
+    nothing: 'Không có khoản nào',
+    updating: 'Đang cập nhật…',
+    paidBy: (name: string) => `${name} trả`,
+    of: (amount: ReactNode) => <>trên tổng {amount}</>,
+    to: (name: string) => `cho ${name}`,
+    from: (name: string) => `từ ${name}`,
+    expenseHint: 'Bấm một khoản để mở nó trong Chi tiêu.',
+    repaymentHint: 'Bấm một khoản để xem nó trong Lịch sử trả.',
+    waiting: (from: string, to: string, amount: ReactNode) => (
+      <>
+        {from} đã báo chuyển {amount} cho {to}, chờ xác nhận: chưa tính vào số dư.
+      </>
+    ),
+  },
   verdict: {
     month: (month: number) => `Tháng ${month}`,
     spentUnavailable: ' · chưa tải được tổng chi',

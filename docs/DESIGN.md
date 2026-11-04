@@ -247,6 +247,27 @@ Lịch sử trả                      Ghi khoản trả khác
 * **Ghi khoản trả khác** opens the existing settlement form (different amount, cash) in place; its summary stays, so it closes again.
 * The old balance table (Đã trả / Phải trả columns) becomes the "Số dư từng người" rows; *đã chi* is the
   only breakdown shown, the rest is in the expense list.
+* **Vì sao ra số này?** (design review 05/11, [specs/002-balance-explanation](../specs/002-balance-explanation/spec.md)).
+  A quiet underlined link under the big amount, only when your balance is not 0, and every row of Số dư
+  từng người (a chevron at its end) open the same explanation in place, on a white card in the taro
+  block and on `--surface-2` under a row:
+
+  ```
+  ▸ Bạn đã chi cho cả nhà                  +450.000đ
+  ▾ Phần của bạn trong các khoản chi     −1.890.000đ
+      Mì gói và trứng   Hôm qua · Duy Anh trả · trên tổng 100.000đ   40.000đ
+      …                                   (newest first, each a link to it in Chi tiêu)
+  ▸ Bạn đã trả lại                       +1.000.000đ
+    Bạn đã nhận lại   Không có khoản nào           0đ
+  Số dư                                    −440.000đ cần trả
+  Bạn đã báo chuyển 440.000đ cho Minh, chờ xác nhận: chưa tính vào số dư.
+  ```
+
+  The four totals are the balance's own (paid, owed, sent, received), so they always add up to the
+  number on the page; the items under a line show only while they add up to it, otherwise "Đang cập
+  nhật…" for the moment one request refreshed before the other. A zero line does not open. Nothing
+  changes from here: an expense opens Chi tiêu with that row revealed, a repayment scrolls to its row in
+  Lịch sử trả. Line amounts carry a sign but no colour; only the total is coloured, with its words.
 
 ### 6.3 Chi tiêu `/households/:id/expenses`
 

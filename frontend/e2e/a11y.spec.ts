@@ -62,6 +62,26 @@ test('the household screens meet the accessibility checklist', async ({ page, re
       expect(small, `inputs under 16 px on ${path}`).toEqual([])
     }
 
+    // Vì sao ra số này? (specs/002-balance-explanation): opens in place with every control at least 44 px,
+    // no sideways scroll at 360 px, and Escape folds the line, then the explanation, back to its link
+    await page.goto(`/households/${id}`)
+    const why = page.getByText('Vì sao ra số này?')
+    await why.click()
+    const mine = page.getByRole('group', { name: 'Số dư của bạn' })
+    await expect(mine).toBeVisible()
+    await mine.getByText('Bạn đã chi cho cả nhà').click()
+    await expect(mine.getByRole('list', { name: 'Bạn đã chi cho cả nhà' })).toBeVisible()
+    const tooSmall = await mine.locator('summary, a').evaluateAll((els) =>
+      els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+    )
+    expect(tooSmall, 'explanation controls under 44 px').toEqual([])
+    const sideways = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    expect(sideways, 'sideways scroll with the explanation open').toBe(false)
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await expect(mine).toBeHidden()
+    await expect(why).toBeFocused()
+
     // Đã nhận: the stamp is text, the toast is a polite live region, and nothing moves
     await page.goto(`/households/${id}`)
     await expect(page.locator('.toasts')).toHaveAttribute('aria-live', 'polite')
