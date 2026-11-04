@@ -363,6 +363,8 @@ body {
   display: grid;
   gap: 16px;
   margin-top: 4px;
+  /* Each panel as tall as its own form: creating has one line, joining has a hint under its field */
+  align-items: start;
 }
 
 .start-way {

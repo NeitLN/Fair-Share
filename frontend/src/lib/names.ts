@@ -21,7 +21,7 @@ const words = (name: string) => name.trim().split(/\s+/).filter(Boolean)
 const key = (text: string) => text.normalize('NFC').toLocaleLowerCase('vi')
 
 // Last words that read as a pronoun in a sentence: "Anh trả Minh" is "you (older brother) pay Minh"
-const PRONOUNS = new Set(['anh', 'em', 'chị', 'bạn', 'cô', 'chú', 'bác', 'ông', 'bà', 'cháu', 'mình', 'tôi', 'tớ'])
+const PRONOUNS = new Set(['anh', 'em', 'chị', 'bạn', 'cô', 'chú', 'bác', 'dì', 'cậu', 'thầy', 'ông', 'bà', 'cháu', 'mình', 'tôi', 'tớ'])
 
 /**
  * Students call each other by the given name, the last word: "Hoàng Minh" → "Minh". A last word that
