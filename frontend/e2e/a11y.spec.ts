@@ -111,7 +111,8 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await page.getByLabel('Nội dung').fill('Phím Enter')
     await page.getByLabel('Số tiền').fill('30k')
     await page.getByLabel('Số tiền').press('Enter')
-    await expect(page.getByText('Phím Enter')).toBeVisible()
+    // The toast "Đã lưu: Phím Enter 30.000đ" repeats it: the row is the exact text
+    await expect(page.getByText('Phím Enter', { exact: true })).toBeVisible()
 
     // Households: Escape closes "+ Tạo nhà mới"
     await page.goto('/')
