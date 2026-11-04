@@ -276,8 +276,10 @@ row: large avatar, **full name**, "gọi là *Anh*" (left out when it is the who
 with *cần trả* / *được nhận* as on Tổng quan (no coloured pill) or SẠCH NỢ, the *bạn* chip for you, and two 44 px
 buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (asks first). One tap fewer than a *Sửa* menu,
 and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
-field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…". If two members share a last word,
-both are shown by their last two words ("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
+field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Lan…". A last word that reads as a pronoun
+(Anh, Em, Chị, Bạn, Cô, Chú…) keeps the word before it, so "Nguyễn Duy Anh" is "Duy Anh", never "Anh trả
+Minh" (design review 05/11). If two members share a last word, both are shown by their last two words
+("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
 
 Above the add field, **Mời bạn cùng phòng** (#132): the hint "Ai có đường dẫn này đều xem và sửa được
 nhà, nên chỉ gửi cho người trong nhà." and *Sao chép đường dẫn mời* (toast "Đã sao chép đường dẫn mời.

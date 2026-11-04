@@ -20,19 +20,32 @@ const words = (name: string) => name.trim().split(/\s+/).filter(Boolean)
 // "Anh" and "anh" are the same person to a reader
 const key = (text: string) => text.normalize('NFC').toLocaleLowerCase('vi')
 
+// Last words that read as a pronoun in a sentence: "Anh trả Minh" is "you (older brother) pay Minh"
+const PRONOUNS = new Set(['anh', 'em', 'chị', 'bạn', 'cô', 'chú', 'bác', 'ông', 'bà', 'cháu', 'mình', 'tôi', 'tớ'])
+
 /**
- * Students call each other by the given name, the last word: "Nguyễn Duy Anh" → "Anh". When two
- * members share it, both get their last two words ("Duy Anh", "Tuấn Anh"); if those still match, the
- * full name.
+ * Students call each other by the given name, the last word: "Hoàng Minh" → "Minh". A last word that
+ * reads as a pronoun keeps the word before it: "Nguyễn Duy Anh" → "Duy Anh". When two members share
+ * a last word, both get their last two words ("Duy Anh", "Tuấn Anh"); if those still match, the full
+ * name.
  */
 export function shortNames(members: Member[]): Map<number, string> {
   const pick = (member: Member, count: number) => words(member.name).slice(-count).join(' ') || member.name
+  const first = (member: Member) => {
+    const parts = words(member.name)
+    return parts.length > 1 && PRONOUNS.has(key(parts.at(-1)!)) ? 2 : 1
+  }
 
   const result = new Map<number, string>()
-  const byLast = groupBy(members, (m) => key(pick(m, 1)))
-  for (const group of byLast.values()) {
+  const byShort = groupBy(members, (m) => key(pick(m, first(m))))
+  for (const group of byShort.values()) {
     if (group.length === 1) {
-      result.set(group[0].id, pick(group[0], 1))
+      result.set(group[0].id, pick(group[0], first(group[0])))
+      continue
+    }
+    // One word and two words never match, so a group is all one-word or all two-word picks
+    if (first(group[0]) === 2) {
+      for (const member of group) result.set(member.id, member.name.trim())
       continue
     }
     const byTwo = groupBy(group, (m) => key(pick(m, 2)))

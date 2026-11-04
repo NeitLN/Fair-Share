@@ -34,6 +34,31 @@ describe('shortNames', () => {
   test('extra spaces do not count as words', () => {
     expect(shortNames([member(1, '  Hoàng   Minh ')]).get(1)).toBe('Minh')
   })
+
+  test('a last word that reads as a pronoun keeps the word before it', () => {
+    // "Anh trả Minh" would read as "you (older brother) pay Minh"
+    const names = shortNames([member(1, 'Nguyễn Duy Anh'), member(2, 'Lê Thị Em'), member(3, 'Hoàng Minh')])
+    expect(names.get(1)).toBe('Duy Anh')
+    expect(names.get(2)).toBe('Thị Em')
+    expect(names.get(3)).toBe('Minh')
+  })
+
+  test('the pronoun check ignores case and accents typed apart', () => {
+    expect(shortNames([member(1, 'Trần Bạn')]).get(1)).toBe('Trần Bạn')
+    expect(shortNames([member(1, 'Lan ANH')]).get(1)).toBe('Lan ANH')
+    expect(shortNames([member(1, 'Hà Chị')]).get(1)).toBe('Hà Chị') // "ị" typed as i + a combining dot is still "Chị"
+  })
+
+  test('a one-word name stays as it is, pronoun or not', () => {
+    expect(shortNames([member(1, 'Anh')]).get(1)).toBe('Anh')
+  })
+
+  test('two pronoun names that still match after two words get the full name', () => {
+    const names = shortNames([member(1, 'Nguyễn Duy Anh'), member(2, 'Trần Duy Anh'), member(3, 'Lê Tuấn Anh')])
+    expect(names.get(1)).toBe('Nguyễn Duy Anh')
+    expect(names.get(2)).toBe('Trần Duy Anh')
+    expect(names.get(3)).toBe('Tuấn Anh')
+  })
 })
 
 describe('initialOf', () => {
@@ -91,6 +116,6 @@ describe('tints', () => {
 describe('memberLooks', () => {
   test('one entry per member with full name, short name, initial and tint', () => {
     const looks = memberLooks([member(1, 'Nguyễn Duy Anh')])
-    expect(looks.get(1)).toEqual({ full: 'Nguyễn Duy Anh', short: 'Anh', initial: 'A', tint: 2 })
+    expect(looks.get(1)).toEqual({ full: 'Nguyễn Duy Anh', short: 'Duy Anh', initial: 'A', tint: 2 })
   })
 })

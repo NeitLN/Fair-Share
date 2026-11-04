@@ -251,7 +251,7 @@ const en: Messages = {
     nameEmpty: "The member name can't be empty.",
     add: 'Add member',
     adding: 'Adding…',
-    shortNameHint: 'The app uses the last word of each name: Hương, Minh, Anh…',
+    shortNameHint: 'The app uses the last word of each name: Hương, Minh, Lan…',
     loading: 'Loading members',
     empty: 'No members yet. Add the first one above.',
     confirmRemove: (name: string) => `Remove ${name} from the group?`,

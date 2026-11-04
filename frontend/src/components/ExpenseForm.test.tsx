@@ -102,7 +102,7 @@ describe('ExpenseForm, the 90% case', () => {
     )
     expect(payer()).toBe('2')
 
-    await user.click(payerRadio('Anh'))
+    await user.click(payerRadio('Duy Anh'))
     view.rerender(
       <ExpenseForm members={members} me={1} defaultPayer={1} onSubmit={vi.fn()} submitting={false} error={null} />,
     )
@@ -174,7 +174,7 @@ describe('ExpenseForm, equal split', () => {
     await fillBasics(user)
     await openSplit(user)
 
-    for (const name of ['Tiến', 'Minh', 'Anh']) {
+    for (const name of ['Tiến', 'Minh', 'Duy Anh']) {
       expect(screen.getByRole('checkbox', { name })).toBeChecked()
     }
     // 100 000 / 3: the leftover đồng goes to the lowest member id, like the API
@@ -186,7 +186,7 @@ describe('ExpenseForm, equal split', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user)
     await openSplit(user)
-    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
     expect(screen.getByText('Chia đều · 2/3 người')).toBeInTheDocument()
     await save(user)
 
@@ -199,7 +199,7 @@ describe('ExpenseForm, equal split', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user)
     await openSplit(user)
-    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
     await save(user)
 
     expect(screen.getByText(/^Chia đều cả nhà · 3 người$/)).toBeInTheDocument()
@@ -227,7 +227,7 @@ describe('ExpenseForm, equal split', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user)
     await openSplit(user)
-    for (const name of ['Tiến', 'Minh', 'Anh']) {
+    for (const name of ['Tiến', 'Minh', 'Duy Anh']) {
       await user.click(screen.getByRole('checkbox', { name }))
     }
     await save(user)
@@ -259,7 +259,7 @@ describe('ExpenseForm, custom split', () => {
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
     await user.type(screen.getByLabelText('Phần của Minh'), '140.000')
-    await user.type(screen.getByLabelText('Phần của Anh'), '100k')
+    await user.type(screen.getByLabelText('Phần của Duy Anh'), '100k')
 
     expect(screen.getByText('Đã chia khớp số tiền.')).toBeInTheDocument()
     expect(screen.getByText('Chia riêng (2 người)')).toBeInTheDocument()
@@ -428,7 +428,7 @@ describe('ExpenseForm, editing', () => {
     await openSplit(user)
     expect(screen.getByRole('checkbox', { name: 'Tiến' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Minh' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Anh' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).not.toBeChecked()
   })
 })
 
@@ -501,7 +501,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
 
   test('the payer chips and the date fold count as user changes', async () => {
     const { user, form } = setupWithRef()
-    await user.click(payerRadio('Anh'))
+    await user.click(payerRadio('Duy Anh'))
     await openDate(user)
     const date = screen.getByLabelText('Ngày trả')
     await user.clear(date)
@@ -584,7 +584,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(screen.getByText('Chia đều cả nhà · 3 người')).toBeInTheDocument()
     await openSplit(user)
     expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveAttribute('aria-pressed', 'true')
-    for (const name of ['Tiến', 'Minh', 'Anh']) {
+    for (const name of ['Tiến', 'Minh', 'Duy Anh']) {
       expect(screen.getByRole('checkbox', { name })).toBeChecked()
     }
   })
@@ -598,7 +598,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       result = form().fill(draft)
     })
     expect(result).toMatchObject({ kept: [] })
-    expect(screen.getByRole('checkbox', { name: 'Anh' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).not.toBeChecked()
   })
 
   test('no amount or payer in the draft empties those fields instead of keeping a default', () => {
@@ -642,7 +642,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     // An unknown payer is like no payer: the field is emptied for the user to choose
     expect(payer()).toBe('')
     await openSplit(user)
-    expect(screen.getByRole('checkbox', { name: 'Anh' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Tiến' })).not.toBeChecked()
   })
 
@@ -781,7 +781,7 @@ describe('ExpenseForm, the note beside Cách chia', () => {
   test('no note when the user had set the split: the AI did not fill it', async () => {
     const { form, user } = setupWithRef()
     await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
     act(() => {
       form().fill(filled)
     })
@@ -796,7 +796,7 @@ describe('ExpenseForm, the note beside Cách chia', () => {
       form().fill(filled)
     })
     await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
     expect(screen.queryByText(note)).not.toBeInTheDocument()
 
     act(() => {
@@ -842,7 +842,7 @@ describe('ExpenseForm, Escape closes the folds (DESIGN.md §8)', () => {
   test('Escape in the split fold closes it and focuses Sửa cách chia', async () => {
     const { user } = setup()
     await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
 
     await user.keyboard('{Escape}')
 
@@ -850,7 +850,7 @@ describe('ExpenseForm, Escape closes the folds (DESIGN.md §8)', () => {
     expect(screen.getByRole('button', { name: 'Sửa cách chia' })).toHaveFocus()
     // Closing is not undoing: the change stays
     await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
-    expect(screen.getByRole('checkbox', { name: 'Anh' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Duy Anh' })).not.toBeChecked()
   })
 })
 

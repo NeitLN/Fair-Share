@@ -240,7 +240,7 @@ const vi = {
     nameEmpty: 'Tên thành viên không được để trống.',
     add: 'Thêm thành viên',
     adding: 'Đang thêm…',
-    shortNameHint: 'App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…',
+    shortNameHint: 'App gọi mỗi người bằng tên cuối: Hương, Minh, Lan…',
     loading: 'Đang tải danh sách thành viên',
     empty: 'Chưa có thành viên nào. Thêm người đầu tiên ở trên.',
     confirmRemove: (name: string) => `Xoá ${name} khỏi nhà?`,
