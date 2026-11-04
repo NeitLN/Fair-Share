@@ -55,7 +55,7 @@ function BalanceRows({ balances, looks, me = null, loading = false, unavailable 
                   </strong>
                   {balance.paid > 0 && (
                     <small>
-                      {t.money.spent} <Money amount={balance.paid} />
+                      {t.money.spentInTotal} <Money amount={balance.paid} />
                     </small>
                   )}
                 </span>

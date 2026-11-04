@@ -1,4 +1,4 @@
-import type { Expense, MemberBalance, Transfer } from '../api/types'
+import type { MemberBalance, Transfer } from '../api/types'
 import { messages } from '../i18n'
 import { formatVND } from './money'
 
@@ -81,10 +81,4 @@ export function reminderMessage(
       (told.has(`${p.from_member_id}-${p.to_member_id}`) ? t.reminderTold(nameOf(p.to_member_id)) : ''),
   )
   return [t.reminderHead(householdName, month), ...lines, t.reminderLink(link)].join('\n')
-}
-
-/** What the household spent in the month of `isoDate` ("YYYY-MM-…"), from its expenses. */
-export function spentInMonth(expenses: Expense[], isoDate: string): number {
-  const month = isoDate.slice(0, 7)
-  return expenses.filter((e) => e.spent_at.slice(0, 7) === month).reduce((total, e) => total + e.amount, 0)
 }

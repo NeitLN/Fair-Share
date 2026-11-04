@@ -146,15 +146,29 @@ const transfers = () => screen.findByRole('list', { name: 'Các lần trả gợ
 const region = (name: string) => within(screen.getByRole('region', { name }))
 const month = Number(today().slice(5, 7))
 
+test("this month's spending has its own block, apart from the balances that add up everything", async () => {
+  api()
+  renderApp('/households/7')
+
+  // Design review 05/11: "Tháng 11 · cả nhà đã chi 790.000đ" sat right above "Minh đã chi 4.740.000đ"
+  const label = `Tháng ${month}/${today().slice(0, 4)}`
+  const thisMonth = await screen.findByRole('heading', { level: 2, name: `${label}: cả nhà chi 300.000đ` })
+  const monthRows = within(screen.getByRole('list', { name: `Từng người trong ${label.toLowerCase()}` }))
+  expect(monthRows.getAllByRole('listitem')).toHaveLength(3)
+
+  const balances = region('Số dư từng người')
+  expect(balances.getByText('tính từ đầu tới hôm nay')).toBeInTheDocument()
+  expect(balances.queryByText(/cả nhà/)).not.toBeInTheDocument()
+  expect(balances.getByText(/tổng đã chi/)).toHaveTextContent('tổng đã chi 300.000đ')
+  expect(thisMonth.closest('section')).not.toBe(screen.getByRole('region', { name: 'Số dư từng người' }))
+})
+
 test('before the household says who you are, the block counts the transfers left and lists them all', async () => {
   me = null
   api()
   renderApp('/households/7')
 
   expect(await screen.findByRole('heading', { name: 'Còn 2 lần trả là cả nhà về 0đ' })).toBeInTheDocument()
-  expect(await screen.findByText(`Tháng ${month}`, { exact: false })).toHaveTextContent(
-    `Tháng ${month} · cả nhà đã chi 300.000đ`,
-  )
   const rows = within(await transfers()).getAllByRole('listitem')
   expect(rows.map((row) => row.querySelector('.transfer-text')?.textContent)).toEqual([
     'Minh trả Tiến 100.000đ',
@@ -298,7 +312,7 @@ test('every member has a row with where they stand, in words and with a sign', a
   renderApp('/households/7')
 
   const rows = await within(screen.getByRole('region', { name: 'Số dư từng người' })).findAllByRole('listitem')
-  expect(rows[0]).toHaveTextContent(/Tiếnbạnđã chi 300\.000đ\+200\.000đđược nhận$/)
+  expect(rows[0]).toHaveTextContent(/Tiếnbạntổng đã chi 300\.000đ\+200\.000đđược nhận$/)
   expect(rows[1]).toHaveTextContent(/Minh−100\.000đcần trả$/)
   expect(rows[2]).toHaveTextContent(/An−100\.000đcần trả$/)
 })

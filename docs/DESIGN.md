@@ -181,9 +181,11 @@ Nhà trọ Q7                     (T)(M)(A)+1      ← 22 px on a phone
 ║ ┌ (A) Anh trả Minh 80.000đ · Chưa trả. ┐
 ║ ( Sao chép tin nhắn nhắc nợ )     ║   ← outline on the taro
 ╚═════════════════════════════════╝
-Số dư từng người         tính từ đầu · đã chi · cần trả hoặc được nhận
-Tháng 10 · cả nhà đã chi 3.460.000đ              ← this month, apart from the all-time balances
- (M) Minh   đã chi 1.065.000đ      +200.000đ  được nhận
+Tháng 10/2026: cả nhà chi 3.460.000đ             ← this month, a section of its own
+ (M) Minh   đã trả 1.065.000đ      860.000đ  phần chia
+ (T) Tiến bạn đã trả 0đ            1.300.000đ  phần chia
+Số dư từng người                   tính từ đầu tới hôm nay
+ (M) Minh   tổng đã chi 1.065.000đ  +200.000đ  được nhận
  (T) Tiến bạn                      −120.000đ  cần trả
  (L) Lan                                  0đ  SẠCH NỢ
 Lịch sử trả                      Ghi khoản trả khác
@@ -306,7 +308,7 @@ keyboard goes through the page in the order it is seen.
   three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
   Nothing is sticky, so nothing covers a focused field on a short laptop screen.
 * **Tổng quan:** two columns (equal at 1024, `minmax(480px, 2fr) 3fr` from 1280). Left: the verdict block,
-  *+ Ghi khoản chi*, then Lịch sử trả. Right: Số dư từng người, then **Khoản chi gần đây**, the last five
+  *+ Ghi khoản chi*, then Lịch sử trả. Right: this month, Số dư từng người, then **Khoản chi gần đây**, the last five
   expenses with *Xem tất cả*, so the balances can be explained without leaving the page.
 * **Chi tiêu:** the AI box and the form on the left (360 px; `minmax(380px, 1fr) 2fr` from 1280), the list on the right as
   a **table**: Ngày, Nội dung, Người trả (with the split under the name), Số tiền right-aligned, and
@@ -334,7 +336,10 @@ yellow coin, sticker avatars, stamps) and the three tabs stayed.
   what you can do, in both languages. Your own *Tôi đã chuyển* shows under the big amount, which does not
   change until the receiver confirms.
 * **Two time scopes, said apart.** "Tháng 11 · cả nhà đã chi" left the verdict for the balances section,
-  whose note says the balances run from the start.
+  whose note says the balances run from the start. The design review of 05/11 found it still read as one
+  number with the balances ("cả nhà đã chi 790.000đ" right above "Minh đã chi 4.740.000đ"), so this month
+  is now its own section (the Tổng tháng block of Chi tiêu: who paid what and each share), the balance
+  note says "tính từ đầu tới hôm nay" and a row says *tổng đã chi*.
 * **One surface to add an expense.** The AI line (kept visible: it is the quick way and the demo) and the
   fields it fills share one white card, no ink ring; *Xem các khoản chi* jumps to the list on phones.
   Rows that open to Sửa/Xoá show a drawn chevron.

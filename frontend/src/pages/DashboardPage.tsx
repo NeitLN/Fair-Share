@@ -19,12 +19,13 @@ import {
 } from '../api/settlements'
 import type { Settlement, SettlementInput, Transfer } from '../api/types'
 import BalanceRows from '../components/BalanceRows'
-import { Money } from '../components/Money'
+import MonthTotals from '../components/MonthTotals'
 import RecentExpenses from '../components/RecentExpenses'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
 import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
+import { filterExpenses, monthTotals } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
 import { useSession } from '../lib/session'
@@ -33,7 +34,7 @@ import { REFRESH_MS } from '../lib/refresh'
 import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
 import { useWide } from '../lib/useWide'
-import { reminderMessage, spentInMonth, tookPart, transferText } from '../lib/verdict'
+import { reminderMessage, tookPart, transferText } from '../lib/verdict'
 import ErrorNote from '../components/ErrorNote'
 import { closeFoldOnEscape } from '../lib/fold'
 import { useT } from '../i18n'
@@ -168,6 +169,7 @@ function Dashboard({ householdId }: { householdId: number }) {
 
   const now = today()
   const month = Number(now.slice(5, 7))
+  const thisMonth = now.slice(0, 7)
   const reminder = reminderMessage(
     household.data?.name ?? t.dashboard.defaultName,
     month,
@@ -267,22 +269,22 @@ function Dashboard({ householdId }: { householdId: number }) {
         </div>
 
         <div className="split-rest">
+          {/* This month on its own, apart from the balances, which add up everything since the start */}
+          {expenses.isSuccess && (
+            <MonthTotals
+              month={thisMonth}
+              totals={monthTotals(filterExpenses(expenses.data, { month: thisMonth, memberId: null }), memberList)}
+              looks={looks}
+              me={me}
+              level={2}
+            />
+          )}
+          {expenses.isError && <p className="hint">{t.verdict.month(month) + t.verdict.spentUnavailable}</p>}
           <section aria-labelledby="balances-title">
             <div className="section-head">
               <h2 id="balances-title">{t.dashboard.balancesTitle}</h2>
               <span className="section-note">{t.dashboard.balancesNote}</span>
             </div>
-            {/* This month's spending, apart from the balances, which add up everything since the start */}
-            <p className="month-spent">
-              {t.verdict.month(month)}
-              {expenses.isSuccess && (
-                <>
-                  {' '}
-                  · {t.verdict.spent} <Money amount={spentInMonth(expenses.data, now)} />
-                </>
-              )}
-              {expenses.isError && t.verdict.spentUnavailable}
-            </p>
             <BalanceRows
               balances={balances.data?.balances ?? []}
               looks={looks}
