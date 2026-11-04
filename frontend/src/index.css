@@ -1298,6 +1298,165 @@ button.ai:active:focus-visible {
   color: var(--on-block);
 }
 
+/* "Vì sao ra số này?" (specs/002-balance-explanation): a quiet link under the amount, opening a white card
+   like the transfer cards, so the credit and debt colours keep their contrast */
+.explain-fold > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--on-block-muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.explain-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.explain {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.explain-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.explain-line,
+.explain-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.explain-line {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* A line with something behind it opens in place; its summary is the whole row */
+.explain-line > details {
+  flex: 1;
+  min-width: 0;
+}
+
+.explain-line > details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--target);
+  cursor: pointer;
+}
+
+.explain-line > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The drawn chevron of the other folds, before the label (on the summary: the label is a grid) */
+.explain-line > details > summary::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin: 0 -2px 0 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.explain-line > details[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.explain-line > details > summary .explain-label {
+  flex: 1;
+}
+
+.explain-label {
+  display: grid;
+  min-width: 0;
+}
+
+.explain-none,
+.explain-hint {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.explain-items {
+  margin: 4px 0 6px;
+  padding: 0 0 0 18px;
+  list-style: none;
+}
+
+.explain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.explain-item-main {
+  display: grid;
+  min-width: 0;
+}
+
+.explain-item-main a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--primary-text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.explain-item-main small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.explain-hint {
+  padding-left: 18px;
+}
+
+.explain-line .money,
+.explain-total .money {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.explain-total {
+  padding-top: 2px;
+  font-weight: 700;
+}
+
+.explain-total .standing {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.explain-waiting {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 /* What you told someone you sent, under the amount: it still counts until they confirm */
 .verdict-pending {
   margin-top: 6px;
@@ -1538,6 +1697,47 @@ button.ai:active:focus-visible {
 .settlement-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+/* A row that opens to "Vì sao ra số này?" (specs/002-balance-explanation): the same three columns in its
+   summary, a chevron after them, the explanation under it */
+.balance-row.openable {
+  display: block;
+  padding: 0;
+}
+
+.balance-row.openable > details > summary {
+  list-style: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--target);
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.balance-row.openable > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.balance-row.openable > details > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.balance-row.openable > details[open] > summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.balance-row.openable .explain {
+  margin-bottom: 12px;
+  background: var(--surface-2);
 }
 
 .balance-row:last-child,

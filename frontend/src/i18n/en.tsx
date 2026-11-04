@@ -302,6 +302,28 @@ const en: Messages = {
     unavailable: "Couldn't load balances.",
     empty: 'No balances yet. Add members and the first expense to see who owes who.',
   },
+  explain: {
+    open: 'Why this number?',
+    title: (you: boolean, name: string) => (you ? 'Your balance' : `${name}'s balance`),
+    spent: (you: boolean, name: string) => (you ? 'You spent for the group' : `${name} spent for the group`),
+    share: (you: boolean, name: string) => (you ? 'Your share of the expenses' : `${name}'s share of the expenses`),
+    paidBack: (you: boolean, name: string) => (you ? 'You paid back' : `${name} paid back`),
+    gotBack: (you: boolean, name: string) => (you ? 'You were paid back' : `${name} was paid back`),
+    total: 'Balance',
+    nothing: 'Nothing here',
+    updating: 'Updating…',
+    paidBy: (name: string) => `${name} paid`,
+    of: (amount: ReactNode) => <>of {amount}</>,
+    to: (name: string) => `to ${name}`,
+    from: (name: string) => `from ${name}`,
+    expenseHint: 'Pick one to open it in Expenses.',
+    repaymentHint: 'Pick one to see it in the repayments.',
+    waiting: (from: string, to: string, amount: ReactNode) => (
+      <>
+        {from} reported sending {amount} to {to}, waiting to be confirmed: not counted yet.
+      </>
+    ),
+  },
   verdict: {
     month: (month: number) => MONTHS[month - 1] ?? String(month),
     spentUnavailable: " · couldn't load the total",
