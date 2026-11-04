@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import psycopg
 import pytest
+from argon2 import PasswordHasher
 
 from app.auth import token_hash
 from app.routers import accounts
@@ -94,6 +95,37 @@ def test_passwords_and_tokens_are_never_stored_as_typed(client, db_url):
         sessions = conn.execute("SELECT token_hash FROM sessions").fetchall()
     assert (token_hash(token),) in [(bytes(row[0]),) for row in sessions]
     assert all(token.encode() not in bytes(row[0]) for row in sessions)
+
+
+# Review of #166 (Hoàng Minh): the library defaults (t=3, 64 MiB, 4 lanes) took about 4 s per login
+# on Render's free instance; OWASP's minimum for argon2id takes about 0.4 s
+OWASP = "$argon2id$v=19$m=19456,t=2,p=1$"
+
+
+def stored_hash(db_url, email):
+    with psycopg.connect(db_url) as conn:
+        row = conn.execute("SELECT password_hash FROM users WHERE email = %s", (email,)).fetchone()
+    return row[0]
+
+
+def test_passwords_are_hashed_with_owasps_minimum_for_argon2id(client, db_url):
+    email = new_email()
+    register(client, email=email)
+    assert stored_hash(db_url, email).startswith(OWASP)
+
+
+def test_a_hash_made_with_the_old_settings_still_signs_in_and_is_moved_over(client, db_url):
+    """Argon2 keeps its settings in the hash: an account from before signs in, and its hash is made
+    again with the new settings while the password is known."""
+    email = new_email()
+    register(client, email=email)
+    old = PasswordHasher().hash("mat-khau-dai")  # the library defaults the accounts were made with
+    with psycopg.connect(db_url) as conn:
+        conn.execute("UPDATE users SET password_hash = %s WHERE email = %s", (old, email))
+
+    assert login(client, email).status_code == 200
+    assert stored_hash(db_url, email).startswith(OWASP)
+    assert login(client, email).status_code == 200
 
 
 def test_login_with_the_right_password_opens_a_new_session(client):

@@ -31,10 +31,14 @@ MAX_LIFETIME = timedelta(days=90)
 # Writing last_used_at on every request is not needed: once an hour is enough for a 30-day limit
 TOUCH_EVERY = timedelta(hours=1)
 
-_hasher = PasswordHasher()
+# OWASP's minimum for argon2id (t=2, 19 MiB, 1 lane). The library defaults (t=3, 64 MiB, 4 lanes)
+# took about 4 s per login on Render's free instance, against about 0.4 s with these (#166 review).
+# Argon2 keeps its settings in each hash, so hashes made with the old ones still verify, and a login
+# makes them again with these (needs_rehash)
+_hasher = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
 # Checked when the email is unknown, so the answer takes as long as for a wrong password
 _DUMMY_HASH = _hasher.hash("not a real password, only spends the same time")
-# Each hash or check takes 64 MiB: at most two at a time, so a burst of logins or sign-ups waits
+# Each hash or check takes 19 MiB: at most two at a time, so a burst of logins or sign-ups waits
 # instead of using up the memory of a 512 MB instance (review of #166)
 HASHING_AT_ONCE = 2
 _hashing = threading.BoundedSemaphore(HASHING_AT_ONCE)
@@ -51,6 +55,15 @@ def forbidden(message: str = "You are not allowed to do this in this household")
 def hash_password(password: str) -> str:
     with _hashing:
         return _hasher.hash(password)
+
+
+def needs_rehash(stored_hash: str) -> bool:
+    """The hash was made with other settings than today's: make it again while the password is
+    known."""
+    try:
+        return _hasher.check_needs_rehash(stored_hash)
+    except InvalidHashError:
+        return False
 
 
 def password_matches(stored_hash: str | None, password: str) -> bool:

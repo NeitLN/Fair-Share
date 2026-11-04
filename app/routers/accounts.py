@@ -18,6 +18,7 @@ from app.auth import (
     CurrentUser,
     bearer_token,
     hash_password,
+    needs_rehash,
     not_authenticated,
     open_session,
     password_matches,
@@ -133,9 +134,13 @@ def login(body: LoginIn, request: Request):
         raise too_many(LOGIN_WINDOW)
     if not password_matches(user["password_hash"] if user else None, body.password):
         raise invalid_credentials()  # the attempt stays counted
+    # A hash from older settings is made again now, without holding a connection while it runs
+    fresh = hash_password(body.password) if needs_rehash(user["password_hash"]) else None
     with connection(request) as conn:
         release(conn, email_bucket, LOGIN_WINDOW)
         release(conn, ip_bucket, LOGIN_WINDOW)
+        if fresh:
+            conn.execute("UPDATE users SET password_hash = %s WHERE id = %s", (fresh, user["id"]))
         token = open_session(conn, user["id"])
     user.pop("password_hash")
     return {"token": token, "user": user}
