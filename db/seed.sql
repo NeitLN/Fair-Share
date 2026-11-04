@@ -12,7 +12,7 @@
 
 WITH demo AS (
   INSERT INTO households (name)
-  SELECT 'Demo house'
+  SELECT 'Nhà trọ Bình Thạnh'
   WHERE NOT EXISTS (SELECT 1 FROM households)
   RETURNING id
 ),
@@ -52,16 +52,16 @@ linked AS (
 -- months_back 1 = last month, 0 = this month; day = day of that month (today at the latest)
 bought (description, amount, payer, months_back, day, source, shares) AS (
   VALUES
-    ('Rent, last month', 4500000, 'Minh', 1, 1, 'manual',
+    ('Tiền nhà tháng trước', 4500000, 'Minh', 1, 1, 'manual',
      '{"Tiến": 1500000, "Minh": 1500000, "Duy Anh": 1500000}'::jsonb),
-    ('Weekend groceries', 360000, 'Duy Anh', 1, 12, 'manual',
+    ('Đi chợ cuối tuần', 360000, 'Duy Anh', 1, 12, 'manual',
      '{"Tiến": 120000, "Minh": 120000, "Duy Anh": 120000}'::jsonb),
-    ('Electricity', 450000, 'Tiến', 0, 3, 'manual',
+    ('Tiền điện', 450000, 'Tiến', 0, 3, 'manual',
      '{"Tiến": 150000, "Minh": 150000, "Duy Anh": 150000}'::jsonb),
-    ('Hotpot', 240000, 'Minh', 0, 8, 'ai',
+    ('Lẩu thứ sáu', 240000, 'Minh', 0, 8, 'ai',
      '{"Tiến": 80000, "Minh": 80000, "Duy Anh": 80000}'::jsonb),
     -- A custom split that leaves Minh out
-    ('Instant noodles and eggs', 100000, 'Duy Anh', 0, 10, 'manual',
+    ('Mì gói và trứng', 100000, 'Duy Anh', 0, 10, 'manual',
      '{"Tiến": 40000, "Duy Anh": 60000}'::jsonb)
 ),
 spent AS (
