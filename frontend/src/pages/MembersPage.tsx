@@ -19,12 +19,14 @@ import MemberList from '../components/MemberList'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import { useWide } from '../lib/useWide'
 import { useT } from '../i18n'
 
 // US-02 with accounts (docs/DESIGN.md §6.4, docs/ACCOUNTS.md): the invite code, the people asking to
 // join (owner), and the names in the split. Only the owner renames or removes; anyone else can leave.
 function MembersPage() {
   const t = useT()
+  const wide = useWide()
   const householdId = Number(useParams().householdId)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -76,11 +78,11 @@ function MembersPage() {
         : null
   const people = members.data ?? []
 
-  return (
-    <>
-      <h2 className="visually-hidden">{t.household.members}</h2>
-      <InviteCard householdId={householdId} isOwner={isOwner} />
-      {isOwner && <JoinRequests householdId={householdId} members={people} />}
+  const invite = <InviteCard householdId={householdId} isOwner={isOwner} />
+  const requests = isOwner && <JoinRequests householdId={householdId} members={people} />
+  const list = (
+    <section aria-labelledby="people-title">
+      <h2 id="people-title">{t.people.listTitle(people.length)}</h2>
       <MemberList
         members={people}
         looks={looks}
@@ -122,6 +124,32 @@ function MembersPage() {
         </p>
       )}
       {leave.error && <p role="alert">{errorMessage(leave.error)}</p>}
+    </section>
+  )
+
+  return (
+    <>
+      {/* Someone waiting to be approved first, then the people, then the invite (DESIGN.md §6.4); a
+          computer puts the people in the wide column and the request and the invite beside them */}
+      <div className="page-split members-split">
+        {wide ? (
+          <>
+            <div className="split-lead">{list}</div>
+            <div className="split-rest">
+              {requests}
+              {invite}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="split-lead">
+              {requests}
+              {list}
+            </div>
+            <div className="split-rest">{invite}</div>
+          </>
+        )}
+      </div>
     </>
   )
 }

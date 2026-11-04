@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { mockApi, renderApp } from '../test/renderApp'
+import { onAComputer } from '../test/screen'
 
 beforeEach(() => {
   // The user answers "OK" to every confirm()
@@ -249,4 +250,38 @@ test('a member sees the code but no owner tools, and can leave', async () => {
 
   await user.click(screen.getByRole('button', { name: 'Rời nhà này' }))
   expect(await screen.findByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeInTheDocument()
+})
+
+test('on a computer the people come first, then a request to approve, then the invite', async () => {
+  onAComputer()
+  api()
+  renderApp('/households/7/members')
+
+  const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
+  const people = await screen.findByRole('button', { name: 'Đổi tên Minh' })
+  const invite = screen.getByText('Mời bạn cùng phòng')
+  expect(people.compareDocumentPosition(asking) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(asking.compareDocumentPosition(invite) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('someone asking to join shows as a count on the Thành viên tab for the owner', async () => {
+  api()
+  renderApp('/households/7/members')
+
+  expect(await screen.findByRole('link', { name: /^Thành viên.*1 người xin vào nhà$/ })).toBeInTheDocument()
+})
+
+test('on a phone that can share, Gửi link mời opens the share sheet with the invite link', async () => {
+  const share = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+  try {
+    api()
+    const user = userEvent.setup()
+    renderApp('/households/7/members')
+
+    await user.click(await screen.findByRole('button', { name: 'Gửi link mời' }))
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: expect.stringMatching(/\/join\/K7QM2XRT$/) }))
+  } finally {
+    Reflect.deleteProperty(navigator, 'share')
+  }
 })

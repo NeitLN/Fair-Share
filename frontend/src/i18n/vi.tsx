@@ -87,7 +87,7 @@ const vi = {
     inviteHint: 'Mời bạn cùng phòng bằng mã mời trong Thành viên: họ nhập mã, bạn duyệt.',
     owner: 'Trưởng nhóm',
     howItWorks: 'Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai và gợi ý vài lần chuyển cho gọn.',
-    empty: 'Bạn chưa ở nhà nào. Tạo nhà đầu tiên, hoặc nhập mã mời mà bạn cùng phòng gửi.',
+    empty: 'Bạn chưa ở nhà nào. Nhập mã mời bạn cùng phòng gửi, hoặc tạo nhà đầu tiên.',
     fallbackName: (id: number) => `Nhà #${id}`,
     loading: 'Đang tải nhà',
     forget: 'Bỏ khỏi danh sách',
@@ -100,6 +100,8 @@ const vi = {
   },
   household: {
     tabs: 'Mục của nhà',
+    toldYou: (count: number) => `, ${count} lời báo đã chuyển chờ bạn xác nhận`,
+    asking: (count: number) => `, ${count} người xin vào nhà`,
     overview: 'Tổng quan',
     expenses: 'Chi tiêu',
     members: 'Thành viên',
@@ -136,6 +138,8 @@ const vi = {
     title: 'Mời bạn cùng phòng',
     hint: 'Bạn cùng phòng nhập mã này (hoặc mở đường dẫn) sau khi đăng nhập, rồi trưởng nhóm duyệt.',
     copy: 'Sao chép đường dẫn mời',
+    share: 'Gửi link mời',
+    shareText: 'Vào nhà mình trên Fair-Share để chia tiền chung nhé:',
     copied: 'Đã sao chép đường dẫn mời. Gửi vào nhóm chat của nhà nhé.',
     codeLabel: 'Mã mời',
     copyCode: 'Sao chép mã',
@@ -152,6 +156,7 @@ const vi = {
     registerTab: 'Tạo tài khoản',
     title: 'Đăng nhập để vào nhà của bạn',
     invitedTitle: 'Vào nhà bạn được mời',
+    registerTitle: 'Tạo tài khoản mới',
     intro: 'Ghi chi tiêu chung với bạn cùng phòng, xem ai cần trả ai. Nhà của bạn đi theo tài khoản, mở trên máy nào cũng thấy.',
     invited: 'Bạn được mời vào một nhà. Tạo tài khoản (hoặc đăng nhập nếu đã có), rồi gửi yêu cầu vào nhà; trưởng nhóm duyệt xong là bạn vào được.',
     email: 'Email',
@@ -183,7 +188,7 @@ const vi = {
     codeProblem: 'Mã mời có 8 ký tự.',
     submit: 'Gửi yêu cầu vào nhà',
     submitting: 'Đang gửi…',
-    sent: 'Đã gửi yêu cầu. Khi trưởng nhóm duyệt, nhà sẽ hiện trong danh sách của bạn.',
+    sent: 'Đã gửi yêu cầu vào nhà.',
     already: 'Bạn đã ở trong nhà này rồi.',
   },
   pending: {
@@ -191,7 +196,9 @@ const vi = {
     row: (date: string) => `Yêu cầu vào nhà gửi ngày ${date}, đang chờ trưởng nhóm duyệt`,
     cancel: 'Hủy yêu cầu',
     cancelled: 'Đã hủy yêu cầu vào nhà.',
-    hint: 'Duyệt xong, nhà sẽ hiện ngay ở đây. Trong lúc chờ, bạn chưa xem được gì của nhà; nhắn trưởng nhóm mở Thành viên để duyệt.',
+    hint: 'Duyệt xong, nhà sẽ hiện ngay ở đây. Nhắn trưởng nhóm mở Thành viên để duyệt.',
+    check: 'Kiểm tra lại',
+    checking: 'Đang kiểm tra…',
   },
   requests: {
     title: 'Người xin vào nhà',
@@ -208,6 +215,7 @@ const vi = {
     confirmReject: (name: string) => `Từ chối ${name}? Muốn vào nhà, ${name} phải nhập mã mời lại.`,
   },
   people: {
+    listTitle: (count: number) => `Thành viên · ${count}`,
     owner: 'Trưởng nhóm',
     noAccount: 'Chưa có tài khoản',
     removeAccess: 'Bỏ quyền vào nhà',
@@ -267,6 +275,8 @@ const vi = {
     balancesTitle: 'Số dư từng người',
     balancesNote: 'tính từ đầu · đã chi · cần trả hoặc được nhận',
     historyTitle: 'Lịch sử trả',
+    recentTitle: 'Khoản chi gần đây',
+    seeAll: 'Xem tất cả',
     otherPayment: 'Ghi khoản trả khác',
     otherPaymentHint: 'Trả số khác với gợi ý, hoặc trả tiền mặt hôm khác.',
   },
@@ -290,11 +300,7 @@ const vi = {
     notify: 'Tôi đã chuyển',
     notifying: 'Đang báo…',
     notifyHint: (to: string) => `Chuyển cho ${to} xong thì bấm để báo, ${to} sẽ xác nhận.`,
-    toldWaiting: (to: string, amount: ReactNode) => (
-      <>
-        Đã báo {to} là đã chuyển {amount}, chờ xác nhận.
-      </>
-    ),
+    toldWaiting: (to: string) => `Đã báo, chờ ${to} xác nhận.`,
     amountDiffers: 'Khác số gợi ý hiện tại. Bấm Đã nhận sẽ ghi đúng số đã báo.',
     outdated: 'Số dư đã đổi sau lần báo này.',
     noticesFailed: 'Chưa tải được các lần báo “Tôi đã chuyển”.',
@@ -307,6 +313,11 @@ const vi = {
     notified: (to: string) => `Đã báo ${to}.`,
     declined: (from: string) => `Đã báo ${from} là chưa nhận được.`,
     youDeclined: (from: string) => `Bạn đã báo ${from} là chưa nhận được.`,
+    ownPending: (to: string, amount: ReactNode) => (
+      <>
+        Đã báo chuyển {amount} · chờ {to} xác nhận
+      </>
+    ),
     copyReminder: 'Sao chép tin nhắn nhắc nợ',
     allSquare: 'Cả nhà sạch nợ. Nhà trọ bình yên.',
     nothingYet: 'Chưa có khoản chi nào. Ghi khoản đầu tiên để xem ai trả ai.',
@@ -336,7 +347,7 @@ const vi = {
     describe: (from: string, to: string, amount: string) => `khoản ${from} trả ${to} ${amount}`,
     confirmDelete: (what: string) => `Xoá ${what}?`,
     deleteLabel: (what: string) => `Xoá ${what}`,
-    empty: 'Chưa có khoản trả nào. Khi ai đó trả bạn, bấm "Đã nhận" ở trên.',
+    empty: 'Chưa có khoản trả nào được ghi nhận.',
     row: (from: ReactNode, to: ReactNode, amount: ReactNode) => (
       <>
         {from} đã trả {to} {amount}
@@ -345,7 +356,7 @@ const vi = {
     fromLabel: 'Người trả',
     toLabel: 'Người nhận',
     amountLabel: 'Số tiền (đồng)',
-    amountPlaceholder: 'VD: 120k',
+    amountPlaceholder: 'VD: 120000',
     dateLabel: 'Ngày',
     noteLabel: 'Ghi chú (không bắt buộc)',
     notePlaceholder: 'VD: chuyển khoản',
@@ -369,6 +380,15 @@ const vi = {
     listTitle: 'Các khoản chi',
     filteredCount: (shown: number, all: number) => `${shown}/${all} khoản`,
     listHint: 'chạm để sửa hoặc xoá',
+    listHintWide: 'mới nhất ở trên',
+    saved: (description: string, amount: string) => `Đã lưu: ${description} ${amount}`,
+    show: 'Xem',
+    jumpToList: 'Xem các khoản chi',
+    colDate: 'Ngày',
+    colDescription: 'Nội dung',
+    colPayer: 'Người trả',
+    colAmount: 'Số tiền',
+    colActions: 'Sửa hoặc xoá',
     noMatch: 'Không có khoản chi nào khớp bộ lọc.',
     showAll: 'Xem tất cả',
     loadingList: 'Đang tải danh sách khoản chi',
@@ -397,7 +417,7 @@ const vi = {
   form: {
     description: 'Nội dung',
     descriptionPlaceholder: 'VD: tiền điện tháng 10',
-    amountPlaceholder: 'VD: 240k',
+    amountPlaceholder: 'VD: 240000',
     amount: 'Số tiền',
     whoPaid: 'Ai trả?',
     date: 'Ngày trả',
@@ -409,8 +429,8 @@ const vi = {
     splitEqual: 'Chia đều',
     splitCustom: 'Chia riêng',
     summaryCustom: (people: number) => `Chia riêng (${people} người)`,
-    summaryEveryone: (people: number) => `Chia đều cả nhà (${people} người)`,
-    summaryEqual: (picked: number, all: number) => `Chia đều (${picked}/${all} người)`,
+    summaryEveryone: (people: number) => `Chia đều cả nhà · ${people}\u00a0người`,
+    summaryEqual: (picked: number, all: number) => `Chia đều · ${picked}/${all}\u00a0người`,
     shareOf: (name: string) => `Phần của ${name}`,
     sharesMatch: 'Đã chia khớp số tiền.',
     left: (amount: string) => `Còn lại: ${amount}`,

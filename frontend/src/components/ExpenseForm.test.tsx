@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { createRef } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
@@ -53,7 +53,7 @@ describe('ExpenseForm, the 90% case', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user, '240k')
     expect(screen.getByText('= 240.000đ')).toBeInTheDocument()
-    expect(screen.getByText(/^Chia đều cả nhà \(3 người\)$/)).toBeInTheDocument()
+    expect(screen.getByText(/^Chia đều cả nhà · 3 người$/)).toBeInTheDocument()
     expect(payerRadio('Tiến')).toBeChecked()
     expect(screen.getByText('(bạn)')).toBeInTheDocument()
     await save(user)
@@ -187,7 +187,7 @@ describe('ExpenseForm, equal split', () => {
     await fillBasics(user)
     await openSplit(user)
     await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
-    expect(screen.getByText('Chia đều (2/3 người)')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều · 2/3 người')).toBeInTheDocument()
     await save(user)
 
     expect(onSubmit.mock.calls[0][0].split).toEqual({ type: 'equal', member_ids: [1, 2] })
@@ -202,7 +202,7 @@ describe('ExpenseForm, equal split', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Anh' }))
     await save(user)
 
-    expect(screen.getByText(/^Chia đều cả nhà \(3 người\)$/)).toBeInTheDocument()
+    expect(screen.getByText(/^Chia đều cả nhà · 3 người$/)).toBeInTheDocument()
     await fillBasics(user)
     await save(user)
     expect(onSubmit.mock.calls[1][0].split).toEqual({ type: 'equal', member_ids: [1, 2, 3] })
@@ -424,7 +424,7 @@ describe('ExpenseForm, editing', () => {
         ],
       },
     })
-    expect(screen.getByText('Chia đều (2/3 người)')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều · 2/3 người')).toBeInTheDocument()
     await openSplit(user)
     expect(screen.getByRole('checkbox', { name: 'Tiến' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Minh' })).toBeChecked()
@@ -464,7 +464,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(screen.getByLabelText('Nội dung')).toHaveValue('Lẩu')
     expect(screen.getByLabelText('Số tiền')).toHaveValue('240000')
     expect(payer()).toBe('2')
-    expect(screen.getByText('Chia đều (2/3 người)')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều · 2/3 người')).toBeInTheDocument()
     expect(screen.getByLabelText('Số tiền')).toHaveClass('just-filled')
     expect(screen.getByRole('group', { name: 'Ai trả?' })).toHaveClass('just-filled')
     await openDate(user)
@@ -576,12 +576,12 @@ describe('ExpenseForm, filled by AI quick add', () => {
     act(() => {
       form().fill(draft)
     })
-    expect(screen.getByText('Chia đều (2/3 người)')).toBeInTheDocument()
-    expect(screen.getByText('Chia đều (2/3 người)').closest('.fold-field')).toHaveClass('just-filled')
+    expect(screen.getByText('Chia đều · 2/3 người')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều · 2/3 người').closest('.fold-field')).toHaveClass('just-filled')
     act(() => {
       form().undoFill()
     })
-    expect(screen.getByText('Chia đều cả nhà (3 người)')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều cả nhà · 3 người')).toBeInTheDocument()
     await openSplit(user)
     expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveAttribute('aria-pressed', 'true')
     for (const name of ['Tiến', 'Minh', 'Anh']) {
@@ -660,7 +660,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     expect(screen.getByLabelText('Nội dung')).toHaveValue('Ăn tối')
     expect(screen.getByLabelText('Số tiền')).toHaveValue('')
     expect(payer()).toBe('1')
-    expect(screen.getByText('Chia đều cả nhà (3 người)')).toBeInTheDocument()
+    expect(screen.getByText('Chia đều cả nhà · 3 người')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Số tiền'), '50000')
     await save(user)
@@ -852,4 +852,33 @@ describe('ExpenseForm, Escape closes the folds (DESIGN.md §8)', () => {
     await user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
     expect(screen.getByRole('checkbox', { name: 'Anh' })).not.toBeChecked()
   })
+})
+
+// UI review 04/11: the next expense is today's, and the AI clears only the messages of what it filled
+test('after a save the next expense is dated today again, whatever the last one was', async () => {
+  const { user } = setup()
+  await fillBasics(user)
+  await openDate(user)
+  const date = screen.getByLabelText('Ngày trả')
+  await user.clear(date)
+  await user.type(date, '2026-10-18')
+  await save(user)
+
+  await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
+  expect(screen.getByText('Hôm nay')).toBeInTheDocument()
+})
+
+test('a fill clears the messages of the fields it filled; one still empty keeps its message', async () => {
+  const ref = createRef<ExpenseFormHandle>()
+  const { user } = setup({ ref })
+  await save(user)
+  expect(screen.getByText('Nhập nội dung khoản chi.')).toBeInTheDocument()
+  expect(screen.getByText('Nhập số tiền.')).toBeInTheDocument()
+
+  act(() => {
+    ref.current?.fill({ description: 'Lẩu' })
+  })
+
+  expect(screen.queryByText('Nhập nội dung khoản chi.')).not.toBeInTheDocument()
+  expect(screen.getByText('Nhập số tiền.')).toBeInTheDocument()
 })

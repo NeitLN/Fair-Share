@@ -98,7 +98,7 @@ const en: Messages = {
     inviteHint: 'Invite housemates with the invite code in Members: they enter it, you approve them.',
     owner: 'Owner',
     howItWorks: 'Add expenses when you pay. The app works out who owes who and suggests a short list of repayments.',
-    empty: "You're not in a group yet. Create one, or enter the invite code a housemate sent you.",
+    empty: "You're not in a group yet. Enter the invite code a housemate sent you, or create one.",
     fallbackName: (id: number) => `Group #${id}`,
     loading: 'Loading group',
     forget: 'Remove from list',
@@ -111,6 +111,8 @@ const en: Messages = {
   },
   household: {
     tabs: 'Group sections',
+    toldYou: (count: number) => `, ${count} sent ${count === 1 ? 'payment' : 'payments'} to confirm`,
+    asking: (count: number) => `, ${count} asking to join`,
     overview: 'Overview',
     expenses: 'Expenses',
     members: 'Members',
@@ -147,6 +149,8 @@ const en: Messages = {
     title: 'Invite housemates',
     hint: 'Housemates enter this code (or open the link) after signing in, then the owner approves them.',
     copy: 'Copy invite link',
+    share: 'Send invite link',
+    shareText: 'Join our group on Fair-Share to split shared costs:',
     copied: 'Invite link copied. Send it to your group chat.',
     codeLabel: 'Invite code',
     copyCode: 'Copy code',
@@ -163,6 +167,7 @@ const en: Messages = {
     registerTab: 'Create account',
     title: 'Sign in to see your groups',
     invitedTitle: "Join the group you're invited to",
+    registerTitle: 'Create your account',
     intro: 'Share expenses with your housemates and see who owes who. Your groups follow your account, on any device.',
     invited: 'You were invited to a group. Create an account (or sign in if you have one), then send your request to join; you are in once the owner approves it.',
     email: 'Email',
@@ -194,7 +199,7 @@ const en: Messages = {
     codeProblem: 'An invite code has 8 characters.',
     submit: 'Ask to join',
     submitting: 'Sending…',
-    sent: 'Request sent. Once the owner approves it, the group shows up in your list.',
+    sent: 'Request sent.',
     already: "You're already in this group.",
   },
   pending: {
@@ -202,7 +207,9 @@ const en: Messages = {
     row: (date: string) => `Asked to join on ${date}, waiting for the owner`,
     cancel: 'Cancel request',
     cancelled: 'Request cancelled.',
-    hint: "Once approved, the group shows up right here. Until then you can't see anything in it; ask the owner to open Members to approve you.",
+    hint: 'Once approved, the group shows up right here. Ask the owner to open Members to approve you.',
+    check: 'Check again',
+    checking: 'Checking…',
   },
   requests: {
     title: 'Asking to join',
@@ -219,6 +226,7 @@ const en: Messages = {
     confirmReject: (name: string) => `Decline ${name}? To join, ${name} will need to enter the invite code again.`,
   },
   people: {
+    listTitle: (count: number) => `Members · ${count}`,
     owner: 'Owner',
     noAccount: 'No account yet',
     removeAccess: 'Remove from group',
@@ -274,6 +282,8 @@ const en: Messages = {
     balancesTitle: 'Balances',
     balancesNote: 'all time · spent · owes or gets back',
     historyTitle: 'Repayment history',
+    recentTitle: 'Recent expenses',
+    seeAll: 'See all',
     otherPayment: 'Add repayment',
     otherPaymentHint: 'Record a different amount or date, including cash repayments.',
   },
@@ -297,11 +307,7 @@ const en: Messages = {
     notify: "I've sent it",
     notifying: 'Telling them…',
     notifyHint: (to: string) => `Once you've sent it, tap to tell ${to}; they confirm.`,
-    toldWaiting: (to: string, amount: ReactNode) => (
-      <>
-        You told {to} you sent {amount}. Waiting for them to confirm.
-      </>
-    ),
+    toldWaiting: (to: string) => `Reported. Waiting for ${to} to confirm.`,
     amountDiffers: "Not today's suggestion. Received records the amount they told you.",
     outdated: 'The balances changed after this was told.',
     noticesFailed: "Couldn't load the “I've sent it” notices.",
@@ -314,6 +320,11 @@ const en: Messages = {
     notified: (to: string) => `Told ${to}.`,
     declined: (from: string) => `Told ${from} it hasn't arrived.`,
     youDeclined: (from: string) => `You told ${from} it hasn't arrived.`,
+    ownPending: (to: string, amount: ReactNode) => (
+      <>
+        Reported sending {amount} · waiting for {to} to confirm
+      </>
+    ),
     copyReminder: 'Copy reminder message',
     allSquare: "Everyone's settled up. Peace at home.",
     nothingYet: 'No expenses yet. Add the first one to see who owes who.',
@@ -343,7 +354,7 @@ const en: Messages = {
     describe: (from: string, to: string, amount: string) => `the repayment from ${from} to ${to} of ${amount}`,
     confirmDelete: (what: string) => `Delete ${what}?`,
     deleteLabel: (what: string) => `Delete ${what}`,
-    empty: 'No repayments yet. When someone pays you, tap "Mark as received" above.',
+    empty: 'No repayments recorded yet.',
     row: (from, to, amount) => (
       <>
         {from} paid {to} {amount}
@@ -352,7 +363,7 @@ const en: Messages = {
     fromLabel: 'Paid by',
     toLabel: 'Paid to',
     amountLabel: 'Amount (₫)',
-    amountPlaceholder: 'e.g. 120k',
+    amountPlaceholder: 'e.g. 120000',
     dateLabel: 'Date',
     noteLabel: 'Note (optional)',
     notePlaceholder: 'e.g. bank transfer',
@@ -372,6 +383,15 @@ const en: Messages = {
     listTitle: 'Expenses',
     filteredCount: (shown: number, all: number) => `${shown} of ${all}`,
     listHint: 'Tap to edit or delete',
+    listHintWide: 'newest first',
+    saved: (description: string, amount: string) => `Saved: ${description} ${amount}`,
+    show: 'Show',
+    jumpToList: 'See expenses',
+    colDate: 'Date',
+    colDescription: 'Description',
+    colPayer: 'Paid by',
+    colAmount: 'Amount',
+    colActions: 'Edit or delete',
     noMatch: 'No expenses match the filters.',
     showAll: 'Show all',
     loadingList: 'Loading expenses',
@@ -400,7 +420,7 @@ const en: Messages = {
   form: {
     description: 'Description',
     descriptionPlaceholder: 'e.g. October electricity',
-    amountPlaceholder: 'e.g. 240k',
+    amountPlaceholder: 'e.g. 240000',
     amount: 'Amount',
     whoPaid: 'Who paid?',
     date: 'Date paid',
@@ -412,7 +432,7 @@ const en: Messages = {
     splitEqual: 'Equally',
     splitCustom: 'Custom amounts',
     summaryCustom: (n: number) => `Custom · ${count(n, 'person', 'people')}`,
-    summaryEveryone: (n: number) => `Equally · everyone (${n})`,
+    summaryEveryone: (n: number) => `Equally · everyone\u00a0(${n})`,
     summaryEqual: (picked: number, all: number) => `Equally · ${picked} of ${count(all, 'person', 'people')}`,
     shareOf: (name: string) => `${name}'s share`,
     sharesMatch: 'Shares match the total.',

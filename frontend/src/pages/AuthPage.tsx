@@ -71,7 +71,10 @@ function AuthPage() {
 
   return (
     <section className="auth" aria-labelledby="auth-title">
-      <h1 id="auth-title">{invited ? t.auth.invitedTitle : t.auth.title}</h1>
+      {/* The title says what this form does now: sign in, or create an account */}
+      <h1 id="auth-title">
+        {invited ? t.auth.invitedTitle : mode === 'register' ? t.auth.registerTitle : t.auth.title}
+      </h1>
       {invited ? (
         <p className="note ok">{t.auth.invited}</p>
       ) : (

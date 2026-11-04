@@ -3,7 +3,9 @@ import { useEffect, useMemo } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 
 import { ApiError } from '../api/client'
-import { getHousehold, keys, listMembers } from '../api/households'
+import { getHousehold, keys, listMembers, listRequests } from '../api/households'
+import { listNotices, settlementKeys } from '../api/settlements'
+import { REFRESH_MS } from '../lib/refresh'
 import { AvatarStack } from '../components/Avatar'
 import ClaimPanel from '../components/ClaimPanel'
 import { IdentityProvider } from '../components/IdentityProvider'
@@ -33,6 +35,28 @@ function HouseholdLayout() {
   })
   const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
 
+  // What waits for you, shown on the tabs (UI review 04/11): someone asking the owner to join, and a
+  // "Tôi đã chuyển" sent to you. While the page is open they are asked again every 30 s (never in a
+  // background tab), so nobody has to reload to see a housemate's step; the pages share these queries
+  // and update with them (PROJECT_SPEC §3.3, the in-app refresh the owner approved on 04/11).
+  const isOwner = household.data?.role === 'owner'
+  const requests = useQuery({
+    queryKey: keys.requests(householdId),
+    queryFn: () => listRequests(householdId),
+    enabled: validId && isOwner,
+    refetchInterval: REFRESH_MS,
+  })
+  const notices = useQuery({
+    queryKey: settlementKeys.notices(householdId),
+    queryFn: () => listNotices(householdId),
+    enabled: validId && household.isSuccess,
+    refetchInterval: REFRESH_MS,
+  })
+  const asking = isOwner ? (requests.data?.length ?? 0) : 0
+  const toldMe = (notices.data ?? []).filter(
+    (n) => n.status === 'sent' && n.to_member_id === household.data?.member_id,
+  ).length
+
   // Not a member: the household does not exist for this account (a stranger, someone waiting for
   // approval, or it was deleted). An invite link from before accounts may still take it over.
   const missing = !validId || (household.error instanceof ApiError && household.error.status === 404)
@@ -61,19 +85,40 @@ function HouseholdLayout() {
   const people = members.data ?? []
   return (
     <IdentityProvider me={household.data?.member_id ?? null}>
-      <div className="house-head">
-        <h1>{household.data?.name ?? (household.isPending ? t.common.loading : t.household.fallbackName)}</h1>
-        {people.length > 0 && <AvatarStack looks={people.map((m) => looks.get(m.id)!)} />}
+      {/* A phone stacks these; a computer puts the name on the left and the tabs on the right of one row */}
+      <div className="house-frame">
+        <div className="house-side">
+          <div className="house-head">
+            <h1>{household.data?.name ?? (household.isPending ? t.common.loading : t.household.fallbackName)}</h1>
+            {people.length > 0 && <AvatarStack looks={people.map((m) => looks.get(m.id)!)} />}
+          </div>
+          {household.error && <p role="alert">{household.error.message}</p>}
+          <nav className="tabs" aria-label={t.household.tabs}>
+            <NavLink to="" end>
+              {t.household.overview}
+              {toldMe > 0 && (
+                <span className="tab-badge">
+                  <span aria-hidden="true">{toldMe}</span>
+                  <span className="visually-hidden">{t.household.toldYou(toldMe)}</span>
+                </span>
+              )}
+            </NavLink>
+            <NavLink to="expenses">{t.household.expenses}</NavLink>
+            <NavLink to="members">
+              {t.household.members}
+              {asking > 0 && (
+                <span className="tab-badge">
+                  <span aria-hidden="true">{asking}</span>
+                  <span className="visually-hidden">{t.household.asking(asking)}</span>
+                </span>
+              )}
+            </NavLink>
+          </nav>
+        </div>
+        <div className="house-body">
+          <Outlet />
+        </div>
       </div>
-      {household.error && <p role="alert">{household.error.message}</p>}
-      <nav className="tabs" aria-label={t.household.tabs}>
-        <NavLink to="" end>
-          {t.household.overview}
-        </NavLink>
-        <NavLink to="expenses">{t.household.expenses}</NavLink>
-        <NavLink to="members">{t.household.members}</NavLink>
-      </nav>
-      <Outlet />
     </IdentityProvider>
   )
 }

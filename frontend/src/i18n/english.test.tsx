@@ -166,8 +166,10 @@ test('a household frame in English: tabs, invite, members and their chips', asyn
   expect(screen.getByRole('button', { name: 'Copy invite link' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'New code' })).toBeInTheDocument()
   // The page joins number and ₫ with a no-break space
-  expect(await screen.findByText(/^owes 100,000\s₫$/)).toBeInTheDocument()
-  expect(screen.getByText(/^gets back 100,000\s₫$/)).toBeInTheDocument()
+  const money = (await screen.findAllByText((_, el) => el?.classList.contains('member-money') ?? false)).map(
+    (el) => el.textContent,
+  )
+  expect(money).toEqual(expect.arrayContaining([expect.stringMatching(/^−100,000\s₫ owes$/), expect.stringMatching(/^\+100,000\s₫ gets back$/)]))
   expect(screen.getByRole('button', { name: 'Rename Võ Việt Tiến' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Remove Hoàng Minh from the group' })).toBeInTheDocument()
   expect(screen.getAllByText('Owner').length).toBeGreaterThan(0)

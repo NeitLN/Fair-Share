@@ -55,3 +55,12 @@ test("after a session expires, the next person on this device never sees the las
     homeShowsAn: onHome.includes('Nhà của An'),
   }).toEqual({ cacheHasAn: false, groupPageShowsAn: false, homeShowsAn: false })
 })
+
+test('the title says what the form does: sign in, or create an account', async () => {
+  const user = userEvent.setup()
+  renderApp('/', { signedOut: true })
+
+  expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Tạo tài khoản' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Tạo tài khoản mới' })).toBeInTheDocument()
+})

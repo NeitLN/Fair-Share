@@ -32,7 +32,8 @@ describe('routes', () => {
   test.each([
     ['/households/7', 'Tổng quan'],
     ['/households/7/expenses', 'Chi tiêu'],
-    ['/households/7/members', 'Thành viên'],
+    // Thành viên titles its list on screen, with how many people there are
+    ['/households/7/members', /^Thành viên · \d+$/],
   ])('%s is "%s" of Nhà 7, with one h1', async (path, page) => {
     renderApp(path)
     expect(await screen.findByRole('heading', { level: 2, name: page })).toBeInTheDocument()

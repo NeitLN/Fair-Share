@@ -30,9 +30,9 @@ How we got here:
 ## 2. Five rules (read these before any CSS)
 
 1. **One loud place per screen.** Only the taro verdict block on Tổng quan is drenched. Everything else
-   sits on the near-white background as borderless surfaces. Yellow means *attention*: the coin in the
+   sits on the lilac background as borderless white surfaces. Yellow means *attention*: the coin in the
    logo, the AI and the focus ring, nothing else ([BRAND.md](BRAND.md)).
-2. **Hard shadows only on stickers and primary buttons.** Avatars, the two stamps, primary and AI buttons
+2. **Hard shadows only on stickers and a form's primary button.** Avatars, the two stamps, a form's submit and the AI button
    get the 2–3 px offset shadow; pressing a button moves it down by exactly its shadow. Cards never get a
    shadow or a border.
 3. **Money is sacred.** Bold, tabular figures, right-aligned in lists, always with a sign or a word
@@ -50,19 +50,21 @@ never a literal colour. Dark values apply under `prefers-color-scheme: dark` unl
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | `#F3F0FC` | `#110E1C` | page |
+| `--bg` | `#E3E1E9` | `#110E1C` | page |
 | `--surface` | `#FFFFFF` | `#1B1730` | sections, inputs, transfer cards |
 | `--surface-2` | `#F1EDFE` | `#251F42` | folds, segmented track, paid transfer |
 | `--ink` | `#17132B` | `#F3F0FF` | text |
 | `--muted` | `#5B5675` | `#B1A9D4` | secondary text |
-| `--line` | `#E4DEF7` | `#382F63` | row dividers, input borders |
+| `--line` | `#E4DEF7` | `#382F63` | row dividers only (quiet on purpose) |
+| `--control-line` | `#7C72AB` | `#7366B3` | the 2 px edge of fields, selects, secondary buttons, folds, payer chips, the account menu |
+| `--focus-outline` | `#17132B` | `#17132B` | the ring inside the yellow focus halo |
 | `--primary` | `#5A3CF0` | `#8C74FF` | primary button fill |
 | `--on-primary` | `#FFFFFF` | `#120C33` | text on primary |
 | `--primary-text` | `#5A3CF0` | `#A996FF` | links, ghost buttons |
 | `--block` / `--on-block` | `#5A3CF0` / `#FFFFFF` | `#4B33D1` / `#FFFFFF` | the verdict block |
 | `--on-block-muted` | `#E4DCFF` | `#E4DCFF` | small text in the verdict block |
 | `--credit` / `--credit-text` | `#3DDC97` / `#05694A` | `#3DDC97` / `#5EE9AE` | *được nhận*, ĐÃ TRẢ, SẠCH NỢ |
-| `--debt` / `--debt-text` | `#FF5C8A` / `#C2255C` | `#FF5C8A` / `#FF8FB0` | *cần trả*, errors |
+| `--debt` / `--debt-text` | `#FF5C8A` / `#B71F55` | `#FF5C8A` / `#FF8FB0` | *cần trả*, errors |
 | `--ai` | `#FFE14D` | `#FFE14D` | AI button and chip, focus ring |
 | `--on-fill` | `#17132B` | `#0E0A1F` | text on mint, pink, yellow and avatar tints |
 | `--edge` | `#FFFFFF` | `#F3F0FF` | sticker die-cut outline |
@@ -76,11 +78,17 @@ take the members in id order; each one's preferred tint is `id mod 8`, and if an
 has it, the next free tint. Adding someone never recolours anyone; removing someone recolours only a
 member who had been pushed off a taken tint. Houses of up to 8 never repeat a colour.
 
-**Measured contrast** (WCAG 2.1, all text pairs ≥ 4.5:1): ink on bg 16.04 (light) / 16.96 (dark) · muted on surface-2 5.9 (light)
+**Measured contrast** (WCAG 2.1, all text pairs ≥ 4.5:1): ink on bg 13.92 (light) / 16.96 (dark) · muted on surface-2 5.9 (light)
 / 7.0 (dark) · white on primary 6.3 · `#120C33` on dark primary 5.4 · credit text on surface-2 5.7 ·
-debt text on surface-2 4.8 · white on the dark verdict block 7.8 · `#E4DCFF` on the light block 4.8 ·
-`--on-fill` on the avatar tints ≥ 10.91 (light) / 11.74 (dark). Surface vs. bg is 1.12 (light) and 1.10 (dark), enough for borderless
-sections on cheap screens. The dark sticker shadow is 3.6:1 against bg so stickers stay visible on OLED.
+debt text on surface-2 5.5 · white on the dark verdict block 7.8 · `#E4DCFF` on the light block 4.8 ·
+`--on-fill` on the avatar tints ≥ 10.91 (light) / 11.74 (dark). Surface vs. bg is 1.30 (light; it was
+1.12 until the review of 03/11, and the white cards vanished on a laptop screen; on 04/11 the bg lost
+most of its purple, so the taro block is the one purple mass) and 1.10 (dark, where the
+cards read by their lighter fill). Anything you type in or press is outlined in `--control-line`: 4.33 on
+surface, 3.34 on bg, 3.77 on surface-2 (light); 3.53 / 3.88 / 3.16 (dark), above WCAG 1.4.11's 3:1.
+On the darker bg the light text colours still pass: `--muted` 5.35, `--primary-text` 4.86, `--credit-text`
+5.19, `--debt-text` 4.85. Placeholders use `--muted`. The focus ring stays dark in both themes, 13.85
+against its yellow halo. The dark sticker shadow is 3.6:1 against bg so stickers stay visible on OLED.
 
 **Shape and space.** Radii: sections 16 px, transfer cards 14 px, buttons and inputs 12 px, chips and
 segmented controls 999 px, avatars circles, the verdict block 24 px. Spacing on a 4 px grid; page gutter
@@ -113,7 +121,7 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 | **Chip** | 12 px 700, pill. `credit` mint, `debt` pink, `ai` yellow (`✦ AI`): text `--on-fill`. `me` (*bạn*) is the exception: background `--ink`, text `--bg` (16:1 both themes) |
 | **Stamp ĐÃ TRẢ** | Mint sticker, 3 px edge, −8°, on a transfer the moment it is recorded; animation: scale 1.7 → 1 in 240 ms with a slight overshoot (the one deliberate bounce in the app; instant under reduce motion). The card turns `--surface-2`, never faded |
 | **Stamp SẠCH NỢ** | Small mint sticker, −6°, next to a member whose net is 0 **and** who has at least one expense or settlement (a brand-new house is not "settled") |
-| **Buttons** | `primary` (taro, edge, hard shadow), `ai` (yellow, same), `secondary` (surface + line border), `ghost` (primary text), `danger` (debt text). Height 44, radius 12. Press: translate by the shadow, shadow to 0, 120 ms. Disabled: 60% opacity, no shadow |
+| **Buttons** | `primary` (taro, edge, hard shadow), `ai` (yellow, same), `secondary` (surface + `--control-line` border; `--muted` on hover), `ghost` (primary text), `danger` (debt text). Height 44, radius 12. Press: translate by the shadow, shadow to 0, 120 ms. Disabled: 60% opacity, no shadow |
 | **Segmented** | Pill track on `--surface`, selected segment ink with `--bg` text; 44 px. Used for the household tabs and Chia đều / Chia riêng |
 | **Fold row** | `--surface-2` row "**Hôm nay**, 21/10 · Đổi" / "**Chia đều cả nhà** (4 người) · Sửa"; shows exclusions ("Chia đều (3/4 người)"). Opens the full control in place |
 | **Pick chips** | Radio group as avatar + short name pills (Ai trả?, Bạn là ai?); checked = ink border on `--surface-2`; long names ellipsize |
@@ -154,19 +162,21 @@ avatar stack would need one more request per house. If it is added later, one
 
 ```
 ←  Fair·Share
-Nhà trọ Q7                     (T)(M)(A)+1
+Nhà trọ Q7                     (T)(M)(A)+1      ← 22 px on a phone
 [ Tổng quan | Chi tiêu | Thành viên ]
-Bạn là Tiến                Không phải bạn?
+[ + Ghi khoản chi ]                              ← 48 px, filled, no sticker shadow
 ╔══════════ taro block ═══════════╗
-║ Tháng 10 · cả nhà đã chi 3.460.000đ ║
 ║ Bạn cần trả Minh                 ║
 ║ 120.000đ                         ║   ← 44 px
-║ ┌ (T) Bạn trả Minh  120.000đ [Đã trả] ┐
-║ └ (A) Anh trả Minh   80.000đ [Đã trả] ┘
-║ [ Sao chép tin nhắn nhắc nợ ]    ║
+║ Đã báo chuyển 120.000đ · chờ Minh xác nhận ║ ← only your own sent notice
+║ ┌ (T) Bạn trả Minh 120.000đ      ┐   ← yours first
+║ │     Đã báo, chờ Minh xác nhận.  │   ← where it stands
+║ └     Huỷ báo                     ┘   ← then what you can do (flat buttons)
+║ ┌ (A) Anh trả Minh 80.000đ · Chưa trả. ┐
+║ ( Sao chép tin nhắn nhắc nợ )     ║   ← outline on the taro
 ╚═════════════════════════════════╝
-[ + Ghi khoản chi ]
-Số dư từng người         đã chi · cần trả hoặc được nhận
+Số dư từng người         tính từ đầu · đã chi · cần trả hoặc được nhận
+Tháng 10 · cả nhà đã chi 3.460.000đ              ← this month, apart from the all-time balances
  (M) Minh   đã chi 1.065.000đ      +200.000đ  được nhận
  (T) Tiến bạn                      −120.000đ  cần trả
  (L) Lan                                  0đ  SẠCH NỢ
@@ -217,11 +227,12 @@ Lịch sử trả                      Ghi khoản trả khác
 ### 6.3 Chi tiêu `/households/:id/expenses`
 
 ```
-╔ (✦) Gõ nhanh bằng AI ═══════════╗    ← composer: surface, 2 px ink ring (T-19)
-║ lẩu 240k Minh trả chia đều cả nhà ║    ← 2-line auto-growing textarea, 300 chars
-║ [ Điền giúp ]  AI điền form bên dưới… ║
-╚══════════════════════════════════╝
-Thêm khoản chi
+Thêm khoản chi                       Xem các khoản chi   ← jump link, phones only
+┌ one white surface ───────────────┐
+│ ✦ Gõ nhanh bằng AI                │
+│ [ lẩu 240k Minh trả…   ] [Điền giúp] │ ← one auto-growing line, 300 chars
+│ AI điền form bên dưới…             │
+├──────── hairline ─────────────────┤    (UI review 03/11: no ink ring, one surface)
 Nội dung      [ Tiền điện tháng 10      ]
 Số tiền       [ 240k                    ]  = 240.000đ
 Ai trả?       ((T) Tiến (bạn)) ((M) Minh) ((A) Anh) ((L) Lan)
@@ -253,8 +264,10 @@ Hôm qua, 20/10
 
 ### 6.4 Thành viên `/households/:id/members`
 
-A list, not a card grid (it scales to 6 long names). Each row: large avatar, **full name**, "gọi là
-*Anh*" (left out when it is the whole name), the net chip or SẠCH NỢ, the *bạn* chip for you, and two 44 px
+Order on a phone (UI review 03/11): someone asking to join first (the owner's next task), then the list
+titled "Thành viên · 3", then the invite card. A list, not a card grid (it scales to 6 long names). Each
+row: large avatar, **full name**, "gọi là *Anh*" (left out when it is the whole name), the signed amount
+with *cần trả* / *được nhận* as on Tổng quan (no coloured pill) or SẠCH NỢ, the *bạn* chip for you, and two 44 px
 buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (asks first). One tap fewer than a *Sửa* menu,
 and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
 field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Anh…". If two members share a last word,
@@ -270,6 +283,85 @@ selected, to copy by hand. The Tổng quan reminder ends with the same link.
 Loading: skeleton rows in `--surface-2` (no spinners over 300 ms). Empty: one sentence that says what to
 do next, with the action. Error: a note with the message from `lib/errors.ts` and *Thử lại*; nothing
 already typed is lost.
+
+### 6.6 On a computer (1024 px and wider)
+
+The phone layout above is the design; a computer gets its own arrangement of the same parts, not a
+phone column in the middle of a wide screen. Below 1024 px nothing changes. Where a computer changes
+what is shown or its order, the page asks `lib/useWide.ts` instead of moving things with CSS, so the
+keyboard goes through the page in the order it is seen.
+
+* **Frame:** the whole screen, with 32 px sides (40 px from 1440); no empty bands left and right on a
+  wide monitor (owner's choice, 04/11). From 1280 px the columns keep their 1280 proportions as the screen
+  widens, with a floor so the verdict and the form never get narrower than at 1280. The header keeps the
+  wordmark and the account; under it, one row for the household: its name and avatars on the left, the
+  three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
+  Nothing is sticky, so nothing covers a focused field on a short laptop screen.
+* **Tổng quan:** two columns (equal at 1024, `minmax(480px, 2fr) 3fr` from 1280). Left: the verdict block,
+  *+ Ghi khoản chi*, then Lịch sử trả. Right: Số dư từng người, then **Khoản chi gần đây**, the last five
+  expenses with *Xem tất cả*, so the balances can be explained without leaving the page.
+* **Chi tiêu:** the AI box and the form on the left (360 px; `minmax(380px, 1fr) 2fr` from 1280), the list on the right as
+  a **table**: Ngày, Nội dung, Người trả (with the split under the name), Số tiền right-aligned, and
+  *Sửa* / *Xoá* on each row the user may change. The row being edited is tinted. Between 1024 and 1279 px
+  the date and the payer fold under the description instead of squeezing it. The list hint says "mới
+  nhất ở trên" (there is nothing to tap). *Lưu khoản chi* sits at the end of the form, not stuck to the
+  bottom of the screen.
+* **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)
+  a request to approve comes before the invite.
+* **Nhà của bạn:** one column up to 880 px: the groups, the wait, then *Nhập mã mời* and *+ Tạo nhà mới*
+  as two buttons side by side that open their form under them.
+* **Sign in:** a 440 px form in the middle, the language and theme under it.
+* Hover tints rows and inactive tabs with `--surface-2`; the focus ring stays on top of it.
+
+### 6.7 UI review of 03/11: what changed and why
+
+A review of every screen against the jobs in §1 led to these changes; the brand (wordmark, taro,
+yellow coin, sticker avatars, stamps) and the three tabs stayed.
+
+* **Logging an expense comes first.** *+ Ghi khoản chi* moved above the verdict: it used to sit under
+  every transfer, further down the more debts there were. It stays filled but flat, so the taro block is
+  still the one loud place; buttons repeated on every transfer card are flat too.
+* **Your business first, in the order you read it.** Transfers involving you come before the rest (a
+  stable split, so a card never moves while you press it). Each card reads amount → where it stands →
+  what you can do, in both languages. Your own *Tôi đã chuyển* shows under the big amount, which does not
+  change until the receiver confirms.
+* **Two time scopes, said apart.** "Tháng 11 · cả nhà đã chi" left the verdict for the balances section,
+  whose note says the balances run from the start.
+* **One surface to add an expense.** The AI line (kept visible: it is the quick way and the demo) and the
+  fields it fills share one white card, no ink ring; *Xem các khoản chi* jumps to the list on phones.
+  Rows that open to Sửa/Xoá show a drawn chevron.
+* **Rhythm.** 28 px between sections on a phone (32 px on a computer), 8 px from a title to its content,
+  house name 22 px on a phone.
+* **First use.** Joining with a code leads and *+ Tạo nhà mới* waits folded; the sign-in title follows
+  the tab (Đăng nhập / Tạo tài khoản mới).
+* **Not done, on purpose:** a bottom tab bar with a centre "+" (it duplicates Chi tiêu and fights the
+  sticky Lưu, the toast and the keyboard), collapsing the AI line, a new palette.
+
+### 6.8 Flow review of 04/11
+
+Two new housemates were walked through every journey on a 390 px phone (sign up, create, invite,
+approve, expenses, Tôi đã chuyển, Đã nhận, undo, sign out, errors). What changed:
+
+* **Saving says so.** "Đã lưu: Tiền điện 450.000đ · Xem" after adding or editing an expense; *Xem*
+  lifts a filter hiding it, scrolls to its row and tints it for a moment. The next expense is dated
+  today again. A row you may not change is a plain row (it does not open to an empty menu).
+* **Money is said done when it is done.** While *Đã nhận* is being recorded the verdict still counts
+  that transfer; undoing from the card also removes its "Đã ghi … Hoàn tác" toast.
+* **What waits for you** shows as a count on the tab (pink, dark figures): requests to approve on
+  Thành viên for the owner, a "Tôi đã chuyển" to confirm on Tổng quan. Open pages refresh every 30 s
+  (PROJECT_SPEC §3.3, 04/11).
+* **Joining.** The request waiting for approval is one card with *Kiểm tra lại* and *Hủy yêu cầu*; the
+  tips for people who invite others are not shown to someone waiting. On a phone that can share, the
+  invite card leads with *Gửi link mời* (the share sheet: Zalo, Messenger); copying the link, then the
+  code, follow.
+* **Copy.** Amount examples are "VD: 240000" (the field opens the number pad, which has no "k"); the
+  split reads "Chia đều cả nhà · 3 người" and never breaks between the number and "người"; an empty
+  history says "Chưa có khoản trả nào được ghi nhận." AI quick add clears only the messages of the fields
+  it filled.
+* **Wide screens (from 1280 px).** Balances read across (who, đã chi, số dư); a member row has its name,
+  its money and its actions in three regions; the expense filters keep a sensible width; Nhà của bạn has
+  the groups on the left and the ways in on the right; the verdict block gets a little more padding (the
+  amount stays 44 px).
 
 ## 7. Copy
 

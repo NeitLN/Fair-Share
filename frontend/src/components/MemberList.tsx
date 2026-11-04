@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Member, MemberBalance } from '../api/types'
-import { formatVND } from '../lib/money'
 import { memberLooks } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Chip, Stamp } from './Chip'
 import ErrorNote from './ErrorNote'
+import { Money } from './Money'
 import Skeleton from './Skeleton'
 import { useT } from '../i18n'
 
@@ -41,14 +41,21 @@ interface MemberListProps {
 }
 
 /**
- * A member's money in one chip (DESIGN.md §6.4): cần trả / được nhận with the amount, SẠCH NỢ once
+ * A member's money (DESIGN.md §6.4): the signed amount with cần trả / được nhận, SẠCH NỢ once
  * they took part in something and are back to 0, nothing for someone who has not taken part yet.
  */
 function Standing({ balance }: { balance?: MemberBalance }) {
   const t = useT()
   if (!balance) return null
-  if (balance.net > 0) return <Chip kind="credit">{t.money.gets(formatVND(balance.net))}</Chip>
-  if (balance.net < 0) return <Chip kind="debt">{t.money.owes(formatVND(-balance.net))}</Chip>
+  // Signed money and a word, as on Tổng quan's balances: one look for money everywhere
+  if (balance.net !== 0) {
+    return (
+      <span className="member-money">
+        <Money amount={balance.net} kind="balance" />{' '}
+        <small>{balance.net > 0 ? t.money.getsShort : t.money.owesShort}</small>
+      </span>
+    )
+  }
   return tookPart(balance) ? <Stamp kind="settled" decorative={false} /> : null
 }
 

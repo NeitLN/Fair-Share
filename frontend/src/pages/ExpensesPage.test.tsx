@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { Expense, ExpenseInput } from '../api/types'
 import { mockApi, renderApp } from '../test/renderApp'
+import { onAComputer } from '../test/screen'
 
 beforeEach(() => {
   // The user answers "OK" to "Xoá khoản …?"
@@ -448,4 +449,57 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(await list().findByText(/Chưa có khoản chi nào/)).toBeInTheDocument()
     expect(list().queryByLabelText('Tháng')).not.toBeInTheDocument()
   })
+})
+
+test('on a computer the expenses read as a table, and Sửa marks the row it opens in the form', async () => {
+  onAComputer()
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  const table = await screen.findByRole('table')
+  expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+    'Ngày',
+    'Nội dung',
+    'Người trả',
+    'Số tiền',
+    'Sửa hoặc xoá',
+  ])
+  const row = within(table).getByRole('row', { name: /Tiền điện/ })
+  expect(row).toHaveTextContent(/Tiền điện.*Tiến.*chia đều 2 người.*450\.000/)
+  expect(screen.getByText('mới nhất ở trên')).toBeInTheDocument()
+
+  await user.click(within(row).getByRole('button', { name: 'Sửa Tiền điện' }))
+  expect(await screen.findByRole('heading', { name: 'Sửa: Tiền điện' })).toBeInTheDocument()
+  expect(row).toHaveClass('editing')
+})
+
+test('a saved expense is said in a toast; Xem lifts a filter hiding it and marks its row', async () => {
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  // Only October is shown; the new expense is today's
+  await user.selectOptions(await screen.findByLabelText('Tháng'), '2026-10')
+  await user.type(screen.getByLabelText('Nội dung'), 'Ăn tối')
+  await user.type(screen.getByLabelText('Số tiền'), '240000')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+
+  expect(await screen.findByText('Đã lưu: Ăn tối 240.000đ')).toBeInTheDocument()
+  expect(list().queryByText('Ăn tối')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Xem' }))
+
+  const row = (await list().findByText('Ăn tối')).closest('li') as HTMLElement
+  expect(row).toHaveClass('just-saved')
+  expect(screen.getByLabelText('Tháng')).toHaveValue('')
+})
+
+test('a row the user may not change is a plain row, not one that opens', async () => {
+  me = 2
+  api({ 'GET /api/households/7': () => [200, { ...household, role: 'member', member_id: 2 }] })
+  renderApp('/households/7/expenses')
+
+  const row = (await list().findByText('Tiền điện')).closest('li') as HTMLElement
+  expect(row.querySelector('details')).toBeNull()
+  expect(within(row).queryByRole('button', { name: /Sửa/ })).not.toBeInTheDocument()
 })

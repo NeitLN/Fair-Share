@@ -230,7 +230,8 @@ function ExpenseForm({
       }
       setJustFilled(fill)
       if (fill.size > 0) setFromAi(true)
-      setProblems({})
+      // Only the fields the AI filled lose their message; one still empty keeps saying what it needs
+      fill.forEach((field) => clearProblem(field))
       return result
     },
     undoFill() {
@@ -331,11 +332,13 @@ function ExpenseForm({
     try {
       await onSubmit(toInput())
       if (!editing) {
-        // Ready for the next expense: same date, but the default payer (you, or without an identity the
-        // payer just saved, which the page now remembers) and an equal split between everyone again, as
-        // DESIGN.md says. Keeping the last split left someone out of the next expense without a word.
+        // Ready for the next expense: today, the default payer (you, or without an identity the payer
+        // just saved, which the page now remembers) and an equal split between everyone again, as
+        // DESIGN.md says. Keeping the last split left someone out of the next expense without a word, and
+        // keeping the date filed the next purchase on the day of the one before (UI review 04/11).
         setDescription('')
         setAmountText('')
+        setSpentAt(today())
         setSplitType('equal')
         setSelected(new Set(members.map((m) => m.id)))
         setCustomText({})

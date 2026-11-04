@@ -126,7 +126,7 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
         </label>
         <textarea
           id="ai-text"
-          rows={2}
+          rows={1}
           maxLength={MAX_TEXT}
           value={text}
           placeholder={t.ai.placeholder}

@@ -36,6 +36,18 @@ function InviteCard({ householdId, isOwner }: { householdId: number; isOwner: bo
 
   const code = invite.data?.code ?? null
 
+  // A phone's share sheet (Zalo, Messenger…) where the browser has one; copying stays for the rest
+  const canShare = typeof navigator.share === 'function'
+  async function share(link: string) {
+    try {
+      await navigator.share({ title: 'Fair·Share', text: t.invite.shareText, url: link })
+    } catch (failure) {
+      // Closing the sheet is not a failure; anything else falls back to copying the link
+      if (failure instanceof DOMException && failure.name === 'AbortError') return
+      await copy(link, t.invite.copied)
+    }
+  }
+
   async function copy(text: string, done: string) {
     try {
       await navigator.clipboard.writeText(text)
@@ -62,12 +74,18 @@ function InviteCard({ householdId, isOwner }: { householdId: number; isOwner: bo
             <p className="hint">{t.invite.expires(formatDate(invite.data.expires_at.slice(0, 10)))}</p>
           )}
           <p className="hint">{t.invite.hint}</p>
+          {/* Sending the link is what a phone user wants; copying the link, then the code, come after */}
           <div className="invite-actions">
-            <button type="button" className="btn-secondary" onClick={() => copy(formatCode(code), t.invite.codeCopied)}>
-              {t.invite.copyCode}
-            </button>
+            {canShare && (
+              <button type="button" className="btn-primary invite-share" onClick={() => void share(joinLink(code))}>
+                {t.invite.share}
+              </button>
+            )}
             <button type="button" className="btn-secondary" onClick={() => copy(joinLink(code), t.invite.copied)}>
               {t.invite.copy}
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => copy(formatCode(code), t.invite.codeCopied)}>
+              {t.invite.copyCode}
             </button>
           </div>
         </>

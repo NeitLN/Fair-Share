@@ -11,14 +11,13 @@ import { Money } from './Money'
 import { useT } from '../i18n'
 
 interface VerdictBlockProps {
-  /** The month the first line talks about, 1–12. */
-  month: number
-  /** What the household spent this month; null while it is unknown (the line then names only the month). */
-  spent: number | null
-  /** The expenses could not be loaded, so this month's total is unknown. */
-  spentUnavailable?: boolean
-  /** The suggested transfers, in the order the API gives them: the sentence and the reminder. */
+  /** The suggested transfers, in the order the API gives them: the reminder. */
   suggested: Transfer[]
+  /**
+   * What the sentence and the total count: like `suggested`, but a transfer still being recorded is still
+   * owed, so success is never announced before the server has it. Defaults to `suggested`.
+   */
+  owed?: Transfer[]
   /** The cards to show: the suggestions plus the transfers just recorded (lib/usePaidTransfers.ts). */
   cards: TransferCard[]
   /** The member using this device ("Bạn là ai?"), or null. */
@@ -79,10 +78,8 @@ const pairOf = (transfer: { from_member_id: number; to_member_id: number }) =>
  * records the transfers.
  */
 function VerdictBlock({
-  month,
-  spent,
-  spentUnavailable = false,
   suggested,
+  owed = suggested,
   cards,
   me,
   looks,
@@ -180,23 +177,9 @@ function VerdictBlock({
     }
   }
 
-  const monthLine = (
-    <p className="verdict-month">
-      {t.verdict.month(month)}
-      {spent !== null && (
-        <>
-          {' '}
-          · {t.verdict.spent} <Money amount={spent} />
-        </>
-      )}
-      {spent === null && spentUnavailable && t.verdict.spentUnavailable}
-    </p>
-  )
-
   if (loading || loadError) {
     return (
       <section className="verdict" aria-labelledby={`${id}-title`} aria-busy={loading || undefined}>
-        {monthLine}
         <h2 id={`${id}-title`} className="verdict-sentence">
           {loading ? t.verdict.working : t.verdict.failed}
         </h2>
@@ -214,7 +197,7 @@ function VerdictBlock({
     )
   }
 
-  const { sentence, total } = verdict(suggested, me, nameOf, started)
+  const { sentence, total } = verdict(owed, me, nameOf, started)
 
   // A notice whose pair is no longer suggested (an expense or another repayment changed the balances)
   // keeps its own card, so it can still be answered or taken back: the money may have moved. A declined
@@ -227,11 +210,17 @@ function VerdictBlock({
       transfer: { from_member_id: n.from_member_id, to_member_id: n.to_member_id, amount: n.amount },
       state: 'open' as const,
     }))
-  const shown = [...cards, ...leftOver]
+  // Yours first, the household's after: the sentence above talks to you. A stable split, so a card does
+  // not move while you press it
+  const mine = (card: TransferCard) =>
+    me !== null && (card.transfer.from_member_id === me || card.transfer.to_member_id === me)
+  const all = [...cards, ...leftOver]
+  const shown = [...all.filter(mine), ...all.filter((card) => !mine(card))]
+  // What you told someone you sent, under the amount: it still counts until they confirm (S3)
+  const ownTold = onlyReceiver ? (notices ?? []).filter((n) => n.status === 'sent' && n.from_member_id === me) : []
 
   return (
     <section className="verdict" aria-labelledby={`${id}-title`}>
-      {monthLine}
       <h2 id={`${id}-title`} ref={heading} className="verdict-sentence" tabIndex={-1}>
         {sentence}
       </h2>
@@ -240,6 +229,11 @@ function VerdictBlock({
           <Money amount={total} />
         </p>
       )}
+      {ownTold.map((n) => (
+        <p key={pairOf(n)} className="verdict-pending">
+          {t.verdict.ownPending(nameOf(n.to_member_id), <Money amount={n.amount} />)}
+        </p>
+      ))}
       {refreshError && (
         <div className="note" role="alert">
           {t.verdict.stale} {refreshError}
@@ -313,16 +307,18 @@ function VerdictBlock({
                     onDecline={pressed(pair, 'pay', onDecline)}
                   />
                 ) : (
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    aria-describedby={textId}
-                    data-action="pay"
-                    disabled={card.state === 'paying'}
-                    onClick={() => onPaid(transfer)}
-                  >
-                    {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
-                  </button>
+                  <span className="transfer-actions">
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      aria-describedby={textId}
+                      data-action="pay"
+                      disabled={card.state === 'paying'}
+                      onClick={() => onPaid(transfer)}
+                    >
+                      {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
+                    </button>
+                  </span>
                 )}
               </li>
             )
@@ -337,7 +333,7 @@ function VerdictBlock({
 
       {suggested.length > 0 && (
         <>
-          <button type="button" className="btn-secondary verdict-copy" onClick={copy}>
+          <button type="button" className="verdict-copy" onClick={copy}>
             {t.verdict.copyReminder}
           </button>
           {showText && (
@@ -375,8 +371,8 @@ interface ReceiverOnlyProps {
  * gets "Đã nhận", and "Chưa nhận được" when told it was sent; told an amount, Đã nhận records that
  * amount, and the status says so when it is not today's suggestion. The person who owes gets "Tôi đã
  * chuyển", which tells the receiver and changes no balance, and can take it back. Everyone else sees
- * where it stands. The main button sits on the right like "Đã trả"; the status and its small action
- * go under the text.
+ * where it stands. Under the names and the amount: where it stands, then what you can do about it, in
+ * that order and in both languages (DESIGN.md §6.2).
  */
 function ReceiverOnly({
   transfer,
@@ -416,23 +412,33 @@ function ReceiverOnly({
     const asTold = told && { ...transfer, amount: told.amount }
     return (
       <>
-        <button
-          type="button"
-          className="btn-primary"
-          // Told: the status line carries the amount that Đã nhận records
-          aria-describedby={told ? `${textId} ${statusId}` : textId}
-          data-action="pay"
-          disabled={card.state === 'paying' || busy || !known}
-          onClick={() => (asTold ? onPaid(asTold, true) : onPaid(transfer))}
-        >
-          {card.state === 'paying' ? t.verdict.paying : t.verdict.received}
-        </button>
         {asTold ? (
           <span className="transfer-status">
             <small id={statusId}>
               {t.verdict.toldMe(from)} <Money amount={asTold.amount} />.{' '}
               {outdated ? t.verdict.outdated : asTold.amount !== transfer.amount && t.verdict.amountDiffers}
             </small>
+          </span>
+        ) : (
+          declined && (
+            <span className="transfer-status">
+              <small>{t.verdict.youDeclined(from)}</small>
+            </span>
+          )
+        )}
+        <span className="transfer-actions">
+          <button
+            type="button"
+            className="btn-primary"
+            // Told: the status line carries the amount that Đã nhận records
+            aria-describedby={told ? `${textId} ${statusId}` : textId}
+            data-action="pay"
+            disabled={card.state === 'paying' || busy || !known}
+            onClick={() => (asTold ? onPaid(asTold, true) : onPaid(transfer))}
+          >
+            {card.state === 'paying' ? t.verdict.paying : t.verdict.received}
+          </button>
+          {asTold && (
             <button
               type="button"
               className="btn-ghost"
@@ -443,14 +449,8 @@ function ReceiverOnly({
             >
               {t.verdict.notReceived}
             </button>
-          </span>
-        ) : (
-          declined && (
-            <span className="transfer-status">
-              <small>{t.verdict.youDeclined(from)}</small>
-            </span>
-          )
-        )}
+          )}
+        </span>
       </>
     )
   }
@@ -458,38 +458,44 @@ function ReceiverOnly({
   if (transfer.from_member_id === me) {
     if (told) {
       return (
-        <span className="transfer-status">
-          <small>
-            {t.verdict.toldWaiting(to, <Money amount={told.amount} />)}
-            {outdated && <> {t.verdict.outdated}</>}
-          </small>
-          {cancel}
-        </span>
+        <>
+          <span className="transfer-status">
+            <small>
+              {t.verdict.toldWaiting(to)}
+              {outdated && <> {t.verdict.outdated}</>}
+            </small>
+          </span>
+          <span className="transfer-actions">{cancel}</span>
+        </>
       )
     }
     // Declined, and not suggested any more: nothing to tell again, only to take back
     if (outdated) {
       return (
-        <span className="transfer-status">
-          <small>{t.verdict.declinedBy(to)}</small>
-          {cancel}
-        </span>
+        <>
+          <span className="transfer-status">
+            <small>{t.verdict.declinedBy(to)}</small>
+          </span>
+          <span className="transfer-actions">{cancel}</span>
+        </>
       )
     }
     return (
       <>
-        <button
-          type="button"
-          className="btn-primary"
-          aria-describedby={textId}
-          data-action="notify"
-          disabled={busy || !known}
-          onClick={() => onNotify?.(transfer)}
-        >
-          {busy ? t.verdict.notifying : t.verdict.notify}
-        </button>
         <span className="transfer-status">
           <small>{declined ? t.verdict.declinedBy(to) : t.verdict.notifyHint(to)}</small>
+        </span>
+        <span className="transfer-actions">
+          <button
+            type="button"
+            className="btn-primary"
+            aria-describedby={textId}
+            data-action="notify"
+            disabled={busy || !known}
+            onClick={() => onNotify?.(transfer)}
+          >
+            {busy ? t.verdict.notifying : t.verdict.notify}
+          </button>
           {declined && cancel}
         </span>
       </>
