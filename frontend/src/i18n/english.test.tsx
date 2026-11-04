@@ -53,12 +53,12 @@ test('English is the default when nothing was chosen on this device', async () =
 })
 
 test('VI switches the whole page, and the choice is remembered on this device', async () => {
-  mockApi({})
+  mockApi({ 'GET /api/households': [200, { households: [], pending: [] }] })
   const user = userEvent.setup()
   renderApp('/')
 
   expect(await screen.findByRole('heading', { level: 1, name: 'Your groups' })).toBeInTheDocument()
-  expect(screen.getByText('+ New group')).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 2, name: "Hi Tiến, let's get started" })).toBeInTheDocument()
   await user.click(screen.getByLabelText(/^Account:/))
   const switcher = screen.getByRole('group', { name: 'Language' })
   expect(within(switcher).getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true')
@@ -66,6 +66,7 @@ test('VI switches the whole page, and the choice is remembered on this device', 
   await user.click(within(switcher).getByRole('button', { name: 'VI' }))
 
   expect(screen.getByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 2, name: 'Chào Tiến, bắt đầu thôi' })).toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'Giao diện' })).toBeInTheDocument()
   expect(language()).toBe('vi')
   expect(localStorage.getItem(LANGUAGE_KEY)).toBe('vi')

@@ -179,6 +179,14 @@ const vi = {
     signOut: 'Đăng xuất',
     signingOut: 'Đang đăng xuất…',
   },
+  // A new account with no house and no request: one place to start (design review 05/11)
+  start: {
+    title: (name: string) => `Chào ${name}, bắt đầu thôi`,
+    joinTitle: 'Có mã mời?',
+    joinHint: 'Nhập mã bạn cùng phòng gửi. Trưởng nhóm duyệt xong là bạn vào nhà.',
+    createTitle: 'Chưa ai tạo nhà?',
+    createHint: 'Tạo nhà rồi mời mọi người bằng mã mời. Bạn sẽ là trưởng nhóm.',
+  },
   join: {
     title: 'Vào nhà bằng mã mời',
     open: 'Nhập mã mời',

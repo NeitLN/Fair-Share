@@ -58,6 +58,11 @@ export function shortNames(members: Member[]): Map<number, string> {
   return result
 }
 
+/** One person on their own, outside a household's list: "Nguyễn Lan Anh" → "Lan Anh", "Hoàng Minh" → "Minh". */
+export function shortName(name: string): string {
+  return shortNames([{ id: 0, household_id: 0, name, created_at: '' }]).get(0) ?? name.trim()
+}
+
 /** "Nguyễn Duy Anh" → "A", "Đức" → "Đ". */
 export function initialOf(name: string): string {
   const last = words(name).at(-1) ?? name

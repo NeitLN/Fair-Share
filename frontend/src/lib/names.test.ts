@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import type { Member } from '../api/types'
-import { initialOf, memberLooks, shortNames, tints } from './names'
+import { initialOf, memberLooks, shortName, shortNames, tints } from './names'
 
 const T = '2026-10-20T10:00:00Z'
 const member = (id: number, name: string): Member => ({ id, household_id: 1, name, created_at: T })
@@ -58,6 +58,14 @@ describe('shortNames', () => {
     expect(names.get(1)).toBe('Nguyễn Duy Anh')
     expect(names.get(2)).toBe('Trần Duy Anh')
     expect(names.get(3)).toBe('Tuấn Anh')
+  })
+})
+
+describe('shortName', () => {
+  test('one person is called the way a household would call them', () => {
+    expect(shortName('Nguyễn Lan Anh')).toBe('Lan Anh')
+    expect(shortName(' Hoàng Minh ')).toBe('Minh')
+    expect(shortName('Tiến')).toBe('Tiến')
   })
 })
 

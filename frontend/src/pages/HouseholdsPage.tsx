@@ -10,8 +10,10 @@ import JoinForm from '../components/JoinForm'
 import Skeleton from '../components/Skeleton'
 import { formatDate } from '../lib/date'
 import { errorMessage } from '../lib/errors'
+import { shortName } from '../lib/names'
 import { closeFoldOnEscape } from '../lib/fold'
 import { REFRESH_MS } from '../lib/refresh'
+import { useSession } from '../lib/session'
 import { useToast } from '../lib/toast'
 import { useT } from '../i18n'
 
@@ -47,9 +49,9 @@ function HouseholdsPage() {
     },
   })
 
-  // Nothing yet: joining with a code starts open (most people in a house join, one creates) and Tạo
-  // nhà mới waits folded under it. Once open a fold stays open through a failure and the retry. Someone waiting for approval has done what
-  // they came for: the wait is the page, and the two ways in stay folded below it.
+  // With a house or a request, the two ways in wait folded (an invite link opens joining). Once open a
+  // fold stays open through a failure and the retry. Someone waiting for approval has done what they
+  // came for: the wait is the page, and the two ways in stay folded below it.
   const pending = mine.data?.pending ?? []
   const none = mine.isSuccess && mine.data.households.length === 0 && pending.length === 0
   const [creating, setCreating] = useState(false)
@@ -65,6 +67,53 @@ function HouseholdsPage() {
   }, [pending.length])
   // "Bạn chưa ở nhà nào" above a request that is waiting read like a refusal
   const showList = mine.isSuccess && (mine.data.households.length > 0 || pending.length === 0)
+  const name = shortName(useSession()?.user.display_name ?? '')
+  const onRequested = () => {
+    setJoining(false)
+    setCreating(false)
+    requested.current = true
+  }
+
+  // Until the list is known nothing else shows: a form typed into now would be swapped for the start
+  // below, or for the folded one, as soon as it loads
+  if (mine.isPending) {
+    return (
+      <>
+        <h1>{t.households.title}</h1>
+        <Skeleton label={t.households.loading} rows={2} />
+      </>
+    )
+  }
+
+  // A new account: one place to start, the two ways in side by side with what each one leads to
+  // (design review 05/11: a grey line on the left and a lone code field on the right read as nothing to do)
+  if (none) {
+    return (
+      <>
+        <h1>{t.households.title}</h1>
+        <section aria-labelledby="start-title" className="start">
+          <h2 id="start-title">{t.start.title(name)}</h2>
+          <p className="hint">{t.households.howItWorks}</p>
+          <div className="start-ways">
+            <section aria-labelledby="start-join" className="start-way">
+              <h3 id="start-join">{t.start.joinTitle}</h3>
+              <p className="hint">{t.start.joinHint}</p>
+              <JoinForm initialCode={linkCode} onRequested={onRequested} />
+            </section>
+            <section aria-labelledby="start-create" className="start-way">
+              <h3 id="start-create">{t.start.createTitle}</h3>
+              <p className="hint">{t.start.createHint}</p>
+              <HouseholdCreateForm
+                onCreate={create.mutateAsync}
+                submitting={create.isPending}
+                error={errorMessage(create.error)}
+              />
+            </section>
+          </div>
+        </section>
+      </>
+    )
+  }
 
   return (
     <>
@@ -72,7 +121,6 @@ function HouseholdsPage() {
       {/* On a computer the groups and the wait are on the left, the ways in on the right */}
       <div className="page-split households-split">
         <div className="split-lead">
-          {mine.isPending && <Skeleton label={t.households.loading} rows={2} />}
           {mine.error && (
             <ErrorNote message={errorMessage(mine.error) ?? ''} onRetry={() => mine.refetch()} retrying={mine.isFetching} />
           )}
@@ -119,23 +167,16 @@ function HouseholdsPage() {
 
           <details
             className="fold join-household"
-            open={none || joining}
+            open={joining}
             onToggle={(event) => {
               if (event.currentTarget.open) setJoining(true)
             }}
             onKeyDown={(event) => {
-              if (!none && closeFoldOnEscape(event)) setJoining(false)
+              if (closeFoldOnEscape(event)) setJoining(false)
             }}
           >
             <summary className="btn-secondary">{t.join.open}</summary>
-            <JoinForm
-              initialCode={linkCode}
-              onRequested={() => {
-                setJoining(false)
-                setCreating(false)
-                requested.current = true
-              }}
-            />
+            <JoinForm initialCode={linkCode} onRequested={onRequested} />
           </details>
           <details
             className="fold create-household"

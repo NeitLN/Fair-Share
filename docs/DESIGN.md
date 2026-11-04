@@ -154,6 +154,22 @@ List first, create second (returning users far outnumber new ones). The list hol
 *Bỏ khỏi danh sách* (forgets it here and its key, deletes nothing; a toast offers *Hoàn tác*). Empty
 state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn mời mà bạn cùng phòng gửi."
 
+**A new account** (no house, no request; design review 05/11) gets one place to start instead of an
+empty list and a lone code field: "Chào Lan, bắt đầu thôi", the how-it-works line, then two panels side
+by side from 720 px, both open. *Có mã mời?* holds the code form and says the owner approves it;
+*Chưa ai tạo nhà?* holds the name form and says its maker becomes the owner. Until the list loads only
+the skeleton shows, so nothing typed is swapped away when the start appears.
+
+```
+Chào Lan, bắt đầu thôi
+Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai…
+┌ Có mã mời? ─────────────┐ ┌ Chưa ai tạo nhà? ────────┐
+│ Trưởng nhóm duyệt xong… │ │ Bạn sẽ là trưởng nhóm.   │
+│ Mã mời [ABCD-EFGH]      │ │ Tên nhà [            ]   │
+│ [Gửi yêu cầu vào nhà]   │ │ [Tạo nhà]                │
+└─────────────────────────┘ └──────────────────────────┘
+```
+
 **Invite link** (#132). A household opens only with its key, which this browser gets by creating it or
 by opening its invite link `/households/{id}#k={key}` once (the key is then removed from the address
 bar). Opening `/households/{id}` without a key shows *Cần đường dẫn mời*: one sentence on asking a
@@ -318,7 +334,7 @@ keyboard goes through the page in the order it is seen.
   bottom of the screen.
 * **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)
   a request to approve comes before the invite.
-* **Nhà của bạn:** one column up to 880 px: the groups, the wait, then *Nhập mã mời* and *+ Tạo nhà mới*
+* **Nhà của bạn:** a new account sees the start of §6.1 (two panels, at most 960 px). Otherwise one column up to 880 px: the groups, the wait, then *Nhập mã mời* and *+ Tạo nhà mới*
   as two buttons side by side that open their form under them.
 * **Sign in:** a 440 px form in the middle, the language and theme under it.
 * Hover tints rows and inactive tabs with `--surface-2`; the focus ring stays on top of it.
