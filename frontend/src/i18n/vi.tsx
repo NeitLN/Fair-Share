@@ -282,6 +282,7 @@ const vi = {
     addExpense: '+ Ghi khoản chi',
     balancesTitle: 'Số dư từng người',
     balancesNote: 'tính từ đầu tới hôm nay',
+    monthLoading: 'Đang tải chi tiêu tháng này',
     historyTitle: 'Lịch sử trả',
     recentTitle: 'Khoản chi gần đây',
     seeAll: 'Xem tất cả',

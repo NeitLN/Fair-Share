@@ -49,6 +49,13 @@ describe('shortNames', () => {
     expect(shortNames([member(1, 'Hà Chị')]).get(1)).toBe('Hà Chị') // "ị" typed as i + a combining dot is still "Chị"
   })
 
+  test('cậu, dì and thầy read as pronouns too (review of #170)', () => {
+    const names = shortNames([member(1, 'Lê Văn Cậu'), member(2, 'Trần Thị Dì'), member(3, 'Phạm Thầy')])
+    expect(names.get(1)).toBe('Văn Cậu')
+    expect(names.get(2)).toBe('Thị Dì')
+    expect(names.get(3)).toBe('Phạm Thầy')
+  })
+
   test('a one-word name stays as it is, pronoun or not', () => {
     expect(shortNames([member(1, 'Anh')]).get(1)).toBe('Anh')
   })

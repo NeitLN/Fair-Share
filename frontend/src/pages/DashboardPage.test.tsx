@@ -163,6 +163,15 @@ test("this month's spending has its own block, apart from the balances that add 
   expect(thisMonth.closest('section')).not.toBe(screen.getByRole('region', { name: 'Số dư từng người' }))
 })
 
+test("while the expenses load, a placeholder holds this month's place so the column does not jump", async () => {
+  // Review of #172: nothing showed there until the expenses arrived
+  api({ 'GET /api/households/7/expenses': () => new Promise(() => {}) })
+  renderApp('/households/7')
+
+  expect(await screen.findByText('Đang tải chi tiêu tháng này')).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Số dư từng người' })).toBeInTheDocument()
+})
+
 test('before the household says who you are, the block counts the transfers left and lists them all', async () => {
   me = null
   api()

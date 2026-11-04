@@ -288,6 +288,7 @@ const en: Messages = {
     addExpense: '+ Add expense',
     balancesTitle: 'Balances',
     balancesNote: 'since the start',
+    monthLoading: "Loading this month's spending",
     historyTitle: 'Repayment history',
     recentTitle: 'Recent expenses',
     seeAll: 'See all',

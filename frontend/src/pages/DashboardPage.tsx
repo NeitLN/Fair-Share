@@ -23,6 +23,7 @@ import MonthTotals from '../components/MonthTotals'
 import RecentExpenses from '../components/RecentExpenses'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
+import Skeleton from '../components/Skeleton'
 import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals } from '../lib/expenseFilters'
@@ -279,6 +280,8 @@ function Dashboard({ householdId }: { householdId: number }) {
               level={2}
             />
           )}
+          {/* Holds the place while the expenses load, so the balances below do not jump (review of #172) */}
+          {expenses.isPending && <Skeleton label={t.dashboard.monthLoading} rows={3} />}
           {expenses.isError && <p className="hint">{t.verdict.month(month) + t.verdict.spentUnavailable}</p>}
           <section aria-labelledby="balances-title">
             <div className="section-head">
