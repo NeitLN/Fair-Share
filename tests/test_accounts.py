@@ -98,7 +98,7 @@ def test_passwords_and_tokens_are_never_stored_as_typed(client, db_url):
 
 
 # Review of #166 (Hoàng Minh): the library defaults (t=3, 64 MiB, 4 lanes) took about 4 s per login
-# on Render's free instance; OWASP's minimum for argon2id takes about 0.4 s
+# in a container limited like Render's free instance; OWASP's minimum for argon2id takes about 0.4 s
 OWASP = "$argon2id$v=19$m=19456,t=2,p=1$"
 
 

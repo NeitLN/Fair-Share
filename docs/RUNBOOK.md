@@ -64,6 +64,7 @@ Do every step of §3 once, with the stopwatch, and fix what fails today rather t
 | Symptom | Likely cause | Do |
 |---|---|---|
 | Web app spins, API takes ~50 s | Render cold start | Keep talking; it answers. Next time wake it closer to the demo (§2.5) |
+| Supabase warns about too many requests or connections | Every open Tổng quan tab asks again every 30 s: balances, repayments, "Tôi đã chuyển" and, for the owner, join requests, so about 4 requests per tab (never in a background tab) | Close the tabs you do not need; if it stays, raise `REFRESH_MS` in `frontend/src/lib/refresh.ts` after the demo |
 | `/health/db` → 503 `database_unavailable` | Supabase paused or unreachable ([OUTAGES.md](OUTAGES.md)) | Supabase dashboard → *Resume*, wait about 2 minutes (if the Render log shows `ECIRCUITBREAKER`, the pooler keeps refusing that long), then reload `/health/db`: the API reconnects on the first request after its 20 s back-off (#127) |
 | The live database stays down | Supabase outage | Show the real app locally with real data. After the clean clone, in Git Bash in the clone: `DOCKER=podman sh scripts/db-restore.sh backups/<file> --yes` with the backup from §1 step 10 (copied into the clone's `backups/`). The accounts come back with the data: on `http://<host>:3000` sign in with the same email and password as on the live site |
 | Quick add → 429 / 503 | Gemini quota or outage | Show the fallback: the sentence stays and the manual form is right there. That is the designed behaviour |

@@ -92,7 +92,7 @@ def normal_code(raw: str) -> str | None:
 @router.post("/auth/register", response_model=SessionOut, status_code=201)
 def register(body: RegisterIn, request: Request):
     bucket = f"register-ip:{request_ip(request)}"
-    # The limit first: a refused request must not cost a 64 MiB hash (review of #166)
+    # The limit first: a refused request must not cost a password hash (review of #166)
     with connection(request) as conn:
         allowed = reserve(conn, bucket, REGISTER_WINDOW, REGISTER_PER_IP)
     if not allowed:

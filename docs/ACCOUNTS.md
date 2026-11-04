@@ -50,7 +50,7 @@ to use.
 | A1 | Email trimmed and lower-cased, at most 254 characters, one account per email; password 8 to 128 characters; display name 1 to 40 characters, cleaned like a member name | `test_accounts.py`: register tests |
 | A2 | A wrong password and an unknown email get the same 401. Five failed logins in 15 minutes for one email, or 20 from one address, give 429 with the seconds to wait; 30 registrations an hour from one address (a class shares one campus address). An attempt is counted before the password is checked, so attempts at the same moment cannot slip past the limit, and a refused one costs no password hash | `test_five_wrong_passwords_…`, `test_one_address_…`, `test_wrong_passwords_at_the_same_moment_…`, `test_a_refused_registration_…` |
 | A3 | A session ends 30 days after it was last used and 90 days after the login at the latest; logging out ends it at once | `test_logout_…`, `test_an_old_session_…`, `test_a_session_in_use_…` |
-| A4 | Passwords are stored as argon2id hashes (OWASP's minimum: t=2, 19 MiB, 1 lane, about 0.4 s on the free instance; a login makes a hash from older settings again), session tokens as SHA-256; neither is ever logged | `test_passwords_and_tokens_…`, `test_passwords_are_hashed_with_owasps_minimum_…`, `test_a_hash_made_with_the_old_settings_…` |
+| A4 | Passwords are stored as argon2id hashes (OWASP's minimum: t=2, 19 MiB, 1 lane, about 0.4 s in a container limited like the free instance; a login makes a hash from older settings again), session tokens as SHA-256; neither is ever logged | `test_passwords_and_tokens_…`, `test_passwords_are_hashed_with_owasps_minimum_…`, `test_a_hash_made_with_the_old_settings_…` |
 | A5 | No session: 401. Not in the household, or still waiting: the 404 of a household that does not exist. In it but not allowed: 403 | `test_access.py` |
 | J1 | Codes are read without case, spaces or dashes, O as 0, I and L as 1; a wrong, expired or replaced code gets one answer that reveals nothing | `test_a_wrong_code_…`, `test_an_expired_or_renewed_…` |
 | J2 | Five wrong codes a minute for one account, 20 for one address, then 429 | `test_guessing_codes_…` |
@@ -102,8 +102,14 @@ the told amount is recorded by hand.
 * Anyone who knows an email can lock it out of signing in for 15 minutes with five wrong passwords
   (A2). A lock per email is what stops guessing one account's password, so we keep it; a signed-in
   session is not affected.
-* A password hash takes 64 MiB, so at most two run at a time (`HASHING_AT_ONCE` in `app/auth.py`)
-  and a burst of logins waits instead of running the 512 MB instance out of memory.
+* `409 email_taken` on sign-up tells whether an email has an account. Without email verification
+  there is no way to hide it, so we keep the clear answer.
+* A password hash takes 19 MiB and most of the free instance's 0.1 CPU, so at most two run at a time
+  (`HASHING_AT_ONCE` in `app/auth.py`) and a burst of logins waits instead of slowing down every
+  other request.
+* "Tôi đã chuyển" can be sent to a name from before accounts, which nobody can sign in as, so nobody
+  can answer it; it stays until the payer takes it back (found in review). Repayments to such a
+  name wait too (S2), until the owner approves someone onto that name.
 * An old `#k=` link can make its holder the owner until someone takes the household over: owners
   should open their old links right after the release. Two people opening it at the same moment get
   one owner; the other is told to ask for an invite code.

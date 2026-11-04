@@ -1,6 +1,6 @@
 """Accounts: passwords, sessions and the signed-in user of a request (docs/ACCOUNTS.md).
 
-* Passwords are hashed with argon2id (argon2-cffi's defaults: 3 passes, 64 MiB, 4 lanes). An
+* Passwords are hashed with argon2id at OWASP's minimum (2 passes, 19 MiB, 1 lane). An
   unknown email is checked against a dummy hash, so both wrong answers take the same time.
 * A login opens a session: a random 32-byte token for the browser, only its SHA-256 in the
   database. It travels in `Authorization: Bearer …`, never in a cookie: the web app and the API are
@@ -32,14 +32,15 @@ MAX_LIFETIME = timedelta(days=90)
 TOUCH_EVERY = timedelta(hours=1)
 
 # OWASP's minimum for argon2id (t=2, 19 MiB, 1 lane). The library defaults (t=3, 64 MiB, 4 lanes)
-# took about 4 s per login on Render's free instance, against about 0.4 s with these (#166 review).
+# took about 4 s per login in a container limited like Render's free instance (0.1 CPU, 512 MB),
+# against about 0.4 s with these (#166 review).
 # Argon2 keeps its settings in each hash, so hashes made with the old ones still verify, and a login
 # makes them again with these (needs_rehash)
 _hasher = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
 # Checked when the email is unknown, so the answer takes as long as for a wrong password
 _DUMMY_HASH = _hasher.hash("not a real password, only spends the same time")
-# Each hash or check takes 19 MiB: at most two at a time, so a burst of logins or sign-ups waits
-# instead of using up the memory of a 512 MB instance (review of #166)
+# Each hash or check takes 19 MiB and most of the free instance's 0.1 CPU: at most two at a time, so
+# a burst of logins or sign-ups waits instead of slowing down every other request (review of #166)
 HASHING_AT_ONCE = 2
 _hashing = threading.BoundedSemaphore(HASHING_AT_ONCE)
 
