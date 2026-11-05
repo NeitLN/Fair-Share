@@ -1288,6 +1288,37 @@ button.ai:active:focus-visible {
   padding: 0 0 12px 44px;
 }
 
+/* Who shares an expense and how much each (design review 05/11), under an opened row */
+.share-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 12px 44px;
+  list-style: none;
+}
+
+/* Compact lines, not the 60 px rows every other list item gets */
+.share-list li {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  padding: 3px 0;
+  border-bottom: 0;
+  font-size: 14px;
+}
+
+.share-list .share-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.share-list .money {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------------------------------------------------------------- Tổng quan (DESIGN.md §6.2) */
 
 /* The verdict block: the one taro surface, answering who pays whom before anything else */
@@ -2333,6 +2364,37 @@ button.ai:active:focus-visible {
   color: var(--muted);
   font-size: 13px;
   font-weight: 400;
+}
+
+/* The description opens the row of shares (design review 05/11): it reads as the description, with the
+   row chevron after it, and is 44 px to press */
+.expense-table .expense-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target);
+  margin: -8px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.expense-table .expense-open[aria-expanded='true'] .row-chevron {
+  rotate: 90deg;
+}
+
+.expense-table .share-row td {
+  padding-top: 0;
+  background: var(--surface-2);
+}
+
+.expense-table .share-row .share-list {
+  max-width: 420px;
+  padding: 10px 0 10px 44px;
 }
 
 .expense-table .row-actions {

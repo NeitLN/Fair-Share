@@ -241,3 +241,32 @@ describe('ExpenseList, keyboard', () => {
     expect(row.querySelector('summary')).toHaveFocus()
   })
 })
+
+// Design review 05/11: "chia riêng 2 người" did not say whether you were in it, or for how much
+describe("each person's share", () => {
+  test('opening a row shows who shares it and how much each', async () => {
+    renderList([dinner])
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Ăn tối'))
+    const shares = screen.getByRole('list', { name: 'Phần của từng người trong Ăn tối' })
+    const items = within(shares).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(items[0]).toHaveTextContent('Minh30.000đ')
+    expect(items[1]).toHaveTextContent('Tiến60.000đ')
+  })
+
+  test('a row you cannot change still opens to its shares, with nothing to press', async () => {
+    renderList([dinner], { canChange: () => false })
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Ăn tối'))
+    expect(screen.getByRole('list', { name: 'Phần của từng người trong Ăn tối' })).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  test('a share of 0 đồng is no part of it and is not listed', async () => {
+    renderList([{ ...dinner, shares: [...dinner.shares, { member_id: 3, amount: 0 }] }])
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Ăn tối'))
+    expect(within(screen.getByRole('list', { name: 'Phần của từng người trong Ăn tối' })).getAllByRole('listitem')).toHaveLength(2)
+  })
+})

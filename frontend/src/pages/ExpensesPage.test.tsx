@@ -413,7 +413,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     await user.click(list().getByRole('button', { name: 'Bỏ lọc' }))
     expect(list().getByText('Tiền nước')).toBeInTheDocument()
     expect(list().getByLabelText('Tháng')).toHaveValue('')
-    expect(list().getByText('chạm để sửa hoặc xoá')).toBeInTheDocument()
+    expect(list().getByText('chạm để xem phần từng người, sửa hoặc xoá')).toBeInTheDocument()
   })
 
   test('a filter that matches nothing says so', async () => {
@@ -474,6 +474,24 @@ test('on a computer the expenses read as a table, and Sửa marks the row it ope
   expect(row).toHaveClass('editing')
 })
 
+test('on a computer the description opens a row with each share', async () => {
+  onAComputer()
+  api()
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  const table = await screen.findByRole('table')
+  const row = within(table).getByRole('row', { name: /Tiền điện/ })
+  const split = within(row).getByRole('button', { name: 'Tiền điện' })
+  expect(split).toHaveAttribute('aria-expanded', 'false')
+  await user.click(split)
+  expect(split).toHaveAttribute('aria-expanded', 'true')
+  const shares = within(table).getByRole('list', { name: 'Phần của từng người trong Tiền điện' })
+  expect(within(shares).getAllByRole('listitem')).toHaveLength(2)
+  await user.click(split)
+  expect(within(table).queryByRole('list', { name: 'Phần của từng người trong Tiền điện' })).not.toBeInTheDocument()
+})
+
 test('a saved expense is said in a toast; Xem lifts a filter hiding it and marks its row', async () => {
   api()
   const user = userEvent.setup()
@@ -494,12 +512,16 @@ test('a saved expense is said in a toast; Xem lifts a filter hiding it and marks
   expect(screen.getByLabelText('Tháng')).toHaveValue('')
 })
 
-test('a row the user may not change is a plain row, not one that opens', async () => {
+test('a row the user may not change opens to its shares only, with no Sửa or Xoá', async () => {
   me = 2
   api({ 'GET /api/households/7': () => [200, { ...household, role: 'member', member_id: 2 }] })
+  const user = userEvent.setup()
   renderApp('/households/7/expenses')
 
-  const row = (await list().findByText('Tiền điện')).closest('li') as HTMLElement
-  expect(row.querySelector('details')).toBeNull()
+  // Since the design review of 05/11 every row opens, to who shares it
+  const description = await list().findByText('Tiền điện')
+  const row = description.closest('li') as HTMLElement
+  await user.click(description)
+  expect(within(row).getByRole('list', { name: 'Phần của từng người trong Tiền điện' })).toBeInTheDocument()
   expect(within(row).queryByRole('button', { name: /Sửa/ })).not.toBeInTheDocument()
 })

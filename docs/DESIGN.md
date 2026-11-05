@@ -298,7 +298,10 @@ Hôm qua, 20/10
 * **Errors** appear under the field (`aria-invalid`, `aria-describedby`) and the first invalid field gets
   focus; the server's message stays above the button.
 * **Expense rows** are `<details>`: tap a row to reveal *Sửa* and *Xoá* (44 px). Deleting still asks
-  first. AI-made expenses carry the `✦ AI` chip.
+  first. AI-made expenses carry the `✦ AI` chip. Since the design review of 05/11 every row opens, first
+  to who shares it and how much each (a share of 0đ is not listed), then *Sửa* / *Xoá* for the rows you
+  may change; "chia riêng 2 người" did not say whether you were in it. The hint says "chạm để xem phần
+  từng người, sửa hoặc xoá".
 * **Composer states (T-19, owner Duy Anh):**
 
   | State | What shows |
@@ -356,8 +359,9 @@ keyboard goes through the page in the order it is seen.
 * **Chi tiêu:** the AI box and the form on the left (360 px; `minmax(380px, 1fr) 2fr` from 1280), the list on the right as
   a **table**: Ngày, Nội dung, Người trả (with the split under the name), Số tiền right-aligned, and
   *Sửa* / *Xoá* on each row the user may change. The row being edited is tinted. Between 1024 and 1279 px
-  the date and the payer fold under the description instead of squeezing it. The list hint says "mới
-  nhất ở trên" (there is nothing to tap). *Lưu khoản chi* sits at the end of the form, not stuck to the
+  the date and the payer fold under the description instead of squeezing it. The description is a
+  button with the row chevron: it opens a tinted row under it with each share (the description and not
+  the split under the payer, which that 1024–1279 fold hides). The list hint says "mới nhất ở trên". *Lưu khoản chi* sits at the end of the form, not stuck to the
   bottom of the screen.
 * **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)
   a request to approve comes before the invite.
