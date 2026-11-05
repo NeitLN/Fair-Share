@@ -15,6 +15,7 @@ import HouseholdLayout from './pages/HouseholdLayout'
 import HouseholdsPage from './pages/HouseholdsPage'
 import MembersPage from './pages/MembersPage'
 import NotFoundPage from './pages/NotFoundPage'
+import ReportPage from './pages/ReportPage'
 
 // The router and the query client are provided in main.tsx, so tests can supply their own
 function App() {
@@ -46,6 +47,7 @@ function App() {
               <Route index element={<DashboardPage />} />
               <Route path="expenses" element={<ExpensesPage />} />
               <Route path="members" element={<MembersPage />} />
+              <Route path="report/:month?" element={<ReportPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

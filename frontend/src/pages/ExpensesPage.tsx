@@ -47,13 +47,17 @@ function ExpensesPage() {
   // "Xem" in the saved toast: the expense to scroll to and tint for a moment, and the rows on screen now.
   // Arriving from "Vì sao ra số này?" on Tổng quan (specs/002-balance-explanation) starts with that expense;
   // the page has just opened, so no filter can hide it
-  const revealExpense = (location.state as { revealExpense?: number } | null)?.revealExpense
+  const arrival = location.state as { revealExpense?: number; month?: string } | null
+  const revealExpense = arrival?.revealExpense
+  // "Xem các khoản chi tháng này" in a monthly report (specs/004-monthly-report) starts on that month; a
+  // month with no expense is dropped below, like any month that no longer filters anything
+  const startMonth = arrival?.month
   const [revealId, setRevealId] = useState<number | null>(revealExpense ?? null)
   const onScreen = useRef(new Set<number>())
   // The list filter belongs to one household: another household starts unfiltered
   const [filterOf, setFilterOf] = useState<{ householdId: number; filter: ExpenseFilter }>({
     householdId,
-    filter: NO_FILTER,
+    filter: startMonth ? { ...NO_FILTER, month: startMonth } : NO_FILTER,
   })
 
   const members = useQuery({
@@ -145,10 +149,12 @@ function ExpensesPage() {
   }
   const setFilter = (next: ExpenseFilter) => setFilterOf({ householdId, filter: next })
   const shown = filterExpenses(allExpenses, filter)
-  // Revealed once: going back and forth does not reveal it again
+  // Revealed once: going back and forth does not reveal it or filter on the month again
   useEffect(() => {
-    if (revealExpense !== undefined) navigate(location.pathname, { replace: true, state: null })
-  }, [revealExpense, navigate, location.pathname])
+    if (revealExpense !== undefined || startMonth !== undefined) {
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [revealExpense, startMonth, navigate, location.pathname])
   useEffect(() => {
     onScreen.current = new Set(shown.map((expense) => expense.id))
   })

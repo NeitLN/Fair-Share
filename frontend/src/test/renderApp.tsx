@@ -39,10 +39,10 @@ function json(status: number, body: unknown) {
 export const testUser = { id: 9, email: 'tien@test.local', display_name: 'Tiến' }
 
 /**
- * The whole app at `path`, with a fresh cache and no retries so failures show at once. Signed in as
- * `testUser`, unless `signedOut` is set.
+ * The whole app at `path` (or at a path with navigation state, as a link with `state` opens it), with a
+ * fresh cache and no retries so failures show at once. Signed in as `testUser`, unless `signedOut` is set.
  */
-export function renderApp(path: string, { signedOut = false } = {}) {
+export function renderApp(path: string | { pathname: string; state: unknown }, { signedOut = false } = {}) {
   if (signedOut) signOut()
   else signIn({ token: 'test-token', user: testUser })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

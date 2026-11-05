@@ -535,3 +535,18 @@ test('a row the user may not change opens to its shares only, with no Sửa or X
   expect(within(row).getByRole('list', { name: 'Phần của từng người trong Tiền điện' })).toBeInTheDocument()
   expect(within(row).queryByRole('button', { name: /Sửa/ })).not.toBeInTheDocument()
 })
+
+// "Xem các khoản chi tháng này" in a monthly report (specs/004-monthly-report)
+test('arriving from a monthly report starts the list on that month', async () => {
+  api()
+  renderApp({ pathname: '/households/7/expenses', state: { month: '2026-10' } })
+  expect(await screen.findByRole('heading', { level: 3, name: 'Tháng 10/2026: cả nhà chi 450.000đ' })).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Tháng' })).toHaveValue('2026-10')
+})
+
+test('a month with no expense in the hand-off is ignored', async () => {
+  api()
+  renderApp({ pathname: '/households/7/expenses', state: { month: '2026-03' } })
+  expect(await screen.findByText('Tiền điện')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { level: 3, name: /cả nhà chi/ })).not.toBeInTheDocument()
+})
