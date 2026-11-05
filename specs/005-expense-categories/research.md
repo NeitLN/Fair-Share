@@ -36,7 +36,7 @@ No open questions were left in the Technical Context; these are the design decis
   | Category | Words (accent-free) |
   |---|---|
   | food | an uong, an sang, an trua, an toi, an vat, di an, tien an, lau, nuong, com, bun, pho, tra sua, cafe, ca phe, nhau, pizza, ga ran |
-  | groceries | di cho, tien cho, sieu thi, mi goi, trung ga, trung vit, mua trung, rau, thit, mua ca, ca loc, ca thu, gao, dau an, nuoc mam |
+  | groceries | di cho, sieu thi, mi goi, trung ga, trung vit, mua trung, rau, thit, ca loc, ca thu, gao, dau an, nuoc mam |
   | utilities | dien, tien dien, tien nuoc, hoa don nuoc, internet, wifi, tien mang, gas, binh ga |
   | rent | tien nha, thue nha, tien phong, nha tro |
   | transport | xang, grab, xe, taxi, gui xe, ve xe, bus |
@@ -45,7 +45,9 @@ No open questions were left in the Technical Context; these are the design decis
   Words that mean several things alone stay out or only count in a phrase: "quan" (quán / quần),
   "nuoc" (tiền nước / nước suối), "ga" (gas / gà), "mang" (mạng / mang), and since the review of #199
   "cho" (chợ / the preposition cho), "ca" (cá / cả), "an" (ăn / the name An), "trung" (trứng / the name
-  Trung): "Tiền điện cho cả nhà" had read Đi chợ.
+  Trung): "Tiền điện cho cả nhà" had read Đi chợ. A phrase is only added when it cannot be read
+  another way: "tien cho" (tiền cho) and "mua ca" (mua cả) were dropped for that reason, so "Tiền
+  chợ" and "Mua cá" fall back to Khác, which the user can change.
 
   The form keeps a flag "picked by hand"; while it is false the category follows the description, once
   the user picks it stays. Editing an expense starts with the flag set (its stored category is kept).

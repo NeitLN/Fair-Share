@@ -34,6 +34,13 @@ describe('guessCategory', () => {
     ['Tiền điện, An trả', 'utilities'],
     ['Trung ứng trước tiền nhà', 'rent'],
     ['Mua cá lóc', 'groceries'],
+    // "tien cho" is also "tiền cho", "mua ca" also "mua cả": not phrases either (second review of #199)
+    ['Đưa tiền cho An', 'other'],
+    ['Chuyển tiền cho Trung', 'other'],
+    ['Trả tiền cho chủ trọ', 'other'],
+    ['Tiền cho thuê xe', 'transport'],
+    ['Mua cả bộ chén bát', 'household'],
+    ['Mua cả thùng nước rửa chén', 'household'],
     ['Đi chợ sáng', 'groceries'],
     ['Ăn tối', 'food'],
     ['Đi ăn', 'food'],
