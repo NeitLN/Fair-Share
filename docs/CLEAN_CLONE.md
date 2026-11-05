@@ -44,12 +44,14 @@ Then, in a second terminal or the browser:
 | 7 | Reload on a deep link, e.g. http://localhost:3000/households/1/expenses | The page, not a 404 |
 | 8 | `docker compose down`, then `docker compose up -d --wait` (time it) | Comes back in seconds; anything you added is still there |
 | 9 | `docker compose down -v` | Removes the local database; the next `up` starts from the demo household again |
+| 10 | In a private window, create a second account and enter the demo house's invite code (Members shows it to the demo account) | The app says **Waiting for approval**; the house's name is not shown |
+| 11 | Back as the demo account, open the Members tab and approve the request; reload the second window | The second account now sees the house |
 
 Optional, with Node 22 on the machine (`cd frontend && npm ci && npx playwright install chromium`):
 `E2E_BASE_URL=http://localhost:3000 E2E_API_URL=http://localhost:3000 npm run e2e` runs the main flow and
 the accessibility checks in a real browser against this stack.
 
-**Passed** = checks 1–7 answer as expected with only the three commands above and no file edited.
+**Passed** = checks 1–7 and 10–11 answer as expected with only the three commands above and no file edited.
 Any extra step a newcomer needed (a setting, a restart, a workaround) is a README fix, filed as an issue
 before the next run.
 
