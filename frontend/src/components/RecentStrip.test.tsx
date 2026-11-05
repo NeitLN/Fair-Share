@@ -75,6 +75,16 @@ test('3 at first, then Xem thêm shows the rest in place', async () => {
   await userEvent.click(more)
   expect(lines()).toHaveLength(5)
   expect(screen.queryByRole('button', { name: /^Xem thêm/ })).not.toBeInTheDocument()
+  // The button is gone, so the focus moves to the first line it revealed, not to the page (review of #201)
+  expect(lines()[3]).toHaveFocus()
+})
+
+test('from the keyboard too, Xem thêm lands on the first new line', async () => {
+  renderStrip([1, 2, 3, 4].map((id) => expenseItem(id, 20 - id)))
+  screen.getByRole('button', { name: 'Xem thêm 1' }).focus()
+  await userEvent.keyboard('{Enter}')
+  expect(lines()[3]).toHaveFocus()
+  expect(lines()[3]).toHaveTextContent('Lẩu 4')
 })
 
 test('an expense opens in Chi tiêu, revealed; a repayment goes to its row in Lịch sử trả', async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { dayLabel } from '../lib/date'
@@ -39,6 +39,14 @@ function savedLabel(savedAt: string, at: (day: string, time: string) => string):
 function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: RecentStripProps) {
   const t = useT()
   const [open, setOpen] = useState(false)
+  // "Xem thêm" disappears once pressed: its focus goes to the first line it revealed (review of #201)
+  const focusRevealed = useRef(false)
+  const takeFocus = (element: HTMLAnchorElement | null) => {
+    if (element && focusRevealed.current) {
+      focusRevealed.current = false
+      element.focus()
+    }
+  }
   if (items.length === 0) return null
   const shown = open ? items : items.slice(0, initialCount)
   const hidden = items.length - shown.length
@@ -53,7 +61,8 @@ function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: Re
         </button>
       </div>
       <ul id="recent-strip-list">
-        {shown.map((item) => {
+        {shown.map((item, index) => {
+          const ref = open && index === initialCount ? takeFocus : undefined
           const recorder = nameOf(item.recorderMemberId)
           const text =
             item.kind === 'expense'
@@ -73,18 +82,23 @@ function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: Re
           return (
             <li key={`${item.kind}-${item.id}`}>
               {item.kind === 'expense' ? (
-                <Link to={`/households/${householdId}/expenses`} state={{ revealExpense: item.id }}>
+                <Link ref={ref} to={`/households/${householdId}/expenses`} state={{ revealExpense: item.id }}>
                   {body}
                 </Link>
               ) : (
-                <a href={`#settlement-${item.id}`}>{body}</a>
+                <a ref={ref} href={`#settlement-${item.id}`}>
+                  {body}
+                </a>
               )}
             </li>
           )
         })}
       </ul>
       {hidden > 0 && (
-        <button type="button" className="btn-ghost recent-more" aria-expanded={false} aria-controls="recent-strip-list" onClick={() => setOpen(true)}>
+        <button type="button" className="btn-ghost recent-more" aria-expanded={false} aria-controls="recent-strip-list" onClick={() => {
+            focusRevealed.current = true
+            setOpen(true)
+          }}>
           {t.recent.more(hidden)}
         </button>
       )}

@@ -109,4 +109,3 @@ SPA only: `frontend/src/`, `frontend/e2e/`; docs in `docs/`. No backend change.
 ## Notes
 
 - No API, schema or polling change; if one seems needed, stop and update plan.md.
-- No commit until the owner approves; `.claude/` and `.specify/` are never committed.
