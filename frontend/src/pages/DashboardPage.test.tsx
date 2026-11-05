@@ -163,6 +163,43 @@ test("this month's spending has its own block, apart from the balances that add 
   expect(thisMonth.closest('section')).not.toBe(screen.getByRole('region', { name: 'Số dư từng người' }))
 })
 
+// Verdict B (specs/003-desktop-redesign): the taro block answers, the transfers sit in a panel under it
+describe('verdict B', () => {
+  test('the taro block holds the sentence, the amount and "Vì sao ra số này?"; the transfers are in a panel under it', async () => {
+    api()
+    renderApp('/households/7')
+
+    const sentence = await screen.findByRole('heading', { name: /^Bạn được nhận/ })
+    const verdict = sentence.closest('section') as HTMLElement
+    expect(within(verdict).getByText('Vì sao ra số này?')).toBeInTheDocument()
+    expect(within(verdict).queryByRole('list', { name: 'Các lần trả gợi ý' })).not.toBeInTheDocument()
+    expect(within(verdict).queryByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' })).not.toBeInTheDocument()
+
+    // Right under it, the cards and the reminder, with the same controls as before
+    const panel = verdict.nextElementSibling as HTMLElement
+    expect(panel).toHaveClass('transfers-panel')
+    const cards = within(within(panel).getByRole('list', { name: 'Các lần trả gợi ý' })).getAllByRole('listitem')
+    expect(cards).toHaveLength(2)
+    expect(within(panel).getByRole('button', { name: 'Sao chép tin nhắn nhắc nợ' })).toBeInTheDocument()
+  })
+
+  test('a house with nothing to transfer shows no empty panel', async () => {
+    api({
+      'GET /api/households/7/balances': [
+        200,
+        {
+          balances: members.map((m) => ({ member_id: m.id, name: m.name, paid: 0, owed: 0, sent: 0, received: 0, net: 0 })),
+          suggested: [],
+        },
+      ],
+    })
+    renderApp('/households/7')
+
+    await region('Số dư từng người').findAllByRole('listitem')
+    expect(document.querySelector('.transfers-panel')).toBeNull()
+  })
+})
+
 // "Vì sao ra số này?" (specs/002-balance-explanation)
 describe('why this number', () => {
   test('under the verdict, your own balance opens as four lines whose total is your balance (US1)', async () => {

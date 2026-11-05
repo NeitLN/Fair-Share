@@ -21,7 +21,7 @@ export function readTheme(): ThemeChoice {
 }
 
 // The browser bar colour per theme: the same values as --bg in tokens.css
-const BAR_COLOUR: Record<'light' | 'dark', string> = { light: '#e3e1e9', dark: '#110e1c' }
+const BAR_COLOUR: Record<'light' | 'dark', string> = { light: '#f6f1e7', dark: '#16130f' }
 
 /** data-theme on <html> is what tokens.css reads; no attribute means "follow the phone". */
 export function applyTheme(choice: ThemeChoice): void {

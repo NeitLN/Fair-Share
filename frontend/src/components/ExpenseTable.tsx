@@ -3,6 +3,7 @@ import { Fragment, useMemo, useState } from 'react'
 import type { Expense, Member } from '../api/types'
 import { dayLabel } from '../lib/date'
 import { byDay, splitText } from '../lib/expenseRows'
+import { useWideTable } from '../lib/useWide'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { Avatar } from './Avatar'
@@ -56,7 +57,9 @@ function ExpenseTable({
   const t = useT()
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
-  // A row's description opens a row with each share (design review 05/11)
+  // A row's description opens a row with each share (design review 05/11). The share cell spans the
+  // columns from the description to Số tiền, which are two fewer below 1280 px (date and payer fold away)
+  const allColumns = useWideTable()
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   function toggle(id: number) {
     setOpen((current) => {
@@ -188,10 +191,13 @@ function ExpenseTable({
                       </td>
                     </tr>
                     {sharesOpen && (
+                      // Over description, payer and amount, so each share ends where Số tiền ends (review of #193)
                       <tr id={`shares-${expense.id}`} className="share-row">
-                        <td colSpan={5}>
+                        <td className="col-date" />
+                        <td colSpan={allColumns ? 3 : 2}>
                           <ShareList expense={expense} looks={looks} />
                         </td>
+                        <td />
                       </tr>
                     )}
                   </Fragment>

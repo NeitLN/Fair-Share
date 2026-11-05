@@ -10,8 +10,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="theme-color" content="#e3e1e9" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#110e1c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)" />
 
     <!-- Link preview in Zalo / Messenger: never a member's name or a balance (docs/BRAND.md §6) -->
     <meta property="og:type" content="website" />
@@ -30,7 +30,7 @@
         var theme = localStorage.getItem('fair-share:theme')
         if (theme === 'light' || theme === 'dark') {
           document.documentElement.setAttribute('data-theme', theme)
-          var bar = theme === 'dark' ? '#110e1c' : '#e3e1e9'
+          var bar = theme === 'dark' ? '#16130f' : '#f6f1e7'
           document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
             meta.content = bar
           })

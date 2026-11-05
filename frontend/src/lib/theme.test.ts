@@ -29,14 +29,14 @@ describe('theme', () => {
 
   test('a forced theme also sets the browser bar colour; "system" gives each scheme its own back', () => {
     document.head.innerHTML =
-      '<meta name="theme-color" content="#e3e1e9" media="(prefers-color-scheme: light)">' +
-      '<meta name="theme-color" content="#110e1c" media="(prefers-color-scheme: dark)">'
+      '<meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">' +
+      '<meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">'
     const bars = () => [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map((m) => m.content)
 
     saveTheme('dark')
-    expect(bars()).toEqual(['#110e1c', '#110e1c'])
+    expect(bars()).toEqual(['#16130f', '#16130f'])
     saveTheme('system')
-    expect(bars()).toEqual(['#e3e1e9', '#110e1c'])
+    expect(bars()).toEqual(['#f6f1e7', '#16130f'])
     document.head.innerHTML = ''
   })
 

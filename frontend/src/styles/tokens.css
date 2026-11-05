@@ -5,21 +5,22 @@
 :root {
   color-scheme: light;
 
-  /* A soft grey-lilac: grey enough that the taro block is the only purple mass on a page. The white
-     cards on it differ by only 1.30:1, so each one also has a --card-edge */
-  --bg: #e3e1e9;
-  --surface: #ffffff;
-  --surface-2: #f1edfe;
+  /* A warm cream (design review 05/11): calmer than the grey lilac it replaced, and the taro block is
+     still the only purple mass on a page. Near-white panels differ from it by only 1.11:1, so each one
+     also has a --card-edge */
+  --bg: #f6f1e7;
+  --surface: #fffdf8;
+  --surface-2: #f1e9db;
   --ink: #17132b;
-  --muted: #5b5675;
+  --muted: #5e5868;
   /* Dividers between rows: quiet on purpose, the spacing and alignment carry the grouping */
-  --line: #e4def7;
+  --line: #ece4d5;
   /* The edge of anything you type in or press (fields, secondary buttons, chips, folds): ≥ 3:1 on
      --surface, --bg and --surface-2 (WCAG 1.4.11; DESIGN.md §3) */
-  --control-line: #7c72ab;
-  /* The 1 px edge of a white panel on the page (DESIGN.md §2 rule 2): 1.70:1 to the bg, 2.20:1 to
+  --control-line: #8a7f6e;
+  /* The 1 px edge of a white panel on the page (DESIGN.md §2 rule 2): 1.71:1 to the bg, 1.90:1 to
      the card, quieter than a control's 2 px edge */
-  --card-edge: #b2abc8;
+  --card-edge: #c8b99f;
   /* The dark ring inside the yellow focus halo, in both themes: --ink is pale in the dark theme and
      would vanish against the yellow */
   --focus-outline: #17132b;
@@ -44,6 +45,8 @@
   --toast-bg: #17132b;
   --toast-fg: #ffffff;
   --toast-action: #ffe14d;
+  /* The soft shadow under a toast */
+  --toast-shadow: rgb(23 19 43 / 30%);
 
   /* Avatar tints: the same in both themes, chosen per member by lib/names.ts */
   --tint-1: #ffb5c9;
@@ -64,21 +67,23 @@
   --radius-control: 12px;
   --radius-pill: 999px;
   --target: 44px;
+  /* Secondary text (dates, hints, "đã chi"): 14 px on a computer (index.css, from 1024 px) */
+  --text-small: 13px;
   --press: 120ms;
 }
 
-/* The dark palette, written once and used by both selectors below */
+/* The dark palette, a warm charcoal under the same taro (design review 05/11), written for both selectors below */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #110e1c;
-    --surface: #1b1730;
-    --surface-2: #251f42;
-    --ink: #f3f0ff;
-    --muted: #b1a9d4;
-    --line: #382f63;
-    --control-line: #7366b3;
-    --card-edge: #514765;
+    --bg: #16130f;
+    --surface: #221e19;
+    --surface-2: #2d2822;
+    --ink: #f6f1e7;
+    --muted: #bdb3a3;
+    --line: #37312a;
+    --control-line: #8f8576;
+    --card-edge: #544b40;
     --primary: #8c74ff;
     --on-primary: #120c33;
     --primary-text: #a996ff;
@@ -86,24 +91,25 @@
     --credit-text: #5ee9ae;
     --debt-text: #ff8fb0;
     --on-fill: #0e0a1f;
-    --edge: #f3f0ff;
+    --edge: #f6f1e7;
     --sticker-shadow: #6a52e8;
-    --toast-bg: #f3f0ff;
+    --toast-bg: #f6f1e7;
     --toast-fg: #17132b;
     --toast-action: #5a3cf0;
+    --toast-shadow: rgb(0 0 0 / 45%);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #110e1c;
-  --surface: #1b1730;
-  --surface-2: #251f42;
-  --ink: #f3f0ff;
-  --muted: #b1a9d4;
-  --line: #382f63;
-  --control-line: #7366b3;
-  --card-edge: #514765;
+  --bg: #16130f;
+  --surface: #221e19;
+  --surface-2: #2d2822;
+  --ink: #f6f1e7;
+  --muted: #bdb3a3;
+  --line: #37312a;
+  --control-line: #8f8576;
+  --card-edge: #544b40;
   --primary: #8c74ff;
   --on-primary: #120c33;
   --primary-text: #a996ff;
@@ -111,9 +117,10 @@
   --credit-text: #5ee9ae;
   --debt-text: #ff8fb0;
   --on-fill: #0e0a1f;
-  --edge: #f3f0ff;
+  --edge: #f6f1e7;
   --sticker-shadow: #6a52e8;
-  --toast-bg: #f3f0ff;
+  --toast-bg: #f6f1e7;
   --toast-fg: #17132b;
   --toast-action: #5a3cf0;
+  --toast-shadow: rgb(0 0 0 / 45%);
 }

@@ -223,139 +223,147 @@ function VerdictBlock({
   const shown = [...all.filter(mine), ...all.filter((card) => !mine(card))]
   // What you told someone you sent, under the amount: it still counts until they confirm (S3)
   const ownTold = onlyReceiver ? (notices ?? []).filter((n) => n.status === 'sent' && n.from_member_id === me) : []
+  // Nothing to list and nothing to copy: no empty panel under the answer
+  const hasPanel = Boolean((onlyReceiver && noticesError) || shown.length > 0 || error || suggested.length > 0)
 
   return (
-    <section className="verdict" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} ref={heading} className="verdict-sentence" tabIndex={-1}>
-        {sentence}
-      </h2>
-      {total !== null && (
-        <p className="verdict-total">
-          <Money amount={total} />
-        </p>
-      )}
-      {explanation && (
-        <details className="explain-fold" onKeyDown={closeFoldOnEscape}>
-          <summary>{t.explain.open}</summary>
-          {explanation}
-        </details>
-      )}
-      {ownTold.map((n) => (
-        <p key={pairOf(n)} className="verdict-pending">
-          {t.verdict.ownPending(nameOf(n.to_member_id), <Money amount={n.amount} />)}
-        </p>
-      ))}
-      {refreshError && (
-        <div className="note" role="alert">
-          {t.verdict.stale} {refreshError}
-          {onRetry && (
-            <button type="button" className="btn-secondary" onClick={onRetry}>
-              {t.common.tryAgain}
-            </button>
-          )}
-        </div>
-      )}
-
-      {onlyReceiver && noticesError && (
-        <div className="note" role="alert">
-          {t.verdict.noticesFailed} {noticesError}
-          {onRetryNotices && (
-            <button type="button" className="btn-secondary" onClick={onRetryNotices}>
-              {t.common.tryAgain}
-            </button>
-          )}
-        </div>
-      )}
-
-      {shown.length > 0 && (
-        <ul ref={list} className="transfer-list" aria-label={t.verdict.transfers}>
-          {shown.map((card) => {
-            const { transfer } = card
-            const pair = pairOf(transfer)
-            const textId = `${id}-${card.key}`
-            const done = card.state === 'paid' || card.state === 'undoing'
-            return (
-              <li
-                key={card.key}
-                data-card={card.key}
-                data-pair={pair}
-                className={`transfer-card${done ? ' paid' : ''}`}
-              >
-                <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
-                <span id={textId} className="transfer-text">
-                  {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
-                </span>
-                {done ? (
-                  <span className="transfer-done">
-                    <Stamp kind="paid" decorative={false} />
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      aria-describedby={textId}
-                      data-action="undo"
-                      disabled={card.state === 'undoing'}
-                      onClick={() => {
-                        if (card.paymentId !== undefined) onUndo(card.paymentId)
-                      }}
-                    >
-                      {card.state === 'undoing' ? t.common.undoing : t.common.undo}
-                    </button>
-                  </span>
-                ) : onlyReceiver ? (
-                  <ReceiverOnly
-                    transfer={transfer}
-                    card={card}
-                    textId={textId}
-                    me={me}
-                    nameOf={nameOf}
-                    known={notices !== undefined}
-                    notice={notices?.find((n) => pairOf(n) === pair)}
-                    outdated={card.key.startsWith('told-')}
-                    busy={noticeBusy.includes(pair)}
-                    onPaid={onPaid}
-                    onNotify={pressed(pair, 'cancel-notice', onNotify)}
-                    onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
-                    onDecline={pressed(pair, 'pay', onDecline)}
-                  />
-                ) : (
-                  <span className="transfer-actions">
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      aria-describedby={textId}
-                      data-action="pay"
-                      disabled={card.state === 'paying'}
-                      onClick={() => onPaid(transfer)}
-                    >
-                      {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
-                    </button>
-                  </span>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-      {error && (
-        <p className="note" role="alert">
-          {error}
-        </p>
-      )}
-
-      {suggested.length > 0 && (
-        <>
-          <button type="button" className="verdict-copy" onClick={copy}>
-            {t.verdict.copyReminder}
-          </button>
-          {showText && (
-            <div className="note copy-fallback">
-              <label htmlFor={`${id}-reminder`}>{t.common.copyFailedText}</label>
-              <textarea id={`${id}-reminder`} ref={fallback} readOnly rows={reminder.split('\n').length} value={reminder} />
+    <>
+      <section className="verdict" aria-labelledby={`${id}-title`}>
+        <h2 id={`${id}-title`} ref={heading} className="verdict-sentence" tabIndex={-1}>
+          {sentence}
+        </h2>
+        {total !== null && (
+          <p className="verdict-total">
+            <Money amount={total} />
+          </p>
+        )}
+        {explanation && (
+          <details className="explain-fold" onKeyDown={closeFoldOnEscape}>
+            <summary>{t.explain.open}</summary>
+            {explanation}
+          </details>
+        )}
+        {ownTold.map((n) => (
+          <p key={pairOf(n)} className="verdict-pending">
+            {t.verdict.ownPending(nameOf(n.to_member_id), <Money amount={n.amount} />)}
+          </p>
+        ))}
+        {refreshError && (
+          <div className="note" role="alert">
+            {t.verdict.stale} {refreshError}
+            {onRetry && (
+              <button type="button" className="btn-secondary" onClick={onRetry}>
+                {t.common.tryAgain}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+      {/* Verdict B (specs/003-desktop-redesign): the taro block answers, what to do sits in a calm panel under it */}
+      {hasPanel && (
+        <section className="transfers-panel">
+          {onlyReceiver && noticesError && (
+            <div className="note" role="alert">
+              {t.verdict.noticesFailed} {noticesError}
+              {onRetryNotices && (
+                <button type="button" className="btn-secondary" onClick={onRetryNotices}>
+                  {t.common.tryAgain}
+                </button>
+              )}
             </div>
           )}
-        </>
+
+          {shown.length > 0 && (
+            <ul ref={list} className="transfer-list" aria-label={t.verdict.transfers}>
+              {shown.map((card) => {
+                const { transfer } = card
+                const pair = pairOf(transfer)
+                const textId = `${id}-${card.key}`
+                const done = card.state === 'paid' || card.state === 'undoing'
+                return (
+                  <li
+                    key={card.key}
+                    data-card={card.key}
+                    data-pair={pair}
+                    className={`transfer-card${done ? ' paid' : ''}`}
+                  >
+                    <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
+                    <span id={textId} className="transfer-text">
+                      {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
+                    </span>
+                    {done ? (
+                      <span className="transfer-done">
+                        <Stamp kind="paid" decorative={false} />
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          aria-describedby={textId}
+                          data-action="undo"
+                          disabled={card.state === 'undoing'}
+                          onClick={() => {
+                            if (card.paymentId !== undefined) onUndo(card.paymentId)
+                          }}
+                        >
+                          {card.state === 'undoing' ? t.common.undoing : t.common.undo}
+                        </button>
+                      </span>
+                    ) : onlyReceiver ? (
+                      <ReceiverOnly
+                        transfer={transfer}
+                        card={card}
+                        textId={textId}
+                        me={me}
+                        nameOf={nameOf}
+                        known={notices !== undefined}
+                        notice={notices?.find((n) => pairOf(n) === pair)}
+                        outdated={card.key.startsWith('told-')}
+                        busy={noticeBusy.includes(pair)}
+                        onPaid={onPaid}
+                        onNotify={pressed(pair, 'cancel-notice', onNotify)}
+                        onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
+                        onDecline={pressed(pair, 'pay', onDecline)}
+                      />
+                    ) : (
+                      <span className="transfer-actions">
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          aria-describedby={textId}
+                          data-action="pay"
+                          disabled={card.state === 'paying'}
+                          onClick={() => onPaid(transfer)}
+                        >
+                          {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
+                        </button>
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {error && (
+            <p className="note" role="alert">
+              {error}
+            </p>
+          )}
+
+          {suggested.length > 0 && (
+            <>
+              <button type="button" className="verdict-copy" onClick={copy}>
+                {t.verdict.copyReminder}
+              </button>
+              {showText && (
+                <div className="note copy-fallback">
+                  <label htmlFor={`${id}-reminder`}>{t.common.copyFailedText}</label>
+                  <textarea id={`${id}-reminder`} ref={fallback} readOnly rows={reminder.split('\n').length} value={reminder} />
+                </div>
+              )}
+            </>
+          )}
+        </section>
       )}
-    </section>
+    </>
   )
 }
 
