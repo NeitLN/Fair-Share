@@ -2391,6 +2391,79 @@ button.ai:active:focus-visible {
   }
 }
 
+/* "Mới ghi" on Tổng quan (specs/006-recently-added): a quiet surface, not the taro block. One line per
+   record: avatar, words, then the time (under the words on a phone) */
+.recent-strip {
+  border: 1px solid var(--card-edge);
+  display: grid;
+  gap: 4px;
+  padding: 8px 14px 10px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.recent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.recent-strip ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-strip li {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.recent-strip li + li {
+  border-top: 1px solid var(--line);
+}
+
+.recent-strip li a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'avatar text'
+    'avatar when';
+  align-items: center;
+  gap: 0 10px;
+  min-height: var(--target);
+  padding: 8px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.recent-strip li a > :first-child {
+  grid-area: avatar;
+}
+
+.recent-strip li a:hover .recent-text {
+  text-decoration: underline;
+}
+
+.recent-text {
+  grid-area: text;
+  overflow-wrap: anywhere;
+}
+
+.recent-when {
+  grid-area: when;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.recent-more {
+  justify-self: start;
+}
+
 /* ---------------------------------------------------------------- accounts (docs/ACCOUNTS.md) */
 
 .auth {

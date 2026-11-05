@@ -964,3 +964,121 @@ test('a history with nothing in it does not point at a button you may not have',
 
   expect(await screen.findByText('Chưa có khoản trả nào được ghi nhận.')).toBeInTheDocument()
 })
+
+// "Mới ghi" (specs/006-recently-added). The signed-in account is 9 (testUser), the member Tiến (1)
+describe('Mới ghi', () => {
+  const accounts = [
+    { ...members[0], user_id: 9 },
+    { ...members[1], user_id: 10 },
+    { ...members[2], user_id: 11 },
+  ]
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+  const recorded = (id: number, description: string, created_by: number | null, minutes: number) => ({
+    ...expense,
+    id,
+    description,
+    created_by,
+    created_at: ago(minutes),
+  })
+  const receivedFromMe = {
+    id: 70,
+    household_id: 7,
+    from_member_id: 1,
+    to_member_id: 2,
+    amount: 100_000,
+    settled_at: today(),
+    note: null,
+    created_at: ago(30),
+    created_by: 10,
+  }
+  let expenseList: unknown[] = []
+  let settlementList: unknown[] = []
+  const withRecords = (extra: Parameters<typeof mockApi>[0] = {}) =>
+    api(
+      {
+        'GET /api/households/7/expenses': () => [200, expenseList],
+        'GET /api/households/7/settlements': () => [200, settlementList],
+        ...extra,
+      },
+      accounts,
+    )
+  const strip = () => screen.findByRole('region', { name: 'Mới ghi' })
+  const lineTexts = (region: HTMLElement) =>
+    within(region)
+      .getAllByRole('link')
+      .map((l) => l.querySelector('.recent-text')?.textContent)
+
+  beforeEach(() => {
+    expenseList = [
+      recorded(61, 'Lẩu tối', 10, 60), // Minh recorded it
+      recorded(62, 'Tiền điện', 9, 10), // the signed-in account's own
+      recorded(63, 'Từ trước khi có tài khoản', null, 5),
+    ]
+    settlementList = [receivedFromMe]
+  })
+
+  test("housemates' records only, newest first, first on the right on a computer", async () => {
+    onAComputer()
+    withRecords()
+    renderApp('/households/7')
+    const region = await strip()
+    expect(lineTexts(region)).toEqual(['Minh ghi đã nhận 100.000đ từ bạn', 'Minh ghi Lẩu tối · 300.000đ'])
+    const rest = region.parentElement as HTMLElement
+    expect(rest).toHaveClass('split-rest')
+    expect(rest.firstElementChild).toBe(region)
+  })
+
+  test('no strip while a list is still loading', async () => {
+    withRecords({ 'GET /api/households/7/expenses': () => new Promise(() => {}) })
+    renderApp('/households/7')
+    await screen.findByRole('region', { name: 'Số dư từng người' })
+    expect(screen.queryByRole('region', { name: 'Mới ghi' })).not.toBeInTheDocument()
+  })
+
+  test('Đã xem tất cả hides it, and after a reload only newer records come back', async () => {
+    withRecords()
+    const first = renderApp('/households/7')
+    await userEvent.click(within(await strip()).getByRole('button', { name: 'Đã xem tất cả 2 mục mới' }))
+    expect(screen.queryByRole('region', { name: 'Mới ghi' })).not.toBeInTheDocument()
+    first.unmount()
+
+    const second = renderApp('/households/7')
+    await screen.findByRole('region', { name: 'Số dư từng người' })
+    await screen.findByText(/cả nhà chi/)
+    expect(screen.queryByRole('region', { name: 'Mới ghi' })).not.toBeInTheDocument()
+    second.unmount()
+
+    expenseList = [...expenseList, recorded(64, 'Trà sữa', 11, 1)]
+    renderApp('/households/7')
+    expect(lineTexts(await strip())).toEqual(['An ghi Trà sữa · 300.000đ'])
+  })
+
+  test('an expense saved before the newest repayment but loaded after Đã xem tất cả still shows (two marks)', async () => {
+    // The repayment (30 min ago) is loaded; Minh's expense from 45 min ago is not yet
+    expenseList = [recorded(62, 'Tiền điện', 9, 120)]
+    withRecords()
+    const first = renderApp('/households/7')
+    await userEvent.click(within(await strip()).getByRole('button', { name: /^Đã xem tất cả/ }))
+    first.unmount()
+
+    expenseList = [...expenseList, recorded(65, 'Gạo', 10, 45)]
+    renderApp('/households/7')
+    expect(lineTexts(await strip())).toEqual(['Minh ghi Gạo · 300.000đ'])
+  })
+
+  test('a blocked storage keeps the page working, hidden for this visit only', async () => {
+    const setItem = Storage.prototype.setItem
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key.startsWith('fair-share:seen:')) throw new Error('blocked')
+      setItem.call(this, key, value)
+    })
+    withRecords()
+    const first = renderApp('/households/7')
+    await userEvent.click(within(await strip()).getByRole('button', { name: /^Đã xem tất cả/ }))
+    expect(screen.queryByRole('region', { name: 'Mới ghi' })).not.toBeInTheDocument()
+    first.unmount()
+    renderApp('/households/7')
+    expect(await strip()).toBeInTheDocument()
+    spy.mockRestore()
+  })
+})

@@ -283,6 +283,18 @@ Lịch sử trả                      Ghi khoản trả khác
   changes from here: an expense opens Chi tiêu with that row revealed, a repayment scrolls to its row in
   Lịch sử trả. Line amounts carry a sign but no colour; only the total is coloured, with its words.
 
+**Mới ghi** ([spec 006](../specs/006-recently-added/spec.md)): a quiet strip (white surface, card edge, not
+the taro block) at the top of the right column on a computer; on a phone it follows the verdict and its
+transfers, so the money actions stay first. It lists the expenses and repayments another account saved
+since you last pressed *Đã xem tất cả* in this browser, newest first: "Minh ghi Lẩu tối · 90.000đ",
+"Minh ghi đã nhận 45.000đ từ bạn", each with its time ("Hôm nay, 06/11 · 14:05"). 3 lines on a computer
+and 5 on a phone, so *Báo cáo tháng* stays in the first screen; *Xem thêm N* shows the rest in place. An
+expense opens in Chi tiêu (revealed), a repayment scrolls to its row in Lịch sử trả. Your own records,
+records from before accounts, edits, deletions and "Tôi đã chuyển" notices are not in it: it is "recently
+added", not an activity log. The marks are kept per account and per house in this browser only (two, one
+for expenses and one for repayments, since they refresh on different schedules); a first visit shows the
+last 7 days. No strip while any list is loading or failed, and none when there is nothing new.
+
 ### 6.3 Chi tiêu `/households/:id/expenses`
 
 ```

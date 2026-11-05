@@ -22,6 +22,7 @@ import BalanceRows from '../components/BalanceRows'
 import MonthTotals from '../components/MonthTotals'
 import BalanceExplanation from '../components/BalanceExplanation'
 import RecentExpenses from '../components/RecentExpenses'
+import RecentStrip from '../components/RecentStrip'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
 import Skeleton from '../components/Skeleton'
@@ -33,6 +34,8 @@ import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
 import { useSession } from '../lib/session'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
+import { marksAfter, readMarks, recentItems, writeMarks } from '../lib/recent'
+import type { SeenMarks } from '../lib/recent'
 import { REFRESH_MS } from '../lib/refresh'
 import { useToast } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
@@ -166,6 +169,23 @@ function Dashboard({ householdId }: { householdId: number }) {
     return memberLooks(fromBalances)
   }, [members.data, balances.data, householdId])
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
+
+  // "Mới ghi" (specs/006-recently-added): built only from complete data (members, expenses and
+  // repayments all loaded), and "Đã xem tất cả" marks from exactly the lists it was built from
+  const userId = session?.user.id ?? null
+  const [marks, setMarks] = useState<SeenMarks | null>(() => (userId === null ? null : readMarks(userId, householdId)))
+  // The first-visit window (7 days) counts from when the page opened
+  const [openedOn] = useState(() => new Date())
+  const complete = members.isSuccess && expenses.isSuccess && settlements.isSuccess && userId !== null
+  const recent = complete
+    ? recentItems(expenses.data, settlements.data, members.data, userId, marks, openedOn)
+    : []
+  const markSeen = () => {
+    if (!complete) return
+    const next = marksAfter(expenses.data, settlements.data, marks)
+    setMarks(next)
+    writeMarks(userId, householdId, next)
+  }
   // Its toasts ("Đã ghi: …", "Đã hoàn tác: …") are about a payment made, so they read as done
   const paid = usePaidTransfers(householdId, balances.data, (transfer) => transferText(transfer, me, nameOf, true))
   // Without the transfers already marked paid, even before the refetched balances arrive
@@ -289,6 +309,15 @@ function Dashboard({ householdId }: { householdId: number }) {
         </div>
 
         <div className="split-rest">
+          {/* First on the right on a computer; after the verdict and its transfers on a phone */}
+          <RecentStrip
+            items={recent}
+            looks={looks}
+            me={me}
+            householdId={householdId}
+            initialCount={wide ? 3 : 5}
+            onSeen={markSeen}
+          />
           {/* This month on its own, apart from the balances, which add up everything since the start */}
           {expenses.isSuccess && (
             <MonthTotals
