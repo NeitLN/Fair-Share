@@ -367,6 +367,16 @@ const en: Messages = {
     tiny: '<1%',
     lineLabel: (name: string, amount: string, percent: string) => `${name}: ${amount}, ${percent} of the month`,
   },
+  // "Recently added" (specs/006-recently-added)
+  recent: {
+    title: 'Recently added',
+    expense: (name: string, description: string) => `${name} added ${description}`,
+    repayment: (name: string, amount: string, from: string) => `${name} recorded receiving ${amount} from ${from}`,
+    at: (day: string, time: string) => `${day} · ${time}`,
+    more: (n: number) => `Show ${n} more`,
+    seen: 'Mark all as seen',
+    seenLabel: (n: number) => `Mark all ${n} new items as seen`,
+  },
   verdict: {
     month: (month: number) => MONTHS[month - 1] ?? String(month),
     spentUnavailable: " · couldn't load the total",

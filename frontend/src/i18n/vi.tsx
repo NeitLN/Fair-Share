@@ -363,6 +363,16 @@ const vi = {
     tiny: '<1%',
     lineLabel: (name: string, amount: string, percent: string) => `${name}: ${amount}, ${percent} cả tháng`,
   },
+  // "Mới ghi" (specs/006-recently-added)
+  recent: {
+    title: 'Mới ghi',
+    expense: (name: string, description: string) => `${name} ghi ${description}`,
+    repayment: (name: string, amount: string, from: string) => `${name} ghi đã nhận ${amount} từ ${from}`,
+    at: (day: string, time: string) => `${day} · ${time}`,
+    more: (n: number) => `Xem thêm ${n}`,
+    seen: 'Đã xem tất cả',
+    seenLabel: (n: number) => `Đã xem tất cả ${n} mục mới`,
+  },
   verdict: {
     month: (month: number) => `Tháng ${month}`,
     spentUnavailable: ' · chưa tải được tổng chi',
