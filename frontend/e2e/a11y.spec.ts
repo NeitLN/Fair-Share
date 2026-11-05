@@ -24,15 +24,15 @@ async function makeHousehold(request: APIRequestContext) {
     await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })
   ).json()
   const ids = [household.member_id as number]
-  for (const member of ['Minh', 'Duy Anh']) {
-    ids.push(await addMember(request, household.id, tien, await signUp(request, member)))
-  }
+  const minh = await signUp(request, 'Minh')
+  ids.push(await addMember(request, household.id, tien, minh))
+  ids.push(await addMember(request, household.id, tien, await signUp(request, 'Duy Anh')))
   const today = new Date().toISOString().slice(0, 10)
   await request.post(`${API}/api/households/${household.id}/expenses`, {
     data: { description: 'Lẩu', amount: 300_000, payer_id: ids[0], spent_at: today, split: { type: 'equal', member_ids: ids } },
     headers: bearer(tien),
   })
-  return { id: household.id as number, owner: tien as TestAccount }
+  return { id: household.id as number, owner: tien as TestAccount, minh: minh as TestAccount, ids }
 }
 
 async function headingLevels(page: Page) {
@@ -40,7 +40,7 @@ async function headingLevels(page: Page) {
 }
 
 test('the household screens meet the accessibility checklist', async ({ page, request }) => {
-  const { id, owner } = await makeHousehold(request)
+  const { id, owner, minh, ids } = await makeHousehold(request)
   try {
     // Signed in as Tiến, the owner, who is owed by the others
     await signInPage(page, owner)
@@ -186,6 +186,31 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await page.getByLabel('Số tiền').press('Enter')
     // The toast "Đã lưu: Phím Enter 30.000đ" repeats it: the row is the exact text
     await expect(page.getByText('Phím Enter', { exact: true })).toBeVisible()
+
+    // Mới ghi (specs/006-recently-added): Minh records one; on Tiến's Tổng quan at 1440 × 900 the strip and
+    // the Báo cáo tháng link are both in the first screen; at 360 and 320 px nothing scrolls sideways and
+    // every control in the strip is at least 44 px
+    await request.post(`${API}/api/households/${id}/expenses`, {
+      data: { description: 'Nước rửa chén', amount: 30_000, payer_id: ids[1], spent_at: new Date().toISOString().slice(0, 10), split: { type: 'equal', member_ids: ids } },
+      headers: bearer(minh),
+    })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(`/households/${id}`)
+    const strip = page.getByRole('region', { name: 'Mới ghi' })
+    await expect(strip.getByRole('heading', { name: 'Mới ghi' })).toBeInViewport()
+    await expect(strip.getByRole('link').first()).toBeInViewport()
+    await expect(page.getByRole('link', { name: 'Báo cáo tháng' })).toBeInViewport()
+    for (const width of [360, 320]) {
+      await page.setViewportSize({ width, height: 800 })
+      await expect(strip).toBeVisible()
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+      expect(wide, `sideways scroll with Mới ghi at ${width} px`).toBe(false)
+      const small = await strip.locator('a, button').evaluateAll((els) =>
+        els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+      )
+      expect(small, `Mới ghi controls under 44 px at ${width} px`).toEqual([])
+    }
+    await page.setViewportSize({ width: 360, height: 800 })
 
     // Households: Escape closes "+ Tạo nhà mới"
     await page.goto('/')
