@@ -435,6 +435,27 @@ approve, expenses, Tôi đã chuyển, Đã nhận, undo, sign out, errors). Wha
   the groups on the left and the ways in on the right; the verdict block gets a little more padding (the
   amount stays 44 px).
 
+### 6.9 Báo cáo tháng `/households/:id/report/:month`
+
+One month, read only ([specs/004-monthly-report](../specs/004-monthly-report/spec.md)). Opened from the
+*Báo cáo tháng* link under the "Tháng …" block on Tổng quan, on the current month; the Tổng quan tab stays
+marked. The heading names the month ("Báo cáo tháng 11/2026"), with *‹ Tháng 10/2026* and *Tháng 12/2026 ›*
+beside it (44 px, left out at either end of the house's history), then "Cả nhà chi 790.000đ".
+
+For each housemate six figures that read left to right: *Đầu tháng*, *Đã chi*, *Phần*, *Đã trả lại*,
+*Nhận lại*, *Cuối tháng*. The first and last are balances (+ / − in the money colours, as in Số dư từng
+người), the four in between plain amounts. On a computer a table with a *Cả nhà* total row (starts and
+ends 0, Đã chi = Phần = the month's total); below 1024 px one card per housemate, the six figures as a
+two-column list with *Cuối tháng* last and bold. Your row or card is tinted and has the *bạn* chip. A line
+under the figures spells the rule: "Đầu tháng + đã chi − phần + đã trả lại − nhận lại = cuối tháng.",
+then *Xem các khoản chi tháng này*, which opens Chi tiêu filtered to that month.
+
+The figures come from the expenses and repayments the app already loads, cut by their dates; nothing is
+reset, closed or stored. The last month must end exactly on the balances Tổng quan shows; while a refresh
+leaves them one step apart the page says "Đang cập nhật…" instead of a number that disagrees. An empty
+month says "Tháng này không có khoản chi hay khoản trả nào."; a month followed by later-dated items says
+why its end is not yet the balance on Tổng quan. "Tôi đã chuyển" notices change no figure.
+
 ## 7. Copy
 
 | Use | Not |
