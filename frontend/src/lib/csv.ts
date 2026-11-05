@@ -44,7 +44,7 @@ export function expensesCsv(expenses: Expense[], members: Member[]): string {
 
   const t = messages().csv
   const rows: (string | number)[][] = [
-    [t.date, t.description, t.amount, t.paidBy, t.split, ...columns.map((c) => c.name)],
+    [t.date, t.description, t.category, t.amount, t.paidBy, t.split, ...columns.map((c) => c.name)],
   ]
   const sorted = [...expenses].sort(
     (a, b) => a.spent_at.slice(0, 10).localeCompare(b.spent_at.slice(0, 10)) || a.id - b.id,
@@ -54,6 +54,8 @@ export function expensesCsv(expenses: Expense[], members: Member[]): string {
     rows.push([
       expense.spent_at.slice(0, 10),
       expense.description,
+      // What it was for, in the page's language (specs/005-expense-categories); "Khác" before categories
+      messages().categories[expense.category ?? 'other'],
       expense.amount,
       nameOf.get(expense.payer_id) ?? REMOVED_MEMBER.full,
       expense.split_type === 'equal' ? t.equal : t.custom,

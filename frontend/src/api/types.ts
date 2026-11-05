@@ -93,6 +93,8 @@ export interface Share {
 
 export type SplitType = 'equal' | 'custom'
 export type ExpenseSource = 'manual' | 'ai'
+/** What an expense was for (specs/005-expense-categories); lib/categories.ts has the names. */
+export type Category = 'food' | 'groceries' | 'utilities' | 'rent' | 'transport' | 'household' | 'other'
 
 /** An expense as the API returns it. `shares` always add up to `amount`. */
 export interface Expense {
@@ -104,6 +106,8 @@ export interface Expense {
   /** Plain date, "YYYY-MM-DD". */
   spent_at: string
   source: ExpenseSource
+  /** "other" for an expense from before categories. */
+  category: Category
   /** ISO 8601 timestamp from `timestamptz`. */
   created_at: string
   /** "equal" when the shares happen to be the equal split, so the edit form can preselect it. */
@@ -123,6 +127,8 @@ export interface ExpenseInput {
   spent_at: string
   /** Defaults to "manual" on the server. */
   source?: ExpenseSource
+  /** Defaults to "other" on the server. */
+  category?: Category
   split:
     | { type: 'equal'; member_ids: number[] }
     | { type: 'custom'; shares: Share[] }

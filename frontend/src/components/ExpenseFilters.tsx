@@ -1,4 +1,5 @@
-import type { Member } from '../api/types'
+import type { Category, Member } from '../api/types'
+import { CATEGORIES } from '../lib/categories'
 import { isFiltered, monthNumber, NO_FILTER } from '../lib/expenseFilters'
 import type { ExpenseFilter } from '../lib/expenseFilters'
 import { useT } from '../i18n'
@@ -12,7 +13,8 @@ interface ExpenseFiltersProps {
 }
 
 /**
- * "Lọc" above Các khoản chi (PROJECT_SPEC §3.4): a month and a member, and Bỏ lọc once either is set.
+ * "Lọc" above Các khoản chi (PROJECT_SPEC §3.4): a month, a member and a category
+ * (specs/005-expense-categories), and Bỏ lọc once any is set. All seven categories are always listed.
  * Props only; the page keeps the filter and filters the list.
  */
 function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersProps) {
@@ -45,6 +47,21 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
           {members.map((member) => (
             <option key={member.id} value={member.id}>
               {member.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="filter-field">
+        <label htmlFor="filter-category">{t.filters.category}</label>
+        <select
+          id="filter-category"
+          value={filter.category ?? ''}
+          onChange={(e) => onChange({ ...filter, category: (e.target.value || null) as Category | null })}
+        >
+          <option value="">{t.filters.all}</option>
+          {CATEGORIES.map((category) => (
+            <option key={category} value={category}>
+              {t.categories[category]}
             </option>
           ))}
         </select>

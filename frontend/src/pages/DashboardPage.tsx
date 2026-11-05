@@ -27,7 +27,7 @@ import SettlementList from '../components/SettlementList'
 import Skeleton from '../components/Skeleton'
 import VerdictBlock from '../components/VerdictBlock'
 import { today } from '../lib/date'
-import { filterExpenses, monthTotals } from '../lib/expenseFilters'
+import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
 import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
@@ -293,7 +293,7 @@ function Dashboard({ householdId }: { householdId: number }) {
           {expenses.isSuccess && (
             <MonthTotals
               month={thisMonth}
-              totals={monthTotals(filterExpenses(expenses.data, { month: thisMonth, memberId: null }), memberList)}
+              totals={monthTotals(filterExpenses(expenses.data, { ...NO_FILTER, month: thisMonth }), memberList)}
               looks={looks}
               me={me}
               level={2}

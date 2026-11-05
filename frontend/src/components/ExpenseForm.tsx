@@ -1,13 +1,15 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent, Ref } from 'react'
 
-import type { Expense, ExpenseInput, Member, SplitType } from '../api/types'
+import type { Category, Expense, ExpenseInput, Member, SplitType } from '../api/types'
+import { guessCategory } from '../lib/categories'
 import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { equalSplit, parseAmount } from '../lib/split'
 import { Avatar } from './Avatar'
+import { CategoryPicker } from './CategoryPicker'
 import { useT } from '../i18n'
 
 /** The fields a quick-add draft can fill. */
@@ -96,6 +98,10 @@ function ExpenseForm({
   const [payerIsDefault, setPayerIsDefault] = useState(!initial)
   const [spentAt, setSpentAt] = useState(initial?.spent_at ?? today())
   const [splitType, setSplitType] = useState<SplitType>(initial?.split_type ?? 'equal')
+  // Danh mục (specs/005-expense-categories): guessed from the description until the user picks one.
+  // Editing keeps the stored one; an AI fill sets the description, so the guess follows it too.
+  const [pickedCategory, setPickedCategory] = useState<Category | null>(initial ? (initial.category ?? 'other') : null)
+  const category = pickedCategory ?? guessCategory(description)
   // Equal split: who takes part. A new expense starts with everyone.
   const [selected, setSelected] = useState<Set<number>>(
     () => new Set(initial ? initialShares.keys() : members.map((m) => m.id)),
@@ -306,6 +312,7 @@ function ExpenseForm({
       payer_id: payerId as number,
       spent_at: spentAt,
       source: initial?.source ?? (fromAi ? 'ai' : 'manual'),
+      category,
     }
     if (splitType === 'equal') {
       return { ...base, split: { type: 'equal', member_ids: [...selected].sort((a, b) => a - b) } }
@@ -344,6 +351,7 @@ function ExpenseForm({
         setCustomText({})
         setPayerId(validPayer(defaultPayer))
         setPayerIsDefault(true)
+        setPickedCategory(null)
         // The next expense starts from scratch: nothing touched, nothing from the AI
         setTouched(new Set())
         setJustFilled(new Set())
@@ -512,6 +520,8 @@ function ExpenseForm({
         </div>
         {problemText('date')}
       </div>
+
+      <CategoryPicker value={category} onPick={setPickedCategory} />
 
       <div className={`field fold-field${flash('split')}`}
         onKeyDown={(event) => closeOnEscape(event, splitOpen, () => setSplitOpen(false), splitToggle.current)}

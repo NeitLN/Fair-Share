@@ -40,6 +40,7 @@ function saved(id: number, input: ExpenseInput): Expense {
     household_id: 7,
     created_at: '',
     source: input.source ?? 'manual',
+    category: input.category ?? 'other',
     split_type: input.split.type,
     shares,
     description: input.description,
@@ -368,7 +369,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     split: { type: 'custom', shares: [{ member_id: 2, amount: 100_000 }] },
   })
   const rent = saved(13, {
-    description: 'Tiền nhà',
+    description: 'Tiền nhà tháng 9',
     amount: 3_000_000,
     payer_id: 2,
     spent_at: '2026-09-30',
@@ -380,11 +381,11 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     three()
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
-    await list().findByText('Tiền nhà')
+    await list().findByText('Tiền nhà tháng 9')
 
     await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
 
-    expect(list().queryByText('Tiền nhà')).not.toBeInTheDocument()
+    expect(list().queryByText('Tiền nhà tháng 9')).not.toBeInTheDocument()
     expect(list().getByText('Tiền điện')).toBeInTheDocument()
     expect(list().getByText('2/3 khoản')).toBeInTheDocument()
     const totals = within(list().getByRole('region', { name: /Tháng 10\/2026: cả nhà chi/ }))
@@ -399,16 +400,16 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     three()
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
-    await list().findByText('Tiền nhà')
+    await list().findByText('Tiền nhà tháng 9')
 
     await user.selectOptions(list().getByLabelText('Người'), 'Tiến')
     expect(list().queryByText('Tiền nước')).not.toBeInTheDocument()
-    expect(list().getByText('Tiền nhà')).toBeInTheDocument()
+    expect(list().getByText('Tiền nhà tháng 9')).toBeInTheDocument()
 
     await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
     await user.selectOptions(list().getByLabelText('Người'), 'Minh')
     await user.selectOptions(list().getByLabelText('Tháng'), '9/2026')
-    expect(list().getByText('Tiền nhà')).toBeInTheDocument()
+    expect(list().getByText('Tiền nhà tháng 9')).toBeInTheDocument()
 
     await user.click(list().getByRole('button', { name: 'Bỏ lọc' }))
     expect(list().getByText('Tiền nước')).toBeInTheDocument()
@@ -466,7 +467,7 @@ test('on a computer the expenses read as a table, and Sửa marks the row it ope
     'Sửa hoặc xoá',
   ])
   const row = within(table).getByRole('row', { name: /Tiền điện/ })
-  expect(row).toHaveTextContent(/Tiền điện.*Tiến.*chia đều 2 người.*450\.000/)
+  expect(row).toHaveTextContent(/Tiền điện.*Tiến.*chia đều 2 người · Khác.*450\.000/)
   expect(screen.getByText('mới nhất ở trên')).toBeInTheDocument()
 
   await user.click(within(row).getByRole('button', { name: 'Sửa Tiền điện' }))

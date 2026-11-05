@@ -49,28 +49,29 @@ linked AS (
   JOIN demo_accounts account ON account.name = person.name
   JOIN known ON known.email = account.email
 ),
--- months_back 1 = last month, 0 = this month; day = day of that month (today at the latest)
-bought (description, amount, payer, months_back, day, source, shares) AS (
+-- months_back 1 = last month, 0 = this month; day = day of that month (today at the latest);
+-- category as in db/migrations/005_expense_categories.sql
+bought (description, amount, payer, months_back, day, source, category, shares) AS (
   VALUES
-    ('Tiền nhà tháng trước', 4500000, 'Minh', 1, 1, 'manual',
+    ('Tiền nhà tháng trước', 4500000, 'Minh', 1, 1, 'manual', 'rent',
      '{"Tiến": 1500000, "Minh": 1500000, "Duy Anh": 1500000}'::jsonb),
-    ('Đi chợ cuối tuần', 360000, 'Duy Anh', 1, 12, 'manual',
+    ('Đi chợ cuối tuần', 360000, 'Duy Anh', 1, 12, 'manual', 'groceries',
      '{"Tiến": 120000, "Minh": 120000, "Duy Anh": 120000}'::jsonb),
-    ('Tiền điện', 450000, 'Tiến', 0, 3, 'manual',
+    ('Tiền điện', 450000, 'Tiến', 0, 3, 'manual', 'utilities',
      '{"Tiến": 150000, "Minh": 150000, "Duy Anh": 150000}'::jsonb),
-    ('Lẩu thứ sáu', 240000, 'Minh', 0, 8, 'ai',
+    ('Lẩu thứ sáu', 240000, 'Minh', 0, 8, 'ai', 'food',
      '{"Tiến": 80000, "Minh": 80000, "Duy Anh": 80000}'::jsonb),
     -- A custom split that leaves Minh out
-    ('Mì gói và trứng', 100000, 'Duy Anh', 0, 10, 'manual',
+    ('Mì gói và trứng', 100000, 'Duy Anh', 0, 10, 'manual', 'groceries',
      '{"Tiến": 40000, "Duy Anh": 60000}'::jsonb)
 ),
 spent AS (
-  INSERT INTO expenses (household_id, description, amount, payer_id, spent_at, source)
+  INSERT INTO expenses (household_id, description, amount, payer_id, spent_at, source, category)
   SELECT payer.household_id, b.description, b.amount, payer.id,
          LEAST(current_date,
                (date_trunc('month', current_date) - make_interval(months => b.months_back))::date
                  + (b.day - 1)),
-         b.source
+         b.source, b.category
   FROM bought b
   JOIN people payer ON payer.name = b.payer
   RETURNING id, description

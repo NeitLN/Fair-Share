@@ -112,6 +112,11 @@ test('the household screens meet the accessibility checklist', async ({ page, re
       )
       expect(smallLinks, `report links under 44 px at ${width} px`).toEqual([])
     }
+    // Chi theo danh mục (specs/005-expense-categories): every line at least 44 px, its bar hidden
+    const chartLinks = page.locator('.category-chart a')
+    await expect(chartLinks).toHaveCount(1)
+    expect(await chartLinks.evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().height < 44).length)).toBe(0)
+    await expect(page.locator('.category-track').first()).toHaveAttribute('aria-hidden', 'true')
     await page.setViewportSize({ width: 1440, height: 900 })
     await expect(page.getByRole('table').getByRole('columnheader')).toHaveCount(7)
     await page.setViewportSize({ width: 360, height: 800 })
@@ -142,10 +147,24 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await expect(page.getByLabel('Người trả')).toBeHidden()
     await expect(other).toBeFocused()
 
-    // Chi tiêu: Escape closes the date and split folds; Enter saves; focus is visible
+    // Chi tiêu: the category fold's chips are at least 44 px and fit 320 px without sideways scroll
     await page.goto(`/households/${id}/expenses`)
+    await page.setViewportSize({ width: 320, height: 800 })
+    await page.getByRole('button', { name: /^Đổi danh mục/ }).click()
+    const chips = page.locator('#expense-category-control button')
+    await expect(chips).toHaveCount(7)
+    expect(await chips.evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().height < 44).length)).toBe(0)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth),
+      'sideways scroll with the categories open at 320 px',
+    ).toBe(false)
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 360, height: 800 })
+
+    // Chi tiêu: Escape closes the date, category and split folds; Enter saves; focus is visible
     for (const [opener, control] of [
       ['Đổi ngày', '#expense-date-control'],
+      ['Đổi danh mục, đang là Khác', '#expense-category-control'],
       ['Sửa cách chia', '#expense-split-control'],
     ] as const) {
       const button = page.getByRole('button', { name: opener })

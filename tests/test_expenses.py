@@ -3,6 +3,7 @@
 import pytest
 
 from tests.api import error_code, household, member, remove_access
+from tests.conftest import bearer
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
 
@@ -54,7 +55,7 @@ def test_equal_split_gives_the_leftover_dong_to_the_lowest_ids(client, house):
     assert expense["household_id"] == house["id"]
     assert set(expense) == {
         "id", "household_id", "description", "amount", "payer_id", "spent_at", "source",
-        "created_at", "split_type", "shares", "created_by",
+        "category", "created_at", "split_type", "shares", "created_by",
     }
 
 
@@ -222,3 +223,69 @@ def test_deleting_the_household_deletes_its_expenses(client, house):
     created = create(client, house).json()
     assert client.delete(f"/api/households/{house['id']}").status_code == 204
     assert client.get(f"/api/expenses/{created['id']}").status_code == 404
+
+
+# --- Category (specs/005-expense-categories) ----------------------------------------------
+
+
+def test_an_expense_without_a_category_is_other(client, house):
+    response = create(client, house)
+    assert response.status_code == 201, response.text
+    assert response.json()["category"] == "other"
+    got = client.get(f"/api/expenses/{response.json()['id']}").json()
+    assert got["category"] == "other"
+
+
+def test_a_category_is_saved_listed_and_changed(client, house):
+    created = create(client, house, description="Tiền điện", category="utilities")
+    assert created.status_code == 201, created.text
+    expense_id = created.json()["id"]
+    assert created.json()["category"] == "utilities"
+    listed = client.get(f"/api/households/{house['id']}/expenses").json()
+    assert [e["category"] for e in listed] == ["utilities"]
+
+    edited = client.put(f"/api/expenses/{expense_id}", json=body(house, category="rent"))
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["category"] == "rent"
+    assert client.get(f"/api/expenses/{expense_id}").json()["category"] == "rent"
+    # An edit from a page that does not know categories (a tab opened before them) keeps the
+    # category it had, never resets it (review of #199)
+    renamed = body(house, description="Tiền nhà tháng 12")
+    plain = client.put(f"/api/expenses/{expense_id}", json=renamed)
+    assert plain.status_code == 200, plain.text
+    assert plain.json()["category"] == "rent"
+    assert plain.json()["description"] == "Tiền nhà tháng 12"
+    # Sent explicitly, "other" is a choice like any other
+    back = client.put(f"/api/expenses/{expense_id}", json=body(house, category="other"))
+    assert back.json()["category"] == "other"
+
+
+@pytest.mark.parametrize("bad", ["Food", "", "an uong", 3, None, True])
+def test_an_unknown_category_is_422_naming_the_field(client, house, bad):
+    response = create(client, house, category=bad)
+    assert response.status_code == 422, response.text
+    assert error_code(response) == "validation_error"
+    assert ["body", "category"] in [d["loc"] for d in response.json()["error"]["details"]]
+    assert client.get(f"/api/households/{house['id']}/expenses").json() == []
+
+
+def test_only_who_may_change_an_expense_may_change_its_category(client, house):
+    _, minh, _ = ids(house)
+    created = create(client, house, category="food").json()  # recorded by the owner
+    response = client.put(
+        f"/api/expenses/{created['id']}",
+        json=body(house, category="rent"),
+        headers=bearer(client.member_tokens[minh]),
+    )
+    assert response.status_code == 403
+    assert error_code(response) == "forbidden"
+    assert client.get(f"/api/expenses/{created['id']}").json()["category"] == "food"
+
+
+def test_categories_change_no_balance(client, house):
+    first = create(client, house, category="food").json()
+    create(client, house, amount=90_000, payer_id=ids(house)[0], category="groceries")
+    before = client.get(f"/api/households/{house['id']}/balances").json()
+    client.put(f"/api/expenses/{first['id']}", json=body(house, category="other"))
+    after = client.get(f"/api/households/{house['id']}/balances").json()
+    assert after == before

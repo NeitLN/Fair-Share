@@ -152,6 +152,7 @@ erDiagram
         bigint payer_id FK
         date spent_at
         text source "manual | ai"
+        text category "food | groceries | utilities | rent | transport | household | other"
         timestamptz created_at
     }
     expense_shares {
@@ -180,6 +181,11 @@ settlement must be members of the **same household** (composite foreign keys on
 * **Money is an integer number of đồng (`bigint`)**, never a float. No rounding errors, easy to test.
 * **Equal split rule:** `base = amount // n`, the remaining `amount % n` đồng go one each to the
   participants with the lowest member id. Shares therefore always sum to the amount exactly.
+* **Categories** ([spec 005](../specs/005-expense-categories/spec.md), `005_expense_categories.sql`):
+  every expense has one of seven fixed codes, checked by the database, `other` by default (so every
+  expense from before, and a client that sends none, is *Khác*). No table: the list is not per house.
+  The page shows the name in its language and guesses it from the description; categories change no
+  balance.
 * **Balances are computed, not stored:**
   `net(m) = Σ paid by m − Σ shares of m + Σ settlements sent by m − Σ settlements received by m`.
   Positive = the household owes m. The sum of all nets is 0 (asserted in tests).
@@ -276,6 +282,9 @@ FastAPI's interactive docs at `/docs` are the living API reference.
   "payer_id": 2,                         // a member of this household
   "spent_at": "2026-10-23",
   "source": "manual",                    // optional; "ai" when saved from a Quick add draft
+  "category": "food",                    // optional; food, groceries, utilities, rent, transport,
+                                         // household or other. Left out: "other" on create,
+                                         // the stored one kept on PUT
   "split": {"type": "equal", "member_ids": [1, 2, 3]}
   // or:   {"type": "custom", "shares": [{"member_id": 1, "amount": 60000},
   //                                     {"member_id": 3, "amount": 40000}]}   // must sum to amount
@@ -284,7 +293,8 @@ FastAPI's interactive docs at `/docs` are the living API reference.
 
 The response adds `id`, `household_id`, `created_at`, the stored `shares` (in member id order, always
 summing to `amount`; an equal split of 100 000 between members 1, 2, 3 is 33 334 / 33 333 / 33 333) and
-`split_type` (`"equal"` when the shares are exactly the equal split), so an edit form can be pre-filled.
+`split_type` (`"equal"` when the shares are exactly the equal split), so an edit form can be pre-filled,
+and `category` (`"other"` for an expense from before categories; any other value is a `422` naming it).
 
 **Balances response** (Minh paid a 300 000 dinner for three, then Tiến paid him back 100 000):
 

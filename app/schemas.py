@@ -278,6 +278,11 @@ class CustomSplit(BaseModel):
     shares: list[Share] = Field(min_length=1, max_length=MAX_PARTICIPANTS)
 
 
+# What an expense was for (specs/005-expense-categories); the page shows the name in its language.
+# Fixed, like the CHECK in db/migrations/005_expense_categories.sql.
+Category = Literal["food", "groceries", "utilities", "rent", "transport", "household", "other"]
+
+
 class ExpenseIn(BaseModel):
     """Body of POST /api/households/{id}/expenses and PUT /api/expenses/{id}."""
 
@@ -287,6 +292,9 @@ class ExpenseIn(BaseModel):
     spent_at: Day
     # "ai" when the form was pre-filled by Quick add and then saved by the user.
     source: Literal["manual", "ai"] = "manual"
+    # Left out by a page that does not know categories: "other" for a new expense, and an edit
+    # keeps the stored one (app/routers/expenses.py); never refused
+    category: Category = "other"
     split: Annotated[EqualSplit | CustomSplit, Field(discriminator="type")]
 
 
@@ -298,6 +306,7 @@ class Expense(BaseModel):
     payer_id: int
     spent_at: date
     source: Literal["manual", "ai"]
+    category: Category
     created_at: datetime
     # How to show the split in the edit form: "equal" when the shares are exactly the equal split.
     split_type: Literal["equal", "custom"]

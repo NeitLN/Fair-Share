@@ -20,6 +20,7 @@ const expenses: Expense[] = [
     payer_id: 1,
     spent_at: '2026-10-21',
     source: 'manual',
+    category: 'other',
     created_at: '',
     split_type: 'equal',
     shares: [
@@ -76,9 +77,9 @@ describe('ExportCsvButton', () => {
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf])
     const text = new TextDecoder().decode(bytes.slice(3))
     expect(text.split('\r\n')[0]).toBe(
-      'Ngày,Nội dung,Số tiền (đồng),Người trả,Cách chia,Nguyễn Duy Anh,Trần Thị Bích',
+      'Ngày,Nội dung,Danh mục,Số tiền (đồng),Người trả,Cách chia,Nguyễn Duy Anh,Trần Thị Bích',
     )
-    expect(text).toContain('2026-10-21,Lẩu,240000,Nguyễn Duy Anh,chia đều,120000,120000')
+    expect(text).toContain('2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,chia đều,120000,120000')
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:fair-share')
     expect(document.querySelector('a')).toBeNull()
   })

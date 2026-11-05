@@ -11,7 +11,7 @@ import ErrorNote from './ErrorNote'
 import ShareList from './ShareList'
 import Skeleton from './Skeleton'
 import { closeFoldOnEscape } from '../lib/fold'
-import { byDay, splitText } from '../lib/expenseRows'
+import { byDay, splitAndCategory } from '../lib/expenseRows'
 import { useT } from '../i18n'
 
 interface ExpenseListProps {
@@ -114,7 +114,7 @@ function ExpenseList({
                             {expense.description}
                             {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
                           </span>
-                          <small>{t.expenses.paidBy(payer.short, splitText(expense, memberIds))}</small>
+                          <small>{t.expenses.paidBy(payer.short, splitAndCategory(expense, memberIds))}</small>
                         </span>
                         <Money amount={expense.amount} className="expense-amount" />
                         <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

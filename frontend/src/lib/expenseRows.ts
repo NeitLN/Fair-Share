@@ -16,6 +16,14 @@ export function splitText(expense: Expense, memberIds: Set<number>): string {
   return someOfToday ? t.splitEqualOf(people, memberIds.size) : t.splitEqual(people)
 }
 
+/**
+ * The split, then what the expense was for: "chia đều 3 người · Ăn uống" (specs/005-expense-categories).
+ * An expense from before categories reads "Khác".
+ */
+export function splitAndCategory(expense: Expense, memberIds: Set<number>): string {
+  return `${splitText(expense, memberIds)} · ${messages().categories[expense.category ?? 'other']}`
+}
+
 const instant = (timestamp: string) => Date.parse(timestamp) || 0
 
 /** Newest day first; inside a day, the one entered last first. */
