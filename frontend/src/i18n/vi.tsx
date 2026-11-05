@@ -320,6 +320,31 @@ const vi = {
       </>
     ),
   },
+  // "Báo cáo tháng" (specs/004-monthly-report). `label` is "Tháng 11/2026" from monthLabel
+  report: {
+    open: 'Báo cáo tháng',
+    title: (label: string) => `Báo cáo ${label.toLowerCase()}`,
+    previous: (label: string) => `Tháng trước: ${label}`,
+    next: (label: string) => `Tháng sau: ${label}`,
+    total: 'Cả nhà chi',
+    caption: (label: string) => `Số dư từng người trong ${label.toLowerCase()}`,
+    columns: {
+      who: 'Người',
+      start: 'Đầu tháng',
+      paid: 'Đã chi',
+      share: 'Phần',
+      paidBack: 'Đã trả lại',
+      gotBack: 'Nhận lại',
+      end: 'Cuối tháng',
+    },
+    totalRow: 'Cả nhà',
+    empty: 'Tháng này không có khoản chi hay khoản trả nào.',
+    laterItems: 'Có khoản ghi ngày sau tháng này, nên cuối tháng chưa bằng số trên Tổng quan.',
+    updating: 'Đang cập nhật…',
+    loading: 'Đang tải báo cáo tháng',
+    seeExpenses: 'Xem các khoản chi tháng này',
+    note: 'Đầu tháng + đã chi − phần + đã trả lại − nhận lại = cuối tháng.',
+  },
   verdict: {
     month: (month: number) => `Tháng ${month}`,
     spentUnavailable: ' · chưa tải được tổng chi',

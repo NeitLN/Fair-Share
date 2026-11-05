@@ -324,6 +324,31 @@ const en: Messages = {
       </>
     ),
   },
+  // "Monthly report" (specs/004-monthly-report). `label` is "Nov 2026" from monthLabel
+  report: {
+    open: 'Monthly report',
+    title: (label: string) => `${label} report`,
+    previous: (label: string) => `Previous month: ${label}`,
+    next: (label: string) => `Next month: ${label}`,
+    total: 'The group spent',
+    caption: (label: string) => `Each person's balance in ${label}`,
+    columns: {
+      who: 'Person',
+      start: 'Start',
+      paid: 'Spent',
+      share: 'Share',
+      paidBack: 'Paid back',
+      gotBack: 'Got back',
+      end: 'End',
+    },
+    totalRow: 'Everyone',
+    empty: 'Nothing was spent or paid back this month.',
+    laterItems: 'Something is dated after this month, so its end is not yet the balance on the Overview.',
+    updating: 'Updating…',
+    loading: 'Loading the monthly report',
+    seeExpenses: "See this month's expenses",
+    note: 'Start + spent − share + paid back − got back = end.',
+  },
   verdict: {
     month: (month: number) => MONTHS[month - 1] ?? String(month),
     spentUnavailable: " · couldn't load the total",
