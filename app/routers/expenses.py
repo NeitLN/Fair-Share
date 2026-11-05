@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["expenses"], dependencies=[HouseholdAcce
 # One row per expense, its shares gathered into a JSON list. Every expense has at least one share.
 SELECT_EXPENSES = """
     SELECT e.id, e.household_id, e.description, e.amount, e.payer_id, e.spent_at, e.source,
-           e.created_at, e.created_by,
+           e.category, e.created_at, e.created_by,
            json_agg(json_build_object('member_id', s.member_id, 'amount', s.share_amount)
                     ORDER BY s.member_id) AS shares
     FROM expenses e
@@ -117,10 +117,10 @@ def create_expense(household_id: Id, body: ExpenseIn, access: AccessDep, conn: C
     try:
         expense_id = conn.execute(
             "INSERT INTO expenses"
-            " (household_id, description, amount, payer_id, spent_at, source, created_by)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+            " (household_id, description, amount, payer_id, spent_at, source, category, created_by)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
             (household_id, body.description, body.amount, body.payer_id, body.spent_at,
-             body.source, access.user_id),
+             body.source, body.category, access.user_id),
         ).fetchone()[0]
         save_shares(conn, expense_id, shares)
     except errors.ForeignKeyViolation:  # a member was removed while this request ran
@@ -157,9 +157,9 @@ def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: Con
     try:
         conn.execute(
             "UPDATE expenses SET description = %s, amount = %s, payer_id = %s, spent_at = %s,"
-            " source = %s WHERE id = %s",
+            " source = %s, category = %s WHERE id = %s",
             (body.description, body.amount, body.payer_id, body.spent_at, body.source,
-             expense_id),
+             body.category, expense_id),
         )
         conn.execute("DELETE FROM expense_shares WHERE expense_id = %s", (expense_id,))
         save_shares(conn, expense_id, shares)
