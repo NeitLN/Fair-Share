@@ -248,10 +248,16 @@ def test_a_category_is_saved_listed_and_changed(client, house):
     assert edited.status_code == 200, edited.text
     assert edited.json()["category"] == "rent"
     assert client.get(f"/api/expenses/{expense_id}").json()["category"] == "rent"
-    # An edit from a page that does not know categories leaves it as "other", never a 500
-    plain = client.put(f"/api/expenses/{expense_id}", json=body(house))
-    assert plain.status_code == 200
-    assert plain.json()["category"] == "other"
+    # An edit from a page that does not know categories (a tab opened before them) keeps the
+    # category it had, never resets it (review of #199)
+    renamed = body(house, description="Tiền nhà tháng 12")
+    plain = client.put(f"/api/expenses/{expense_id}", json=renamed)
+    assert plain.status_code == 200, plain.text
+    assert plain.json()["category"] == "rent"
+    assert plain.json()["description"] == "Tiền nhà tháng 12"
+    # Sent explicitly, "other" is a choice like any other
+    back = client.put(f"/api/expenses/{expense_id}", json=body(house, category="other"))
+    assert back.json()["category"] == "other"
 
 
 @pytest.mark.parametrize("bad", ["Food", "", "an uong", 3, None, True])

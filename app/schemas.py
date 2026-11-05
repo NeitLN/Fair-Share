@@ -292,7 +292,8 @@ class ExpenseIn(BaseModel):
     spent_at: Day
     # "ai" when the form was pre-filled by Quick add and then saved by the user.
     source: Literal["manual", "ai"] = "manual"
-    # Left out by a page that does not know categories: "other", never refused
+    # Left out by a page that does not know categories: "other" for a new expense, and an edit
+    # keeps the stored one (app/routers/expenses.py); never refused
     category: Category = "other"
     split: Annotated[EqualSplit | CustomSplit, Field(discriminator="type")]
 

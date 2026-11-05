@@ -154,12 +154,15 @@ def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: Con
         }
     )
     shares = compute_shares(conn, row["household_id"], body, already_in)
+    # A page opened before categories sends none: keep the stored one rather than reset it to
+    # "other" (review of #199). Sent explicitly, even "other", it replaces it.
+    category = body.category if "category" in body.model_fields_set else None
     try:
         conn.execute(
             "UPDATE expenses SET description = %s, amount = %s, payer_id = %s, spent_at = %s,"
-            " source = %s, category = %s WHERE id = %s",
+            " source = %s, category = COALESCE(%s, category) WHERE id = %s",
             (body.description, body.amount, body.payer_id, body.spent_at, body.source,
-             body.category, expense_id),
+             category, expense_id),
         )
         conn.execute("DELETE FROM expense_shares WHERE expense_id = %s", (expense_id,))
         save_shares(conn, expense_id, shares)

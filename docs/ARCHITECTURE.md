@@ -283,7 +283,8 @@ FastAPI's interactive docs at `/docs` are the living API reference.
   "spent_at": "2026-10-23",
   "source": "manual",                    // optional; "ai" when saved from a Quick add draft
   "category": "food",                    // optional; food, groceries, utilities, rent, transport,
-                                         // household or other ("other" when left out)
+                                         // household or other. Left out: "other" on create,
+                                         // the stored one kept on PUT
   "split": {"type": "equal", "member_ids": [1, 2, 3]}
   // or:   {"type": "custom", "shares": [{"member_id": 1, "amount": 60000},
   //                                     {"member_id": 3, "amount": 40000}]}   // must sum to amount

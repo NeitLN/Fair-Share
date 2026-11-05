@@ -12,14 +12,14 @@ No new route. Two existing bodies gain one field.
   "spent_at": "2026-11-03",
   "source": "manual",
   "category": "utilities",          // optional; one of food, groceries, utilities, rent,
-                                    // transport, household, other; "other" when left out
+                                    // transport, household, other; see the table
   "split": {"type": "equal", "member_ids": [1, 2, 3]}
 }
 ```
 
 | Case | Answer |
 |---|---|
-| `category` left out | saved as `"other"`, `201` / `200` |
+| `category` left out | `POST`: saved as `"other"`, `201`. `PUT`: the stored category is kept, `200` (review of #199) |
 | a valid code | saved, returned as sent |
 | any other value (`"Food"`, `""`, `3`, `null`) | `422 validation_error`, `details[].loc = ["body", "category"]`; nothing saved |
 | caller may not change the expense | unchanged: `403 forbidden` or `404` as today |
