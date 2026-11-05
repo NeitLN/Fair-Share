@@ -48,7 +48,13 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Không tìm thấy nhà này')
 
     // One h1 per screen, first, and no level skipped
-    for (const path of ['/', `/households/${id}`, `/households/${id}/expenses`, `/households/${id}/members`]) {
+    for (const path of [
+      '/',
+      `/households/${id}`,
+      `/households/${id}/expenses`,
+      `/households/${id}/members`,
+      `/households/${id}/report`,
+    ]) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
       const levels = await headingLevels(page)
@@ -91,6 +97,24 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await page.keyboard.press('Escape')
     await expect(mine).toBeHidden()
     await expect(why).toBeFocused()
+
+    // Báo cáo tháng (specs/004-monthly-report): cards on a phone, no sideways scroll at 360 or 320 px,
+    // every link at least 44 px; on a computer a table with a header per column
+    await page.goto(`/households/${id}/report`)
+    for (const width of [360, 320]) {
+      await page.setViewportSize({ width, height: 800 })
+      await expect(page.getByText('Cả nhà chi')).toBeVisible()
+      await expect(page.locator('.report-card')).toHaveCount(3)
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+      expect(wide, `sideways scroll on the report at ${width} px`).toBe(false)
+      const smallLinks = await page.locator('.report a').evaluateAll((els) =>
+        els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+      )
+      expect(smallLinks, `report links under 44 px at ${width} px`).toEqual([])
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await expect(page.getByRole('table').getByRole('columnheader')).toHaveCount(7)
+    await page.setViewportSize({ width: 360, height: 800 })
 
     // Đã nhận: the stamp is text, the toast is a polite live region, and nothing moves
     await page.goto(`/households/${id}`)
