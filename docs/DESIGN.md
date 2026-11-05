@@ -296,6 +296,7 @@ Nội dung      [ Tiền điện tháng 10      ]
 Số tiền       [ 240k                    ]  = 240.000đ
 Ai trả?       ((T) Tiến (bạn)) ((M) Minh) ((A) Anh) ((L) Lan)
 Ngày          Hôm nay, 21/10 ·······  Đổi
+Danh mục      Điện nước ············  Đổi   ← guessed from Nội dung (spec 005)
 Cách chia     Chia đều cả nhà (4 người)  Sửa
 [ Lưu khoản chi ]                          ← sticky to the bottom of the screen
 Các khoản chi                 chạm để sửa hoặc xoá
@@ -306,6 +307,13 @@ Hôm qua, 20/10
 * **Defaults:** payer = you (else the last payer saved on this device, else nobody: the form asks rather than
   guess); every new expense starts from that default again; date = today; split = equal
   between everyone. The 90% case needs only *Nội dung*, *Số tiền* and *Lưu*.
+* **Danh mục** ([spec 005](../specs/005-expense-categories/spec.md)): seven fixed categories (Ăn uống, Đi
+  chợ, Điện nước, Tiền nhà, Đi lại, Sinh hoạt, Khác). The row follows Nội dung with no press: "Tiền
+  điện" reads Điện nước, "Lẩu" Ăn uống, words typed without accents too, and *Khác* when nothing
+  matches; an AI fill sets Nội dung, so the guess follows it. *Đổi* opens the seven as chips (44 px,
+  the chosen one with a ✓); one press picks and closes, and from then on Nội dung no longer moves it.
+  Editing keeps the stored category. Each row in the list ends with it ("chia đều 3 người · Ăn uống"),
+  the filters gain *Danh mục*, and the CSV a column.
 * **Errors** appear under the field (`aria-invalid`, `aria-describedby`) and the first invalid field gets
   focus; the server's message stays above the button.
 * **Expense rows** are `<details>`: tap a row to reveal *Sửa* and *Xoá* (44 px). Deleting still asks
@@ -455,6 +463,13 @@ reset, closed or stored. The last month must end exactly on the balances Tổng 
 leaves them one step apart the page says "Đang cập nhật…" instead of a number that disagrees. An empty
 month says "Tháng này không có khoản chi hay khoản trả nào."; a month followed by later-dated items says
 why its end is not yet the balance on Tổng quan. "Tôi đã chuyển" notices change no figure.
+
+Under the rule line, **Chi theo danh mục** (spec 005): one line per category spent on that month, biggest
+first, each "Tiền nhà · bar · 4.500.000đ · 80%". The amounts add up to *Cả nhà chi*; the percentages are
+whole numbers that add up to 100 (largest remainder), and a category under 1% reads "<1%". The bar, in
+taro on `--surface-2` and scaled to the biggest category, only decorates: the line's words carry every
+value and screen readers skip the bar. A line opens Chi tiêu filtered to that month and category. No
+chart for an empty month.
 
 ## 7. Copy
 
