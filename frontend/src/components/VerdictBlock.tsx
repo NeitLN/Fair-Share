@@ -447,7 +447,12 @@ function ReceiverOnly({
             disabled={card.state === 'paying' || busy || !known}
             onClick={() => (asTold ? onPaid(asTold, true) : onPaid(transfer))}
           >
-            {card.state === 'paying' ? t.verdict.paying : t.verdict.received}
+            {card.state === 'paying' ? (
+              t.verdict.paying
+            ) : (
+              // One run of text, so a narrow card wraps it as a sentence and not as two columns
+              <span>{t.verdict.received(<Money amount={(asTold ?? transfer).amount} />)}</span>
+            )}
           </button>
           {asTold && (
             <button

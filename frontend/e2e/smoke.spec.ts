@@ -76,15 +76,15 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     await expect(page.locator('.verdict-sentence')).toContainText('Bạn cần trả Minh')
     await expect(page.getByText('Chuyển cho Minh xong thì bấm để báo, Minh sẽ xác nhận.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Tôi đã chuyển' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Đã nhận' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Xác nhận đã nhận/ })).toHaveCount(0)
 
     // 7. Minh confirms; Hoàn tác takes it back; he confirms again and the house is settled
     await minh.goto(`/households/${householdId}`)
     const transfers = minh.getByRole('list', { name: 'Các lần trả gợi ý' })
-    await transfers.getByRole('button', { name: 'Đã nhận' }).click()
+    await transfers.getByRole('button', { name: /^Xác nhận đã nhận/ }).click()
     await expect(minh.getByRole('status').filter({ hasText: 'Đã ghi' })).toBeVisible()
     await transfers.getByRole('button', { name: 'Hoàn tác' }).click()
-    await transfers.getByRole('button', { name: 'Đã nhận' }).click()
+    await transfers.getByRole('button', { name: /^Xác nhận đã nhận/ }).click()
     await expect(transfers.getByRole('button', { name: 'Hoàn tác' })).toHaveCount(1)
     await page.reload()
     await expect(page.locator('.verdict-sentence')).toContainText('Cả nhà sạch nợ')

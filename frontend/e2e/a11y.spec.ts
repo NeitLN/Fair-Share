@@ -86,7 +86,7 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await page.goto(`/households/${id}`)
     await expect(page.locator('.toasts')).toHaveAttribute('aria-live', 'polite')
     const transfers = page.getByRole('list', { name: 'Các lần trả gợi ý' })
-    await transfers.getByRole('button', { name: 'Đã nhận' }).first().click()
+    await transfers.getByRole('button', { name: /^Xác nhận đã nhận/ }).first().click()
     await expect(page.locator('.transfer-card.paid').first()).toContainText('ĐÃ TRẢ')
     await expect(page.locator('.toasts')).toContainText('Đã ghi')
     const moving = await page.$$eval('*', (els) =>
