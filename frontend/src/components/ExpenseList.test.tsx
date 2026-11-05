@@ -19,6 +19,7 @@ const electricity: Expense = {
   payer_id: 1,
   spent_at: '2026-10-20',
   source: 'manual',
+  category: 'utilities',
   created_at: '2026-10-20T10:00:00Z',
   split_type: 'equal',
   shares: [
@@ -36,6 +37,7 @@ const dinner: Expense = {
   payer_id: 2,
   spent_at: '2026-10-18',
   source: 'ai',
+  category: 'food',
   created_at: '2026-10-18T20:00:00Z',
   split_type: 'custom',
   shares: [
@@ -104,6 +106,15 @@ describe('ExpenseList', () => {
     expect(row('Tiền điện')).toHaveTextContent(/Tiền điện.*Minh trả · chia đều 3 người.*240\.000đ/)
     expect(row('Trà sữa')).toHaveTextContent('Lan trả · chia đều 2/3 người')
     expect(row('Ăn tối')).toHaveTextContent('Tiến trả · chia riêng 2 người')
+  })
+
+  test('a row ends with what the expense was for (specs/005-expense-categories)', () => {
+    renderList([electricity, dinner, { ...tea, category: undefined as never }])
+    const row = (description: string) => screen.getByText(description).closest('li') as HTMLElement
+    expect(row('Tiền điện')).toHaveTextContent('Minh trả · chia đều 3 người · Điện nước')
+    expect(row('Ăn tối')).toHaveTextContent('Tiến trả · chia riêng 2 người · Ăn uống')
+    // One from before categories, as an older API would send it
+    expect(row('Trà sữa')).toHaveTextContent('chia đều 2/3 người · Khác')
   })
 
   test('old expenses are described by who shared them, not by how many members there are today', () => {

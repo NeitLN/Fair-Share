@@ -64,6 +64,8 @@ describe('ExpenseForm, the 90% case', () => {
       payer_id: 1,
       spent_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       source: 'manual',
+      // Guessed from "Tiền điện" with no press (specs/005-expense-categories)
+      category: 'utilities',
       split: { type: 'equal', member_ids: [1, 2, 3] },
     })
   })
@@ -333,6 +335,7 @@ describe('ExpenseForm, checks and outcomes', () => {
         payer_id: 2,
         spent_at: '2026-10-18',
         source: 'manual',
+        category: 'other',
         created_at: '',
         split_type: 'custom',
         shares: [{ member_id: 2, amount: 100_000 }],
@@ -377,6 +380,7 @@ describe('ExpenseForm, editing', () => {
     payer_id: 2,
     spent_at: '2026-10-18',
     source: 'ai',
+    category: 'other',
     created_at: '',
     split_type: 'custom',
     shares: [
@@ -477,6 +481,8 @@ describe('ExpenseForm, filled by AI quick add', () => {
       payer_id: 2,
       spent_at: '2026-10-19',
       source: 'ai',
+      // The AI is not asked for a category: the form guesses it from the drafted "Lẩu"
+      category: 'food',
       split: { type: 'equal', member_ids: [1, 2] },
     })
   })
@@ -881,4 +887,74 @@ test('a fill clears the messages of the fields it filled; one still empty keeps 
 
   expect(screen.queryByText('Nhập nội dung khoản chi.')).not.toBeInTheDocument()
   expect(screen.getByText('Nhập số tiền.')).toBeInTheDocument()
+})
+
+// Danh mục (specs/005-expense-categories)
+describe('ExpenseForm, the category', () => {
+  const categoryValue = () => screen.getByText((_, el) => el?.className === 'fold-value' && el.closest('.fold-row')?.textContent?.startsWith('Danh mục') === true)
+  const openCategory = (user: User) => user.click(screen.getByRole('button', { name: /^Đổi danh mục/ }))
+
+  test('follows the description until the user picks one, then stays', async () => {
+    const { user, onSubmit } = setup()
+    expect(categoryValue()).toHaveTextContent('Khác')
+    await user.type(screen.getByLabelText('Nội dung'), 'Mua bóng đèn')
+    expect(categoryValue()).toHaveTextContent('Sinh hoạt')
+    await openCategory(user)
+    const group = screen.getByRole('group', { name: 'Danh mục' })
+    expect(group.querySelectorAll('button')).toHaveLength(7)
+    expect(screen.getByRole('button', { name: 'Sinh hoạt' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Khác' }))
+    // Picking closes the fold and gives the focus back to Đổi
+    expect(screen.queryByRole('group', { name: 'Danh mục' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Đổi danh mục, đang là Khác/ })).toHaveFocus()
+    await user.type(screen.getByLabelText('Nội dung'), ' và tiền điện')
+    expect(categoryValue()).toHaveTextContent('Khác')
+    await user.type(screen.getByLabelText('Số tiền'), '50000')
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ category: 'other' }))
+  })
+
+  test('Escape closes the choice and focuses Đổi', async () => {
+    const { user } = setup()
+    await openCategory(user)
+    screen.getByRole('button', { name: 'Ăn uống' }).focus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('group', { name: 'Danh mục' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Đổi danh mục/ })).toHaveFocus()
+  })
+
+  test('editing keeps the stored category, whatever the description says', async () => {
+    const stored: Expense = {
+      id: 5,
+      household_id: 7,
+      description: 'Tiền điện',
+      amount: 450_000,
+      payer_id: 1,
+      spent_at: '2026-11-03',
+      source: 'manual',
+      category: 'rent',
+      created_at: '',
+      split_type: 'equal',
+      shares: [1, 2, 3].map((member_id) => ({ member_id, amount: 150_000 })),
+    }
+    const { user, onSubmit } = setup({ initial: stored })
+    expect(categoryValue()).toHaveTextContent('Tiền nhà')
+    await user.type(screen.getByLabelText('Nội dung'), ' tháng 11')
+    expect(categoryValue()).toHaveTextContent('Tiền nhà')
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ category: 'rent' }))
+  })
+
+  test('after a save the next expense guesses again', async () => {
+    const { user, onSubmit } = setup()
+    await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
+    await openCategory(user)
+    await user.click(screen.getByRole('button', { name: 'Đi chợ' }))
+    await user.type(screen.getByLabelText('Số tiền'), '90000')
+    await save(user)
+    expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({ category: 'groceries' }))
+    await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
+    await user.type(screen.getByLabelText('Nội dung'), 'Đổ xăng')
+    expect(categoryValue()).toHaveTextContent('Đi lại')
+  })
 })

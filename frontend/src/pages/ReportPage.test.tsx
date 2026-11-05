@@ -258,3 +258,48 @@ describe('language and screen (US3)', () => {
     expect(screen.getByRole('link', { name: "See this month's expenses" })).toBeInTheDocument()
   })
 })
+
+// Chi theo danh mục (specs/005-expense-categories)
+describe('spent by category (US2 of spec 005)', () => {
+  const tagged = (category: Expense['category'], e: Expense) => ({ ...e, category })
+  const withCategories = [
+    tagged('food', expense(5, `${cur}-02`, 60_000, 2)),
+    tagged('utilities', expense(2, `${cur}-01`, 90_000, 1)),
+    tagged('rent', expense(1, `${prev}-05`, 300_000, 2)),
+  ]
+  const netsWith = { 1: 40_000, 2: 110_000, 3: -150_000 }
+
+  test("under the month's lines, largest first, adding up to Cả nhà chi", async () => {
+    onAComputer()
+    api({ expenseList: withCategories, netOf: netsWith })
+    renderApp(`/households/7/report/${cur}`)
+    const chart = within(
+      (await screen.findByRole('heading', { level: 3, name: 'Chi theo danh mục' })).closest('section') as HTMLElement,
+    )
+    expect(screen.getByText('Cả nhà chi')).toHaveTextContent(`Cả nhà chi ${plain(150_000)}`)
+    expect(chart.getAllByRole('link').map((l) => l.getAttribute('aria-label'))).toEqual([
+      `Điện nước: ${plain(90_000)}, 60% cả tháng`,
+      `Ăn uống: ${plain(60_000)}, 40% cả tháng`,
+    ])
+  })
+
+  test('a line opens Chi tiêu on that month and category', async () => {
+    onAComputer()
+    api({ expenseList: withCategories, netOf: netsWith })
+    renderApp(`/households/7/report/${prev}`)
+    await userEvent.click(await screen.findByRole('link', { name: /^Tiền nhà:/ }))
+    await waitFor(() => expect(location()).toBe('/households/7/expenses'))
+    expect(await screen.findByLabelText('Danh mục')).toHaveValue('rent')
+    expect(screen.getByLabelText('Tháng')).toHaveValue(prev)
+  })
+
+  test('no chart for a month with nothing in it', async () => {
+    onAComputer()
+    const twoBack = shiftMonth(cur, -2)
+    const early = { ...expense(3, `${shiftMonth(cur, -3)}-10`, 3_000, 3), shares: [1, 2, 3].map((member_id) => ({ member_id, amount: 1_000 })) }
+    api({ expenseList: [...expenses, early], netOf: { 1: 59_000, 2: 69_000, 3: -128_000 } })
+    renderApp(`/households/7/report/${twoBack}`)
+    await screen.findByText('Tháng này không có khoản chi hay khoản trả nào.')
+    expect(screen.queryByRole('heading', { name: 'Chi theo danh mục' })).not.toBeInTheDocument()
+  })
+})

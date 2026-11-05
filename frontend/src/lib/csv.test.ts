@@ -17,6 +17,7 @@ function expense(overrides: Partial<Expense> = {}): Expense {
     payer_id: 1,
     spent_at: '2026-10-21',
     source: 'manual',
+    category: 'other',
     created_at: '',
     split_type: 'equal',
     shares: [
@@ -27,7 +28,7 @@ function expense(overrides: Partial<Expense> = {}): Expense {
   }
 }
 
-const header = 'Ngày,Nội dung,Số tiền (đồng),Người trả,Cách chia,Nguyễn Duy Anh,Trần Thị Bích'
+const header = 'Ngày,Nội dung,Danh mục,Số tiền (đồng),Người trả,Cách chia,Nguyễn Duy Anh,Trần Thị Bích'
 
 describe('toCsv', () => {
   test('joins cells with commas and rows with CRLF, without a trailing break', () => {
@@ -75,7 +76,7 @@ describe('expensesCsv', () => {
     const csv = expensesCsv([expense()], members)
 
     expect(csv.split('\r\n')[1]).toBe(
-      '2026-10-21,Lẩu,240000,Nguyễn Duy Anh,chia đều,120000,120000',
+      '2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,chia đều,120000,120000',
     )
   })
 
@@ -86,7 +87,7 @@ describe('expensesCsv', () => {
     )
 
     expect(csv.split('\r\n')[1]).toBe(
-      '2026-10-21,Lẩu,240000,Nguyễn Duy Anh,chia riêng,,240000',
+      '2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,chia riêng,,240000',
     )
   })
 
@@ -94,7 +95,7 @@ describe('expensesCsv', () => {
     const csv = expensesCsv([expense({ payer_id: 99 })], members)
 
     expect(csv.split('\r\n')[1]).toBe(
-      '2026-10-21,Lẩu,240000,Thành viên đã xoá,chia đều,120000,120000',
+      '2026-10-21,Lẩu,Khác,240000,Thành viên đã xoá,chia đều,120000,120000',
     )
   })
 
@@ -114,7 +115,7 @@ describe('expensesCsv', () => {
     const [head, row] = csv.split('\r\n')
 
     expect(head).toBe(`${header},Thành viên đã xoá`)
-    expect(row).toBe('2026-10-21,Lẩu,240000,Nguyễn Duy Anh,chia đều,100000,100000,40000')
+    expect(row).toBe('2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,chia đều,100000,100000,40000')
   })
 
   test('the member columns of every row add up to the amount', () => {
@@ -157,5 +158,14 @@ describe('fileSlug', () => {
     ['', 'nha'],
   ])('fileSlug(%s) is %s', (name, slug) => {
     expect(fileSlug(name)).toBe(slug)
+  })
+})
+
+// specs/005-expense-categories
+describe('the category column', () => {
+  test('after Nội dung, with the name in the page language', () => {
+    const rows = expensesCsv([expense({ category: 'groceries' })], members).split('\r\n')
+    expect(rows[0].split(',').slice(0, 3)).toEqual(['Ngày', 'Nội dung', 'Danh mục'])
+    expect(rows[1].split(',')[2]).toBe('Đi chợ')
   })
 })

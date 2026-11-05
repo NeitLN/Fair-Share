@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 
 import type { Expense, Member } from '../api/types'
 import { dayLabel } from '../lib/date'
-import { byDay, splitText } from '../lib/expenseRows'
+import { byDay, splitAndCategory } from '../lib/expenseRows'
 import { useWideTable } from '../lib/useWide'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
@@ -110,7 +110,7 @@ function ExpenseTable({
               items.map((expense) => {
                 const deleting = deletingId === expense.id
                 const payer = lookOf(expense.payer_id)
-                const split = splitText(expense, memberIds)
+                const split = splitAndCategory(expense, memberIds)
                 const sharesOpen = open.has(expense.id)
                 return (
                   <Fragment key={expense.id}>

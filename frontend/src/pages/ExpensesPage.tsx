@@ -5,7 +5,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
 import { getHousehold, keys, listMembers } from '../api/households'
-import type { Expense, ExpenseInput } from '../api/types'
+import type { Category, Expense, ExpenseInput } from '../api/types'
+import { CATEGORIES } from '../lib/categories'
 import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
 import type { ExpenseFormHandle } from '../components/ExpenseForm'
@@ -47,17 +48,19 @@ function ExpensesPage() {
   // "Xem" in the saved toast: the expense to scroll to and tint for a moment, and the rows on screen now.
   // Arriving from "Vì sao ra số này?" on Tổng quan (specs/002-balance-explanation) starts with that expense;
   // the page has just opened, so no filter can hide it
-  const arrival = location.state as { revealExpense?: number; month?: string } | null
+  const arrival = location.state as { revealExpense?: number; month?: string; category?: Category } | null
   const revealExpense = arrival?.revealExpense
   // "Xem các khoản chi tháng này" in a monthly report (specs/004-monthly-report) starts on that month; a
   // month with no expense is dropped below, like any month that no longer filters anything
   const startMonth = arrival?.month
+  // A line of "Chi theo danh mục" in the report (specs/005-expense-categories) adds its category
+  const startCategory = arrival?.category
   const [revealId, setRevealId] = useState<number | null>(revealExpense ?? null)
   const onScreen = useRef(new Set<number>())
   // The list filter belongs to one household: another household starts unfiltered
   const [filterOf, setFilterOf] = useState<{ householdId: number; filter: ExpenseFilter }>({
     householdId,
-    filter: startMonth ? { ...NO_FILTER, month: startMonth } : NO_FILTER,
+    filter: { ...NO_FILTER, month: startMonth ?? null, category: startCategory ?? null },
   })
 
   const members = useQuery({
@@ -146,15 +149,16 @@ function ExpensesPage() {
   const filter: ExpenseFilter = {
     month: chosen.month !== null && months.includes(chosen.month) ? chosen.month : null,
     memberId: (members.data ?? []).some((m) => m.id === chosen.memberId) ? chosen.memberId : null,
+    category: chosen.category !== null && CATEGORIES.includes(chosen.category) ? chosen.category : null,
   }
   const setFilter = (next: ExpenseFilter) => setFilterOf({ householdId, filter: next })
   const shown = filterExpenses(allExpenses, filter)
   // Revealed once: going back and forth does not reveal it or filter on the month again
   useEffect(() => {
-    if (revealExpense !== undefined || startMonth !== undefined) {
+    if (revealExpense !== undefined || startMonth !== undefined || startCategory !== undefined) {
       navigate(location.pathname, { replace: true, state: null })
     }
-  }, [revealExpense, startMonth, navigate, location.pathname])
+  }, [revealExpense, startMonth, startCategory, navigate, location.pathname])
   useEffect(() => {
     onScreen.current = new Set(shown.map((expense) => expense.id))
   })
@@ -171,7 +175,7 @@ function ExpensesPage() {
   const totals =
     filter.month === null
       ? null
-      : monthTotals(filterExpenses(allExpenses, { month: filter.month, memberId: null }), members.data ?? [])
+      : monthTotals(filterExpenses(allExpenses, { ...NO_FILTER, month: filter.month }), members.data ?? [])
 
   return (
     <>

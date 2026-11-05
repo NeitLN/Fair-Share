@@ -25,6 +25,7 @@ function expense(spent_at: string, amount: number, payer_id: number, shares: [nu
     payer_id,
     spent_at,
     source: 'manual',
+    category: 'other',
     created_at: '',
     split_type: 'custom',
     shares: shares.map(([member_id, part]) => ({ member_id, amount: part })),
@@ -56,29 +57,46 @@ describe('filterExpenses', () => {
   })
 
   test('by month', () => {
-    expect(filterExpenses(all, { month: '2026-10', memberId: null })).toEqual([hotpot, water])
-    expect(filterExpenses(all, { month: '2026-08', memberId: null })).toEqual([])
+    expect(filterExpenses(all, { month: '2026-10', memberId: null, category: null })).toEqual([hotpot, water])
+    expect(filterExpenses(all, { month: '2026-08', memberId: null, category: null })).toEqual([])
   })
 
   test('a member matches what they paid or share in', () => {
     // Tiến paid the hotpot and shares the water, but has nothing to do with the rent
     expect(involves(rent, 1)).toBe(false)
-    expect(filterExpenses(all, { month: null, memberId: 1 })).toEqual([hotpot, water])
+    expect(filterExpenses(all, { month: null, memberId: 1, category: null })).toEqual([hotpot, water])
     // Paying without a share of it still counts
     const gift = expense('2026-10-10', 50_000, 3, [[1, 50_000]])
-    expect(filterExpenses([gift], { month: null, memberId: 3 })).toEqual([gift])
+    expect(filterExpenses([gift], { month: null, memberId: 3, category: null })).toEqual([gift])
   })
 
   test('month and member together', () => {
-    const filter = { month: '2026-09', memberId: 2 }
+    const filter = { month: '2026-09', memberId: 2, category: null }
     expect(filterExpenses(all, filter)).toEqual([rent])
     expect(isFiltered(filter)).toBe(true)
+  })
+
+  // specs/005-expense-categories
+  test('by category, alone and with month and member', () => {
+    const food = { ...hotpot, category: 'food' as const }
+    const bills = { ...water, category: 'utilities' as const }
+    const house = { ...rent, category: 'rent' as const }
+    const tagged = [food, bills, house]
+    expect(filterExpenses(tagged, { ...NO_FILTER, category: 'utilities' })).toEqual([bills])
+    expect(filterExpenses(tagged, { month: '2026-10', memberId: 1, category: 'food' })).toEqual([food])
+    expect(filterExpenses(tagged, { month: '2026-09', memberId: null, category: 'food' })).toEqual([])
+    expect(isFiltered({ ...NO_FILTER, category: 'rent' })).toBe(true)
+  })
+
+  test('an expense from before categories counts as Khác', () => {
+    const old = { ...hotpot, category: undefined as never }
+    expect(filterExpenses([old], { ...NO_FILTER, category: 'other' })).toEqual([old])
   })
 })
 
 describe('monthTotals', () => {
   test('what each member paid and owes for the month, in whole đồng', () => {
-    const october = filterExpenses(all, { month: '2026-10', memberId: null })
+    const october = filterExpenses(all, { month: '2026-10', memberId: null, category: null })
     expect(monthTotals(october, members)).toEqual({
       total: 400_000,
       members: [

@@ -7,12 +7,14 @@ import { keys, listMembers } from '../api/households'
 import { getBalances, listSettlements, settlementKeys } from '../api/settlements'
 import { Avatar } from '../components/Avatar'
 import { Chip } from '../components/Chip'
+import CategoryChart from '../components/CategoryChart'
 import ErrorNote from '../components/ErrorNote'
 import { Money } from '../components/Money'
 import Skeleton from '../components/Skeleton'
 import { today } from '../lib/date'
 import { errorMessage } from '../lib/errors'
-import { monthLabel } from '../lib/expenseFilters'
+import { categoryTotals } from '../lib/categories'
+import { monthLabel, monthOf } from '../lib/expenseFilters'
 import { useMe } from '../lib/identity'
 import { clampMonth, inStep, isMonth, monthRange, monthReport, shiftMonth } from '../lib/monthReport'
 import type { MonthReport, ReportLine } from '../lib/monthReport'
@@ -133,6 +135,12 @@ function ReportPage() {
             <ReportCards report={report} label={label} looks={looks} me={me} />
           )}
           <p className="hint">{t.report.note}</p>
+          {/* Where the month's money went (specs/005-expense-categories); nothing for an empty month */}
+          <CategoryChart
+            totals={categoryTotals((expenses.data ?? []).filter((expense) => monthOf(expense) === month))}
+            month={month}
+            householdId={householdId}
+          />
           <Link className="section-link" to={`/households/${householdId}/expenses`} state={{ month }}>
             {t.report.seeExpenses}
           </Link>

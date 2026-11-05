@@ -1060,6 +1060,23 @@ button.ai:active:focus-visible {
   white-space: nowrap;
 }
 
+/* Danh mục in the form (specs/005-expense-categories): the payer chips without an avatar. The chosen one
+   is told by a check mark and its border too, not by its ground alone */
+/* .fold-control lays its children out as a grid: the chips wrap as a row instead */
+.fold-control.category-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-pick button {
+  padding: 4px 14px;
+}
+
+.category-pick button[aria-pressed='true']::before {
+  content: '✓';
+}
+
 /* ---------------------------------------------------------------- expense form and list (restyled in T-43) */
 
 /* The form is a column of fields on a surface; each field owns its label, control and problem */
@@ -2291,6 +2308,87 @@ button.ai:active:focus-visible {
   border-bottom: 0;
   border-top: 1px solid var(--card-edge);
   font-weight: 700;
+}
+
+/* "Chi theo danh mục" (specs/005-expense-categories): every value is text; the bar only decorates.
+   Name and figures on one line, the bar under them on a phone; name | bar | figures from 720 px */
+.category-chart {
+  display: grid;
+  gap: 8px;
+}
+
+.category-chart ul {
+  border: 1px solid var(--card-edge);
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+  list-style: none;
+}
+
+.category-chart li {
+  /* Not the list rows' flex line: the link inside takes the whole width */
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.category-chart li + li {
+  border-top: 1px solid var(--line);
+}
+
+.category-chart a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name figure'
+    'track track';
+  align-items: center;
+  gap: 4px 12px;
+  min-height: var(--target);
+  padding: 8px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.category-chart a:hover .category-name {
+  text-decoration: underline;
+}
+
+.category-name {
+  grid-area: name;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.category-figure {
+  grid-area: figure;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-track {
+  grid-area: track;
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.category-bar {
+  display: block;
+  min-width: 4px;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+}
+
+@media (min-width: 720px) {
+  .category-chart a {
+    grid-template-columns: minmax(120px, 12rem) minmax(0, 1fr) auto;
+    grid-template-areas: 'name track figure';
+  }
 }
 
 /* ---------------------------------------------------------------- accounts (docs/ACCOUNTS.md) */

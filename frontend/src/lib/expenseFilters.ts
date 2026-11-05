@@ -1,4 +1,4 @@
-import type { Expense, Member } from '../api/types'
+import type { Category, Expense, Member } from '../api/types'
 import { language, messages } from '../i18n'
 
 /**
@@ -11,9 +11,11 @@ export interface ExpenseFilter {
   month: string | null
   /** A member who paid or shares in the expense, or null for the whole household. */
   memberId: number | null
+  /** What the expenses were for (specs/005-expense-categories), or null for any. */
+  category: Category | null
 }
 
-export const NO_FILTER: ExpenseFilter = { month: null, memberId: null }
+export const NO_FILTER: ExpenseFilter = { month: null, memberId: null, category: null }
 
 /** "2026-10" for an expense spent on 2026-10-22. */
 export const monthOf = (expense: Expense) => expense.spent_at.slice(0, 7)
@@ -44,12 +46,13 @@ export function filterExpenses(expenses: Expense[], filter: ExpenseFilter): Expe
   return expenses.filter(
     (expense) =>
       (filter.month === null || monthOf(expense) === filter.month) &&
-      (filter.memberId === null || involves(expense, filter.memberId)),
+      (filter.memberId === null || involves(expense, filter.memberId)) &&
+      (filter.category === null || (expense.category ?? 'other') === filter.category),
   )
 }
 
 export function isFiltered(filter: ExpenseFilter): boolean {
-  return filter.month !== null || filter.memberId !== null
+  return filter.month !== null || filter.memberId !== null || filter.category !== null
 }
 
 export interface MemberTotal {
