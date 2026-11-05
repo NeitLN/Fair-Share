@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import type { Expense, Member } from '../api/types'
 import { dayLabel } from '../lib/date'
@@ -9,6 +9,7 @@ import { Avatar } from './Avatar'
 import { Chip } from './Chip'
 import ErrorNote from './ErrorNote'
 import { Money } from './Money'
+import ShareList from './ShareList'
 import Skeleton from './Skeleton'
 import { useT } from '../i18n'
 
@@ -55,6 +56,16 @@ function ExpenseTable({
   const t = useT()
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
+  // A row's description opens a row with each share (design review 05/11)
+  const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
+  function toggle(id: number) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (loading) {
     return <Skeleton label={t.expenses.loadingList} />
@@ -97,64 +108,93 @@ function ExpenseTable({
                 const deleting = deletingId === expense.id
                 const payer = lookOf(expense.payer_id)
                 const split = splitText(expense, memberIds)
+                const sharesOpen = open.has(expense.id)
                 return (
-                  <tr
-                    key={expense.id}
-                    data-expense={expense.id}
-                    className={
-                      [editingId === expense.id && 'editing', highlightId === expense.id && 'just-saved']
-                        .filter(Boolean)
-                        .join(' ') || undefined
-                    }
-                  >
-                    <td className="col-date">{dayLabel(day)}</td>
-                    <td className="col-description">
-                      <span className="expense-description">
-                        {expense.description}
-                        {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
-                      </span>
-                      {/* 1024–1279 px: the columns below fold into this line */}
-                      <small className="expense-meta">
-                        {dayLabel(day)} · {t.expenses.paidBy(payer.short, split)}
-                      </small>
-                    </td>
-                    <td className="col-payer">
-                      <span className="payer">
-                        <Avatar look={payer} size="sm" decorative />
-                        <span>
-                          {payer.short}
-                          <small>{split}</small>
+                  <Fragment key={expense.id}>
+                    <tr
+                      data-expense={expense.id}
+                      className={
+                        [editingId === expense.id && 'editing', highlightId === expense.id && 'just-saved']
+                          .filter(Boolean)
+                          .join(' ') || undefined
+                      }
+                    >
+                      <td className="col-date">{dayLabel(day)}</td>
+                      <td className="col-description">
+                        {/* Opens the row of shares, like tapping a row on a phone; the description and not the
+                            split under the payer, because 1024–1279 px folds the payer column away */}
+                        <button
+                          type="button"
+                          className="expense-open"
+                          aria-expanded={sharesOpen}
+                          aria-controls={`shares-${expense.id}`}
+                          onClick={() => toggle(expense.id)}
+                        >
+                          <span className="expense-description">
+                            {expense.description}
+                            {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
+                          </span>
+                          <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                            <path
+                              d="M6 3.5 10.5 8 6 12.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        {/* 1024–1279 px: the columns below fold into this line */}
+                        <small className="expense-meta">
+                          {dayLabel(day)} · {t.expenses.paidBy(payer.short, split)}
+                        </small>
+                      </td>
+                      <td className="col-payer">
+                        <span className="payer">
+                          <Avatar look={payer} size="sm" decorative />
+                          <span>
+                            {payer.short}
+                            <small>{split}</small>
+                          </span>
                         </span>
-                      </span>
-                    </td>
-                    <td className="col-amount">
-                      <Money amount={expense.amount} className="expense-amount" />
-                    </td>
-                    <td className="col-actions">
-                      {canChange(expense) && (
-                        <span className="row-actions">
-                          <button
-                            type="button"
-                            className="btn-ghost"
-                            aria-label={t.expenses.editLabel(expense.description)}
-                            disabled={deleting}
-                            onClick={() => onEdit(expense)}
-                          >
-                            {t.common.edit}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger"
-                            aria-label={t.expenses.deleteLabel(expense.description)}
-                            disabled={deleting}
-                            onClick={() => confirmDelete(expense)}
-                          >
-                            {deleting ? t.common.deleting : t.common.delete}
-                          </button>
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="col-amount">
+                        <Money amount={expense.amount} className="expense-amount" />
+                      </td>
+                      <td className="col-actions">
+                        {canChange(expense) && (
+                          <span className="row-actions">
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              aria-label={t.expenses.editLabel(expense.description)}
+                              disabled={deleting}
+                              onClick={() => onEdit(expense)}
+                            >
+                              {t.common.edit}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-danger"
+                              aria-label={t.expenses.deleteLabel(expense.description)}
+                              disabled={deleting}
+                              onClick={() => confirmDelete(expense)}
+                            >
+                              {deleting ? t.common.deleting : t.common.delete}
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    {sharesOpen && (
+                      <tr id={`shares-${expense.id}`} className="share-row">
+                        <td colSpan={5}>
+                          <ShareList expense={expense} looks={looks} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               }),
             )}

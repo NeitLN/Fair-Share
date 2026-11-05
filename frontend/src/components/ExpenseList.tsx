@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { Expense, Member } from '../api/types'
 import { dayLabel } from '../lib/date'
@@ -8,6 +8,7 @@ import { Avatar } from './Avatar'
 import { Chip } from './Chip'
 import { Money } from './Money'
 import ErrorNote from './ErrorNote'
+import ShareList from './ShareList'
 import Skeleton from './Skeleton'
 import { closeFoldOnEscape } from '../lib/fold'
 import { byDay, splitText } from '../lib/expenseRows'
@@ -57,6 +58,16 @@ function ExpenseList({
   const t = useT()
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
+  // A row's shares are only rendered while it is open
+  const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
+  function toggle(id: number, isOpen: boolean) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (isOpen) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
 
   if (loading) {
     return <Skeleton label={t.expenses.loadingList} />
@@ -91,33 +102,34 @@ function ExpenseList({
                     data-expense={expense.id}
                     className={`expense-row${highlightId === expense.id ? ' just-saved' : ''}`}
                   >
-                    {/* Only a row the user may change opens; the others are plain rows (no hint of a
-                        menu that would be empty) */}
-                    {canChange(expense) ? (
-                      <details onKeyDown={closeFoldOnEscape}>
-                        <summary>
-                          <Avatar look={payer} decorative />
-                          <span className="expense-main">
-                            <span className="expense-description">
-                              {expense.description}
-                              {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
-                            </span>
-                            <small>
-                              {t.expenses.paidBy(payer.short, splitText(expense, memberIds))}
-                            </small>
+                    {/* Every row opens to who shares it; the ones you may change also offer Sửa and Xoá */}
+                    <details
+                      onToggle={(event) => toggle(expense.id, event.currentTarget.open)}
+                      onKeyDown={closeFoldOnEscape}
+                    >
+                      <summary>
+                        <Avatar look={payer} decorative />
+                        <span className="expense-main">
+                          <span className="expense-description">
+                            {expense.description}
+                            {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
                           </span>
-                          <Money amount={expense.amount} className="expense-amount" />
-                          <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                            <path
-                              d="M6 3.5 10.5 8 6 12.5"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </summary>
+                          <small>{t.expenses.paidBy(payer.short, splitText(expense, memberIds))}</small>
+                        </span>
+                        <Money amount={expense.amount} className="expense-amount" />
+                        <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                          <path
+                            d="M6 3.5 10.5 8 6 12.5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </summary>
+                      {open.has(expense.id) && <ShareList expense={expense} looks={looks} />}
+                      {canChange(expense) && (
                         <div className="expense-actions">
                           <button
                             type="button"
@@ -138,22 +150,8 @@ function ExpenseList({
                             {deleting ? t.common.deleting : t.common.delete}
                           </button>
                         </div>
-                      </details>
-                    ) : (
-                      <div className="expense-summary">
-                        <Avatar look={payer} decorative />
-                        <span className="expense-main">
-                          <span className="expense-description">
-                            {expense.description}
-                            {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
-                          </span>
-                          <small>
-                            {t.expenses.paidBy(payer.short, splitText(expense, memberIds))}
-                          </small>
-                        </span>
-                        <Money amount={expense.amount} className="expense-amount" />
-                      </div>
-                    )}
+                      )}
+                    </details>
                   </li>
                 )
               })}
