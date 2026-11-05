@@ -155,4 +155,3 @@ One person; Minh reviews the PR.
 ## Notes
 
 - No backend, schema or permission change; if one turns out to be needed, stop and update plan.md first.
-- No commit until the owner approves; `.claude/` and `.specify/` are never committed.

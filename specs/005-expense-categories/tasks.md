@@ -161,4 +161,3 @@ One person; Minh reviews, with the backend (migration, schema, router) as the pa
 ## Notes
 
 - The AI quick add contract does not change; if a task seems to need it, stop and update plan.md first.
-- No commit until the owner approves; `.claude/` and `.specify/` are never committed.

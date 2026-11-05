@@ -32,6 +32,11 @@
   mark would swallow an expense not yet fetched. Taking own records into account is safe: they are never
   listed.
 - **Alternatives considered**: one mark (the bug above); a set of seen ids (kept for later, Assumptions).
+- **Known limit** (review of #201): `created_at` is `now()`, the start of the saving transaction, not
+  its commit. A record whose transaction commits after another, newer one was already loaded and marked
+  can carry a time earlier than the mark and never show. With 3–4 people in a house this needs two saves
+  overlapping within the same moment and a "Đã xem tất cả" in between; accepted for this version, like
+  equal times.
 
 ## R4. Storage
 
