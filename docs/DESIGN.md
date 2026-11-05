@@ -235,7 +235,10 @@ Lịch sử trả                      Ghi khoản trả khác
   A notice whose transfer is no longer suggested keeps a card of its own ("Số dư đã đổi sau lần báo
   này"), and the reminder adds "(đã báo chuyển, chờ Minh xác nhận)" to a told line. Until the notices
   load, Đã nhận and Tôi đã chuyển cannot be pressed. In English the card's button takes its own row
-  under 480 px.
+  under 480 px. Since the design review of 05/11 the button says what it does and how much, **Xác nhận
+  đã nhận 120.000đ** ("Mark 120,000 ₫ as received"): "Đã nhận" alone read like a status, not something to
+  press. Told a different amount, the button carries the told one, the amount it records. The rules
+  and these notes still call the action *Đã nhận*.
 * **Sao chép tin nhắn nhắc nợ** copies plain text for the household's Zalo group (below); on failure the
   text is shown selectable instead. No bank account, QR or payment of any kind (PROJECT_SPEC §3.3).
   ```
