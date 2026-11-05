@@ -30,19 +30,20 @@ How we got here:
 ## 2. Five rules (read these before any CSS)
 
 1. **One loud place per screen.** Only the taro verdict block on Tổng quan is drenched. Everything else
-   sits on the lilac background as white surfaces with a quiet 1 px edge. Yellow means *attention*: the coin in the
+   sits on the warm cream ground as near-white surfaces with a quiet 1 px edge. Yellow means *attention*: the coin in the
    logo, the AI and the focus ring, nothing else ([BRAND.md](BRAND.md)).
 2. **Flat panels; hard shadows only on stickers and a form's primary action.** A white panel on the
    page (a list, a table, a form, the invite, the tab track) has one 1 px solid `--card-edge`
-   (`#B2ABC8` light, `#514765` dark) and no shadow. Inside a panel, spacing and quiet `--line` dividers
+   (`#C8B99F` light, `#544B40` dark) and no shadow. Inside a panel, spacing and quiet `--line` dividers
    group things, never a second frame; fields and controls keep their own 2 px `--control-line`. The
    taro verdict block and its transfer cards stay borderless (their fill already stands out, 6.3:1).
    Avatars, the two stamps, a form's submit and the AI button keep their 2–3 px offset shadow, and
    pressing one moves it down by exactly its shadow. (UI review 04/11: on a laptop the white panels
-   vanished against the page at 1.30:1; the edge is 1.70:1 to the page.)
+   vanished against the page at 1.30:1; the edge is 1.70:1 to the page. The cream of 05/11 kept it at
+   1.71:1, darker than the mockup's 1.42:1.)
 3. **Money is sacred.** Bold, tabular figures, right-aligned in lists, always with a sign or a word
    (*cần trả*, *được nhận*), never colour alone. The *đ* is smaller and never wraps away from its number.
-4. **No uppercase except the two stamps.** Secondary labels are 13 px sentence case. People are shown by
+4. **No uppercase except the two stamps.** Secondary labels are sentence case, 13 px on a phone and 14 px from 1024 px (`--text-small`). People are shown by
    the **last word of their name** (how students address each other); the full name lives on Thành viên.
 5. **Every target ≥ 44 px, four animations at most**: the stamp, the AI progress bar, the one-time
    yellow flash on fields the AI filled, and the toast. With *reduce motion* on, all of them become instant.
@@ -55,14 +56,14 @@ never a literal colour. Dark values apply under `prefers-color-scheme: dark` unl
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | `#E3E1E9` | `#110E1C` | page |
-| `--surface` | `#FFFFFF` | `#1B1730` | sections, inputs, transfer cards |
-| `--surface-2` | `#F1EDFE` | `#251F42` | folds, segmented track, paid transfer |
-| `--ink` | `#17132B` | `#F3F0FF` | text |
-| `--muted` | `#5B5675` | `#B1A9D4` | secondary text |
-| `--line` | `#E4DEF7` | `#382F63` | row dividers only (quiet on purpose) |
-| `--card-edge` | `#B2ABC8` | `#514765` | the 1 px edge of a white panel on the page (rule 2): 1.70:1 to bg, 2.20:1 to surface (light); 2.21 / 2.01 (dark) |
-| `--control-line` | `#7C72AB` | `#7366B3` | the 2 px edge of fields, selects, secondary buttons, folds, payer chips, the account menu |
+| `--bg` | `#F6F1E7` | `#16130F` | page: warm cream / warm charcoal (design review 05/11; grey lilac `#E3E1E9` before) |
+| `--surface` | `#FFFDF8` | `#221E19` | sections, inputs, the transfers panel |
+| `--surface-2` | `#F1E9DB` | `#2D2822` | folds, segmented track, paid transfer, opened shares |
+| `--ink` | `#17132B` | `#F6F1E7` | text |
+| `--muted` | `#5E5868` | `#BDB3A3` | secondary text |
+| `--line` | `#ECE4D5` | `#37312A` | row dividers only (quiet on purpose) |
+| `--card-edge` | `#C8B99F` | `#544B40` | the 1 px edge of a white panel on the page (rule 2): 1.71:1 to bg, 1.90:1 to surface (light); 2.17 / 1.94 (dark) |
+| `--control-line` | `#8A7F6E` | `#8F8576` | the 2 px edge of fields, selects, secondary buttons, folds, payer chips, the account menu |
 | `--focus-outline` | `#17132B` | `#17132B` | the ring inside the yellow focus halo |
 | `--primary` | `#5A3CF0` | `#8C74FF` | primary button fill |
 | `--on-primary` | `#FFFFFF` | `#120C33` | text on primary |
@@ -73,9 +74,10 @@ never a literal colour. Dark values apply under `prefers-color-scheme: dark` unl
 | `--debt` / `--debt-text` | `#FF5C8A` / `#B71F55` | `#FF5C8A` / `#FF8FB0` | *cần trả*, errors |
 | `--ai` | `#FFE14D` | `#FFE14D` | AI button and chip, focus ring |
 | `--on-fill` | `#17132B` | `#0E0A1F` | text on mint, pink, yellow and avatar tints |
-| `--edge` | `#FFFFFF` | `#F3F0FF` | sticker die-cut outline |
+| `--edge` | `#FFFFFF` | `#F6F1E7` | sticker die-cut outline |
 | `--sticker-shadow` | `#17132B` | `#6A52E8` | sticker and primary-button shadow |
-| `--toast-bg` / `--toast-fg` / `--toast-action` | `#17132B` / `#FFFFFF` / `#FFE14D` | `#F3F0FF` / `#17132B` / `#5A3CF0` | toast |
+| `--toast-bg` / `--toast-fg` / `--toast-action` | `#17132B` / `#FFFFFF` / `#FFE14D` | `#F6F1E7` / `#17132B` / `#5A3CF0` | toast |
+| `--toast-shadow` | ink at 30% | black at 45% | the soft shadow under a toast |
 
 **Avatar tints** (same in both themes): `#FFB5C9` `#FFD27A` `#B8F0D4` `#BFD8FF` `#D9C7FF` `#FFC9A8`
 `#A8EDEA` `#E6F27A`. Initials use **`--on-fill`** (light `#17132B`, dark `#0E0A1F`), never `--ink`, which
@@ -84,17 +86,17 @@ take the members in id order; each one's preferred tint is `id mod 8`, and if an
 has it, the next free tint. Adding someone never recolours anyone; removing someone recolours only a
 member who had been pushed off a taken tint. Houses of up to 8 never repeat a colour.
 
-**Measured contrast** (WCAG 2.1, all text pairs ≥ 4.5:1): ink on bg 13.92 (light) / 16.96 (dark) · muted on surface-2 5.9 (light)
-/ 7.0 (dark) · white on primary 6.3 · `#120C33` on dark primary 5.4 · credit text on surface-2 5.7 ·
-debt text on surface-2 5.5 · white on the dark verdict block 7.8 · `#E4DCFF` on the light block 4.8 ·
-`--on-fill` on the avatar tints ≥ 10.91 (light) / 11.74 (dark). Surface vs. bg is 1.30 (light; it was
-1.12 until the review of 03/11, and the white cards vanished on a laptop screen; on 04/11 the bg lost
-most of its purple, so the taro block is the one purple mass) and 1.10 (dark, where the
-cards read by their lighter fill). Anything you type in or press is outlined in `--control-line`: 4.33 on
-surface, 3.34 on bg, 3.77 on surface-2 (light); 3.53 / 3.88 / 3.16 (dark), above WCAG 1.4.11's 3:1.
-On the darker bg the light text colours still pass: `--muted` 5.35, `--primary-text` 4.86, `--credit-text`
-5.19, `--debt-text` 4.85. Placeholders use `--muted`. The focus ring stays dark in both themes, 13.85
-against its yellow halo. The dark sticker shadow is 3.6:1 against bg so stickers stay visible on OLED.
+**Measured contrast** (WCAG 2.1, all text pairs ≥ 4.5:1; recomputed for the cream of 05/11 with
+`specs/003-desktop-redesign/contrast.py`). Light: ink on bg 16.02, muted 6.07 / 6.73 / 5.67 on bg /
+surface / surface-2, primary text 5.59 / 6.19 / 5.22, credit text 5.97 / 6.61 / 5.57, debt text 5.58 /
+6.18 / 5.21. Dark: ink on bg 16.45, muted 8.94 / 8.00 / 7.05, primary text 7.49 / 6.70 / 5.91, credit
+text 12.12 / 10.84 / 9.56, debt text 8.65 / 7.74 / 6.82. Unchanged: white on primary 6.3, `#120C33` on
+dark primary 5.4, white on the dark verdict block 7.8, `#E4DCFF` on the light block 4.8, `--on-fill` on
+the avatar tints ≥ 10.91 (light) / 11.74 (dark), the focus ring 13.85 against its yellow halo. Surface vs.
+bg is 1.11 (light) and 1.12 (dark), closer than the lilac's 1.30, so panels read by their `--card-edge`
+(1.71:1 light, 2.17:1 dark). Anything you type in or press is outlined in `--control-line`: 3.49 on bg,
+3.87 on surface, 3.26 on surface-2 (light); 5.10 / 4.56 / 4.02 (dark), above WCAG 1.4.11's 3:1.
+Placeholders use `--muted`. The dark sticker shadow is 3.5:1 against bg so stickers stay visible on OLED.
 
 **Shape and space.** Radii: sections 16 px, transfer cards 14 px, buttons and inputs 12 px, chips and
 segmented controls 999 px, avatars circles, the verdict block 24 px. Spacing on a 4 px grid; page gutter
@@ -131,7 +133,7 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 | **Segmented** | Pill track on `--surface`, selected segment ink with `--bg` text; 44 px. Used for the household tabs and Chia đều / Chia riêng |
 | **Fold row** | `--surface-2` row "**Hôm nay**, 21/10 · Đổi" / "**Chia đều cả nhà** (4 người) · Sửa"; shows exclusions ("Chia đều (3/4 người)"). Opens the full control in place |
 | **Pick chips** | Radio group as avatar + short name pills (Ai trả?, Bạn là ai?); checked = ink border on `--surface-2`; long names ellipsize |
-| **Section** | Title row (17 px 700 + optional 13 px muted note) above a `--surface` panel with a 1 px `--card-edge` and 1 px `--line` dividers between rows; rows ≥ 60 px |
+| **Section** | Title row (17 px 700 + optional `--text-small` muted note) above a `--surface` panel with a 1 px `--card-edge` and 1 px `--line` dividers between rows; rows ≥ 60 px |
 | **Toast** | Bottom centre, `min(420px, 100vw − 32px)` wide, one line where possible, action button on the right (*Hoàn tác*). Stays 7 s. `role="status"` |
 | **Note** | `--surface-2` box with a mint (ok) or pink (attention) dot; used for AI results and blocked actions, placed next to what it is about |
 | **Composer (T-19)** | See §6.3 |
@@ -187,16 +189,20 @@ avatar stack would need one more request per house. If it is added later, one
 Nhà trọ Q7                     (T)(M)(A)+1      ← 22 px on a phone
 [ Tổng quan | Chi tiêu | Thành viên ]
 [ + Ghi khoản chi ]                              ← 48 px, filled, no sticker shadow
-╔══════════ taro block ═══════════╗
+╔══════════ taro block ═══════════╗   ← verdict B (05/11): only the answer
 ║ Bạn cần trả Minh                 ║
 ║ 120.000đ                         ║   ← 44 px
+║ Vì sao ra số này?                ║   ← when your balance is not 0
 ║ Đã báo chuyển 120.000đ · chờ Minh xác nhận ║ ← only your own sent notice
-║ ┌ (T) Bạn trả Minh 120.000đ      ┐   ← yours first
-║ │     Đã báo, chờ Minh xác nhận.  │   ← where it stands
-║ └     Huỷ báo                     ┘   ← then what you can do (flat buttons)
-║ ┌ (A) Anh trả Minh 80.000đ · Chưa trả. ┐
-║ ( Sao chép tin nhắn nhắc nợ )     ║   ← outline on the taro
 ╚═════════════════════════════════╝
+┌─────────── transfers panel ─────┐   ← white, 1 px --card-edge, right under the block
+│ (T) Bạn trả Minh 120.000đ        │   ← yours first
+│     Đã báo, chờ Minh xác nhận.   │   ← where it stands
+│     Huỷ báo                      │   ← then what you can do (flat buttons)
+│ ─────────────────────────────── │   ← --line between the rows
+│ (A) Duy Anh trả Minh 80.000đ · Chưa trả. │
+│ [ Sao chép tin nhắn nhắc nợ ]    │   ← secondary button, last
+└─────────────────────────────────┘
 Tháng 10/2026: cả nhà chi 3.460.000đ             ← this month, a section of its own
  (M) Minh   đã trả 1.065.000đ      860.000đ  phần chia
  (T) Tiến bạn đã trả 0đ            1.300.000đ  phần chia
@@ -206,6 +212,11 @@ Số dư từng người                   tính từ đầu tới hôm nay
  (L) Lan                                  0đ  SẠCH NỢ
 Lịch sử trả                      Ghi khoản trả khác
 ```
+* **Verdict B** (design review 05/11, mockup variant B). The taro block holds only the answer: the
+  sentence, the amount, *Vì sao ra số này?* and your own sent notice. The transfer cards, their actions
+  and *Sao chép tin nhắn nhắc nợ* sit in a white panel right under it, as rows with `--line` dividers;
+  white cards nested in the taro made the one loud place heavy. With no transfer and nothing to copy
+  there is no panel.
 * **Identity.** Since accounts ([ACCOUNTS.md](ACCOUNTS.md)) "bạn" is the name the signed-in account
   has in the household, given by the API (`member_id`); there is nothing to choose. It powers "Bạn…"
   sentences, the default payer, and who sees **Đã nhận** on a transfer (only its receiver). Before
@@ -344,9 +355,10 @@ phone column in the middle of a wide screen. Below 1024 px nothing changes. Wher
 what is shown or its order, the page asks `lib/useWide.ts` instead of moving things with CSS, so the
 keyboard goes through the page in the order it is seen.
 
-* **Frame:** the whole screen, with 32 px sides (40 px from 1440); no empty bands left and right on a
-  wide monitor (owner's choice, 04/11). From 1280 px the columns keep their 1280 proportions as the screen
-  widens, with a floor so the verdict and the form never get narrower than at 1280. The header keeps the
+* **Frame:** 32 px sides (40 px from 1440), and the content (header included) stops growing at 1320 px,
+  centred. The whole screen was the owner's choice on 04/11; the design review of 05/11 measured a name
+  and its amount a thousand pixels apart at 1920 px, so the owner capped it. Up to that cap the columns
+  keep their 1280 proportions, with a floor so the verdict and the form never get narrower than at 1280. The header keeps the
   wordmark and the account; under it, one row for the household: its name and avatars on the left, the
   three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
   Above that row, on every screen size, *‹ Nhà của bạn* leads back to the list, and for an account in

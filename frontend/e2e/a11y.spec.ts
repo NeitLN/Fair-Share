@@ -62,6 +62,16 @@ test('the household screens meet the accessibility checklist', async ({ page, re
       expect(small, `inputs under 16 px on ${path}`).toEqual([])
     }
 
+    // Verdict B (specs/003-desktop-redesign): the transfers sit in their own panel under the taro block,
+    // every button in it at least 44 px
+    await page.goto(`/households/${id}`)
+    const panel = page.locator('.verdict + .transfers-panel')
+    await expect(panel.getByRole('list', { name: 'Các lần trả gợi ý' })).toBeVisible()
+    const smallInPanel = await panel.locator('button').evaluateAll((els) =>
+      els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+    )
+    expect(smallInPanel, 'transfers panel buttons under 44 px').toEqual([])
+
     // Vì sao ra số này? (specs/002-balance-explanation): opens in place with every control at least 44 px,
     // no sideways scroll at 360 px, and Escape folds the line, then the explanation, back to its link
     await page.goto(`/households/${id}`)

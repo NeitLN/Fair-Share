@@ -1,0 +1,6 @@
+{"light": {"bg":"#F6F1E7","surface":"#FFFDF8","surface-2":"#F1E9DB","ink":"#17132B","muted":"#5E5868","control-line":"#8A7F6E","card-edge":"#C8B99F",
+  "primary":"#5A3CF0","on-primary":"#FFFFFF","primary-text":"#5A3CF0","block":"#5A3CF0","on-block":"#FFFFFF","on-block-muted":"#E4DCFF",
+  "credit-text":"#05694A","debt-text":"#B71F55","toast-bg":"#17132B","toast-fg":"#FFFFFF","toast-action":"#FFE14D","on-fill":"#17132B","ai":"#FFE14D","sticker-shadow":"#17132B"},
+ "dark": {"bg":"#16130F","surface":"#221E19","surface-2":"#2D2822","ink":"#F6F1E7","muted":"#BDB3A3","control-line":"#8F8576","card-edge":"#544B40",
+  "primary":"#8C74FF","on-primary":"#120C33","primary-text":"#A996FF","block":"#4B33D1","on-block":"#FFFFFF","on-block-muted":"#E4DCFF",
+  "credit-text":"#5EE9AE","debt-text":"#FF8FB0","toast-bg":"#F6F1E7","toast-fg":"#17132B","toast-action":"#5A3CF0","on-fill":"#0E0A1F","ai":"#FFE14D","sticker-shadow":"#6A52E8"}}

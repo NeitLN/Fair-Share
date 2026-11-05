@@ -41,7 +41,7 @@ Lines we considered and dropped: *"Sổ chung của nhà trọ"* (reads like a d
 2. Smallest sizes: wordmark 120 px wide, icon 16 px.
 3. Letters are ink or white only. Do not recolour, stretch, rotate or add shadows or outlines.
 4. The dot is always a yellow circle. Do not replace it with "·", an emoji or a coin drawing.
-5. Pairings: wordmark ink on white or lilac, white on taro or ink. Never yellow text on white, never pink
+5. Pairings: wordmark ink on white or cream, white on taro or ink. Never yellow text on white, never pink
    text on taro.
 
 Considered and dropped: a sticker cut into three wedges (reads as a pie chart and as "three people"), an
@@ -56,10 +56,13 @@ The same values as the UI tokens ([DESIGN.md §3](DESIGN.md#3-tokens)).
 |---|---|---|
 | Taro | `#5A3CF0` | the brand colour; drenched covers, the verdict block in the app |
 | Ink | `#17132B` | text, outlines, sticker shadows |
-| Mist | `#E3E1E9` | light backgrounds: a grey lilac, so taro stays the one purple mass (white cards sit on it at 1.30:1) |
+| Cream | `#F6F1E7` | light backgrounds: a warm cream, so taro stays the one purple mass (near-white panels sit on it with a 1 px edge); warm charcoal `#16130F` in dark mode. Replaced the grey lilac Mist `#E3E1E9` on 05/11 |
 | Yellow | `#FFE14D` | **attention**: the coin in the logo, Gõ nhanh (AI), the focus ring |
 | Mint | `#3DDC97` | *được nhận*, the ĐÃ TRẢ and SẠCH NỢ stickers |
 | Pink | `#FF5C8A` | *cần trả* |
+
+The link preview image, the slide and report covers and `readme-header.png` were drawn on the old lilac
+Mist and still show it until they are redrawn; the app itself uses Cream since 05/11.
 
 On any surface one colour leads (about 60%), one supports, and yellow is only a spot (about 5%). Mint and
 pink keep their money meaning and are not used as decoration.
