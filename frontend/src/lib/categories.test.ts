@@ -25,8 +25,23 @@ describe('guessCategory', () => {
     ['LAU NUONG', 'food'],
     ['lẩu nướng!', 'food'],
     ['tien dien', 'utilities'],
+    // "cho" (chợ / cho), "ca" (cá / cả), "an" (ăn / the name An), "trung" (trứng / Trung) only count
+    // inside a phrase (review of #199)
+    ['Tiền điện cho cả nhà', 'utilities'],
+    ['Tiền nhà tháng 11 trả cho chủ trọ', 'rent'],
+    ['Đổ xăng cho xe', 'transport'],
+    ['Mua đồ dùng cho cả phòng', 'household'],
+    ['Tiền điện, An trả', 'utilities'],
+    ['Trung ứng trước tiền nhà', 'rent'],
+    ['Mua cá lóc', 'groceries'],
+    ['Đi chợ sáng', 'groceries'],
+    ['Ăn tối', 'food'],
+    ['Đi ăn', 'food'],
+    ['Trứng gà', 'groceries'],
     // Nothing that matches a whole word
     ['Quần áo', 'other'],
+    ['Gửi cho Minh', 'other'],
+    ['Cả nhà', 'other'],
     ['Mua gà', 'other'],
     ['Nước suối', 'other'],
     ['', 'other'],

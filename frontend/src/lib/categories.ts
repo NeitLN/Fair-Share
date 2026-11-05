@@ -8,12 +8,16 @@ export const CATEGORIES: Category[] = ['food', 'groceries', 'utilities', 'rent',
 
 /**
  * Words that suggest a category, written without accents (research R3). A description matches when one
- * of them appears as whole words; the first category in CATEGORIES order with a match wins. Words that
- * mean several things on their own ("nuoc", "ga") only count inside a phrase ("tien nuoc", "binh ga").
+ * of them appears as whole words; the first category in CATEGORIES order with a match wins. Without
+ * accents some words mean several things, so they only count inside a phrase: "nuoc" (tiền nước), "ga"
+ * (bình ga), "cho" (đi chợ, not the preposition), "ca" (mua cá, not cả), "an" (đi ăn, not the name An),
+ * "trung" (trứng gà, not the name Trung). Review of #199.
  */
 const WORDS: Record<Exclude<Category, 'other'>, string[]> = {
-  food: ['an', 'an uong', 'lau', 'nuong', 'com', 'bun', 'pho', 'tra sua', 'cafe', 'ca phe', 'nhau', 'pizza', 'ga ran'],
-  groceries: ['cho', 'di cho', 'sieu thi', 'mi goi', 'trung', 'rau', 'thit', 'ca', 'gao', 'dau an', 'nuoc mam'],
+  food: ['an uong', 'an sang', 'an trua', 'an toi', 'an vat', 'di an', 'tien an', 'lau', 'nuong', 'com', 'bun', 'pho',
+    'tra sua', 'cafe', 'ca phe', 'nhau', 'pizza', 'ga ran'],
+  groceries: ['di cho', 'tien cho', 'sieu thi', 'mi goi', 'trung ga', 'trung vit', 'mua trung', 'rau', 'thit',
+    'mua ca', 'ca loc', 'ca thu', 'gao', 'dau an', 'nuoc mam'],
   utilities: ['dien', 'tien dien', 'tien nuoc', 'hoa don nuoc', 'internet', 'wifi', 'tien mang', 'gas', 'binh ga'],
   rent: ['tien nha', 'thue nha', 'tien phong', 'nha tro'],
   transport: ['xang', 'grab', 'xe', 'taxi', 'gui xe', 've xe', 'bus'],
