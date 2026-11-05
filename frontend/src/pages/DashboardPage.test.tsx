@@ -163,6 +163,13 @@ test("this month's spending has its own block, apart from the balances that add 
   expect(thisMonth.closest('section')).not.toBe(screen.getByRole('region', { name: 'Số dư từng người' }))
 })
 
+test("the month block opens this month's report (specs/004-monthly-report)", async () => {
+  api()
+  renderApp('/households/7')
+  const link = await screen.findByRole('link', { name: 'Báo cáo tháng' })
+  expect(link).toHaveAttribute('href', `/households/7/report/${today().slice(0, 7)}`)
+})
+
 // Verdict B (specs/003-desktop-redesign): the taro block answers, the transfers sit in a panel under it
 describe('verdict B', () => {
   test('the taro block holds the sentence, the amount and "Vì sao ra số này?"; the transfers are in a panel under it', async () => {

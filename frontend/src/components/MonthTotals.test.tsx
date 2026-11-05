@@ -29,3 +29,8 @@ test('the month total, then each member: paid and share', () => {
   expect(within(rows[1]).getByText('bạn')).toBeInTheDocument()
   expect(rows[2]).toHaveTextContent('Thành viên đã xoá')
 })
+
+test('no "Báo cáo tháng" link unless the page passes where it goes (Chi tiêu does not)', () => {
+  render(<MonthTotals month="2026-10" totals={totals} looks={memberLooks(members)} />)
+  expect(screen.queryByRole('link')).not.toBeInTheDocument()
+})

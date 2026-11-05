@@ -297,6 +297,7 @@ function Dashboard({ householdId }: { householdId: number }) {
               looks={looks}
               me={me}
               level={2}
+              reportTo={`/households/${householdId}/report/${thisMonth}`}
             />
           )}
           {/* Holds the place while the expenses load, so the balances below do not jump (review of #172) */}

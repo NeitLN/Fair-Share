@@ -77,6 +77,19 @@ function HouseholdLayout() {
     if (opened && oldKey) navigate({ pathname: location.pathname, search: location.search }, { replace: true })
   }, [opened, oldKey, navigate, location.pathname, location.search])
 
+  const onReport = /\/report(\/|$)/.test(location.pathname)
+  const overviewTab = (
+    <>
+      {t.household.overview}
+      {toldMe > 0 && (
+        <span className="tab-badge">
+          <span aria-hidden="true">{toldMe}</span>
+          <span className="visually-hidden">{t.household.toldYou(toldMe)}</span>
+        </span>
+      )}
+    </>
+  )
+
   if (missing && validId && oldKey) return <ClaimPanel householdId={householdId} oldKey={oldKey} />
   if (missing) {
     return (
@@ -124,15 +137,16 @@ function HouseholdLayout() {
           </div>
           {household.error && <p role="alert">{household.error.message}</p>}
           <nav className="tabs" aria-label={t.household.tabs}>
-            <NavLink to="" end>
-              {t.household.overview}
-              {toldMe > 0 && (
-                <span className="tab-badge">
-                  <span aria-hidden="true">{toldMe}</span>
-                  <span className="visually-hidden">{t.household.toldYou(toldMe)}</span>
-                </span>
-              )}
-            </NavLink>
+            {/* A monthly report belongs to Tổng quan: its tab stays marked there, as the section you are in */}
+            {onReport ? (
+              <Link to="" aria-current="true">
+                {overviewTab}
+              </Link>
+            ) : (
+              <NavLink to="" end>
+                {overviewTab}
+              </NavLink>
+            )}
             <NavLink to="expenses">{t.household.expenses}</NavLink>
             <NavLink to="members">
               {t.household.members}
