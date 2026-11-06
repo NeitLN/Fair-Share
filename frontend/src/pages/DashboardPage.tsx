@@ -23,6 +23,9 @@ import MonthTotals from '../components/MonthTotals'
 import BalanceExplanation from '../components/BalanceExplanation'
 import RecentExpenses from '../components/RecentExpenses'
 import RecentStrip from '../components/RecentStrip'
+import DueCard from '../components/DueCard'
+import { listRecurring, recurringKeys } from '../api/recurring'
+import { dueItems } from '../lib/recurring'
 import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
 import Skeleton from '../components/Skeleton'
@@ -170,6 +173,14 @@ function Dashboard({ householdId }: { householdId: number }) {
   }, [members.data, balances.data, householdId])
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
 
+  // "Tới hạn" (specs/007-recurring-expenses): worked out here from the items and the expenses; nothing
+  // while either is loading or failed
+  const recurring = useQuery({
+    queryKey: recurringKeys.list(householdId),
+    queryFn: () => listRecurring(householdId),
+  })
+  const due = recurring.isSuccess && expenses.isSuccess ? dueItems(recurring.data, expenses.data, today()) : []
+
   // "Mới ghi" (specs/006-recently-added): built only from complete data (members, expenses and
   // repayments all loaded), and "Đã xem tất cả" marks from exactly the lists it was built from
   const userId = session?.user.id ?? null
@@ -305,6 +316,8 @@ function Dashboard({ householdId }: { householdId: number }) {
             onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
             noticeBusy={noticeBusy}
           />
+          {/* Under the transfers: another money action, so the right column (and Báo cáo tháng) stays put */}
+          <DueCard items={due} looks={looks} householdId={householdId} />
           {wide && history}
         </div>
 

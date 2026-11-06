@@ -212,6 +212,32 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     }
     await page.setViewportSize({ width: 360, height: 800 })
 
+    // Tới hạn (specs/007-recurring-expenses): an item due today under the transfers; at 360 and 320 px
+    // nothing scrolls sideways and its controls are at least 44 px; at 1440 × 900 Báo cáo tháng stays
+    // in the first screen
+    const made = await request.post(`${API}/api/households/${id}/expenses`, {
+      data: { description: 'Internet', amount: 300_000, payer_id: ids[1], spent_at: new Date().toISOString().slice(0, 10),
+        split: { type: 'equal', member_ids: ids }, recurring: { varying_amount: false } },
+      headers: bearer(minh),
+    })
+    await request.delete(`${API}/api/expenses/${(await made.json()).id}`, { headers: bearer(minh) })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(`/households/${id}`)
+    const due = page.getByRole('region', { name: 'Tới hạn' })
+    await expect(due).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Báo cáo tháng' })).toBeInViewport()
+    for (const width of [360, 320]) {
+      await page.setViewportSize({ width, height: 800 })
+      await expect(due).toBeVisible()
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+      expect(wide, `sideways scroll with Tới hạn at ${width} px`).toBe(false)
+      const small = await due.locator('a, button').evaluateAll((els) =>
+        els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+      )
+      expect(small, `Tới hạn controls under 44 px at ${width} px`).toEqual([])
+    }
+    await page.setViewportSize({ width: 360, height: 800 })
+
     // Households: Escape closes "+ Tạo nhà mới"
     await page.goto('/')
     const create = page.getByText('+ Tạo nhà mới')

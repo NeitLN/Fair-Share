@@ -127,6 +127,8 @@ erDiagram
     households ||--o{ members : has
     households ||--o{ expenses : has
     households ||--o{ settlements : has
+    households ||--o{ recurring_items : has
+    recurring_items |o--o{ expenses : "recorded as"
     members ||--o{ expenses : "paid (payer_id)"
     expenses ||--|{ expense_shares : "split into"
     members ||--o{ expense_shares : owes
@@ -153,6 +155,19 @@ erDiagram
         date spent_at
         text source "manual | ai"
         text category "food | groceries | utilities | rent | transport | household | other"
+        bigint recurring_item_id FK "nullable, ON DELETE SET NULL"
+        timestamptz created_at
+    }
+    recurring_items {
+        bigint id PK
+        bigint household_id FK "ON DELETE CASCADE"
+        text description "1-120 chars"
+        text category
+        bigint payer_id
+        bigint_array member_ids "1-50, shared equally"
+        bigint amount "NULL = varies each month"
+        smallint day "1-31"
+        boolean active
         timestamptz created_at
     }
     expense_shares {
@@ -181,6 +196,14 @@ settlement must be members of the **same household** (composite foreign keys on
 * **Money is an integer number of đồng (`bigint`)**, never a float. No rounding errors, easy to test.
 * **Equal split rule:** `base = amount // n`, the remaining `amount % n` đồng go one each to the
   participants with the lowest member id. Shares therefore always sum to the amount exactly.
+* **Recurring expenses** ([spec 007](../specs/007-recurring-expenses/spec.md),
+  `006_recurring_expenses.sql`): an item remembers how to fill the form again (equal split, amount or
+  none, day of the month); it is made by ticking a new expense and recorded from by a person, never by
+  the app. **One expense per item per month of its date** is a partial unique index on
+  `(recurring_item_id, date_trunc('month', spent_at::timestamp)::date)`, so two people saving at once,
+  or an edit moving the date into a recorded month, get `409 recurring_month_taken`. Items are stopped,
+  never deleted, so the expenses keep their link; they go with their house. What is due is worked out
+  in the page when someone opens it: there is no scheduler.
 * **Categories** ([spec 005](../specs/005-expense-categories/spec.md), `005_expense_categories.sql`):
   every expense has one of seven fixed codes, checked by the database, `other` by default (so every
   expense from before, and a client that sends none, is *Khác*). No table: the list is not per house.
@@ -238,6 +261,8 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?}`; `422 same_member`, `unknown_member` |
 | `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found` |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
+| `GET /api/households/{id}/recurring` | The active recurring items, oldest first | Spec 007; making and recording go through the expense body below |
+| `POST /api/recurring/{id}/stop` | Stop a recurring item (its creator or the owner) | `204`; `403 forbidden`; `404 recurring_not_found` |
 | `POST /api/households/{id}/ai/parse-expense` | **AI quick add** — `{text}` (1–300 characters) in, a draft out; saves nothing | Response and error codes in §6 |
 
 **Accounts and access** ([ACCOUNTS.md](ACCOUNTS.md), replacing the household key of #132). Every
@@ -285,6 +310,13 @@ FastAPI's interactive docs at `/docs` are the living API reference.
   "category": "food",                    // optional; food, groceries, utilities, rent, transport,
                                          // household or other. Left out: "other" on create,
                                          // the stored one kept on PUT
+  // POST only, at most one of the two (spec 007); a PUT keeps the expense's link:
+  "recurring": {"varying_amount": false}, // make this new expense recur every month (equal split
+                                         // only: 422 recurring_needs_equal_split; 20 active at most:
+                                         // 409 too_many_recurring)
+  "recurring_item_id": 7,                // this is item 7's expense for the month of spent_at
+                                         // (404 recurring_not_found, 409 recurring_stopped,
+                                         // 409 recurring_month_taken with details.expense_id)
   "split": {"type": "equal", "member_ids": [1, 2, 3]}
   // or:   {"type": "custom", "shares": [{"member_id": 1, "amount": 60000},
   //                                     {"member_id": 3, "amount": 40000}]}   // must sum to amount

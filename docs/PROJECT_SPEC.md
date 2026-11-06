@@ -90,6 +90,12 @@ will not carry them and they add nothing to the assessed pipeline.
 > nothing. A count on the Thành viên tab shows requests to approve, one on Tổng quan notices waiting
 > for you. There is no push, no email and no "your request was answered" message.
 
+> **Since 06/11 (approved by the owner):** recurring expenses
+> ([specs/007](../specs/007-recurring-expenses/spec.md)). A house can mark an expense as repeating every
+> month; when its day comes, Tổng quan suggests it and the add form opens filled, but a person always
+> presses Lưu: the app records no money by itself, and there is no scheduler, notification or email.
+> The database keeps at most one expense per item and month.
+
 ### 3.4 Stretch goals (only after every Week 8 milestone is green)
 
 * Filter expenses by month and member; monthly total per member.

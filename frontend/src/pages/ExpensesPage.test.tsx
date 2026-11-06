@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { Expense, ExpenseInput } from '../api/types'
+import { today } from '../lib/date'
 import { mockApi, renderApp } from '../test/renderApp'
 import { onAComputer } from '../test/screen'
 
@@ -550,4 +551,87 @@ test('a month with no expense in the hand-off is ignored', async () => {
   renderApp({ pathname: '/households/7/expenses', state: { month: '2026-03' } })
   expect(await screen.findByText('Tiền điện')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { level: 3, name: /cả nhà chi/ })).not.toBeInTheDocument()
+})
+
+// Khoản chi định kỳ (specs/007-recurring-expenses)
+describe('recurring expenses in Chi tiêu', () => {
+  const rent = {
+    id: 7, household_id: 7, description: 'Tiền nhà', category: 'rent', payer_id: 2, member_ids: [1, 2],
+    amount: 3_000_000, day: 1, created_by: 9, created_at: '',
+  }
+  const recordedRent = { ...saved(20, {
+    description: 'Tiền nhà', amount: 3_000_000, payer_id: 2, spent_at: today(),
+    split: { type: 'equal', member_ids: [1, 2] },
+  }), recurring_item_id: 7 }
+  const sentBodies = (fetchFn: ReturnType<typeof api>, method: string) =>
+    fetchFn.mock.calls
+      .filter(([, init]) => (init as RequestInit | undefined)?.method === method)
+      .map(([, init]) => JSON.parse((init as RequestInit).body as string))
+
+  test('Ghi luôn opens the form filled from the item, and Lưu records it as that month', async () => {
+    const fetchFn = api({ 'GET /api/households/7/recurring': [200, [rent]] })
+    const user = userEvent.setup()
+    renderApp({ pathname: '/households/7/expenses', state: { recordItem: 7 } })
+    expect(await screen.findByDisplayValue('Tiền nhà')).toBeInTheDocument()
+    expect(screen.getByLabelText('Số tiền')).toHaveValue('3000000')
+    expect(screen.getByText(/^Đang ghi kỳ/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    await waitFor(() => expect(sentBodies(fetchFn, 'POST')).toHaveLength(1))
+    expect(sentBodies(fetchFn, 'POST')[0]).toMatchObject({ recurring_item_id: 7, payer_id: 2, category: 'rent' })
+    // Back to an ordinary new expense
+    await waitFor(() => expect(screen.queryByText(/^Đang ghi kỳ/)).not.toBeInTheDocument())
+  })
+
+  test('a month already recorded: said with the month and the item, the form keeps what was typed', async () => {
+    api({
+      'GET /api/households/7/recurring': [200, [rent]],
+      'POST /api/households/7/expenses': [409, { error: {
+        code: 'recurring_month_taken', message: 'x', details: { expense_id: 10 },
+      } }],
+    })
+    const user = userEvent.setup()
+    renderApp({ pathname: '/households/7/expenses', state: { recordItem: 7 } })
+    await screen.findByDisplayValue('Tiền nhà')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    const [year, month] = today().split('-')
+    const alert = await screen.findByText(`Kỳ ${Number(month)}/${year} của Tiền nhà đã có người ghi.`)
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Tiền nhà')
+    await user.click(within(alert).getByRole('button', { name: 'Xem khoản đã ghi' }))
+    expect(await list().findByText('Tiền điện')).toBeInTheDocument()
+  })
+
+  test('editing a recorded expense never sends the link, and a taken month is said the same way', async () => {
+    // "Tiền phòng": "Tiền nhà" is also a category name on the page
+    const fetchFn = api({
+      'GET /api/households/7/expenses': [200, [{ ...recordedRent, description: 'Tiền phòng' }]],
+      'GET /api/households/7/recurring': [200, [{ ...rent, description: 'Tiền phòng' }]],
+      'PUT /api/expenses/20': [409, { error: {
+        code: 'recurring_month_taken', message: 'x', details: { expense_id: 21 },
+      } }],
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await user.click(await list().findByText('Tiền phòng'))
+    await user.click(await screen.findByRole('button', { name: 'Sửa Tiền phòng' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    await screen.findByText(/^Kỳ .* của Tiền phòng đã có người ghi\.$/)
+    expect(sentBodies(fetchFn, 'PUT')[0]).not.toHaveProperty('recurring_item_id')
+    expect(screen.queryByRole('checkbox', { name: 'Lặp lại hằng tháng' })).not.toBeInTheDocument()
+  })
+
+  test('Khoản định kỳ lists the items; the creator can stop one', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    const fetchFn = api({
+      'GET /api/households/7/recurring': [200, [rent]],
+      'POST /api/recurring/7/stop': [204],
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await user.click(await screen.findByText('Khoản định kỳ (1)'))
+    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    await waitFor(() =>
+      expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/recurring/7/stop' && init?.method === 'POST')).toBe(true),
+    )
+    expect(await screen.findByText('Đã ngừng lặp Tiền nhà.')).toBeInTheDocument()
+  })
 })

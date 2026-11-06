@@ -45,6 +45,10 @@ def settlement_not_found() -> ApiError:
     return ApiError(404, "settlement_not_found", "This settlement does not exist")
 
 
+def recurring_not_found() -> ApiError:
+    return ApiError(404, "recurring_not_found", "No such recurring expense in this household")
+
+
 @dataclass(frozen=True)
 class Access:
     """The signed-in user's place in the household a request is about."""
@@ -82,6 +86,8 @@ _OWNERS = {
     "member_id": (_THROUGH_TABLE.format(table="members"), member_not_found),
     "expense_id": (_THROUGH_TABLE.format(table="expenses"), expense_not_found),
     "settlement_id": (_THROUGH_TABLE.format(table="settlements"), settlement_not_found),
+    # specs/007-recurring-expenses: the same 404 for a stranger as for an id that does not exist
+    "recurring_id": (_THROUGH_TABLE.format(table="recurring_items"), recurring_not_found),
 }
 
 

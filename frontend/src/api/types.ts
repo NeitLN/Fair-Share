@@ -116,6 +116,25 @@ export interface Expense {
   shares: Share[]
   /** The account that recorded it; null for one from before accounts (the owner's to change). */
   created_by?: number | null
+  /** The recurring item this is the month's expense of (specs/007-recurring-expenses). */
+  recurring_item_id?: number | null
+}
+
+/** A recurring item (specs/007-recurring-expenses): how to fill the form again when its day comes. */
+export interface RecurringItem {
+  id: number
+  household_id: number
+  description: string
+  category: Category
+  payer_id: number
+  /** Shared equally between them. */
+  member_ids: number[]
+  /** null: the amount changes every month and is typed each time. */
+  amount: number | null
+  /** Day of the month, 1–31 (the month's last day when shorter). */
+  day: number
+  created_by: number | null
+  created_at: string
 }
 
 /** Body of POST /api/households/{id}/expenses and PUT /api/expenses/{id}. */
@@ -129,6 +148,10 @@ export interface ExpenseInput {
   source?: ExpenseSource
   /** Defaults to "other" on the server. */
   category?: Category
+  /** New expenses only: make it recur every month (specs/007-recurring-expenses). */
+  recurring?: { varying_amount: boolean }
+  /** New expenses only: this is the month's expense of that recurring item. */
+  recurring_item_id?: number
   split:
     | { type: 'equal'; member_ids: number[] }
     | { type: 'custom'; shares: Share[] }

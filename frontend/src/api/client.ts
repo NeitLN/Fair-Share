@@ -8,18 +8,21 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
+  /** What the server added for the page, e.g. the expense a 409 conflicts with. */
+  readonly details: unknown
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 
 type ErrorBody = {
   // Our format (docs/ARCHITECTURE.md §5): {"error": {"code": "...", "message": "..."}}
-  error?: { code?: string; message?: string }
+  error?: { code?: string; message?: string; details?: unknown }
   // FastAPI's default format, until every route uses ours
   detail?: unknown
 }
@@ -32,7 +35,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     // Not JSON (e.g. an HTML page from a proxy); fall through to the generic message
   }
   if (body.error?.message) {
-    return new ApiError(response.status, body.error.code ?? 'error', body.error.message)
+    return new ApiError(response.status, body.error.code ?? 'error', body.error.message, body.error.details)
   }
   if (typeof body.detail === 'string') {
     return new ApiError(response.status, 'error', body.detail)

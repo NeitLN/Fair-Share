@@ -14,7 +14,17 @@ from app.config import APP_VERSION, Settings
 from app.db import DatabaseCooldown, create_pool
 from app.limits import BodySizeLimit
 from app.migrate import prepare_database
-from app.routers import accounts, ai, balances, expenses, households, members, settlements, system
+from app.routers import (
+    accounts,
+    ai,
+    balances,
+    expenses,
+    households,
+    members,
+    recurring,
+    settlements,
+    system,
+)
 from app.routers.accounts import KEY_HEADER
 from app.services.gemini import GeminiClient
 from app.services.rate_limit import AiBudget
@@ -68,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(households.router)
     app.include_router(members.router)
     app.include_router(expenses.router)
+    app.include_router(recurring.router)
     app.include_router(settlements.router)
     app.include_router(balances.router)
     app.include_router(ai.router)

@@ -3,7 +3,7 @@ import { createRef } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 
-import type { Expense, Member } from '../api/types'
+import type { Expense, Member, RecurringItem } from '../api/types'
 import ExpenseForm from './ExpenseForm'
 import type { ExpenseFormHandle } from './ExpenseForm'
 
@@ -956,5 +956,114 @@ describe('ExpenseForm, the category', () => {
     await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
     await user.type(screen.getByLabelText('Nội dung'), 'Đổ xăng')
     expect(categoryValue()).toHaveTextContent('Đi lại')
+  })
+})
+
+// Khoản chi định kỳ (specs/007-recurring-expenses)
+describe('ExpenseForm, recurring', () => {
+  const tick = () => screen.getByRole('checkbox', { name: 'Lặp lại hằng tháng' })
+
+  test('Lặp lại hằng tháng: off, names the day, then offers a varying amount; the input says so', async () => {
+    const { user, onSubmit } = setup()
+    expect(tick()).not.toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: 'Số tiền thay đổi mỗi tháng' })).not.toBeInTheDocument()
+    await fillBasics(user, '300k')
+    await user.click(tick())
+    const day = Number(new Date().getDate())
+    expect(screen.getByText(`Nhắc ngày ${day} mỗi tháng · không tự ghi tiền`)).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Số tiền thay đổi mỗi tháng' }))
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recurring: { varying_amount: true } }))
+    // Ready for the next expense: not ticked any more
+    await waitFor(() => expect(tick()).not.toBeChecked())
+  })
+
+  test('without the tick nothing recurs', async () => {
+    const { user, onSubmit } = setup()
+    await fillBasics(user)
+    await save(user)
+    const input = onSubmit.mock.calls[0][0]
+    expect(input).not.toHaveProperty('recurring')
+    expect(input).not.toHaveProperty('recurring_item_id')
+  })
+
+  test('a custom split cannot recur: it says so and does not save', async () => {
+    const { user, onSubmit } = setup()
+    await fillBasics(user, '300000')
+    await openSplit(user)
+    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    const inputs = screen.getAllByRole('textbox', { name: /^Phần của/ })
+    await user.type(inputs[0], '200000')
+    await user.type(inputs[1], '100000')
+    await user.click(tick())
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByText(/Khoản định kỳ chỉ chia đều/)).toBeInTheDocument()
+  })
+
+  test('not offered when editing', () => {
+    setup({
+      initial: {
+        id: 5, household_id: 7, description: 'Tiền nhà', amount: 300_000, payer_id: 1, spent_at: '2026-11-01',
+        source: 'manual', category: 'rent', created_at: '', split_type: 'equal',
+        shares: [1, 2, 3].map((member_id) => ({ member_id, amount: 100_000 })),
+      },
+    })
+    expect(screen.queryByRole('checkbox', { name: 'Lặp lại hằng tháng' })).not.toBeInTheDocument()
+  })
+
+  const item = (overrides: Partial<RecurringItem> = {}): RecurringItem => ({
+    id: 7, household_id: 7, description: 'Tiền nhà', category: 'rent', payer_id: 2, member_ids: [1, 2, 3],
+    amount: 4_500_000, day: 1, created_by: 10, created_at: '', ...overrides,
+  })
+
+  test('filled from a due item: its fields, today, the period, no tick; the input names the item', async () => {
+    const { user, onSubmit } = setup({ fromItem: item() })
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Tiền nhà')
+    expect(screen.getByLabelText('Số tiền')).toHaveValue('4500000')
+    expect(payer()).toBe('2')
+    const month = new Date()
+    expect(screen.getByText(`Đang ghi kỳ ${month.getMonth() + 1}/${month.getFullYear()}`)).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Lặp lại hằng tháng' })).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Tiền nhà',
+        amount: 4_500_000,
+        payer_id: 2,
+        category: 'rent',
+        source: 'manual',
+        recurring_item_id: 7,
+        split: { type: 'equal', member_ids: [1, 2, 3] },
+      }),
+    )
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('recurring')
+  })
+
+  test('the period follows the date', async () => {
+    const { user } = setup({ fromItem: item() })
+    await openDate(user)
+    const date = screen.getByLabelText('Ngày trả')
+    await user.clear(date)
+    await user.type(date, '2026-12-03')
+    expect(screen.getByText('Đang ghi kỳ 12/2026')).toBeInTheDocument()
+  })
+
+  test('a varying item opens with the amount empty and focused', () => {
+    setup({ fromItem: item({ amount: null, description: 'Tiền điện' }) })
+    expect(screen.getByLabelText('Số tiền')).toHaveValue('')
+    expect(screen.getByLabelText('Số tiền')).toHaveFocus()
+  })
+
+  test('people no longer in the house are left out and named; a payer who left is left to pick', () => {
+    const withRoles = [
+      { ...members[0], role: 'owner' as const },
+      { ...members[1], role: null },
+      { ...members[2], role: 'member' as const },
+    ]
+    setup({ members: withRoles, fromItem: item() })
+    expect(screen.getByText('Minh không còn trong nhà, đã bỏ khỏi cách chia.')).toBeInTheDocument()
+    expect(screen.getByText('Người trả trước đây không còn trong nhà: chọn người trả.')).toBeInTheDocument()
+    expect(payer()).toBe('')
   })
 })
