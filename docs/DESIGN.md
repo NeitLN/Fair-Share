@@ -435,7 +435,13 @@ keyboard goes through the page in the order it is seen.
   same 440 px form, then the language and theme 16 px under it, so Tab goes form, language, theme. No
   taro background, no sample amount, no speed claim, no stamp: the form's submit stays the strongest
   colour. `useWide` decides it, so a phone gets exactly the form of §6.1. Taller than the screen (Tạo tài
-  khoản with errors), the page scrolls.
+  khoản with errors), the page scrolls. After a sign-in review on 07/11: the block sits 5 % of the height
+  above the middle (the optical centre; the exact middle read as low); the form's title is 24 px so it
+  keeps one line under the tagline; the two tabs are as wide as the fields; the stickers carry a line,
+  *Một nhà, nhiều người. Chi tiêu vẫn rõ ràng.*; the intro is one sentence; and the language and theme
+  lose their track, in smaller muted words with the chosen one on a light pill, still 44 px to press.
+  On every screen size the password field has *Hiện* / *Ẩn* inside it. No *Quên mật khẩu?* while the app
+  has no reset (it would be a dead link), and the title keeps saying what the form does.
 * Hover tints rows and inactive tabs with `--surface-2`; the focus ring stays on top of it.
 
 ### 6.7 UI review of 03/11: what changed and why

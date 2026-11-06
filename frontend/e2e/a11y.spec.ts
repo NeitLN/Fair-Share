@@ -284,16 +284,17 @@ test('the sign-in page on a laptop and on a phone', async ({ page }) => {
   expect(small, 'sign-in controls under 44 px').toEqual([])
   const sideways = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
   expect(sideways, 'sideways scroll on sign-in at 1366 px').toBe(false)
-  // Centred: the block's middle within 24 px of the window's
-  const off = await page.locator('.auth-layout').evaluate((el) => {
+  // Centred a little above the middle (5 % of the height, 38 px at 768): the optical centre
+  const above = await page.locator('.auth-layout').evaluate((el) => {
     const r = el.getBoundingClientRect()
-    return Math.abs(r.top + r.height / 2 - window.innerHeight / 2)
+    return window.innerHeight / 2 - (r.top + r.height / 2)
   })
-  expect(off, 'sign-in block off centre').toBeLessThanOrEqual(24)
+  expect(above, 'sign-in block above the middle').toBeGreaterThanOrEqual(20)
+  expect(above, 'sign-in block above the middle').toBeLessThanOrEqual(60)
 
-  // Tab from the top: the two tabs, the fields, submit, then the language and the theme
+  // Tab from the top: the two tabs, the fields with Hiện, submit, then the language and the theme
   const order: string[] = []
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 11; i++) {
     await page.keyboard.press('Tab')
     order.push(
       await page.evaluate(() => {
@@ -302,7 +303,7 @@ test('the sign-in page on a laptop and on a phone', async ({ page }) => {
       }),
     )
   }
-  expect(order).toEqual(['Đăng nhập', 'Tạo tài khoản', 'auth-email', 'auth-password', 'Đăng nhập', 'EN', 'VI', 'Tự động', 'Sáng', 'Tối'])
+  expect(order).toEqual(['Đăng nhập', 'Tạo tài khoản', 'auth-email', 'auth-password', 'Hiện', 'Đăng nhập', 'EN', 'VI', 'Tự động', 'Sáng', 'Tối'])
 
   // A phone: the page as before, with the header's wordmark and no brand block
   await page.setViewportSize({ width: 360, height: 800 })
