@@ -788,6 +788,13 @@ button:focus-visible {
   box-shadow: 0 0 0 5px var(--ai);
 }
 
+/* A link or a fold styled as a button: the variant's `box-shadow: none` above beat the global halo, so
+   only the dark ring was left, invisible on the dark theme's ground (#211: Ghi luôn, ‹ Tháng trước,
+   Nhập mã mời, + Tạo nhà mới) */
+:where(a, summary):is(.btn-secondary, .btn-ghost, .btn-danger):focus-visible {
+  box-shadow: 0 0 0 5px var(--ai);
+}
+
 button:where([type='submit']:not(.btn-secondary, .btn-ghost, .btn-danger, .secondary, .ghost)):focus-visible,
 button.btn-primary:focus-visible,
 button.btn-ai:focus-visible,

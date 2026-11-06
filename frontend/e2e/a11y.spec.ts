@@ -119,6 +119,18 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await expect(page.locator('.category-track').first()).toHaveAttribute('aria-hidden', 'true')
     await page.setViewportSize({ width: 1440, height: 900 })
     await expect(page.getByRole('table').getByRole('columnheader')).toHaveCount(7)
+    // #211: a fold or a link styled as a button keeps the yellow halo when focused (it lost it, leaving
+    // only the dark ring, invisible on the dark theme). Reached with the keyboard, so the browser shows
+    // focus-visible: back one stop, then forward to it
+    await page.goto('/')
+    const invite = page.locator('summary.btn-secondary').first()
+    await invite.focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(invite).toBeFocused()
+    await expect
+      .poll(() => page.evaluate(() => getComputedStyle(document.activeElement as Element).boxShadow))
+      .toContain('rgb(255, 225, 77)')
     await page.setViewportSize({ width: 360, height: 800 })
 
     // Đã nhận: the stamp is text, the toast is a polite live region, and nothing moves
