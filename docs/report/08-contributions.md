@@ -1,24 +1,24 @@
 # 8. Individual contributions
 
-*Compiled by Việt Tiến, checked and signed by all; figures recomputed before the PDF (T-36).*
+*Compiled by Việt Tiến, checked and signed by all; figures as of 06/11/2026 (T-36).*
 
 | Member | Main work (task, pull request) | Report sections |
 |---|---|---|
-| **Võ Việt Tiến** ([@NeitLN](https://github.com/NeitLN)), team leader, platform/DevOps, AI | Spec, architecture and roadmap (T-01); API Dockerfile (T-04); Supabase via `DATABASE_URL` (T-05); CI pipeline and branch protection (T-13); Render static site and deploy job (T-14, T-23); post-deploy smoke and keep-alive (T-24, T-26); secret audit with gitleaks (T-29); Gemini client and Quick add endpoint (T-21, T-22); design system, UI foundation and screens (T-41–T-44); database outage fix (#127); private households with invite links (#132: #137, #138); demo-day runbook (T-38, in review) | 1, 4, 6, 7, 8 (editor) |
-| **Võ Hoàng Minh** ([@Jayson135724](https://github.com/Jayson135724)), backend and database lead | Backend structure, pool and error format (T-06); schema, migrations and seed (T-07); households, members, expenses, settlements and balances APIs with their tests (T-08, T-15–T-17); validation and error contract (T-25); persistence drill (T-27); architecture and ER diagrams (T-28); final README (T-39); red-gate demo branch (T-35) | 2, 5 |
-| **Bùi Duy Anh** ([@anh7032](https://github.com/anh7032)), frontend lead, QA | React scaffold and typed API client (T-09); web image and nginx (T-10); Compose stack (T-11); households, members, expenses and dashboard pages (T-12, T-18, T-20); Quick add UI and its failure states (T-19); UI polish and Playwright smoke test (T-32, T-33); accessibility checklist as a browser test (#114); filters and CSV export (T-45, T-46); demo household data (#125); clean-clone rehearsal (T-34); slides (T-37); reviews that caught the commit-after-response bug (#84) and the invite-key bypass (#138) | 3, 6 (screenshots) |
+| **Võ Việt Tiến** ([@NeitLN](https://github.com/NeitLN)), team leader, platform/DevOps, AI | Spec and roadmap (T-01); Dockerfile, Supabase, CI, Render deploys, smoke, keep-alive (T-04, T-05, T-13, T-14, T-23, T-24, T-26); secret audit (T-29); Quick add with Gemini (T-21, T-22); design and screens (T-41–T-44); outage fix (#127); private households (#132), accounts (#166); monthly report, categories, "Mới ghi", recurring expenses (#197, #199, #201, #204); demo runbook (T-38); report editing, PDF build (#146) | 1, 4, 6, 7, 8 (editor) |
+| **Võ Hoàng Minh** ([@Jayson135724](https://github.com/Jayson135724)), backend and database lead | Backend structure, pool and error format (T-06); schema, migrations and seed (T-07); households, members, expenses, settlements and balances APIs with their tests (T-08, T-15–T-17); validation and error contract (T-25); persistence drill, two runs (T-27, #163); architecture and ER diagrams (T-28); README (T-39); red-gate demo (T-35); four peer-review findings (#153–#156); review of most pull requests, which caught the slow argon2 login in #166 | 2, 5 |
+| **Bùi Duy Anh** ([@anh7032](https://github.com/anh7032)), frontend lead, QA | React scaffold and typed API client (T-09); web image and nginx (T-10); Compose stack (T-11); the first pages (T-12, T-18, T-20); Quick add UI and its failures (T-19); UI polish, Playwright smoke test (T-32, T-33); accessibility as a browser test (#114); filters, CSV export (T-45, T-46); demo data (#125); fixes from peer review (#144, #145, #150, #151); clean-clone rehearsals, with accounts (T-34, #187); slides (T-37); reviews that caught #84 and #138 | 3, 6 (screenshots) |
 
 Peer review (T-30, #49), each on another's area: Duy Anh → Hoàng Minh, Việt Tiến → Duy Anh, Hoàng Minh → Việt Tiến.
 
 | What the repository shows | Việt Tiến | Hoàng Minh | Duy Anh |
 |---|---|---|---|
-| Commits on `main`, no merges (Duy Anh's two e-mails added up) | 71 | 23 | 108 |
-| Merged pull requests authored | 36 | 18 | 26 |
-| Others' merged pull requests reviewed (approved) | 6 (6) | 50 (50) | 22 (21) |
-| Closed issues assigned | 18 | 10 | 13 |
-| Peer-review findings filed (T-30) | 2 | 0 (due 29/10) | 4 |
+| Commits on `main`, no merges (Duy Anh's two e-mails added up) | 124 | 26 | 119 |
+| Merged pull requests authored | 70 | 20 | 35 |
+| Others' merged pull requests reviewed (approved) | 12 (12) | 83 (83) | 32 (31) |
+| Closed issues assigned | 37 | 17 | 17 |
+| Peer-review findings filed (T-30) | 2 | 4 | 4 |
 
-Taken at `main` = `e37e438` (27/10) with `git shortlog -sne --no-merges`, `gh pr list` and `gh issue list`.
+Taken at `main` = `53a5feb` (06/11) with `git shortlog -sne --no-merges`, `gh pr list` and `gh issue list`.
 Commit counts depend on how finely each person commits, so read them with the pull requests and tasks.
 
 We agree that the tables above describe our contributions, and on the shares below (together 100%).
