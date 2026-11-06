@@ -30,6 +30,8 @@ Id = Annotated[int, Path(ge=1, le=BIGINT_MAX)]
 
 # A member id inside a body: a real JSON number (`true` would otherwise become member 1).
 MemberId = Annotated[StrictInt, Field(ge=1, le=BIGINT_MAX)]
+# The id of any other row sent in a body (a recurring item), with the same rules as MemberId
+RowId = Annotated[StrictInt, Field(ge=1, le=BIGINT_MAX)]
 
 # The day an expense was spent or a settlement paid. Anything outside this range is a typo
 # (year 0001 or 9999) that would sort the lists and the balances history in odd places.
@@ -313,7 +315,7 @@ class ExpenseIn(BaseModel):
     # POST only (specs/007-recurring-expenses): make this new expense recur, or record it as the
     # month's expense of an item. A PUT ignores both and keeps the expense's link.
     recurring: RecurringIn | None = None
-    recurring_item_id: MemberId | None = None
+    recurring_item_id: RowId | None = None
 
     @model_validator(mode="after")
     def one_recurring_field(self) -> "ExpenseIn":
