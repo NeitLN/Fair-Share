@@ -66,6 +66,8 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     await minh.goto(`/households/${householdId}/expenses`)
     await minh.getByLabel('Nội dung').fill('Lẩu E2E')
     await minh.getByLabel('Số tiền').fill('300k')
+    // The payer is Minh only once the house has loaded (see categories.spec.ts)
+    await expect(minh.getByRole('radio', { name: /^Minh/ })).toBeChecked()
     await minh.getByRole('button', { name: 'Lưu khoản chi' }).click()
     // The toast "Đã lưu: Lẩu E2E 300.000đ" repeats it: the row is the exact text
     await expect(minh.getByText('Lẩu E2E', { exact: true })).toBeVisible()
