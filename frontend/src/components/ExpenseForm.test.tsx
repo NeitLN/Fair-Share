@@ -214,7 +214,7 @@ describe('ExpenseForm, equal split', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user, '240000')
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     await user.type(screen.getByLabelText('Phần của Tiến'), '140000')
     await user.type(screen.getByLabelText('Phần của Minh'), '100000')
     await save(user)
@@ -245,10 +245,10 @@ describe('ExpenseForm, custom split', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user, '240000')
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     await user.type(screen.getByLabelText('Phần của Minh'), '140000')
 
-    expect(plain(screen.getByText(/Còn lại/).textContent)).toBe('Còn lại: 100.000đ')
+    expect(plain(screen.getByText(/Chưa chia/).textContent)).toBe('Chưa chia: 100.000đ')
 
     await save(user)
     expect(onSubmit).not.toHaveBeenCalled()
@@ -259,12 +259,12 @@ describe('ExpenseForm, custom split', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user, '240000')
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     await user.type(screen.getByLabelText('Phần của Minh'), '140.000')
     await user.type(screen.getByLabelText('Phần của Duy Anh'), '100k')
 
     expect(screen.getByText('Đã chia khớp số tiền.')).toBeInTheDocument()
-    expect(screen.getByText('Chia riêng (2 người)')).toBeInTheDocument()
+    expect(screen.getByText(/^Tự chia · 2 người$/)).toBeInTheDocument()
     await save(user)
     expect(onSubmit.mock.calls[0][0].split).toEqual({
       type: 'custom',
@@ -279,7 +279,7 @@ describe('ExpenseForm, custom split', () => {
     const { user } = setup()
     await fillBasics(user, '100000')
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     await user.type(screen.getByLabelText('Phần của Tiến'), '150000')
 
     expect(plain(screen.getByText(/Vượt quá/).textContent)).toBe('Vượt quá: 50.000đ')
@@ -345,7 +345,7 @@ describe('ExpenseForm, checks and outcomes', () => {
 
     expect(screen.getByText('Tổng các phần phải bằng đúng số tiền của khoản chi.')).toBeInTheDocument()
     // The way of splitting in use gets focus, and its button carries the message
-    const custom = screen.getByRole('button', { name: 'Chia riêng' })
+    const custom = screen.getByRole('button', { name: 'Tự chia' })
     expect(custom).toHaveFocus()
     expect(custom).toHaveAccessibleDescription('Tổng các phần phải bằng đúng số tiền của khoản chi.')
   })
@@ -396,11 +396,11 @@ describe('ExpenseForm, editing', () => {
     expect(screen.getByLabelText('Số tiền')).toHaveValue('240000')
     // The saved payer, not the device's default
     expect(payer()).toBe('2')
-    expect(screen.getByText('Chia riêng (2 người)')).toBeInTheDocument()
+    expect(screen.getByText(/^Tự chia · 2 người$/)).toBeInTheDocument()
     await openDate(user)
     expect(screen.getByLabelText('Ngày trả')).toHaveValue('2026-10-18')
     await openSplit(user)
-    expect(screen.getByRole('button', { name: 'Chia riêng' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Tự chia' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Phần của Minh')).toHaveValue('140000')
     expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeInTheDocument()
   })
@@ -715,7 +715,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     const { user, form } = setupWithRef()
     await user.type(screen.getByLabelText('Số tiền'), '240000')
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     await user.type(screen.getByLabelText('Phần của Minh'), '240000')
 
     let result
@@ -724,7 +724,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     })
     // The user had changed the split, so the whole group is kept, amounts included
     expect(result).toMatchObject({ kept: ['amount', 'split'] })
-    expect(screen.getByRole('button', { name: 'Chia riêng' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Tự chia' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Phần của Minh')).toHaveValue('240000')
   })
 
@@ -734,7 +734,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       form().fill(draft)
     })
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     expect(screen.getByLabelText('Phần của Minh')).toHaveValue('')
     await user.click(screen.getByRole('button', { name: 'Chia đều' }))
     await save(user)
@@ -898,11 +898,11 @@ describe('ExpenseForm, the category', () => {
     const { user, onSubmit } = setup()
     expect(categoryValue()).toHaveTextContent('Khác')
     await user.type(screen.getByLabelText('Nội dung'), 'Mua bóng đèn')
-    expect(categoryValue()).toHaveTextContent('Sinh hoạt')
+    expect(categoryValue()).toHaveTextContent('Đồ dùng')
     await openCategory(user)
     const group = screen.getByRole('group', { name: 'Danh mục' })
     expect(group.querySelectorAll('button')).toHaveLength(7)
-    expect(screen.getByRole('button', { name: 'Sinh hoạt' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Đồ dùng' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(screen.getByRole('button', { name: 'Khác' }))
     // Picking closes the fold and gives the focus back to Đổi
     expect(screen.queryByRole('group', { name: 'Danh mục' })).not.toBeInTheDocument()
@@ -970,7 +970,7 @@ describe('ExpenseForm, recurring', () => {
     await fillBasics(user, '300k')
     await user.click(tick())
     const day = Number(new Date().getDate())
-    expect(screen.getByText(`Nhắc ngày ${day} mỗi tháng · không tự ghi tiền`)).toBeInTheDocument()
+    expect(screen.getByText(`Nhắc ngày ${day} hằng tháng · không tự lưu khoản chi`)).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: 'Số tiền thay đổi mỗi tháng' }))
     await save(user)
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recurring: { varying_amount: true } }))
@@ -991,7 +991,7 @@ describe('ExpenseForm, recurring', () => {
     const { user, onSubmit } = setup()
     await fillBasics(user, '300000')
     await openSplit(user)
-    await user.click(screen.getByRole('button', { name: 'Chia riêng' }))
+    await user.click(screen.getByRole('button', { name: 'Tự chia' }))
     const inputs = screen.getAllByRole('textbox', { name: /^Phần của/ })
     await user.type(inputs[0], '200000')
     await user.type(inputs[1], '100000')
@@ -1062,8 +1062,8 @@ describe('ExpenseForm, recurring', () => {
       { ...members[2], role: 'member' as const },
     ]
     setup({ members: withRoles, fromItem: item() })
-    expect(screen.getByText('Minh không còn trong nhà, đã bỏ khỏi cách chia.')).toBeInTheDocument()
-    expect(screen.getByText('Người trả trước đây không còn trong nhà: chọn người trả.')).toBeInTheDocument()
+    expect(screen.getByText('Minh không còn trong nhà nên không được tính vào phần chia.')).toBeInTheDocument()
+    expect(screen.getByText('Người trả lần trước không còn trong nhà. Chọn người trả cho lần này.')).toBeInTheDocument()
     expect(payer()).toBe('')
   })
 })

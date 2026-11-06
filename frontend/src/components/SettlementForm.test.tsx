@@ -22,7 +22,7 @@ describe('SettlementForm', () => {
     await user.selectOptions(screen.getByLabelText('Người nhận'), 'Tiến')
     await user.type(screen.getByLabelText('Số tiền (đồng)'), '120k')
     await user.type(screen.getByLabelText('Ghi chú (không bắt buộc)'), '  Chuyển khoản  ')
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(onSubmit).toHaveBeenCalledWith({
       from_member_id: 2,
@@ -37,7 +37,7 @@ describe('SettlementForm', () => {
   test('a blank note is not sent at all', async () => {
     const { user, onSubmit } = setup()
     await user.type(screen.getByLabelText('Số tiền (đồng)'), '50000')
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('note')
   })
@@ -46,7 +46,7 @@ describe('SettlementForm', () => {
     const { user, onSubmit } = setup()
     await user.selectOptions(screen.getByLabelText('Người nhận'), 'Tiến')
     await user.type(screen.getByLabelText('Số tiền (đồng)'), '50000')
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent('hai người khác nhau')
@@ -54,7 +54,7 @@ describe('SettlementForm', () => {
 
   test('an empty amount says what to enter', async () => {
     const { user, onSubmit } = setup()
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent('Nhập số tiền.')
@@ -63,7 +63,7 @@ describe('SettlementForm', () => {
   test('an amount that is not a number is refused', async () => {
     const { user, onSubmit } = setup()
     await user.type(screen.getByLabelText('Số tiền (đồng)'), 'một trăm')
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent('Số tiền chưa hợp lệ')
@@ -73,7 +73,7 @@ describe('SettlementForm', () => {
     const failing = vi.fn().mockRejectedValue(new Error('422'))
     const { user } = setup(failing, 'Một người không thể tự trả cho chính mình.')
     await user.type(screen.getByLabelText('Số tiền (đồng)'), '50000')
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('50000')
     expect(screen.getByRole('alert')).toHaveTextContent('tự trả cho chính mình')
@@ -86,7 +86,7 @@ describe('SettlementForm', () => {
     await user.type(screen.getByLabelText('Số tiền (đồng)'), '50000')
     await user.clear(date)
     await user.type(date, '2100-01-01')
-    await user.click(screen.getByRole('button', { name: 'Ghi nhận khoản trả' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản trả' }))
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent('Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.')

@@ -112,7 +112,7 @@ function latest(keys: string[], previous: string | null): string | null {
 }
 
 /**
- * The marks after "Đã xem tất cả" (rule 5): per list, the latest saved time among the records the strip
+ * The marks after "Đánh dấu đã xem hết" (rule 5): per list, the latest saved time among the records the strip
  * was built from (own ones included: they are never listed anyway), and never earlier than before.
  */
 export function marksAfter(expenses: Expense[], settlements: Settlement[], previous: SeenMarks | null): SeenMarks {

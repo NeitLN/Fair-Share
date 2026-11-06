@@ -6,7 +6,7 @@ import type { TestAccount } from './accounts.js'
 
 // Recurring expenses (specs/007-recurring-expenses) in a real browser. An item due today is made
 // through the API (made from an expense, whose deletion frees this month), then Tiến records it from
-// "Tới hạn" in two presses; the server refuses a second expense of it this month. Own household and
+// "Đến ngày ghi" in two presses; the server refuses a second expense of it this month. Own household and
 // accounts, always deleted at the end.
 
 test.beforeEach(async ({ context }) => {
@@ -41,13 +41,13 @@ test('a due item is recorded from Tổng quan in two presses, once', async ({ pa
     await page.setViewportSize({ width: 1440, height: 900 })
     await signInPage(page, h.tien)
     await page.goto(`/households/${h.id}`)
-    const card = page.getByRole('region', { name: 'Tới hạn' })
+    const card = page.getByRole('region', { name: 'Đến ngày ghi' })
     await expect(card).toContainText('Internet')
     await expect(card).toContainText('300.000đ · Minh trả')
     // The right column did not move: Báo cáo tháng is still in the first screen
     await expect(page.getByRole('link', { name: 'Báo cáo tháng' })).toBeInViewport()
 
-    await card.getByRole('link', { name: 'Ghi luôn Internet' }).click()
+    await card.getByRole('link', { name: 'Ghi Internet tháng này' }).click()
     await expect(page).toHaveURL(new RegExp(`/households/${h.id}/expenses$`))
     await expect(page.getByLabel('Nội dung')).toHaveValue('Internet')
     await expect(page.getByText(/^Đang ghi kỳ/)).toBeVisible()
@@ -56,7 +56,7 @@ test('a due item is recorded from Tổng quan in two presses, once', async ({ pa
 
     await page.goto(`/households/${h.id}`)
     await expect(page.getByRole('region', { name: 'Số dư từng người' })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Tới hạn' })).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'Đến ngày ghi' })).toHaveCount(0)
 
     // A second expense of the item this month is refused by the server
     const again = await request.post(`${API}/api/households/${h.id}/expenses`, {

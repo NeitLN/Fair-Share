@@ -58,7 +58,7 @@ describe('guessCategory', () => {
   })
 
   test('the first category in the fixed order wins', () => {
-    // Both match: Điện nước (3rd in FR-001's order) comes before Tiền nhà (4th)
+    // Both match: Điện, nước, mạng (3rd in FR-001's order) comes before Tiền nhà (4th)
     expect(guessCategory('Tiền nhà và tiền điện')).toBe('utilities')
     expect(guessCategory('Ăn lẩu ở chợ')).toBe('food')
   })

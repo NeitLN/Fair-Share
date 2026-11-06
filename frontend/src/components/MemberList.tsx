@@ -226,10 +226,12 @@ function MemberList({
                         disabled={removing}
                         onClick={() => confirmRemove(member)}
                       >
-                        {removing
-                          ? t.members.removing
-                          : member.role && onRemoveAccess
-                            ? t.people.removeAccess
+                        {member.role && onRemoveAccess
+                          ? removing
+                            ? t.people.removingAccess
+                            : t.people.removeAccess
+                          : removing
+                            ? t.members.removing
                             : t.members.remove}
                       </button>
                     )}

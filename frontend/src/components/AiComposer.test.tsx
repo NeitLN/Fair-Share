@@ -48,7 +48,7 @@ afterEach(() => {
 describe('AiComposer', () => {
   test('idle: a hint, and the button waits for a sentence', () => {
     setup(() => Promise.resolve(answer))
-    expect(screen.getByText('AI điền form bên dưới, bạn duyệt rồi mới lưu.')).toBeInTheDocument()
+    expect(screen.getByText('AI điền thông tin bên dưới, bạn kiểm tra lại trước khi lưu.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Điền giúp' })).toBeDisabled()
   })
 
@@ -97,7 +97,7 @@ describe('AiComposer', () => {
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Gõ nhanh chưa được bật trên máy chủ này.',
+      'Gõ nhanh chưa được bật.',
     )
     expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument()
     await user.type(box, ' nữa{Enter}')
@@ -155,16 +155,16 @@ describe('AiComposer', () => {
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'Hùng trả tiền lẩu')
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
-    expect(await screen.findByText('“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu.')).toBeInTheDocument()
+    expect(await screen.findByText('“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia bên dưới.')).toBeInTheDocument()
     expect(screen.getByText('Nhập số tiền.')).toBeInTheDocument()
   })
 
-  test('"Hoàn tác điền" asks the form to undo the fill', async () => {
+  test('"Hoàn tác" asks the form to undo the fill', async () => {
     const props = setup(() => Promise.resolve(answer))
     const user = userEvent.setup()
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k')
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
-    await user.click(await screen.findByRole('button', { name: 'Hoàn tác điền' }))
+    await user.click(await screen.findByRole('button', { name: 'Hoàn tác' }))
 
     expect(props.onUndo).toHaveBeenCalledOnce()
     expect(screen.queryByText(/^Đã điền:/)).not.toBeInTheDocument()
@@ -183,7 +183,7 @@ describe('AiComposer', () => {
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Gõ nhanh đang quá tải. Đợi một phút rồi thử lại, hoặc điền biểu mẫu bên dưới.',
+      'Gõ nhanh đã đạt giới hạn lượt dùng. Bạn có thể nhập thông tin bên dưới hoặc thử lại sau.',
     )
     expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k')
     expect(props.onDraft).not.toHaveBeenCalled()
@@ -199,7 +199,7 @@ describe('AiComposer', () => {
     await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k')
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('AI đang bận.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('AI tạm thời không dùng được.')
   })
 
   test('while reading it counts the seconds and offers "Nhập tay"', async () => {
@@ -213,7 +213,7 @@ describe('AiComposer', () => {
     act(() => {
       vi.advanceTimersByTime(6_000)
     })
-    expect(screen.getByText(/AI đang đọc… 6 giây · thường mất 10–20 giây/)).toBeInTheDocument()
+    expect(screen.getByText(/AI đang đọc… 6 giây · thường dưới 10 giây/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Điền giúp' })).toBeDisabled()
   })
 

@@ -35,10 +35,10 @@ test('largest first, every value written out, the bars hidden from screen reader
   expect(screen.getByRole('heading', { level: 3, name: 'Chi theo danh mục' })).toBeInTheDocument()
   const links = within(screen.getByRole('list')).getAllByRole('link')
   expect(links.map((l) => l.getAttribute('aria-label'))).toEqual([
-    'Tiền nhà: 4.500.000đ, 93% cả tháng',
-    'Đi chợ: 360.000đ, 7% cả tháng',
+    'Tiền nhà: 4.500.000đ, chiếm 93% tổng chi trong tháng',
+    'Đi chợ: 360.000đ, chiếm 7% tổng chi trong tháng',
     // Under 1% of the month: still listed, as "<1%"
-    'Sinh hoạt: 1.000đ, <1% cả tháng',
+    'Đồ dùng: 1.000đ, chiếm <1% tổng chi trong tháng',
   ])
   expect(links[0]).toHaveTextContent('Tiền nhà4.500.000đ · 93%')
   for (const link of links) {

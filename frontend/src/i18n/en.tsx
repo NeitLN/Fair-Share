@@ -70,8 +70,8 @@ const en: Messages = {
     no_members: 'This group has no members yet. Add members before adding expenses.',
     too_many_participants: 'An expense can be split between 50 people at most. Pick who shares it in the form.',
     ai_unparseable: "The AI didn't understand that. Reword it and try again, or fill in the form below.",
-    ai_rate_limited: 'Quick add is busy. Wait a minute and try again, or fill in the form below.',
-    ai_unavailable: 'The AI is busy. Your sentence is still here. Fill in the form below, then save.',
+    ai_rate_limited: 'Quick add has reached its usage limit. Fill in the form below, or try again later.',
+    ai_unavailable: 'The AI isn’t available right now. Your sentence is still here; fill in the form below, then save.',
     ai_not_configured: "Quick add isn't turned on for this server. Fill in the form below instead.",
     not_authenticated: 'Your session has ended. Sign in again.',
     invalid_credentials: 'The email or the password is not right.',
@@ -100,15 +100,12 @@ const en: Messages = {
   households: {
     title: 'Your groups',
     newHousehold: '+ New group',
-    inviteHint: 'Invite housemates with the invite code in Members: they enter it, you approve them.',
+    inviteHint: 'Invite housemates with the invite code in Members: they enter it, the owner approves them.',
     owner: 'Owner',
     howItWorks: 'Add expenses when you pay. The app works out who owes who and suggests a short list of repayments.',
     empty: "You're not in a group yet. Enter the invite code a housemate sent you, or create one.",
     fallbackName: (id: number) => `Group #${id}`,
     loading: 'Loading group',
-    forget: 'Remove from list',
-    forgetLabel: (name: string) => `Remove ${name} from the list`,
-    forgotten: (name: string) => `Removed ${name} from this browser's list`,
     nameLabel: 'Group name',
     nameProblem: 'The group name must be 1 to 60 characters.',
     create: 'Create group',
@@ -124,33 +121,8 @@ const en: Messages = {
     expenses: 'Expenses',
     members: 'Members',
     fallbackName: 'Group',
-    needInviteTitle: 'Invite link needed',
-    needInvite: (
-      <>
-        This group only opens with its invite link. Ask a housemate to go to <b>Members</b>, tap{' '}
-        <b>Copy invite link</b> and send it to you.
-      </>
-    ),
     notFoundTitle: "Can't find this group",
-    notFound: 'It may have been deleted, or the invite link is wrong.',
-    wrongInvite: "This invite link is wrong. We're still using the access this browser already had.",
-    notSaved: (
-      <>
-        This browser can't save access to this group (maybe a private window). Before you close it, go to{' '}
-        <b>Members</b> and tap <b>Copy invite link</b> so you can come back later.
-      </>
-    ),
-  },
-  whoAmI: {
-    question: 'Which one are you?',
-    youAre: (name) => (
-      <>
-        You're <b>{name}</b>
-      </>
-    ),
-    notYou: 'Not you?',
-    choose: 'Choose',
-    hint: 'Saved only in this browser, so the app can say “you” and pick you as the payer.',
+    notFound: 'This group doesn’t exist, or you don’t have access yet. If you were invited, enter the invite code on Your groups.',
   },
   invite: {
     title: 'Invite housemates',
@@ -226,7 +198,7 @@ const en: Messages = {
     row: (date: string) => `Asked to join on ${date}, waiting for the owner`,
     cancel: 'Cancel request',
     cancelled: 'Request cancelled.',
-    hint: 'Once approved, the group shows up right here. Ask the owner to open Members to approve you.',
+    hint: 'Once approved, the group shows up here. Ask the owner to open Members to approve you.',
     check: 'Check again',
     checking: 'Checking…',
   },
@@ -253,7 +225,8 @@ const en: Messages = {
     confirmRemoveAccess: (name: string) =>
       `Remove ${name} from the group? ${name}'s name and expenses stay as they are.`,
     leave: 'Leave this group',
-    confirmLeave: "Leave this group? You'll need a new invite code to come back.",
+    removingAccess: 'Removing…',
+    confirmLeave: "Leave this group? To come back, you'll need a valid invite code and the owner's approval.",
   },
   claim: {
     title: (name: string) => `Take over ${name}`,
@@ -266,11 +239,9 @@ const en: Messages = {
   },
   members: {
     nameLabel: 'Member name',
-    namePlaceholder: 'Full name, e.g. Hoàng Minh',
     nameEmpty: "The member name can't be empty.",
     add: 'Add member',
     adding: 'Adding…',
-    shortNameHint: 'The app uses the last word of each name: Hương, Minh, Lan…',
     loading: 'Loading members',
     empty: 'No members yet. Add the first one above.',
     confirmRemove: (name: string) => `Remove ${name} from the group?`,
@@ -299,7 +270,7 @@ const en: Messages = {
     reminderCopied: 'Copied. Paste it in your group chat.',
     addExpense: '+ Add expense',
     balancesTitle: 'Balances',
-    balancesNote: 'since the start',
+    balancesNote: 'from everything recorded',
     monthLoading: "Loading this month's spending",
     historyTitle: 'Repayment history',
     recentTitle: 'Recent expenses',
@@ -353,7 +324,7 @@ const en: Messages = {
     },
     totalRow: 'Everyone',
     empty: 'Nothing was spent or paid back this month.',
-    laterItems: 'Something is dated after this month, so its end is not yet the balance on the Overview.',
+    laterItems: 'Something is dated after this month, so its end balance may differ from the Overview.',
     updating: 'Updating…',
     loading: 'Loading the monthly report',
     seeExpenses: "See this month's expenses",
@@ -441,7 +412,7 @@ const en: Messages = {
     declinedBy: (to: string) => `${to} says it hasn't arrived. Check, then tell them again.`,
     toldMe: (from: string) => `${from} says they sent`,
     notReceived: 'Not received',
-    notPaidYet: 'Not paid yet.',
+    notPaidYet: 'No repayment recorded yet.',
     toldOthers: (from: string, to: string) => `${from} says it's sent. Waiting for ${to} to confirm.`,
     notified: (to: string) => `Told ${to}.`,
     declined: (from: string) => `Told ${from} it hasn't arrived.`,
@@ -464,7 +435,8 @@ const en: Messages = {
     youObject: 'you',
     pays: (from: string, to: string, fromIsYou: boolean) => `${from} ${fromIsYou ? 'owe' : 'owes'} ${to}`,
     paidTo: (from: string, to: string) => `${from} paid ${to}`,
-    reminderHead: (group: string, month: number) => `${group} — ${MONTHS[month - 1] ?? month} repayments:`,
+    // The lines are what is open now, from every record, not one month's
+    reminderHead: (group: string, _month: number) => `Hi ${group}, here's what's still to pay:`,
     reminderLine: (from: string, to: string, amount: string) => `• ${from} owes ${to} ${amount}`,
     reminderTold: (to: string) => ` (says it's sent, waiting for ${to} to confirm)`,
     reminderLink: (link: string) => `Details: ${link}`,
@@ -586,7 +558,7 @@ const en: Messages = {
     placeholder: 'hotpot 240k, Minh paid, split equally among everyone',
     fill: 'Fill form',
     hint: 'The AI fills the form below; you check it before saving.',
-    reading: (seconds: number) => `AI is reading… ${seconds}s · usually takes 10–20s`,
+    reading: (seconds: number) => `AI is reading… ${seconds}s · usually under 10s`,
     manual: 'Enter manually',
     nothingFilled: 'Nothing added. Your entries were kept.',
     kept: (fields: string) => `Kept your entries for: ${fields}.`,

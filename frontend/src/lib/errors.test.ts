@@ -13,8 +13,8 @@ describe('errorMessage', () => {
     ['member_in_use', 'Không xoá được: người này đã có trong một khoản chi hoặc khoản trả.'],
     ['same_member', 'Một người không thể tự trả cho chính mình.'],
     ['database_unavailable', 'Máy chủ tạm thời không kết nối được dữ liệu. Thử lại sau ít phút.'],
-    ['ai_not_configured', 'Gõ nhanh chưa được bật trên máy chủ này. Bạn điền biểu mẫu bên dưới nhé.'],
-    ['ai_unavailable', 'AI đang bận. Câu bạn gõ vẫn còn, điền biểu mẫu bên dưới là lưu được ngay.'],
+    ['ai_not_configured', 'Gõ nhanh chưa được bật. Bạn nhập thông tin bên dưới nhé.'],
+    ['ai_unavailable', 'AI tạm thời không dùng được. Câu bạn gõ vẫn còn; bạn có thể nhập thông tin bên dưới rồi lưu.'],
   ])('a known code (%s) is shown in Vietnamese', (code, message) => {
     expect(errorMessage(new ApiError(422, code, 'English text for developers'))).toBe(message)
   })
@@ -33,12 +33,12 @@ describe('errorMessage', () => {
   })
 
   test.each([
-    ['ai_rate_limited', 'Gõ nhanh đang quá tải. Đợi một phút rồi thử lại, hoặc điền biểu mẫu bên dưới.'],
-    ['ai_unparseable', 'AI chưa hiểu câu này. Bạn sửa câu rồi thử lại, hoặc điền biểu mẫu bên dưới.'],
+    ['ai_rate_limited', 'Gõ nhanh đã đạt giới hạn lượt dùng. Bạn có thể nhập thông tin bên dưới hoặc thử lại sau.'],
+    ['ai_unparseable', 'AI chưa hiểu câu này. Bạn sửa câu rồi thử lại, hoặc nhập thông tin bên dưới.'],
     ['no_members', 'Nhà chưa có thành viên. Thêm thành viên trước khi ghi khoản chi.'],
     [
       'too_many_participants',
-      'Một khoản chi chia được cho tối đa 50 người. Chọn người cùng chia ở biểu mẫu.',
+      'Một khoản chi chia được cho tối đa 50 người. Chọn lại người cùng chia bên dưới.',
     ],
   ])('the quick-add code (%s) is shown in Vietnamese', (code, message) => {
     expect(errorMessage(new ApiError(503, code, 'English text for developers'))).toBe(message)

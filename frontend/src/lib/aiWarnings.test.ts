@@ -6,7 +6,7 @@ describe('warningMessage', () => {
   test('unknown_member names the person and points at payer and participants', () => {
     expect(
       warningMessage({ code: 'unknown_member', message: 'not a member', name: 'Hùng' }),
-    ).toBe('“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu.')
+    ).toBe('“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia bên dưới.')
   })
 
   test('unknown_member without a name falls back to the server message', () => {

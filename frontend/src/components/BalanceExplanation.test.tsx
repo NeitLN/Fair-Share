@@ -97,10 +97,10 @@ describe('the items behind each line (US2)', () => {
     expect(items[0]).toHaveTextContent('Minh trả')
     expect(items[0]).toHaveTextContent('trên tổng 240.000đ')
     expect(items[0]).toHaveTextContent('80.000đ')
-    expect(screen.getByText('Bấm một khoản để mở nó trong Chi tiêu.')).toBeInTheDocument()
+    expect(screen.getByText('Bấm một khoản để xem trong mục Chi tiêu.')).toBeInTheDocument()
   })
 
-  test('repayments link to their row in Lịch sử trả, named by the other person', async () => {
+  test('repayments link to their row in Lịch sử trả tiền, named by the other person', async () => {
     const user = open(mine)
     await user.click(screen.getByText('Bạn đã trả lại'))
     const item = within(screen.getByRole('list', { name: 'Bạn đã trả lại' })).getByRole('listitem')

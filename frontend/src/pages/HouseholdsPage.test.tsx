@@ -142,7 +142,7 @@ test('while a request waits, the page is about the wait: no "no groups yet", bot
   renderApp('/')
 
   const waiting = await screen.findByRole('region', { name: 'Đang chờ duyệt' })
-  expect(within(waiting).getByText(/Duyệt xong, nhà sẽ hiện ngay ở đây/)).toBeInTheDocument()
+  expect(within(waiting).getByText(/Duyệt xong, nhà sẽ hiện ở đây/)).toBeInTheDocument()
   expect(screen.queryByText(/Bạn chưa ở nhà nào/)).not.toBeInTheDocument()
   expect(screen.getByText('Nhập mã mời').closest('details')).not.toHaveAttribute('open')
   expect(screen.getByText('+ Tạo nhà mới').closest('details')).not.toHaveAttribute('open')
@@ -216,9 +216,9 @@ test('a request still waiting can be cancelled', async () => {
   const user = userEvent.setup()
   renderApp('/')
 
-  await user.click(await screen.findByRole('button', { name: 'Hủy yêu cầu' }))
+  await user.click(await screen.findByRole('button', { name: 'Huỷ yêu cầu' }))
 
-  expect(await screen.findByText('Đã hủy yêu cầu vào nhà.')).toBeInTheDocument()
+  expect(await screen.findByText('Đã huỷ yêu cầu vào nhà.')).toBeInTheDocument()
   expect(screen.queryByRole('region', { name: 'Đang chờ duyệt' })).not.toBeInTheDocument()
   expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/me/requests/12' && init?.method === 'DELETE')).toBe(
     true,

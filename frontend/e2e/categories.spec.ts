@@ -36,14 +36,14 @@ test('a guessed category, saved, listed and charted in the monthly report', asyn
 
     // Description, amount, Lưu: the category is already there
     await page.getByLabel('Nội dung').fill('Tiền điện tháng này')
-    await expect(page.getByRole('button', { name: 'Đổi danh mục, đang là Điện nước' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Đổi danh mục, đang là Điện, nước, mạng' })).toBeVisible()
     await page.getByLabel('Số tiền').fill('450000')
     // The payer defaults to you once the house has loaded; on the free tier that can come after the
     // typing, and the form rightly asks "Chọn người trả" instead of guessing (live run of #204)
     await expect(page.getByRole('radio', { name: /^Tiến/ })).toBeChecked()
     await page.getByRole('button', { name: 'Lưu khoản chi' }).click()
     const row = page.getByRole('row', { name: /Tiền điện tháng này/ })
-    await expect(row).toContainText('Điện nước')
+    await expect(row).toContainText('Điện, nước, mạng')
 
     // The API stored it
     const listed = await (await request.get(`${API}/api/households/${id}/expenses`, { headers: bearer(tien) })).json()
@@ -58,10 +58,10 @@ test('a guessed category, saved, listed and charted in the monthly report', asyn
     const chart = page.locator('.category-chart')
     await expect(chart.getByRole('link')).toHaveCount(2)
     const labels = await chart.getByRole('link').evaluateAll((links) => links.map((l) => l.getAttribute('aria-label')))
-    expect(labels).toEqual([`Tiền nhà: ${vnd(3_000_000)}, 87% cả tháng`, `Điện nước: ${vnd(450_000)}, 13% cả tháng`])
+    expect(labels).toEqual([`Tiền nhà: ${vnd(3_000_000)}, chiếm 87% tổng chi trong tháng`, `Điện, nước, mạng: ${vnd(450_000)}, chiếm 13% tổng chi trong tháng`])
 
     // A line opens Chi tiêu filtered to that month and category
-    await chart.getByRole('link', { name: /^Điện nước/ }).click()
+    await chart.getByRole('link', { name: /^Điện, nước, mạng/ }).click()
     await expect(page).toHaveURL(new RegExp(`/households/${id}/expenses$`))
     await expect(page.locator('#filter-category')).toHaveValue('utilities')
     await expect(page.getByRole('row', { name: /Tiền điện tháng này/ })).toBeVisible()

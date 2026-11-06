@@ -130,7 +130,7 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 | **Stamp ĐÃ TRẢ** | Mint sticker, 3 px edge, −8°, on a transfer the moment it is recorded; animation: scale 1.7 → 1 in 240 ms with a slight overshoot (the one deliberate bounce in the app; instant under reduce motion). The card turns `--surface-2`, never faded |
 | **Stamp SẠCH NỢ** | Small mint sticker, −6°, next to a member whose net is 0 **and** who has at least one expense or settlement (a brand-new house is not "settled") |
 | **Buttons** | `primary` (taro, edge, hard shadow), `ai` (yellow, same), `secondary` (surface + `--control-line` border; `--muted` on hover), `ghost` (primary text), `danger` (debt text). Height 44, radius 12. Press: translate by the shadow, shadow to 0, 120 ms. Disabled: 60% opacity, no shadow |
-| **Segmented** | Pill track on `--surface`, selected segment ink with `--bg` text; 44 px. Used for the household tabs and Chia đều / Chia riêng |
+| **Segmented** | Pill track on `--surface`, selected segment ink with `--bg` text; 44 px. Used for the household tabs and Chia đều / Tự chia |
 | **Fold row** | `--surface-2` row "**Hôm nay**, 21/10 · Đổi" / "**Chia đều cả nhà** (4 người) · Sửa"; shows exclusions ("Chia đều (3/4 người)"). Opens the full control in place |
 | **Pick chips** | Radio group as avatar + short name pills (Ai trả?, Bạn là ai?); checked = ink border on `--surface-2`; long names ellipsize |
 | **Section** | Title row (17 px 700 + optional `--text-small` muted note) above a `--surface` panel with a 1 px `--card-edge` and 1 px `--line` dividers between rows; rows ≥ 60 px |
@@ -154,7 +154,7 @@ Nhà của bạn                          ← page title, Bricolage 28
 List first, create second (returning users far outnumber new ones). The list holds only the households
 **this browser** created or opened (#132; `lib/knownHouseholds.ts`), most recent first, each with
 *Bỏ khỏi danh sách* (forgets it here and its key, deletes nothing; a toast offers *Hoàn tác*). Empty
-state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn mời mà bạn cùng phòng gửi."
+state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở link mời mà bạn cùng phòng gửi."
 
 **A new account** (no house, no request; design review 05/11) gets one place to start instead of an
 empty list and a lone code field: "Chào Lan, bắt đầu thôi", the how-it-works line, then two panels side
@@ -176,7 +176,7 @@ Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai…
 by opening its invite link `/households/{id}#k={key}` once (the key is then removed from the address
 bar). Opening `/households/{id}` without a key shows *Cần đường dẫn mời*: one sentence on asking a
 housemate for the link from Thành viên, and a link back to the list. A wrong key looks like a deleted
-household ("Có thể nhà đã bị xoá, hoặc đường dẫn mời không đúng").
+household ("Nhà này không tồn tại hoặc bạn chưa có quyền vào. Nếu được mời, hãy nhập mã mời ở trang Nhà của bạn.").
 
 **Shipped in T-42: the name only.** Each row is one `GET /api/households/{id}`; the second line and the
 avatar stack would need one more request per house. If it is added later, one
@@ -253,7 +253,7 @@ Lịch sử trả                      Ghi khoản trả khác
 * **Sao chép tin nhắn nhắc nợ** copies plain text for the household's Zalo group (below); on failure the
   text is shown selectable instead. No bank account, QR or payment of any kind (PROJECT_SPEC §3.3).
   ```
-  Nhà trọ Q7 chốt sổ tháng 10 nè:
+  Nhà trọ Q7 ơi, còn mấy khoản cần trả nè:
   • Tiến trả Minh 120.000đ
   • Anh trả Minh 80.000đ
   Xem chi tiết: https://fair-share-web.onrender.com/households/1
@@ -286,7 +286,7 @@ Lịch sử trả                      Ghi khoản trả khác
 **Mới ghi** ([spec 006](../specs/006-recently-added/spec.md)): a quiet strip (white surface, card edge, not
 the taro block) at the top of the right column on a computer; on a phone it follows the verdict and its
 transfers, so the money actions stay first. It lists the expenses and repayments another account saved
-since you last pressed *Đã xem tất cả* in this browser, newest first: "Minh ghi Lẩu tối · 90.000đ",
+since you last pressed *Đánh dấu đã xem hết* in this browser, newest first: "Minh ghi Lẩu tối · 90.000đ",
 "Minh ghi đã nhận 45.000đ từ bạn", each with its time ("Hôm nay, 06/11 · 14:05"). 3 lines on a computer
 and 5 on a phone, so *Báo cáo tháng* stays in the first screen; *Xem thêm N* shows the rest in place. An
 expense opens in Chi tiêu (revealed), a repayment scrolls to its row in Lịch sử trả. Your own records,
@@ -295,17 +295,17 @@ added", not an activity log. The marks are kept per account and per house in thi
 for expenses and one for repayments, since they refresh on different schedules); a first visit shows the
 last 7 days. No strip while any list is loading or failed, and none when there is nothing new.
 
-**Tới hạn** ([spec 007](../specs/007-recurring-expenses/spec.md)): a quiet card under the transfers in the
+**Đến ngày ghi** ([spec 007](../specs/007-recurring-expenses/spec.md)): a quiet card under the transfers in the
 left column (after them on a phone), so the right column and *Báo cáo tháng* do not move. One line per
 recurring expense whose day has come and that nobody recorded this month: "Internet · 300.000đ · Minh trả
-· ngày 5", or "nhập số tiền tháng này" for one whose amount varies, with *Ghi luôn* (44 px). 3 lines, then
-*Xem tất cả (n)*. *Ghi luôn* opens Chi tiêu with the add form filled and "Đang ghi kỳ 11/2026" above it;
+· ngày 5", or "nhập số tiền tháng này" for one whose amount varies, with *Ghi tháng này* (44 px). 3 lines, then
+*Xem tất cả (n)*. *Ghi tháng này* opens Chi tiêu with the add form filled and "Đang ghi kỳ 11/2026" above it;
 a person presses Lưu. No card when nothing is due or while the lists load.
 
 ### 6.3 Chi tiêu `/households/:id/expenses`
 
 ```
-Thêm khoản chi                       Xem các khoản chi   ← jump link, phones only
+Ghi khoản chi                        Xem các khoản chi   ← jump link, phones only
 ┌ one white surface ───────────────┐
 │ ✦ Gõ nhanh bằng AI                │
 │ [ lẩu 240k Minh trả…   ] [Điền giúp] │ ← one auto-growing line, 300 chars
@@ -315,7 +315,7 @@ Nội dung      [ Tiền điện tháng 10      ]
 Số tiền       [ 240k                    ]  = 240.000đ
 Ai trả?       ((T) Tiến (bạn)) ((M) Minh) ((A) Anh) ((L) Lan)
 Ngày          Hôm nay, 21/10 ·······  Đổi
-Danh mục      Điện nước ············  Đổi   ← guessed from Nội dung (spec 005)
+Danh mục      Điện, nước, mạng ·····  Đổi   ← guessed from Nội dung (spec 005)
 Cách chia     Chia đều cả nhà (4 người)  Sửa
 [ Lưu khoản chi ]                          ← sticky to the bottom of the screen
 Các khoản chi                 chạm để sửa hoặc xoá
@@ -331,11 +331,11 @@ Hôm qua, 20/10
   once ticked, "Số tiền thay đổi mỗi tháng". Only an equal split recurs (a custom one says so). Filled
   from a due item, people no longer in the house are left out and named. A second expense of the same
   item in one month is refused: "Kỳ 11/2026 của Tiền nhà đã có người ghi", with *Xem khoản đã ghi*.
-  Under the form, a folded *Khoản định kỳ (n)* lists each item, its day and this month (đã ghi, tới hạn,
+  Under the form, a folded *Khoản định kỳ (n)* lists each item, its day and this month (đã ghi, đến ngày ghi,
   chưa tới ngày), with *Ngừng lặp* for its creator or the owner (asks first; what was recorded stays).
 * **Danh mục** ([spec 005](../specs/005-expense-categories/spec.md)): seven fixed categories (Ăn uống, Đi
-  chợ, Điện nước, Tiền nhà, Đi lại, Sinh hoạt, Khác). The row follows Nội dung with no press: "Tiền
-  điện" reads Điện nước, "Lẩu" Ăn uống, words typed without accents too, and *Khác* when nothing
+  chợ, Điện, nước, mạng, Tiền nhà, Đi lại, Đồ dùng, Khác). The row follows Nội dung with no press: "Tiền
+  điện" reads Điện, nước, mạng, "Lẩu" Ăn uống, words typed without accents too, and *Khác* when nothing
   matches; an AI fill sets Nội dung, so the guess follows it. *Đổi* opens the seven as chips (44 px,
   the chosen one with a ✓); one press picks and closes, and from then on Nội dung no longer moves it.
   Editing keeps the stored category. Each row in the list ends with it ("chia đều 3 người · Ăn uống"),
@@ -352,11 +352,11 @@ Hôm qua, 20/10
   | State | What shows |
   |---|---|
   | Idle | Textarea + "Điền giúp" (AI button) + hint "AI điền form bên dưới, bạn duyệt rồi mới lưu." |
-  | Reading | Full-width yellow progress bar, "AI đang đọc… 6 giây · thường mất 10–20 giây", link **Nhập tay** (stops waiting, focuses *Nội dung*). The form stays editable |
+  | Reading | Full-width yellow progress bar, "AI đang đọc… 6 giây · thường dưới 10 giây", link **Nhập tay** (stops waiting, focuses *Nội dung*). The form stays editable |
   | Filled | Mint note "Đã điền: Lẩu · 240.000đ · Minh trả · chia đều 4 người.", fields that were filled flash yellow once; **only fields the user has not touched are filled** ("Giữ nguyên số tiền bạn đã nhập."); button **Hoàn tác điền** restores the form |
-  | Warnings | Pink note per API warning. `unknown_member` (payer **or** a participant): "“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu." · `no_payer`: "Chọn người trả." · `no_amount`: "Nhập số tiền." · `participants_assumed`: shown beside the split fold, "AI chia cho cả nhà, bạn kiểm tra lại." |
+  | Warnings | Pink note per API warning. `unknown_member` (payer **or** a participant): "“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia bên dưới." · `no_payer`: "Chọn người trả." · `no_amount`: "Nhập số tiền." · `participants_assumed`: shown beside the split fold, "AI chia cho cả nhà, bạn kiểm tra lại." |
   | Failed | The typed sentence is always kept and the form stays usable; the note depends on the code (wording in `lib/errors.ts`): `ai_unavailable` (503) → "AI đang bận…" + **Thử lại** · `ai_rate_limited` (429) → "…đợi một phút rồi thử lại" + **Thử lại** · `ai_unparseable` / `too_many_participants` (422) → fix the sentence or use the form, **Thử lại** after an edit |
-  | Not set up | `ai_not_configured` (503, no Gemini key on this server): "Gõ nhanh chưa được bật trên máy chủ này. Bạn điền biểu mẫu bên dưới nhé." **Điền giúp** is disabled until the page is reloaded; no **Thử lại** |
+  | Not set up | `ai_not_configured` (503, no Gemini key on this server): "Gõ nhanh chưa được bật. Bạn nhập thông tin bên dưới nhé." **Điền giúp** is disabled until the page is reloaded; no **Thử lại** |
 
 ### 6.4 Thành viên `/households/:id/members`
 
@@ -371,8 +371,8 @@ field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Lan�
 Minh" (design review 05/11). If two members share a last word, both are shown by their last two words
 ("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
 
-Above the add field, **Mời bạn cùng phòng** (#132): the hint "Ai có đường dẫn này đều xem và sửa được
-nhà, nên chỉ gửi cho người trong nhà." and *Sao chép đường dẫn mời* (toast "Đã sao chép đường dẫn mời.
+Above the add field, **Mời bạn cùng phòng** (#132): the hint "Ai có link này đều xem và sửa được
+nhà, nên chỉ gửi cho người trong nhà." and *Sao chép link mời* (toast "Đã sao chép link mời.
 Gửi vào nhóm chat của nhà nhé."). Where the clipboard is blocked, the link is shown in a read-only field,
 selected, to copy by hand. The Tổng quan reminder ends with the same link.
 
@@ -402,7 +402,7 @@ keyboard goes through the page in the order it is seen.
   wordmark and the account; under it, one row for the household: its name and avatars on the left, the
   three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
   Above that row, on every screen size, *‹ Nhà của bạn* leads back to the list, and for an account in
-  more than one house *Chuyển nhà* opens a short list of the others (design review 05/11: only the
+  more than one house *Nhà khác* opens a short list of the others (design review 05/11: only the
   wordmark led out, and changing house took two pages).
   Nothing is sticky, so nothing covers a focused field on a short laptop screen.
 * **Tổng quan:** two columns (equal at 1024, `minmax(480px, 2fr) 3fr` from 1280). Left: the verdict block,
@@ -484,7 +484,7 @@ approve, expenses, Tôi đã chuyển, Đã nhận, undo, sign out, errors). Wha
 * **What waits for you** shows as a count on the tab (pink, dark figures): requests to approve on
   Thành viên for the owner, a "Tôi đã chuyển" to confirm on Tổng quan. Open pages refresh every 30 s
   (PROJECT_SPEC §3.3, 04/11).
-* **Joining.** The request waiting for approval is one card with *Kiểm tra lại* and *Hủy yêu cầu*; the
+* **Joining.** The request waiting for approval is one card with *Kiểm tra lại* and *Huỷ yêu cầu*; the
   tips for people who invite others are not shown to someone waiting. On a phone that can share, the
   invite card leads with *Gửi link mời* (the share sheet: Zalo, Messenger); copying the link, then the
   code, follow.
@@ -537,6 +537,20 @@ chart for an empty month.
 | Đăng xuất (in the account menu) | Không phải bạn? (before accounts) |
 | Trưởng nhóm | Chủ nhà (means the landlord in a nhà trọ) |
 | Tôi đã chuyển · Chưa nhận được | Đã chuyển khoản (as if it were already recorded) |
+| đã chi (what someone paid for the house's expenses) · đã trả / đã nhận lại (money paid back between housemates) | đã trả for an expense |
+| Minh cần trả Lan (a suggestion) · Minh đã trả Lan (recorded) | Minh trả Lan (reads as already done) |
+| Lưu khoản chi · Lưu khoản trả (the save buttons) | Ghi nhận khoản này (no object; "ghi nhận" may still explain something) |
+| Chưa ghi khoản trả (nothing recorded) | Chưa trả (the app cannot know what happened outside it) |
+| Đến ngày ghi · Ngừng lặp (recurring reminders) | Tới hạn (reads as a payment deadline) |
+| Bỏ quyền vào nhà (keeps the name and its records) · Xoá (removes a name nobody uses) | using one for the other |
+| link mời · nhập thông tin bên dưới · Huỷ / Xoá / khoá | đường dẫn mời · form / biểu mẫu in everyday hints · Hủy / Xóa (mixed) |
+
+Say only what the data or the algorithm guarantees: *tháng này*, *đến hôm nay*, *ngay*, *ít nhất* or a
+duration only when it is true or measured (the reminder lists what is open now, not one month; the AI hint
+says "thường dưới 10 giây" because the live server measured 7.2–8.8 s). A button names an action
+(*Đánh dấu đã xem hết*), a status names a result (*Đã ghi: …*). The app speaks to the person as *bạn*; *tôi*
+only where a button speaks for them (*Tôi đã chuyển*). The whole Vietnamese text was reviewed on 07/11 and
+these rules came out of it.
 
 Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm qua", "Thứ bảy, 18/10", full
 `18/10/2026` only in history older than this year.
@@ -555,10 +569,10 @@ the same keys, checked by TypeScript); components take them from `useT()`, plain
 | khoản chi · khoản trả · số dư | **expense · repayment · balance** | "Repayment" keeps paying someone back apart from paying for an expense |
 | cần trả · được nhận · sạch nợ | **owes · gets back · SETTLED** | |
 | Đã trả (button) · ĐÃ TRẢ (stamp) | **Mark as paid · PAID** | The button records money already paid outside the app |
-| Bạn cần trả Minh · Minh trả Lan (suggestions) | **You owe Minh · Minh owes Lan** | A suggestion must never read as already done |
+| Bạn cần trả Minh · Minh cần trả Lan (suggestions) | **You owe Minh · Minh owes Lan** | A suggestion must never read as already done |
 | Minh đã trả Lan (history) | **Minh paid Lan** | |
-| Gõ nhanh bằng AI · Điền giúp · Nhập tay · Hoàn tác điền | **Quick add with AI · Fill form · Enter manually · Undo autofill** | |
-| đường dẫn mời · Mời bạn cùng phòng | **invite link · Invite housemates** | "Roommates" can mean one bedroom |
+| Gõ nhanh bằng AI · Điền giúp · Nhập tay · Hoàn tác | **Quick add with AI · Fill form · Enter manually · Undo autofill** | |
+| link mời · Mời bạn cùng phòng | **invite link · Invite housemates** | "Roommates" can mean one bedroom |
 | Bỏ khỏi danh sách | **Remove from list** | Nothing is deleted; the hint says so |
 | App gọi mỗi người bằng tên cuối | **The app uses the last word of each name** | "Last name" would mean the family name |
 | Rõ ai trả ai. | **See who owes who.** | |
@@ -616,7 +630,7 @@ type FillField = 'description' | 'amount' | 'payer' | 'date' | 'split'
 interface ExpenseFormHandle {
   fill(values: { description?; amount?; payer_id?; spent_at?; member_ids? }):
     { filled: FillField[]; kept: FillField[]; cleared: FillField[] }
-  undoFill(): void          // Hoàn tác điền
+  undoFill(): void          // Hoàn tác
   focusDescription(): void  // Nhập tay
 }
 // <ExpenseForm ref={formRef} … />; the page maps AiDraft.draft to fill()
@@ -633,7 +647,7 @@ the payer, the date and split folds), the new control must still mark that field
    together or not at all.
 3. A `null` amount or payer clears that field if untouched and leaves it for the user (the warning says
    so); it never silently keeps a default payer.
-4. **Hoàn tác điền** undoes the latest fill only, and only for fields or groups not edited since.
+4. **Hoàn tác** undoes the latest fill only, and only for fields or groups not edited since.
 5. A save, a reset, **Nhập tay**, switching household or a newer request makes a pending response stale:
    it is dropped, never applied to a new expense. (The composer numbers its requests and is keyed by
    household and saved expense, so a remount drops anything pending.)

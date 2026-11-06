@@ -54,23 +54,23 @@ test('who recorded what and how much, "bạn" when you paid, and when', () => {
   const strip = screen.getByRole('region', { name: 'Mới ghi' })
   expect(strip).toHaveAttribute('aria-live', 'polite')
   expect(lines().map((l) => l.querySelector('.recent-text')?.textContent)).toEqual([
-    'Minh ghi đã nhận 440.000đ từ bạn',
+    'Minh xác nhận đã nhận 440.000đ từ bạn',
     'Minh ghi Lẩu 5 · 240.000đ',
     // A recorder whose account left the house
-    'Thành viên đã xoá ghi Lẩu 6 · 240.000đ',
+    'Thành viên cũ ghi Lẩu 6 · 240.000đ',
   ])
   expect(lines()[0]).toHaveTextContent(/14:05$/)
 })
 
 test('a repayment from someone else names them', () => {
   renderStrip([repaymentItem(9, 14, 3)])
-  expect(lines()[0]).toHaveTextContent('Minh ghi đã nhận 440.000đ từ Duy Anh')
+  expect(lines()[0]).toHaveTextContent('Minh xác nhận đã nhận 440.000đ từ Duy Anh')
 })
 
-test('3 at first, then Xem thêm shows the rest in place', async () => {
+test('3 at first, then Xem thêm s mụchows the rest in place', async () => {
   renderStrip([1, 2, 3, 4, 5].map((id) => expenseItem(id, 20 - id)))
   expect(lines()).toHaveLength(3)
-  const more = screen.getByRole('button', { name: 'Xem thêm 2' })
+  const more = screen.getByRole('button', { name: 'Xem thêm 2 mục' })
   expect(more).toHaveAttribute('aria-expanded', 'false')
   await userEvent.click(more)
   expect(lines()).toHaveLength(5)
@@ -79,24 +79,24 @@ test('3 at first, then Xem thêm shows the rest in place', async () => {
   expect(lines()[3]).toHaveFocus()
 })
 
-test('from the keyboard too, Xem thêm lands on the first new line', async () => {
+test('from the keyboard too, Xem thêm l mụcands on the first new line', async () => {
   renderStrip([1, 2, 3, 4].map((id) => expenseItem(id, 20 - id)))
-  screen.getByRole('button', { name: 'Xem thêm 1' }).focus()
+  screen.getByRole('button', { name: 'Xem thêm 1 mục' }).focus()
   await userEvent.keyboard('{Enter}')
   expect(lines()[3]).toHaveFocus()
   expect(lines()[3]).toHaveTextContent('Lẩu 4')
 })
 
-test('an expense opens in Chi tiêu, revealed; a repayment goes to its row in Lịch sử trả', async () => {
+test('an expense opens in Chi tiêu, revealed; a repayment goes to its row in Lịch sử trả tiền', async () => {
   renderStrip([repaymentItem(9, 14), expenseItem(5, 9)])
   expect(lines()[0]).toHaveAttribute('href', '#settlement-9')
   await userEvent.click(lines()[1])
   expect(screen.getByTestId('landed')).toHaveTextContent('/households/7/expenses {"revealExpense":5}')
 })
 
-test('Đã xem tất cả names how many it covers, folded ones included', async () => {
+test('Đánh dấu đã xem hết names how many it covers, folded ones included', async () => {
   const onSeen = renderStrip([1, 2, 3, 4].map((id) => expenseItem(id, 20 - id)))
-  await userEvent.click(screen.getByRole('button', { name: 'Đã xem tất cả 4 mục mới' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Đánh dấu đã xem hết 4 mục mới' }))
   expect(onSeen).toHaveBeenCalledTimes(1)
 })
 

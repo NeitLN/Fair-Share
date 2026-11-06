@@ -18,7 +18,7 @@ interface RecentStripProps {
   householdId: number
   /** How many show before "Xem thêm": 3 on a computer, 5 on a phone. */
   initialCount: number
-  /** "Đã xem tất cả": every item, folded ones too. */
+  /** "Đánh dấu đã xem hết": every item, folded ones too. */
   onSeen: () => void
 }
 

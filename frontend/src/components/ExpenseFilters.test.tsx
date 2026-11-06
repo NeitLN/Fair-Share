@@ -26,10 +26,10 @@ test('a labelled month and member, "Tất cả" and "Cả nhà" first', () => {
     'Tất cả',
     'Ăn uống',
     'Đi chợ',
-    'Điện nước',
+    'Điện, nước, mạng',
     'Tiền nhà',
     'Đi lại',
-    'Sinh hoạt',
+    'Đồ dùng',
     'Khác',
   ])
   expect(screen.getByRole('group', { name: 'Lọc khoản chi' })).toBeInTheDocument()

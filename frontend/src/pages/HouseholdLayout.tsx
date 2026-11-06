@@ -35,7 +35,7 @@ function HouseholdLayout() {
     enabled: validId && household.isSuccess,
   })
   const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
-  // The account's other houses, for Chuyển nhà (design review 05/11); the same query as Nhà của bạn
+  // The account's other houses, for Nhà khác (design review 05/11); the same query as Nhà của bạn
   const mine = useQuery({
     queryKey: keys.households,
     queryFn: listMyHouseholds,

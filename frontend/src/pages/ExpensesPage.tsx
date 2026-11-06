@@ -64,7 +64,7 @@ function ExpensesPage() {
   const startMonth = arrival?.month
   // A line of "Chi theo danh mục" in the report (specs/005-expense-categories) adds its category
   const startCategory = arrival?.category
-  // "Ghi luôn" on Tổng quan (specs/007-recurring-expenses): the form opens filled from that item
+  // "Ghi tháng này" on Tổng quan (specs/007-recurring-expenses): the form opens filled from that item
   const startRecording = arrival?.recordItem
   const [recordingId, setRecordingId] = useState<number | null>(startRecording ?? null)
   const [revealId, setRevealId] = useState<number | null>(revealExpense ?? null)

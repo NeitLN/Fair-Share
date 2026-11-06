@@ -85,9 +85,9 @@ describe('this month (US1)', () => {
       'Người',
       'Đầu tháng',
       'Đã chi',
-      'Phần',
+      'Phần chia',
       'Đã trả lại',
-      'Nhận lại',
+      'Đã nhận lại',
       'Cuối tháng',
     ])
     expect(cells(rows[1])).toEqual([signed(0), plain(90_000), plain(30_000), plain(0), plain(0), signed(60_000)])
@@ -213,7 +213,7 @@ describe('other months (US2)', () => {
     api({ expenseList: [expense(4, `${next}-02`, 30_000, 2), ...expenses], netOf: { 1: 50_000, 2: 90_000, 3: -140_000 } })
     renderApp(`/households/7/report/${cur}`)
     expect(
-      await screen.findByText('Có khoản ghi ngày sau tháng này, nên cuối tháng chưa bằng số trên Tổng quan.'),
+      await screen.findByText('Có khoản mang ngày sau tháng này. Số dư cuối tháng có thể khác số dư ở Tổng quan.'),
     ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('link', { name: `Tháng sau: ${label(next)}` }))
     await screen.findByRole('table', { name: `Số dư từng người trong ${label(next).toLowerCase()}` })
@@ -278,8 +278,8 @@ describe('spent by category (US2 of spec 005)', () => {
     )
     expect(screen.getByText('Cả nhà chi')).toHaveTextContent(`Cả nhà chi ${plain(150_000)}`)
     expect(chart.getAllByRole('link').map((l) => l.getAttribute('aria-label'))).toEqual([
-      `Điện nước: ${plain(90_000)}, 60% cả tháng`,
-      `Ăn uống: ${plain(60_000)}, 40% cả tháng`,
+      `Điện, nước, mạng: ${plain(90_000)}, chiếm 60% tổng chi trong tháng`,
+      `Ăn uống: ${plain(60_000)}, chiếm 40% tổng chi trong tháng`,
     ])
   })
 
