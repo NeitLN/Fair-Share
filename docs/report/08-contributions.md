@@ -25,6 +25,6 @@ We agree that the tables above describe our contributions, and on the shares bel
 
 | Member | Student ID | Share of the work | Signature | Date |
 |---|---|---|---|---|
-| Võ Việt Tiến | 2474802010391 | % | | |
-| Võ Hoàng Minh | 2474802010242 | % | | |
-| Bùi Duy Anh | 2474802010525 | % | | |
+| Võ Việt Tiến | 2474802010391 | ⅓ (33⅓ %) | | |
+| Võ Hoàng Minh | 2474802010242 | ⅓ (33⅓ %) | | |
+| Bùi Duy Anh | 2474802010525 | ⅓ (33⅓ %) | | |
