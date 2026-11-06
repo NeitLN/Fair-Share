@@ -128,6 +128,8 @@ body {
 
 .theme-switch button,
 .language-switch button {
+  /* EN and VI were 39 px wide: every target is at least 44 × 44 (found by the sign-in check of 008) */
+  min-width: var(--target);
   padding: 0 10px;
   font-size: var(--text-small);
 }
@@ -1618,18 +1620,8 @@ button.ai:active:focus-visible {
   padding-right: 0;
 }
 
-/* Repeated on every card, so flat: the one shadowed button of a screen is its form's Lưu */
-.transfer-card .btn-primary {
-  box-shadow: none;
-}
-
-.transfer-card .btn-primary:active {
-  translate: none;
-}
-
-.transfer-card .btn-primary:focus-visible {
-  box-shadow: 0 0 0 5px var(--ai);
-}
+/* Each card's action (Xác nhận đã nhận, Tôi đã chuyển) is outlined (btn-secondary): repeated on every
+   card, four filled purple buttons under the verdict competed with it (owner review 06/11) */
 
 /* Recorded: the card turns surface-2 (never faded) and gets the stamp, slapped on once */
 .transfer-card.paid {
@@ -2828,9 +2820,10 @@ button.ai:active:focus-visible {
   font-weight: 600;
 }
 
+/* The split line may wrap: kept on one line, it pushed the payer column wide and broke descriptions
+   over two lines (owner review 06/11) */
 .expense-table .payer small {
   display: block;
-  white-space: nowrap;
   color: var(--muted);
   font-size: var(--text-small);
   font-weight: 400;
@@ -2945,11 +2938,12 @@ button.ai:active:focus-visible {
 }
 
 @media (min-width: 1024px) {
-  /* 32 px sides (40 px from 1440), and the content stops growing at 1320 px, centred, header included:
-     at 1920 px a name and its amount were a thousand pixels apart (design review 05/11) */
+  /* 32 px sides (40 px from 1440), and the content stops growing at 1520 px, centred, header included.
+     1320 px (design review 05/11) left 300 px of bare page on each side at 1920 (owner review 06/11);
+     the rows that made 05/11 widen it carefully stay within 640 px instead (the 1280 px block) */
   .app-header,
   main {
-    max-width: calc(1320px + 2 * clamp(32px, 2.8vw, 40px));
+    max-width: calc(1520px + 2 * clamp(32px, 2.8vw, 40px));
     margin-inline: auto;
     padding-left: clamp(32px, 2.8vw, 40px);
     padding-right: clamp(32px, 2.8vw, 40px);
@@ -3071,17 +3065,67 @@ button.ai:active:focus-visible {
     position: static;
   }
 
-  /* Signing in is one small form: it stays form-sized in the middle */
-  .auth,
-  .app-footer {
+  /* Signing in: one block in the middle of the screen, the brand on the left and the form (still 440 px)
+     with its switches on the right; no header (specs/008-wider-desktop-signin, owner review 06/11: a
+     small card under a lone corner logo looked unfinished). Taller than the screen, the page scrolls */
+  main.signed-out {
+    min-height: 100dvh;
+    align-content: center;
+    padding-block: 40px;
+  }
+
+  .auth-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    gap: 56px;
+    align-items: center;
     width: 100%;
-    max-width: 440px;
-    justify-self: center;
+    max-width: 980px;
+    margin-inline: auto;
+  }
+
+  .auth-intro {
+    display: grid;
+    gap: 18px;
+    justify-items: start;
+  }
+
+  .auth-intro .wordmark {
+    width: 300px;
+    height: auto;
+  }
+
+  .auth-intro .tagline {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .auth-intro .lead {
+    max-width: 420px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+  }
+
+  /* Bigger stickers that overlap a little more, as a household's avatars do */
+  .auth-intro .avatar {
+    --size: 56px;
+  }
+
+  .auth-intro .avatar-stack > * + * {
+    margin-left: -12px;
   }
 
   .auth {
-    margin-top: 24px;
     padding: 24px;
+  }
+
+  .auth-form-column .app-footer {
+    margin-top: 16px;
   }
 }
 
@@ -3128,9 +3172,37 @@ button.ai:active:focus-visible {
     margin-left: 0;
   }
 
-  /* Filters at the width of what they hold, not stretched across the table */
+  /* Tháng, Người and Danh mục on one row (Xoá bộ lọc keeps its own row) */
   .expenses-split .expense-filters {
-    grid-template-columns: repeat(2, minmax(0, 320px));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Wide enough that the split line under the payer wraps once at most, so the description keeps its
+     line (owner review 06/11) */
+  .expense-table th.col-payer {
+    width: 250px;
+  }
+
+  /* Tổng quan, right column: the panels span it, but each line stays within 640 px, centred, so a name
+     and its amount are never far apart (variant A, owner review 06/11). An opened "Vì sao" lives inside
+     its row, so it follows */
+  .dashboard-split .split-rest :is(.balance-list > li, .recent-list > li),
+  .dashboard-split .split-rest .recent-strip > :is(.recent-head, ul, .recent-more) {
+    width: min(100%, 640px);
+    margin-inline: auto;
+  }
+
+  /* "Báo cáo tháng" on the month title's line, under it when the line is too short */
+  .dashboard-split .month-totals {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  .dashboard-split .month-totals > .balance-list {
+    flex-basis: 100%;
   }
 
   /* A little more room inside the verdict block on a wide screen; the amount stays 44 px */
@@ -3142,8 +3214,9 @@ button.ai:active:focus-visible {
     grid-template-columns: minmax(480px, 2fr) minmax(0, 3fr);
   }
 
+  /* The form keeps a working width; the table, which is what is read, gets the rest */
   .expenses-split {
-    grid-template-columns: minmax(380px, 1fr) minmax(0, 2fr);
+    grid-template-columns: minmax(380px, 420px) minmax(0, 1fr);
   }
 
   .members-split {

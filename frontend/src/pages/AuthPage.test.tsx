@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { renderApp } from '../test/renderApp'
+import { onAComputer } from '../test/screen'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -63,4 +64,50 @@ test('the title says what the form does: sign in, or create an account', async (
   expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Tạo tài khoản' }))
   expect(screen.getByRole('heading', { level: 1, name: 'Tạo tài khoản mới' })).toBeInTheDocument()
+})
+
+// specs/008-wider-desktop-signin: on a computer the page is one block, the brand on the left and the
+// form with its switches on the right; on a phone it is the form as before
+const INTRO = 'Ghi chi tiêu chung với bạn cùng phòng, xem ai cần trả ai. Nhà của bạn đi theo tài khoản, mở trên máy nào cũng thấy.'
+
+const follows = (later: Element, earlier: Element) =>
+  Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+test('on a computer the brand sits beside the form: tagline, intro once, decorative avatars', async () => {
+  onAComputer()
+  const { container } = renderApp('/', { signedOut: true })
+
+  expect(await screen.findByText('Rõ ai trả ai.')).toBeInTheDocument()
+  // The intro moves beside the form, so a screen reader hears it once
+  expect(screen.getAllByText(INTRO)).toHaveLength(1)
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  expect(screen.getByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeInTheDocument()
+  // The wordmark keeps its name; the four sample avatars are decoration only
+  expect(screen.getByRole('img', { name: 'Fair-Share' })).toBeInTheDocument()
+  const avatars = container.querySelectorAll('.auth-intro .avatar')
+  expect(avatars).toHaveLength(4)
+  for (const avatar of avatars) expect(avatar.closest('[aria-hidden="true"]')).not.toBeNull()
+  // Read and tabbed in the order seen: the form, then the language, then the theme
+  const submit = screen.getAllByRole('button', { name: 'Đăng nhập' }).at(-1)!
+  const language = screen.getByRole('group', { name: 'Ngôn ngữ' })
+  const theme = screen.getByRole('group', { name: 'Giao diện' })
+  expect(follows(language, submit) && follows(theme, language)).toBe(true)
+})
+
+test('on a phone the sign-in page is the form with its intro, as before', async () => {
+  const { container } = renderApp('/', { signedOut: true })
+
+  expect(await screen.findByText(INTRO)).toBeInTheDocument()
+  expect(screen.queryByText('Rõ ai trả ai.')).not.toBeInTheDocument()
+  expect(container.querySelector('.auth-intro')).toBeNull()
+  expect(screen.getByRole('group', { name: 'Ngôn ngữ' })).toBeInTheDocument()
+})
+
+test('an invite link keeps its note in the form on a computer', async () => {
+  onAComputer()
+  renderApp('/join/ABCDEFGH', { signedOut: true })
+
+  expect(await screen.findByRole('heading', { level: 1, name: 'Vào nhà bạn được mời' })).toBeInTheDocument()
+  const note = screen.getByText(/Bạn được mời vào một nhà/)
+  expect(note.closest('.auth')).not.toBeNull()
 })

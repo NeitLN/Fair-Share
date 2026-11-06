@@ -327,7 +327,7 @@ function VerdictBlock({
                       <span className="transfer-actions">
                         <button
                           type="button"
-                          className="btn-primary"
+                          className="btn-secondary"
                           aria-describedby={textId}
                           data-action="pay"
                           disabled={card.state === 'paying'}
@@ -448,7 +448,7 @@ function ReceiverOnly({
         <span className="transfer-actions">
           <button
             type="button"
-            className="btn-primary"
+            className="btn-secondary"
             // Told: the status line carries the amount that Đã nhận records
             aria-describedby={told ? `${textId} ${statusId}` : textId}
             data-action="pay"
@@ -512,7 +512,7 @@ function ReceiverOnly({
         <span className="transfer-actions">
           <button
             type="button"
-            className="btn-primary"
+            className="btn-secondary"
             aria-describedby={textId}
             data-action="notify"
             disabled={busy || !known}
