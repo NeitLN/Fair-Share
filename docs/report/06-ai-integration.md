@@ -41,7 +41,7 @@ key answers `503 ai_not_configured` and the page turns Quick add off.
 
 So a busy minute is refused by our limiter, never by Google. The hard part was **who one visitor is**:
 behind Render each proxy appends to `X-Forwarded-For`; the live logs showed the visitor third from the end,
-so the API reads that entry (`FORWARDED_HOPS=3`) and ignores the forgeable rest (section 2). From a phone
+so the API reads that entry (`FORWARDED_HOPS=3`) and ignores the forgeable rest (#96, #97). From a phone
 on 21/10, the sixth request within a minute got `429`. We never retry a `429` or a timeout (it burns quota
 and makes the user wait); only a *fast* `5xx` is retried once, within the budget.
 
