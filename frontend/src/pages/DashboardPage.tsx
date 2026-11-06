@@ -173,7 +173,7 @@ function Dashboard({ householdId }: { householdId: number }) {
   }, [members.data, balances.data, householdId])
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
 
-  // "Tới hạn" (specs/007-recurring-expenses): worked out here from the items and the expenses; nothing
+  // "Đến ngày ghi" (specs/007-recurring-expenses): worked out here from the items and the expenses; nothing
   // while either is loading or failed
   const recurring = useQuery({
     queryKey: recurringKeys.list(householdId),
@@ -182,7 +182,7 @@ function Dashboard({ householdId }: { householdId: number }) {
   const due = recurring.isSuccess && expenses.isSuccess ? dueItems(recurring.data, expenses.data, today()) : []
 
   // "Mới ghi" (specs/006-recently-added): built only from complete data (members, expenses and
-  // repayments all loaded), and "Đã xem tất cả" marks from exactly the lists it was built from
+  // repayments all loaded), and "Đánh dấu đã xem hết" marks from exactly the lists it was built from
   const userId = session?.user.id ?? null
   const [marks, setMarks] = useState<SeenMarks | null>(() => (userId === null ? null : readMarks(userId, householdId)))
   // The first-visit window (7 days) counts from when the page opened

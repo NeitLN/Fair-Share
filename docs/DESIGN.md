@@ -154,7 +154,7 @@ Nhà của bạn                          ← page title, Bricolage 28
 List first, create second (returning users far outnumber new ones). The list holds only the households
 **this browser** created or opened (#132; `lib/knownHouseholds.ts`), most recent first, each with
 *Bỏ khỏi danh sách* (forgets it here and its key, deletes nothing; a toast offers *Hoàn tác*). Empty
-state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở đường dẫn mời mà bạn cùng phòng gửi."
+state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở link mời mà bạn cùng phòng gửi."
 
 **A new account** (no house, no request; design review 05/11) gets one place to start instead of an
 empty list and a lone code field: "Chào Lan, bắt đầu thôi", the how-it-works line, then two panels side
@@ -331,7 +331,7 @@ Hôm qua, 20/10
   once ticked, "Số tiền thay đổi mỗi tháng". Only an equal split recurs (a custom one says so). Filled
   from a due item, people no longer in the house are left out and named. A second expense of the same
   item in one month is refused: "Kỳ 11/2026 của Tiền nhà đã có người ghi", with *Xem khoản đã ghi*.
-  Under the form, a folded *Khoản định kỳ (n)* lists each item, its day and this month (đã ghi, tới hạn,
+  Under the form, a folded *Khoản định kỳ (n)* lists each item, its day and this month (đã ghi, đến ngày ghi,
   chưa tới ngày), with *Ngừng lặp* for its creator or the owner (asks first; what was recorded stays).
 * **Danh mục** ([spec 005](../specs/005-expense-categories/spec.md)): seven fixed categories (Ăn uống, Đi
   chợ, Điện, nước, mạng, Tiền nhà, Đi lại, Đồ dùng, Khác). The row follows Nội dung with no press: "Tiền
@@ -352,11 +352,11 @@ Hôm qua, 20/10
   | State | What shows |
   |---|---|
   | Idle | Textarea + "Điền giúp" (AI button) + hint "AI điền form bên dưới, bạn duyệt rồi mới lưu." |
-  | Reading | Full-width yellow progress bar, "AI đang đọc… 6 giây · thường mất 10–20 giây", link **Nhập tay** (stops waiting, focuses *Nội dung*). The form stays editable |
+  | Reading | Full-width yellow progress bar, "AI đang đọc… 6 giây · thường dưới 10 giây", link **Nhập tay** (stops waiting, focuses *Nội dung*). The form stays editable |
   | Filled | Mint note "Đã điền: Lẩu · 240.000đ · Minh trả · chia đều 4 người.", fields that were filled flash yellow once; **only fields the user has not touched are filled** ("Giữ nguyên số tiền bạn đã nhập."); button **Hoàn tác điền** restores the form |
-  | Warnings | Pink note per API warning. `unknown_member` (payer **or** a participant): "“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia ở biểu mẫu." · `no_payer`: "Chọn người trả." · `no_amount`: "Nhập số tiền." · `participants_assumed`: shown beside the split fold, "AI chia cho cả nhà, bạn kiểm tra lại." |
+  | Warnings | Pink note per API warning. `unknown_member` (payer **or** a participant): "“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia bên dưới." · `no_payer`: "Chọn người trả." · `no_amount`: "Nhập số tiền." · `participants_assumed`: shown beside the split fold, "AI chia cho cả nhà, bạn kiểm tra lại." |
   | Failed | The typed sentence is always kept and the form stays usable; the note depends on the code (wording in `lib/errors.ts`): `ai_unavailable` (503) → "AI đang bận…" + **Thử lại** · `ai_rate_limited` (429) → "…đợi một phút rồi thử lại" + **Thử lại** · `ai_unparseable` / `too_many_participants` (422) → fix the sentence or use the form, **Thử lại** after an edit |
-  | Not set up | `ai_not_configured` (503, no Gemini key on this server): "Gõ nhanh chưa được bật trên máy chủ này. Bạn điền biểu mẫu bên dưới nhé." **Điền giúp** is disabled until the page is reloaded; no **Thử lại** |
+  | Not set up | `ai_not_configured` (503, no Gemini key on this server): "Gõ nhanh chưa được bật. Bạn nhập thông tin bên dưới nhé." **Điền giúp** is disabled until the page is reloaded; no **Thử lại** |
 
 ### 6.4 Thành viên `/households/:id/members`
 
@@ -371,7 +371,7 @@ field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Lan�
 Minh" (design review 05/11). If two members share a last word, both are shown by their last two words
 ("Duy Anh", "Tuấn Anh"); if those still match, by the full name.
 
-Above the add field, **Mời bạn cùng phòng** (#132): the hint "Ai có đường dẫn này đều xem và sửa được
+Above the add field, **Mời bạn cùng phòng** (#132): the hint "Ai có link này đều xem và sửa được
 nhà, nên chỉ gửi cho người trong nhà." and *Sao chép link mời* (toast "Đã sao chép link mời.
 Gửi vào nhóm chat của nhà nhé."). Where the clipboard is blocked, the link is shown in a read-only field,
 selected, to copy by hand. The Tổng quan reminder ends with the same link.
@@ -484,7 +484,7 @@ approve, expenses, Tôi đã chuyển, Đã nhận, undo, sign out, errors). Wha
 * **What waits for you** shows as a count on the tab (pink, dark figures): requests to approve on
   Thành viên for the owner, a "Tôi đã chuyển" to confirm on Tổng quan. Open pages refresh every 30 s
   (PROJECT_SPEC §3.3, 04/11).
-* **Joining.** The request waiting for approval is one card with *Kiểm tra lại* and *Hủy yêu cầu*; the
+* **Joining.** The request waiting for approval is one card with *Kiểm tra lại* and *Huỷ yêu cầu*; the
   tips for people who invite others are not shown to someone waiting. On a phone that can share, the
   invite card leads with *Gửi link mời* (the share sheet: Zalo, Messenger); copying the link, then the
   code, follow.

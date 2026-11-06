@@ -220,7 +220,7 @@ const vi = {
   },
   claim: {
     title: (name: string) => `Làm trưởng nhóm của ${name}`,
-    intro: 'Đây là đường dẫn mời từ trước khi app có tài khoản, và nhà này chưa có trưởng nhóm. Chọn tên của bạn để làm trưởng nhóm.',
+    intro: 'Đây là link mời từ trước khi app có tài khoản, và nhà này chưa có trưởng nhóm. Chọn tên của bạn để làm trưởng nhóm.',
     whoAreYou: 'Bạn là ai trong nhà này?',
     newName: (name: string) => `Tôi là người mới (${name})`,
     submit: 'Nhận làm trưởng nhóm',

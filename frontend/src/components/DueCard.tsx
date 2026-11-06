@@ -17,8 +17,8 @@ interface DueCardProps {
 const SHOWN = 3
 
 /**
- * "Tới hạn" on Tổng quan (specs/007-recurring-expenses), under the transfers: the house's recurring
- * expenses whose day has come and that nobody recorded this month. "Ghi luôn" opens the add form filled;
+ * "Đến ngày ghi" on Tổng quan (specs/007-recurring-expenses), under the transfers: the house's recurring
+ * expenses whose day has come and that nobody recorded this month. "Ghi tháng này" opens the add form filled;
  * a person still presses Lưu. A quiet surface, like "Mới ghi".
  */
 function DueCard({ items, looks, householdId }: DueCardProps) {
