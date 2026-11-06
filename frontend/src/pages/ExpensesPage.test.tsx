@@ -491,7 +491,7 @@ test('on a computer the description opens a row with each share', async () => {
   const shares = within(table).getByRole('list', { name: 'Phần của từng người trong Tiền điện' })
   expect(within(shares).getAllByRole('listitem')).toHaveLength(2)
   // Review of #193: the shares end where the Số tiền column ends, so the row is an empty date cell, one
-  // cell from the description to Số tiền, and an empty actions cell. This test's computer is under 1280 px,
+  // cell from the description to Số tiền, and an empty actions cell. This test's computer is under 1408 px,
   // where date and payer fold under the description: the cell spans description and amount
   const cells = (shares.closest('tr') as HTMLTableRowElement).cells
   expect(cells).toHaveLength(3)

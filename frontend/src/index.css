@@ -2881,7 +2881,8 @@ button.ai:active:focus-visible {
   padding: 0 10px;
 }
 
-/* 1024–1279 px: the date and the payer fold under the description instead of squeezing it */
+/* 1024–1407 px: the date and the payer fold under the description instead of squeezing it. 1407, not
+   1279: at 110 % (below) a 1366 px laptop has the room of a 1242 px one (useWideTable agrees) */
 .expense-meta {
   display: none;
   margin-top: 2px;
@@ -2889,7 +2890,7 @@ button.ai:active:focus-visible {
   font-size: var(--text-small);
 }
 
-@media (max-width: 1279px) {
+@media (max-width: 1407px) {
   .expense-table :is(.col-date, .col-payer) {
     display: none;
   }
@@ -2954,6 +2955,14 @@ button.ai:active:focus-visible {
     margin-inline: auto;
     padding-left: clamp(32px, 2.8vw, 40px);
     padding-right: clamp(32px, 2.8vw, 40px);
+  }
+
+  /* Signed in, everything is shown at 110 %, as the owner found it read best on a laptop (owner review
+     07/11, from 100 % / 110 % captures). The sign-in block keeps its own size. Zooming the header with
+     the page keeps the wordmark and the account the same size on every signed-in screen */
+  .app-header,
+  main:not(.signed-out) {
+    zoom: 1.1;
   }
 
   /* Secondary text reads better a size up on a laptop screen (design review 05/11) */

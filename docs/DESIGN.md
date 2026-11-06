@@ -394,7 +394,10 @@ keyboard goes through the page in the order it is seen.
   and its amount a thousand pixels apart at 1920 px, so the owner capped it at 1320 px; using the app
   with three months of data on 06/11, the owner found the 300 px of bare page on each side at 1920 too
   wide, so the cap moved to 1520 (200 px at 1920, 40 px at 1536, 1366 unchanged) and the rows are
-  bounded instead (Tổng quan below). Up to that cap the columns
+  bounded instead (Tổng quan below). Signed in, every page is shown at 110 % on a computer (header
+  included; the sign-in block and phones at 100 %): the owner found it read best on a laptop, from
+  100 % / 110 % captures on 07/11. The zoom shrinks the room a laptop has (1366 px reads like 1242), so
+  the expense table keeps all its columns only from 1408 px (1280 × 1.1). Up to that cap the columns
   keep their 1280 proportions, with a floor so the verdict and the form never get narrower than at 1280. The header keeps the
   wordmark and the account; under it, one row for the household: its name and avatars on the left, the
   three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
@@ -414,10 +417,10 @@ keyboard goes through the page in the order it is seen.
   only *+ Ghi khoản chi* and the verdict block stay filled.
 * **Chi tiêu:** the AI box and the form on the left (360 px; 380–420 px from 1280, the table taking the rest), the list on the right as
   a **table**: Ngày, Nội dung, Người trả (with the split under the name), Số tiền right-aligned, and
-  *Sửa* / *Xoá* on each row the user may change. The row being edited is tinted. Between 1024 and 1279 px
+  *Sửa* / *Xoá* on each row the user may change. The row being edited is tinted. Between 1024 and 1407 px
   the date and the payer fold under the description instead of squeezing it. The description is a
   button with the row chevron: it opens a tinted row under it with each share (the description and not
-  the split under the payer, which that 1024–1279 fold hides). The list hint says "mới nhất ở trên". *Lưu khoản chi* sits at the end of the form, not stuck to the
+  the split under the payer, which that 1024–1407 fold hides). The list hint says "mới nhất ở trên". *Lưu khoản chi* sits at the end of the form, not stuck to the
   bottom of the screen. From 1280 the three filters (Tháng, Người, Danh mục) share one row, the payer
   column is about 250 px and its split line may wrap, so a description like "Xăng đi chợ đầu mối" keeps
   one line (06/11: kept on one line, the split line pushed the payer column wide and broke descriptions).

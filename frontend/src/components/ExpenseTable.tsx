@@ -37,7 +37,7 @@ const always = () => true
 /**
  * "Các khoản chi" on a computer (DESIGN.md §6.6): the same expenses as ExpenseList, as a table to read
  * down the columns, newest first, with Sửa and Xoá on each row the user may change. Between 1024 and
- * 1279 px the date and the payer move under the description (CSS), so nothing is hidden or squeezed.
+ * 1407 px the date and the payer move under the description (CSS), so nothing is hidden or squeezed.
  */
 function ExpenseTable({
   expenses,
@@ -58,7 +58,7 @@ function ExpenseTable({
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
   // A row's description opens a row with each share (design review 05/11). The share cell spans the
-  // columns from the description to Số tiền, which are two fewer below 1280 px (date and payer fold away)
+  // columns from the description to Số tiền, which are two fewer below 1408 px (date and payer fold away)
   const allColumns = useWideTable()
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set())
   function toggle(id: number) {
@@ -125,7 +125,7 @@ function ExpenseTable({
                       <td className="col-date">{dayLabel(day)}</td>
                       <td className="col-description">
                         {/* Opens the row of shares, like tapping a row on a phone; the description and not the
-                            split under the payer, because 1024–1279 px folds the payer column away */}
+                            split under the payer, because 1024–1407 px folds the payer column away */}
                         <button
                           type="button"
                           className="expense-open"
@@ -148,7 +148,7 @@ function ExpenseTable({
                             />
                           </svg>
                         </button>
-                        {/* 1024–1279 px: the columns below fold into this line */}
+                        {/* 1024–1407 px: the columns below fold into this line */}
                         <small className="expense-meta">
                           {dayLabel(day)} · {t.expenses.paidBy(payer.short, split)}
                         </small>
