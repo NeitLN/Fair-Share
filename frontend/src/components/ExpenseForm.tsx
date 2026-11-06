@@ -1,8 +1,10 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent, Ref } from 'react'
 
-import type { Category, Expense, ExpenseInput, Member, SplitType } from '../api/types'
+import type { Category, Expense, ExpenseInput, Member, RecurringItem, SplitType } from '../api/types'
 import { guessCategory } from '../lib/categories'
+import { monthNumber } from '../lib/expenseFilters'
+import { keptPeople } from '../lib/recurring'
 import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
@@ -58,6 +60,11 @@ interface ExpenseFormProps {
   defaultPayer?: number | null
   /** An existing expense to edit; without it the form adds a new one. */
   initial?: Expense | null
+  /**
+   * A due recurring item to record (specs/007-recurring-expenses): the form opens filled from it and
+   * saves the month's expense of it. Mount the form with a key per item so it starts fresh.
+   */
+  fromItem?: RecurringItem | null
   /** Resolves when saved, rejects on failure (the form keeps everything the user typed). */
   onSubmit: (input: ExpenseInput) => Promise<unknown>
   onCancel?: () => void
@@ -78,6 +85,7 @@ function ExpenseForm({
   me = null,
   defaultPayer = null,
   initial,
+  fromItem = null,
   onSubmit,
   onCancel,
   submitting,
@@ -90,22 +98,34 @@ function ExpenseForm({
   const shortName = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
   const validPayer = (id: number | null) => (id !== null && members.some((m) => m.id === id) ? id : '')
 
-  const [description, setDescription] = useState(initial?.description ?? '')
-  const [amountText, setAmountText] = useState(initial ? String(initial.amount) : '')
-  const [payerId, setPayerId] = useState<number | ''>(initial?.payer_id ?? validPayer(defaultPayer))
+  // Filled from a recurring item: only the people still in the house, and who was left out (FR-008)
+  const [kept] = useState(() => (fromItem ? keptPeople(fromItem, members) : null))
+  const [description, setDescription] = useState(initial?.description ?? fromItem?.description ?? '')
+  const [amountText, setAmountText] = useState(
+    initial ? String(initial.amount) : fromItem?.amount ? String(fromItem.amount) : '',
+  )
+  const [payerId, setPayerId] = useState<number | ''>(
+    initial?.payer_id ?? (kept ? (kept.payerId ?? '') : validPayer(defaultPayer)),
+  )
   // The payer is still the default (not chosen by the user, not filled or cleared by the AI): only then
   // may a change of "Bạn là ai?" move it. Its value alone cannot tell, the AI may fill the same person.
-  const [payerIsDefault, setPayerIsDefault] = useState(!initial)
+  const [payerIsDefault, setPayerIsDefault] = useState(!initial && !fromItem)
   const [spentAt, setSpentAt] = useState(initial?.spent_at ?? today())
   const [splitType, setSplitType] = useState<SplitType>(initial?.split_type ?? 'equal')
   // Danh mục (specs/005-expense-categories): guessed from the description until the user picks one.
   // Editing keeps the stored one; an AI fill sets the description, so the guess follows it too.
-  const [pickedCategory, setPickedCategory] = useState<Category | null>(initial ? (initial.category ?? 'other') : null)
+  const [pickedCategory, setPickedCategory] = useState<Category | null>(
+    initial ? (initial.category ?? 'other') : (fromItem?.category ?? null),
+  )
   const category = pickedCategory ?? guessCategory(description)
   // Equal split: who takes part. A new expense starts with everyone.
   const [selected, setSelected] = useState<Set<number>>(
-    () => new Set(initial ? initialShares.keys() : members.map((m) => m.id)),
+    () => new Set(initial ? initialShares.keys() : kept ? kept.memberIds : members.map((m) => m.id)),
   )
+  // "Lặp lại hằng tháng" (specs/007-recurring-expenses): only when adding, never when recording an item
+  const [repeat, setRepeat] = useState(false)
+  const [varying, setVarying] = useState(false)
+  const offerRepeat = !editing && !fromItem
   // Custom split: what each person typed, kept as text so "240.000" stays as typed.
   const [customText, setCustomText] = useState<Record<number, string>>(() =>
     initial?.split_type === 'custom'
@@ -293,7 +313,9 @@ function ExpenseForm({
     if (!spentAt) found.date = t.form.dateMissing
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
     else if (!isDayInRange(spentAt)) found.date = t.form.dateRange
-    if (splitType === 'equal') {
+    if (repeat && offerRepeat && splitType === 'custom') {
+      found.split = t.recurring.equalOnly
+    } else if (splitType === 'equal') {
       if (selected.size === 0) found.split = t.form.pickSomeone
     } else if (customInvalid) {
       found.split = t.form.badShare
@@ -313,6 +335,11 @@ function ExpenseForm({
       spent_at: spentAt,
       source: initial?.source ?? (fromAi ? 'ai' : 'manual'),
       category,
+      ...(fromItem
+        ? { recurring_item_id: fromItem.id }
+        : repeat && offerRepeat
+          ? { recurring: { varying_amount: varying } }
+          : {}),
     }
     if (splitType === 'equal') {
       return { ...base, split: { type: 'equal', member_ids: [...selected].sort((a, b) => a - b) } }
@@ -352,6 +379,8 @@ function ExpenseForm({
         setPayerId(validPayer(defaultPayer))
         setPayerIsDefault(true)
         setPickedCategory(null)
+        setRepeat(false)
+        setVarying(false)
         // The next expense starts from scratch: nothing touched, nothing from the AI
         setTouched(new Set())
         setJustFilled(new Set())
@@ -400,6 +429,11 @@ function ExpenseForm({
 
   return (
     <form ref={formElement} className="expense-form" onSubmit={handleSubmit} noValidate>
+      {fromItem && (
+        <p className="note field-note recurring-period" role="status">
+          {t.recurring.period(monthNumber((spentAt || today()).slice(0, 7)))}
+        </p>
+      )}
       <div className="field">
         <label htmlFor="expense-description">{t.form.description}</label>
         <input
@@ -426,6 +460,8 @@ function ExpenseForm({
           <input
             id="expense-amount"
             data-field="amount"
+            // A varying item (electricity): the real bill is what is left to type
+            autoFocus={Boolean(fromItem) && !fromItem?.amount}
             className={flash('amount').trim() || undefined}
             type="text"
             inputMode="numeric"
@@ -446,6 +482,7 @@ function ExpenseForm({
 
       <fieldset className={`field payer${flash('payer')}`} {...invalid('payer')}>
         <legend>{t.form.whoPaid}</legend>
+        {kept && kept.payerId === null && payerId === '' && <p className="note field-note">{t.recurring.pickPayer}</p>}
         <div className="pick">
           {members.map((m, index) => {
             const look = looks.get(m.id) ?? REMOVED_MEMBER
@@ -523,6 +560,9 @@ function ExpenseForm({
 
       <CategoryPicker value={category} onPick={setPickedCategory} />
 
+      {kept && kept.left.length > 0 && (
+        <p className="note field-note">{t.recurring.leftOut(kept.left.map((id) => shortName(id)).join(', '))}</p>
+      )}
       <div className={`field fold-field${flash('split')}`}
         onKeyDown={(event) => closeOnEscape(event, splitOpen, () => setSplitOpen(false), splitToggle.current)}
       >
@@ -631,6 +671,31 @@ function ExpenseForm({
 
       {/* The server's answer stays above the button (DESIGN.md §6.3) */}
       {error && <p role="alert">{error}</p>}
+
+      {offerRepeat && (
+        <div className="field recurring-field">
+          <label className="inline">
+            <input
+              type="checkbox"
+              checked={repeat}
+              aria-describedby={repeat ? 'expense-repeat-hint' : undefined}
+              onChange={(e) => setRepeat(e.target.checked)}
+            />
+            {t.recurring.tick}
+          </label>
+          {repeat && (
+            <>
+              <p id="expense-repeat-hint" className="hint">
+                {t.recurring.hint(Number((spentAt || today()).slice(8, 10)))}
+              </p>
+              <label className="inline">
+                <input type="checkbox" checked={varying} onChange={(e) => setVarying(e.target.checked)} />
+                {t.recurring.varying}
+              </label>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="form-actions">
         <button type="submit" disabled={submitting}>

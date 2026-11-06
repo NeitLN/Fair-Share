@@ -2464,6 +2464,109 @@ button.ai:active:focus-visible {
   justify-self: start;
 }
 
+/* Recurring expenses (specs/007-recurring-expenses): "Tới hạn" under the transfers on Tổng quan, the
+   tick in the form and "Khoản định kỳ" in Chi tiêu. Quiet surfaces, like "Mới ghi" */
+.due-card {
+  border: 1px solid var(--card-edge);
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.due-card ul,
+.recurring-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.due-card li,
+.recurring-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+}
+
+.due-card li + li,
+.recurring-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.due-text,
+.recurring-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 12rem;
+  overflow-wrap: anywhere;
+}
+
+.due-text > span,
+.recurring-text > span {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.due-record {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  padding: 0 16px;
+  border: 2px solid var(--control-line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.due-more {
+  justify-self: start;
+}
+
+.recurring-state {
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+/* The shared fold hides its summary once open (the forms inside close themselves); this list has
+   nothing else to close it with, so its summary stays, and the open list sits on a surface */
+.recurring-list[open] > summary {
+  display: flex;
+  justify-content: space-between;
+}
+
+.recurring-list[open] > ul,
+.recurring-list[open] > .hint {
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.recurring-list[open] > .hint {
+  padding: 12px 14px;
+}
+
+.recurring-field {
+  display: grid;
+  gap: 4px;
+}
+
+.recurring-field label.inline {
+  min-height: var(--target);
+}
+
 /* ---------------------------------------------------------------- accounts (docs/ACCOUNTS.md) */
 
 .auth {

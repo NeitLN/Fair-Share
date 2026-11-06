@@ -5,6 +5,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
 import { getHousehold, keys, listMembers } from '../api/households'
+import { ApiError } from '../api/client'
+import { listRecurring, recurringKeys, stopRecurring } from '../api/recurring'
 import type { Category, Expense, ExpenseInput } from '../api/types'
 import { CATEGORIES } from '../lib/categories'
 import AiComposer from '../components/AiComposer'
@@ -15,9 +17,11 @@ import ExpenseList from '../components/ExpenseList'
 import ExpenseTable from '../components/ExpenseTable'
 import ExportCsvButton from '../components/ExportCsvButton'
 import MonthTotals from '../components/MonthTotals'
+import RecurringList from '../components/RecurringList'
 import { warningMessage } from '../lib/aiWarnings'
 import { errorMessage } from '../lib/errors'
-import { filterExpenses, isFiltered, monthsOf, monthTotals, NO_FILTER } from '../lib/expenseFilters'
+import { today } from '../lib/date'
+import { filterExpenses, isFiltered, monthNumber, monthsOf, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import type { ExpenseFilter } from '../lib/expenseFilters'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
@@ -48,13 +52,21 @@ function ExpensesPage() {
   // "Xem" in the saved toast: the expense to scroll to and tint for a moment, and the rows on screen now.
   // Arriving from "Vì sao ra số này?" on Tổng quan (specs/002-balance-explanation) starts with that expense;
   // the page has just opened, so no filter can hide it
-  const arrival = location.state as { revealExpense?: number; month?: string; category?: Category } | null
+  const arrival = location.state as {
+    revealExpense?: number
+    month?: string
+    category?: Category
+    recordItem?: number
+  } | null
   const revealExpense = arrival?.revealExpense
   // "Xem các khoản chi tháng này" in a monthly report (specs/004-monthly-report) starts on that month; a
   // month with no expense is dropped below, like any month that no longer filters anything
   const startMonth = arrival?.month
   // A line of "Chi theo danh mục" in the report (specs/005-expense-categories) adds its category
   const startCategory = arrival?.category
+  // "Ghi luôn" on Tổng quan (specs/007-recurring-expenses): the form opens filled from that item
+  const startRecording = arrival?.recordItem
+  const [recordingId, setRecordingId] = useState<number | null>(startRecording ?? null)
   const [revealId, setRevealId] = useState<number | null>(revealExpense ?? null)
   const onScreen = useRef(new Set<number>())
   // The list filter belongs to one household: another household starts unfiltered
@@ -71,6 +83,12 @@ function ExpensesPage() {
     queryKey: expenseKeys.list(householdId),
     queryFn: () => listExpenses(householdId),
   })
+  const recurring = useQuery({
+    queryKey: recurringKeys.list(householdId),
+    queryFn: () => listRecurring(householdId),
+  })
+  const recordingItem =
+    recordingId === null ? null : (recurring.data?.find((item) => item.id === recordingId) ?? null)
   // The same query HouseholdLayout already runs, so its cache answers and no request is sent twice
   const household = useQuery({
     queryKey: keys.household(householdId),
@@ -96,6 +114,8 @@ function ExpensesPage() {
     onSuccess: (expense, input) => {
       writeLastPayer(householdId, input.payer_id)
       setComposerKey((key) => key + 1)
+      // Recorded: the next expense is an ordinary one again
+      if (input.recurring_item_id !== undefined) setRecordingId(null)
       saved(expense)
       return refresh()
     },
@@ -107,6 +127,10 @@ function ExpensesPage() {
       saved(expense)
       return refresh()
     },
+  })
+  const stop = useMutation({
+    mutationFn: stopRecurring,
+    onSuccess: () => refresh(),
   })
   const remove = useMutation({
     mutationFn: (expense: Expense) => deleteExpense(expense.id, householdId),
@@ -141,6 +165,14 @@ function ExpensesPage() {
   // You, else whoever paid last on this device (DESIGN.md §6.3)
   const defaultPayer = me ?? readLastPayer(householdId)
   const form = editing ? update : create
+  // "Kỳ 11/2026 của Tiền nhà đã có người ghi": said with the month and the item, and the way to it
+  const taken =
+    form.error instanceof ApiError && form.error.code === 'recurring_month_taken'
+      ? (form.error.details as { expense_id?: number | null } | undefined)?.expense_id ?? null
+      : null
+  const takenInput = editing ? update.variables?.input : create.variables
+  const takenItem = editing ? editing.recurring_item_id : takenInput?.recurring_item_id
+  const takenName = recurring.data?.find((item) => item.id === takenItem)?.description ?? takenInput?.description ?? ''
 
   const allExpenses = useMemo(() => expenses.data ?? [], [expenses.data])
   const months = useMemo(() => monthsOf(allExpenses), [allExpenses])
@@ -155,10 +187,9 @@ function ExpensesPage() {
   const shown = filterExpenses(allExpenses, filter)
   // Revealed once: going back and forth does not reveal it or filter on the month again
   useEffect(() => {
-    if (revealExpense !== undefined || startMonth !== undefined || startCategory !== undefined) {
-      navigate(location.pathname, { replace: true, state: null })
-    }
-  }, [revealExpense, startMonth, startCategory, navigate, location.pathname])
+    const handedOver = [revealExpense, startMonth, startCategory, startRecording].some((v) => v !== undefined)
+    if (handedOver) navigate(location.pathname, { replace: true, state: null })
+  }, [revealExpense, startMonth, startCategory, startRecording, navigate, location.pathname])
   useEffect(() => {
     onScreen.current = new Set(shown.map((expense) => expense.id))
   })
@@ -237,22 +268,47 @@ function ExpensesPage() {
                 <ExpenseForm
                   ref={expenseForm}
                   // A new key gives the form fresh state for each household and each expense it edits
-                  key={`${householdId}-${editing?.id ?? 'new'}`}
+                  key={`${householdId}-${editing?.id ?? (recordingItem ? `item-${recordingItem.id}` : 'new')}`}
                   // A new expense is shared only between people with an account; an old one keeps its people
                   members={editing ? members.data : withAccount}
                   looks={looks}
                   me={me}
                   defaultPayer={defaultPayer}
                   initial={editing}
+                  fromItem={editing ? null : recordingItem}
                   onSubmit={(input) =>
                     editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
                   }
                   onCancel={editing ? () => setEditing(null) : undefined}
                   submitting={form.isPending}
-                  error={errorMessage(form.error)}
+                  error={form.error instanceof ApiError && form.error.code === 'recurring_month_taken' ? null : errorMessage(form.error)}
                 />
+                {form.error instanceof ApiError && form.error.code === 'recurring_month_taken' && (
+                  <p className="note" role="alert">
+                    {t.recurring.taken(monthNumber((takenInput?.spent_at ?? today()).slice(0, 7)), takenName)}
+                    {taken !== null && (
+                      <button type="button" className="btn-ghost" onClick={() => reveal(taken)}>
+                        {t.recurring.seeTaken}
+                      </button>
+                    )}
+                  </p>
+                )}
               </div>
             </section>
+          )}
+          {/* What recurs, and Ngừng lặp for its creator or the owner (specs/007-recurring-expenses) */}
+          {recurring.isSuccess && expenses.isSuccess && (
+            <RecurringList
+              items={recurring.data}
+              expenses={expenses.data}
+              today={today()}
+              looks={looks}
+              canStop={(item) => household.data?.role === 'owner' || item.created_by === session?.user.id}
+              onStop={(item) =>
+                stop.mutate(item.id, { onSuccess: () => toast({ text: t.recurring.stopped(item.description) }) })
+              }
+              stoppingId={stop.isPending ? (stop.variables ?? null) : null}
+            />
           )}
         </div>
 

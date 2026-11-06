@@ -1082,3 +1082,40 @@ describe('Mới ghi', () => {
     spy.mockRestore()
   })
 })
+
+// "Tới hạn" (specs/007-recurring-expenses)
+describe('Tới hạn', () => {
+  const dueToday = {
+    id: 7, household_id: 7, description: 'Internet', category: 'utilities', payer_id: 2, member_ids: [1, 2, 3],
+    amount: 300_000, day: Number(today().slice(8, 10)), created_by: 10, created_at: '',
+  }
+
+  test('under the transfers, in the left column; the right column starts as before', async () => {
+    onAComputer()
+    api({ 'GET /api/households/7/recurring': [200, [dueToday]] })
+    renderApp('/households/7')
+    const card = await screen.findByRole('region', { name: 'Tới hạn' })
+    expect(card).toHaveTextContent('Internet300.000đ · Minh trả')
+    expect(card.closest('.split-lead')).not.toBeNull()
+    const lead = card.closest('.split-lead') as HTMLElement
+    const panel = lead.querySelector('.transfers-panel')
+    if (panel) expect(panel.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(card).getByRole('link', { name: 'Ghi luôn Internet' })).toBeInTheDocument()
+  })
+
+  test('nothing while the items are loading, and nothing once this month is recorded', async () => {
+    api({ 'GET /api/households/7/recurring': () => new Promise(() => {}) })
+    const first = renderApp('/households/7')
+    await screen.findByRole('region', { name: 'Số dư từng người' })
+    expect(screen.queryByRole('region', { name: 'Tới hạn' })).not.toBeInTheDocument()
+    first.unmount()
+
+    api({
+      'GET /api/households/7/recurring': [200, [dueToday]],
+      'GET /api/households/7/expenses': [200, [{ ...expense, recurring_item_id: 7 }]],
+    })
+    renderApp('/households/7')
+    await screen.findByText(/cả nhà chi/)
+    expect(screen.queryByRole('region', { name: 'Tới hạn' })).not.toBeInTheDocument()
+  })
+})
