@@ -105,14 +105,14 @@ describe('ExpenseList', () => {
     const row = (description: string) => screen.getByText(description).closest('li') as HTMLElement
     expect(row('Tiền điện')).toHaveTextContent(/Tiền điện.*Minh trả · chia đều 3 người.*240\.000đ/)
     expect(row('Trà sữa')).toHaveTextContent('Lan trả · chia đều 2/3 người')
-    expect(row('Ăn tối')).toHaveTextContent('Tiến trả · chia riêng 2 người')
+    expect(row('Ăn tối')).toHaveTextContent('Tiến trả · tự chia 2 người')
   })
 
   test('a row ends with what the expense was for (specs/005-expense-categories)', () => {
     renderList([electricity, dinner, { ...tea, category: undefined as never }])
     const row = (description: string) => screen.getByText(description).closest('li') as HTMLElement
-    expect(row('Tiền điện')).toHaveTextContent('Minh trả · chia đều 3 người · Điện nước')
-    expect(row('Ăn tối')).toHaveTextContent('Tiến trả · chia riêng 2 người · Ăn uống')
+    expect(row('Tiền điện')).toHaveTextContent('Minh trả · chia đều 3 người · Điện, nước, mạng')
+    expect(row('Ăn tối')).toHaveTextContent('Tiến trả · tự chia 2 người · Ăn uống')
     // One from before categories, as an older API would send it
     expect(row('Trà sữa')).toHaveTextContent('chia đều 2/3 người · Khác')
   })
@@ -152,7 +152,7 @@ describe('ExpenseList', () => {
 
   test('a payer missing from members is shown as deleted, not as a blank', () => {
     renderList([{ ...electricity, payer_id: 99 }])
-    expect(screen.getByText(/^Thành viên đã xoá trả/)).toBeInTheDocument()
+    expect(screen.getByText(/^Thành viên cũ trả/)).toBeInTheDocument()
   })
 
   test('tapping a row reveals Sửa and Xoá', async () => {
@@ -253,7 +253,7 @@ describe('ExpenseList, keyboard', () => {
   })
 })
 
-// Design review 05/11: "chia riêng 2 người" did not say whether you were in it, or for how much
+// Design review 05/11: "tự chia 2 người" did not say whether you were in it, or for how much
 describe("each person's share", () => {
   test('opening a row shows who shares it and how much each', async () => {
     renderList([dinner])

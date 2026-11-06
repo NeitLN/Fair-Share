@@ -184,7 +184,7 @@ describe('MemberList', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Lưu' }))
 
     expect(screen.getByRole('button', { name: 'Đổi tên Hương' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Hủy' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Huỷ' })).toBeDisabled()
     await userEvent.keyboard('{Escape}')
     expect(screen.getByLabelText('Tên mới cho Lan')).toBeInTheDocument()
 

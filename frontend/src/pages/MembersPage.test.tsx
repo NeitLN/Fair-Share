@@ -82,7 +82,7 @@ test('the invite code is shown big, and copying it puts it on the clipboard', as
   expect(await screen.findByText('K7QM-2XRT')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Sao chép mã' }))
   expect(await navigator.clipboard.readText()).toBe('K7QM-2XRT')
-  await user.click(screen.getByRole('button', { name: 'Sao chép đường dẫn mời' }))
+  await user.click(screen.getByRole('button', { name: 'Sao chép link mời' }))
   expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/join/K7QM2XRT`)
 })
 

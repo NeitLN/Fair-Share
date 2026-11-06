@@ -114,7 +114,7 @@ test('the verdict uses the right verb for one person or several, and never sound
   expect(transferText(t(2, 3, 1), 1, nameOf, true)).toBe('Minh paid Lan')
 
   expect(reminderMessage('Room 302', 10, [t(2, 1, 100_000)], nameOf, 'https://x/households/1#k=k')).toBe(
-    ['Room 302 — October repayments:', '• Minh owes Tiến 100,000 ₫', 'Details: https://x/households/1#k=k'].join(
+    ["Hi Room 302, here's what's still to pay:", '• Minh owes Tiến 100,000 ₫', 'Details: https://x/households/1#k=k'].join(
       '\n',
     ),
   )

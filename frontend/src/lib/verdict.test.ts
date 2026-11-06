@@ -4,7 +4,7 @@ import type { MemberBalance, Transfer } from '../api/types'
 import { reminderMessage, tookPart, transferText, verdict } from './verdict'
 
 const names: Record<number, string> = { 1: 'Tiến', 2: 'Minh', 3: 'Anh', 4: 'Lan', 5: 'Hương' }
-const nameOf = (id: number) => names[id] ?? 'Thành viên đã xoá'
+const nameOf = (id: number) => names[id] ?? 'Thành viên cũ'
 const t = (from: number, to: number, amount: number): Transfer => ({
   from_member_id: from,
   to_member_id: to,
@@ -40,8 +40,8 @@ describe('verdict', () => {
 
   test('you are in no transfer, nobody is chosen, nothing is left', () => {
     const two = [t(1, 2, 120_000), t(3, 2, 80_000)]
-    expect(verdict(two, 4, nameOf, true)).toEqual({ sentence: 'Bạn không nợ ai. Còn 2 lần trả trong nhà.', total: null })
-    expect(verdict(two, null, nameOf, true)).toEqual({ sentence: 'Còn 2 lần trả là cả nhà về 0đ', total: null })
+    expect(verdict(two, 4, nameOf, true)).toEqual({ sentence: 'Bạn đã xong phần mình. Cả nhà còn 2 lần trả.', total: null })
+    expect(verdict(two, null, nameOf, true)).toEqual({ sentence: 'Còn 2 lần trả nữa là cả nhà sạch nợ.', total: null })
     expect(verdict([], 1, nameOf, true)).toEqual({ sentence: 'Cả nhà sạch nợ. Nhà trọ bình yên.', total: null })
   })
 
@@ -50,22 +50,22 @@ describe('verdict', () => {
   })
 
   test('a removed member is named as such', () => {
-    expect(verdict([t(1, 99, 5)], 1, nameOf, true).sentence).toBe('Bạn cần trả Thành viên đã xoá')
+    expect(verdict([t(1, 99, 5)], 1, nameOf, true).sentence).toBe('Bạn cần trả Thành viên cũ')
   })
 })
 
 test('a transfer reads from where you stand', () => {
-  expect(transferText(t(1, 2, 1), 1, nameOf)).toBe('Bạn trả Minh')
-  expect(transferText(t(2, 1, 1), 1, nameOf)).toBe('Minh trả bạn')
-  expect(transferText(t(3, 2, 1), 1, nameOf)).toBe('Anh trả Minh')
-  expect(transferText(t(3, 2, 1), null, nameOf)).toBe('Anh trả Minh')
+  expect(transferText(t(1, 2, 1), 1, nameOf)).toBe('Bạn cần trả Minh')
+  expect(transferText(t(2, 1, 1), 1, nameOf)).toBe('Minh cần trả bạn')
+  expect(transferText(t(3, 2, 1), 1, nameOf)).toBe('Anh cần trả Minh')
+  expect(transferText(t(3, 2, 1), null, nameOf)).toBe('Anh cần trả Minh')
 })
 
 test('the reminder names everyone and links to the household', () => {
   expect(
     reminderMessage('Nhà trọ Q7', 10, [t(1, 2, 120_000), t(3, 2, 80_000)], nameOf, 'https://x.test/households/1'),
   ).toBe(
-    'Nhà trọ Q7 chốt sổ tháng 10 nè:\n• Tiến trả Minh 120.000đ\n• Anh trả Minh 80.000đ\nXem chi tiết: https://x.test/households/1',
+    'Nhà trọ Q7 ơi, còn mấy khoản cần trả nè:\n• Tiến trả Minh 120.000đ\n• Anh trả Minh 80.000đ\nXem chi tiết: https://x.test/households/1',
   )
 })
 

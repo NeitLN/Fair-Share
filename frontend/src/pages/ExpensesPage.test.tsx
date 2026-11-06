@@ -127,7 +127,7 @@ test('editing fills the form with the expense and saves it with PUT', async () =
   await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
 
   // Back to adding, and the list shows the new amount
-  expect(await screen.findByRole('heading', { name: 'Thêm khoản chi' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Ghi khoản chi' })).toBeInTheDocument()
   expect(list().getByText(/500\.000/)).toBeInTheDocument()
 })
 
@@ -137,9 +137,9 @@ test('cancel leaves the expense as it was', async () => {
   renderApp('/households/7/expenses')
 
   await user.click(await screen.findByRole('button', { name: 'Sửa Tiền điện' }))
-  await user.click(screen.getByRole('button', { name: 'Hủy' }))
+  await user.click(screen.getByRole('button', { name: 'Huỷ' }))
 
-  expect(screen.getByRole('heading', { name: 'Thêm khoản chi' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Ghi khoản chi' })).toBeInTheDocument()
   expect(fetchFn.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
 })
 
@@ -252,7 +252,7 @@ test('when the AI is busy the sentence stays and the expense is saved by hand', 
 
   await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
   await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
-  expect(await screen.findByText(/Gõ nhanh đang quá tải/)).toBeInTheDocument()
+  expect(await screen.findByText(/Gõ nhanh đã đạt giới hạn lượt dùng/)).toBeInTheDocument()
   expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k Minh trả')
 
   await user.type(screen.getByLabelText('Nội dung'), 'Lẩu')
@@ -393,8 +393,8 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(totals.getByRole('heading')).toHaveTextContent('550.000đ')
     // Tiến paid the electricity (450k) and owes half of it; Minh paid the water and owes all of it
     const [tien, minh] = totals.getAllByRole('listitem')
-    expect(tien).toHaveTextContent(/Tiếnbạn.*đã trả 450\.000đ.*225\.000đ.*phần chia/)
-    expect(minh).toHaveTextContent(/Minh.*đã trả 100\.000đ.*325\.000đ.*phần chia/)
+    expect(tien).toHaveTextContent(/Tiếnbạn.*đã chi 450\.000đ.*225\.000đ.*phần chia/)
+    expect(minh).toHaveTextContent(/Minh.*đã chi 100\.000đ.*325\.000đ.*phần chia/)
   })
 
   test('a member keeps what they paid or share in; with no match, Xem tất cả clears the filter', async () => {
@@ -568,7 +568,7 @@ describe('recurring expenses in Chi tiêu', () => {
       .filter(([, init]) => (init as RequestInit | undefined)?.method === method)
       .map(([, init]) => JSON.parse((init as RequestInit).body as string))
 
-  test('Ghi luôn opens the form filled from the item, and Lưu records it as that month', async () => {
+  test('Ghi tháng này opens the form filled from the item, and Lưu records it as that month', async () => {
     const fetchFn = api({ 'GET /api/households/7/recurring': [200, [rent]] })
     const user = userEvent.setup()
     renderApp({ pathname: '/households/7/expenses', state: { recordItem: 7 } })

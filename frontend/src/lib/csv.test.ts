@@ -87,7 +87,7 @@ describe('expensesCsv', () => {
     )
 
     expect(csv.split('\r\n')[1]).toBe(
-      '2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,chia riêng,,240000',
+      '2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,tự chia,,240000',
     )
   })
 
@@ -95,7 +95,7 @@ describe('expensesCsv', () => {
     const csv = expensesCsv([expense({ payer_id: 99 })], members)
 
     expect(csv.split('\r\n')[1]).toBe(
-      '2026-10-21,Lẩu,Khác,240000,Thành viên đã xoá,chia đều,120000,120000',
+      '2026-10-21,Lẩu,Khác,240000,Thành viên cũ,chia đều,120000,120000',
     )
   })
 
@@ -114,7 +114,7 @@ describe('expensesCsv', () => {
     )
     const [head, row] = csv.split('\r\n')
 
-    expect(head).toBe(`${header},Thành viên đã xoá`)
+    expect(head).toBe(`${header},Thành viên cũ`)
     expect(row).toBe('2026-10-21,Lẩu,Khác,240000,Nguyễn Duy Anh,chia đều,100000,100000,40000')
   })
 

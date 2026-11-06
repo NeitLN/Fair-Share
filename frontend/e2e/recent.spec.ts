@@ -5,7 +5,7 @@ import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './a
 import type { TestAccount } from './accounts.js'
 
 // "Mới ghi" (specs/006-recently-added) in a real browser, with two accounts: what Minh records shows on
-// Tiến's Tổng quan, opens its record, and "Đã xem tất cả" keeps it hidden until Minh records something
+// Tiến's Tổng quan, opens its record, and "Đánh dấu đã xem hết" keeps it hidden until Minh records something
 // newer. Own household and accounts through the API, always deleted at the end.
 
 test.beforeEach(async ({ context }) => {
@@ -51,16 +51,16 @@ test("a housemate's records show, open, and stay hidden once seen", async ({ pag
     const strip = page.getByRole('region', { name: 'Mới ghi' })
     await expect(strip.getByRole('link')).toHaveCount(2)
     const texts = await strip.locator('.recent-text').allTextContents()
-    expect(texts).toEqual(['Minh ghi đã nhận 45.000đ từ bạn', 'Minh ghi Lẩu tối · 90.000đ'])
+    expect(texts).toEqual(['Minh xác nhận đã nhận 45.000đ từ bạn', 'Minh ghi Lẩu tối · 90.000đ'])
 
     // The expense opens in Chi tiêu
     await strip.getByRole('link', { name: /Lẩu tối/ }).click()
     await expect(page).toHaveURL(new RegExp(`/households/${h.id}/expenses$`))
     await expect(page.getByText('Lẩu tối').first()).toBeVisible()
 
-    // Đã xem tất cả, then a reload: nothing
+    // Đánh dấu đã xem hết, then a reload: nothing
     await page.goto(`/households/${h.id}`)
-    await strip.getByRole('button', { name: 'Đã xem tất cả 2 mục mới' }).click()
+    await strip.getByRole('button', { name: 'Đánh dấu đã xem hết 2 mục mới' }).click()
     await expect(strip).toHaveCount(0)
     await page.reload()
     await expect(page.getByRole('region', { name: 'Số dư từng người' })).toBeVisible()

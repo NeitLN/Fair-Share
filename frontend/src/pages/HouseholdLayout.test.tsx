@@ -43,13 +43,13 @@ describe('the way back and to another house', () => {
     mockApi({ ...house, 'GET /api/households': mine([nha7]) })
     renderApp('/households/7')
 
-    const where = await screen.findByRole('navigation', { name: 'Vị trí' })
+    const where = await screen.findByRole('navigation', { name: 'Bạn đang ở đây' })
     expect(within(where).getByRole('link', { name: 'Nhà của bạn' })).toHaveAttribute('href', '/')
     // One house: nothing to switch to
-    expect(within(where).queryByText('Chuyển nhà')).not.toBeInTheDocument()
+    expect(within(where).queryByText('Nhà khác')).not.toBeInTheDocument()
   })
 
-  test('with another house, Chuyển nhà lists only the others and opens one', async () => {
+  test('with another house, Nhà khác lists only the others and opens one', async () => {
     mockApi({
       ...house,
       'GET /api/households': mine([nha7, nha9]),
@@ -59,15 +59,15 @@ describe('the way back and to another house', () => {
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
 
-    const where = await screen.findByRole('navigation', { name: 'Vị trí' })
-    await user.click(await within(where).findByText('Chuyển nhà'))
+    const where = await screen.findByRole('navigation', { name: 'Bạn đang ở đây' })
+    await user.click(await within(where).findByText('Nhà khác'))
     const others = within(where).getAllByRole('link').filter((link) => link.getAttribute('href') !== '/')
     expect(others.map((link) => link.textContent)).toEqual(['Nhóm Đà Lạt'])
 
     await user.click(others[0])
     expect(await screen.findByRole('heading', { level: 1, name: 'Nhóm Đà Lạt' })).toBeInTheDocument()
     // The fold does not stay open over the next house
-    expect(within(screen.getByRole('navigation', { name: 'Vị trí' })).getByText('Chuyển nhà').closest('details')).not.toHaveAttribute('open')
+    expect(within(screen.getByRole('navigation', { name: 'Bạn đang ở đây' })).getByText('Nhà khác').closest('details')).not.toHaveAttribute('open')
   })
 })
 
@@ -118,7 +118,7 @@ describe('invite links from before accounts (docs/ACCOUNTS.md, L1)', () => {
     const user = userEvent.setup()
     renderApp(`/households/7#k=${OLD_KEY}`)
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nhận Nhà trọ Q7' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Làm trưởng nhóm của Nhà trọ Q7' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /Tôi là người mới \(Tiến\)/ })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'Võ Việt Tiến' }))
     await user.click(screen.getByRole('button', { name: 'Nhận làm trưởng nhóm' }))
@@ -144,7 +144,7 @@ describe('invite links from before accounts (docs/ACCOUNTS.md, L1)', () => {
   test('a wrong old key is like a household that does not exist', async () => {
     mockApi({ 'GET /api/households/7': [...notFound], 'GET /api/households/7/claim': [...notFound] })
     renderApp(`/households/7#k=${OLD_KEY}`)
-    expect(await screen.findByText(/Có thể nhà đã bị xoá/)).toBeInTheDocument()
+    expect(await screen.findByText(/Nhà này không tồn tại hoặc bạn chưa có quyền vào/)).toBeInTheDocument()
   })
 
   test('a member opening an old link simply opens the household', async () => {

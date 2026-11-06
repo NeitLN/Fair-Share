@@ -23,11 +23,11 @@ test('the month total, then each member: paid and share', () => {
   expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Tháng 10/2026: cả nhà chi 550.000đ')
   const rows = within(screen.getByRole('list', { name: 'Từng người trong tháng 10/2026' })).getAllByRole('listitem')
   expect(rows).toHaveLength(3)
-  expect(rows[0]).toHaveTextContent('Tiếnđã trả 450.000đ225.000đphần chia')
+  expect(rows[0]).toHaveTextContent('Tiếnđã chi 450.000đ225.000đphần chia')
   expect(rows[0]).toHaveClass('highlighted')
   // You are marked; someone who left is still shown, by the usual name
   expect(within(rows[1]).getByText('bạn')).toBeInTheDocument()
-  expect(rows[2]).toHaveTextContent('Thành viên đã xoá')
+  expect(rows[2]).toHaveTextContent('Thành viên cũ')
 })
 
 test('no "Báo cáo tháng" link unless the page passes where it goes (Chi tiêu does not)', () => {

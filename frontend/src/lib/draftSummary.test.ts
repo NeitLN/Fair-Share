@@ -52,7 +52,7 @@ describe('draftSummary', () => {
 
   test('names the payer, and says "deleted" when they are no longer a member', () => {
     expect(draftSummary({ ...draft, payer_id: 2 }, members)).toContain('Tiến trả')
-    expect(draftSummary({ ...draft, payer_id: 99 }, members)).toContain('Thành viên đã xoá trả')
+    expect(draftSummary({ ...draft, payer_id: 99 }, members)).toContain('Thành viên cũ trả')
   })
 
   test('counts the participants when only some of the household shares it', () => {

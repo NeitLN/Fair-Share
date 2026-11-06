@@ -41,7 +41,7 @@ test('folded, with how many; each item, its day and this month', async () => {
   await userEvent.click(summary)
   const rows = within(summary.closest('details') as HTMLElement).getAllByRole('listitem')
   expect(rows[0]).toHaveTextContent('Tiền nhà4.500.000đ · Minh trả · ngày 1tháng này đã ghi')
-  expect(rows[1]).toHaveTextContent('Tiền điệnsố tiền thay đổi · Minh trả · ngày 5tới hạn')
+  expect(rows[1]).toHaveTextContent('Tiền điệnsố tiền thay đổi · Minh trả · ngày 5đến ngày ghi')
   expect(rows[2]).toHaveTextContent('chưa tới ngày')
 })
 

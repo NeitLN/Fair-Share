@@ -100,17 +100,17 @@ describe('SettlementList', () => {
     renderList({
       settlements: [{ ...settlements[0], from_member_id: 99, to_member_id: 98 }],
     })
-    expect(screen.getAllByText('Thành viên đã xoá')).toHaveLength(2)
+    expect(screen.getAllByText('Thành viên cũ')).toHaveLength(2)
   })
 
   test('shows the empty message only when there is no error', () => {
     const { unmount } = renderList({ settlements: [] })
-    expect(screen.getByText(/^Chưa có khoản trả nào/)).toBeInTheDocument()
+    expect(screen.getByText(/^Chưa ghi khoản trả nào/)).toBeInTheDocument()
     unmount()
 
     renderList({ settlements: [], error: 'Không kết nối được tới máy chủ.' })
     expect(screen.getByRole('alert')).toHaveTextContent('Không kết nối được tới máy chủ.')
-    expect(screen.queryByText(/^Chưa có khoản trả nào/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Chưa ghi khoản trả nào/)).not.toBeInTheDocument()
   })
 
   test('shows skeleton rows instead of the list while loading', () => {
