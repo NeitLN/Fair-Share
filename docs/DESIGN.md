@@ -295,6 +295,13 @@ added", not an activity log. The marks are kept per account and per house in thi
 for expenses and one for repayments, since they refresh on different schedules); a first visit shows the
 last 7 days. No strip while any list is loading or failed, and none when there is nothing new.
 
+**Tới hạn** ([spec 007](../specs/007-recurring-expenses/spec.md)): a quiet card under the transfers in the
+left column (after them on a phone), so the right column and *Báo cáo tháng* do not move. One line per
+recurring expense whose day has come and that nobody recorded this month: "Internet · 300.000đ · Minh trả
+· ngày 5", or "nhập số tiền tháng này" for one whose amount varies, with *Ghi luôn* (44 px). 3 lines, then
+*Xem tất cả (n)*. *Ghi luôn* opens Chi tiêu with the add form filled and "Đang ghi kỳ 11/2026" above it;
+a person presses Lưu. No card when nothing is due or while the lists load.
+
 ### 6.3 Chi tiêu `/households/:id/expenses`
 
 ```
@@ -319,6 +326,13 @@ Hôm qua, 20/10
 * **Defaults:** payer = you (else the last payer saved on this device, else nobody: the form asks rather than
   guess); every new expense starts from that default again; date = today; split = equal
   between everyone. The 90% case needs only *Nội dung*, *Số tiền* and *Lưu*.
+* **Lặp lại hằng tháng** ([spec 007](../specs/007-recurring-expenses/spec.md)): a tick before Lưu when
+  adding (not when editing or recording a due item), with "Nhắc ngày 5 mỗi tháng · không tự ghi tiền";
+  once ticked, "Số tiền thay đổi mỗi tháng". Only an equal split recurs (a custom one says so). Filled
+  from a due item, people no longer in the house are left out and named. A second expense of the same
+  item in one month is refused: "Kỳ 11/2026 của Tiền nhà đã có người ghi", with *Xem khoản đã ghi*.
+  Under the form, a folded *Khoản định kỳ (n)* lists each item, its day and this month (đã ghi, tới hạn,
+  chưa tới ngày), with *Ngừng lặp* for its creator or the owner (asks first; what was recorded stays).
 * **Danh mục** ([spec 005](../specs/005-expense-categories/spec.md)): seven fixed categories (Ăn uống, Đi
   chợ, Điện nước, Tiền nhà, Đi lại, Sinh hoạt, Khác). The row follows Nội dung with no press: "Tiền
   điện" reads Điện nước, "Lẩu" Ăn uống, words typed without accents too, and *Khác* when nothing
