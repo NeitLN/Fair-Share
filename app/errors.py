@@ -31,11 +31,13 @@ HTTP_CODES = {
 class ApiError(Exception):
     """Raise this from a route: raise ApiError(404, "household_not_found", "No such household")."""
 
-    def __init__(self, status: int, code: str, message: str):
+    def __init__(self, status: int, code: str, message: str, details: dict | None = None):
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
+        # Machine-readable context for the page, e.g. the expense a 409 conflicts with
+        self.details = details
 
 
 def error_response(status: int, code: str, message: str, **extra) -> JSONResponse:
@@ -52,7 +54,8 @@ def install(app: FastAPI) -> None:
         # page and in Retry-After for anything else
         retry_after = getattr(exc, "retry_after", None)
         if retry_after is None:
-            return error_response(exc.status, exc.code, exc.message)
+            extra = {} if exc.details is None else {"details": exc.details}
+            return error_response(exc.status, exc.code, exc.message, **extra)
         response = error_response(exc.status, exc.code, exc.message, retry_after=retry_after)
         response.headers["Retry-After"] = str(retry_after)
         return response

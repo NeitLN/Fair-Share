@@ -14,7 +14,14 @@ from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import Path
-from pydantic import BaseModel, BeforeValidator, Field, StrictInt, StringConstraints
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    Field,
+    StrictInt,
+    StringConstraints,
+    model_validator,
+)
 
 BIGINT_MAX = 2**63 - 1
 
@@ -283,6 +290,13 @@ class CustomSplit(BaseModel):
 Category = Literal["food", "groceries", "utilities", "rent", "transport", "household", "other"]
 
 
+class RecurringIn(BaseModel):
+    """Make a new expense recur every month (specs/007-recurring-expenses)."""
+
+    # Electricity: the amount is typed each month, so the item keeps none
+    varying_amount: bool = False
+
+
 class ExpenseIn(BaseModel):
     """Body of POST /api/households/{id}/expenses and PUT /api/expenses/{id}."""
 
@@ -296,6 +310,16 @@ class ExpenseIn(BaseModel):
     # keeps the stored one (app/routers/expenses.py); never refused
     category: Category = "other"
     split: Annotated[EqualSplit | CustomSplit, Field(discriminator="type")]
+    # POST only (specs/007-recurring-expenses): make this new expense recur, or record it as the
+    # month's expense of an item. A PUT ignores both and keeps the expense's link.
+    recurring: RecurringIn | None = None
+    recurring_item_id: MemberId | None = None
+
+    @model_validator(mode="after")
+    def one_recurring_field(self) -> "ExpenseIn":
+        if self.recurring is not None and self.recurring_item_id is not None:
+            raise ValueError("Send either recurring or recurring_item_id, not both")
+        return self
 
 
 class Expense(BaseModel):
@@ -314,6 +338,24 @@ class Expense(BaseModel):
     shares: list[Share]
     # The account that recorded it (who may change it); None for one from before accounts
     created_by: int | None = None
+    # The recurring item it is the month's expense of (specs/007-recurring-expenses)
+    recurring_item_id: int | None = None
+
+
+class RecurringItem(BaseModel):
+    """A recurring item: how to fill the form again when its day comes. Split equally."""
+
+    id: int
+    household_id: int
+    description: str
+    category: Category
+    payer_id: int
+    member_ids: list[int]
+    # None: the amount changes every month
+    amount: int | None
+    day: int
+    created_by: int | None
+    created_at: datetime
 
 
 # --- Settlements (US-08) ------------------------------------------------------------------------

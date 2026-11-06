@@ -6,12 +6,19 @@ account in the household only; a name from before accounts that nobody has taken
 expenses it is already part of.
 """
 
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter
 from psycopg import Connection, errors
 
-from app.access import AccessDep, HouseholdAccess, expense_not_found, require_owner_or_author
+from app.access import (
+    AccessDep,
+    HouseholdAccess,
+    expense_not_found,
+    recurring_not_found,
+    require_owner_or_author,
+)
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
 from app.schemas import Expense, ExpenseIn, Id
@@ -24,7 +31,7 @@ router = APIRouter(prefix="/api", tags=["expenses"], dependencies=[HouseholdAcce
 # One row per expense, its shares gathered into a JSON list. Every expense has at least one share.
 SELECT_EXPENSES = """
     SELECT e.id, e.household_id, e.description, e.amount, e.payer_id, e.spent_at, e.source,
-           e.category, e.created_at, e.created_by,
+           e.category, e.created_at, e.created_by, e.recurring_item_id,
            json_agg(json_build_object('member_id', s.member_id, 'amount', s.share_amount)
                     ORDER BY s.member_id) AS shares
     FROM expenses e
@@ -95,6 +102,65 @@ def compute_shares(
     return shares
 
 
+# --- Recurring items (specs/007-recurring-expenses) ----------------------------------------------
+
+MAX_RECURRING = 20
+
+
+def month_taken(conn: Connection, item_id: int, spent_at: date, other_than: int | None) -> ApiError:
+    """The 409 for a second expense of one item in one month, naming the one already there.
+
+    Called after the unique index refused the write, inside a rolled-back savepoint, so the
+    request's transaction can still read."""
+    row = fetch_one(
+        conn,
+        "SELECT id FROM expenses WHERE recurring_item_id = %s AND id <> %s"
+        " AND date_trunc('month', spent_at::timestamp) = date_trunc('month', %s::timestamp)",
+        (item_id, other_than or 0, spent_at),
+    )
+    message = f"This recurring expense already has its expense for {spent_at:%m/%Y}"
+    return ApiError(409, "recurring_month_taken", message,
+                    details={"expense_id": row["id"] if row else None})
+
+
+def new_recurring_item(conn: Connection, household_id: int, body: ExpenseIn, user_id: int) -> int:
+    """The item a ticked new expense makes: equal split only, at most MAX_RECURRING active."""
+    if body.split.type != "equal":
+        raise ApiError(422, "recurring_needs_equal_split",
+                       "A recurring expense is split equally between its people")
+    # One creation at a time per house, so two people cannot both add the 20th item
+    conn.execute("SELECT id FROM households WHERE id = %s FOR UPDATE", (household_id,))
+    active = conn.execute(
+        "SELECT count(*) FROM recurring_items WHERE household_id = %s AND active", (household_id,)
+    ).fetchone()[0]
+    if active >= MAX_RECURRING:
+        raise ApiError(409, "too_many_recurring",
+                       f"A household has at most {MAX_RECURRING} recurring expenses")
+    varying = body.recurring is not None and body.recurring.varying_amount
+    return conn.execute(
+        "INSERT INTO recurring_items (household_id, description, category, payer_id, member_ids,"
+        " amount, day, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        (household_id, body.description, body.category, body.payer_id,
+         sorted(body.split.member_ids), None if varying else body.amount, body.spent_at.day,
+         user_id),
+    ).fetchone()[0]
+
+
+def active_recurring_item(conn: Connection, household_id: int, item_id: int) -> int:
+    """An item of this house that may still be recorded from. FOR SHARE against stop's FOR UPDATE:
+    a save lands before a stop, or sees the item stopped."""
+    row = fetch_one(
+        conn,
+        "SELECT active FROM recurring_items WHERE id = %s AND household_id = %s FOR SHARE",
+        (item_id, household_id),
+    )
+    if row is None:
+        raise recurring_not_found()
+    if not row["active"]:
+        raise ApiError(409, "recurring_stopped", "This recurring expense was stopped")
+    return item_id
+
+
 def save_shares(conn: Connection, expense_id: int, shares: dict[int, int]) -> None:
     with conn.cursor() as cur:
         cur.executemany(
@@ -114,17 +180,26 @@ def list_expenses(household_id: Id, conn: ConnDep):
 @router.post("/households/{household_id}/expenses", response_model=Expense, status_code=201)
 def create_expense(household_id: Id, body: ExpenseIn, access: AccessDep, conn: ConnDep):
     shares = compute_shares(conn, household_id, body)
+    item_id = None
+    if body.recurring is not None:
+        item_id = new_recurring_item(conn, household_id, body, access.user_id)
+    elif body.recurring_item_id is not None:
+        item_id = active_recurring_item(conn, household_id, body.recurring_item_id)
     try:
-        expense_id = conn.execute(
-            "INSERT INTO expenses"
-            " (household_id, description, amount, payer_id, spent_at, source, category, created_by)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-            (household_id, body.description, body.amount, body.payer_id, body.spent_at,
-             body.source, body.category, access.user_id),
-        ).fetchone()[0]
-        save_shares(conn, expense_id, shares)
+        # A savepoint: after the unique index refuses, the 409 can still look up the month's expense
+        with conn.transaction():
+            expense_id = conn.execute(
+                "INSERT INTO expenses (household_id, description, amount, payer_id, spent_at,"
+                " source, category, created_by, recurring_item_id)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                (household_id, body.description, body.amount, body.payer_id, body.spent_at,
+                 body.source, body.category, access.user_id, item_id),
+            ).fetchone()[0]
+            save_shares(conn, expense_id, shares)
     except errors.ForeignKeyViolation:  # a member was removed while this request ran
         raise unknown_member() from None
+    except errors.UniqueViolation:  # this item's month already has its expense
+        raise month_taken(conn, item_id, body.spent_at, None) from None
     return get_expense(conn, expense_id)
 
 
@@ -138,7 +213,8 @@ def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: Con
     """Replaces the whole expense, shares included. Balances are computed, so they follow."""
     row = fetch_one(
         conn,
-        "SELECT household_id, payer_id, created_by FROM expenses WHERE id = %s FOR UPDATE",
+        "SELECT household_id, payer_id, created_by, recurring_item_id FROM expenses"
+        " WHERE id = %s FOR UPDATE",
         (expense_id,),
     )
     if row is None:
@@ -157,17 +233,22 @@ def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: Con
     # A page opened before categories sends none: keep the stored one rather than reset it to
     # "other" (review of #199). Sent explicitly, even "other", it replaces it.
     category = body.category if "category" in body.model_fields_set else None
+    # The link to a recurring item never changes here (specs/007-recurring-expenses): a date moved
+    # into a month that item already has is refused by the unique index
     try:
-        conn.execute(
-            "UPDATE expenses SET description = %s, amount = %s, payer_id = %s, spent_at = %s,"
-            " source = %s, category = COALESCE(%s, category) WHERE id = %s",
-            (body.description, body.amount, body.payer_id, body.spent_at, body.source,
-             category, expense_id),
-        )
-        conn.execute("DELETE FROM expense_shares WHERE expense_id = %s", (expense_id,))
-        save_shares(conn, expense_id, shares)
+        with conn.transaction():
+            conn.execute(
+                "UPDATE expenses SET description = %s, amount = %s, payer_id = %s, spent_at = %s,"
+                " source = %s, category = COALESCE(%s, category) WHERE id = %s",
+                (body.description, body.amount, body.payer_id, body.spent_at, body.source,
+                 category, expense_id),
+            )
+            conn.execute("DELETE FROM expense_shares WHERE expense_id = %s", (expense_id,))
+            save_shares(conn, expense_id, shares)
     except errors.ForeignKeyViolation:
         raise unknown_member() from None
+    except errors.UniqueViolation:
+        raise month_taken(conn, row["recurring_item_id"], body.spent_at, expense_id) from None
     return get_expense(conn, expense_id)
 
 
