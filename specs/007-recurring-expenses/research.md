@@ -22,7 +22,8 @@
 ## R2. Creating the item with its first expense
 
 - **Decision**: `ExpenseIn.recurring: {varying_amount: bool} | None`. On `POST` with it: the split must be
-  equal (`422 recurring_needs_equal_split`); lock the house row (`SELECT … FROM households … FOR UPDATE`),
+  equal (`422 recurring_needs_equal_split`); lock the house row (`SELECT … FROM households … FOR NO KEY UPDATE`: it serialises two creations
+  without blocking ordinary expenses, whose foreign key check only takes `FOR KEY SHARE`; review of #204),
   count active items, refuse the 21st (`409 too_many_recurring`), insert the item from the body (day =
   `spent_at.day`, amount = None if varying), then insert the expense with `recurring_item_id` = the new
   id. One request is one transaction (`app/db.py`), so both or neither are kept. Ignored on `PUT`.

@@ -38,6 +38,9 @@ test('a guessed category, saved, listed and charted in the monthly report', asyn
     await page.getByLabel('Nội dung').fill('Tiền điện tháng này')
     await expect(page.getByRole('button', { name: 'Đổi danh mục, đang là Điện nước' })).toBeVisible()
     await page.getByLabel('Số tiền').fill('450000')
+    // The payer defaults to you once the house has loaded; on the free tier that can come after the
+    // typing, and the form rightly asks "Chọn người trả" instead of guessing (live run of #204)
+    await expect(page.getByRole('radio', { name: /^Tiến/ })).toBeChecked()
     await page.getByRole('button', { name: 'Lưu khoản chi' }).click()
     const row = page.getByRole('row', { name: /Tiền điện tháng này/ })
     await expect(row).toContainText('Điện nước')

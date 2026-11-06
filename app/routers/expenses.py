@@ -128,8 +128,10 @@ def new_recurring_item(conn: Connection, household_id: int, body: ExpenseIn, use
     if body.split.type != "equal":
         raise ApiError(422, "recurring_needs_equal_split",
                        "A recurring expense is split equally between its people")
-    # One creation at a time per house, so two people cannot both add the 20th item
-    conn.execute("SELECT id FROM households WHERE id = %s FOR UPDATE", (household_id,))
+    # One creation at a time per house, so two people cannot both add the 20th item. NO KEY
+    # UPDATE, not UPDATE: an ordinary expense's foreign key check takes FOR KEY SHARE on the house,
+    # which this does not block, so other expenses are not held up meanwhile (review of #204)
+    conn.execute("SELECT id FROM households WHERE id = %s FOR NO KEY UPDATE", (household_id,))
     active = conn.execute(
         "SELECT count(*) FROM recurring_items WHERE household_id = %s AND active", (household_id,)
     ).fetchone()[0]
