@@ -30,7 +30,7 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     const email = `e2e-${Date.now()}@fair-share.test`
     await page.getByLabel('Email').fill(email)
     await page.getByLabel('Tên của bạn').fill('Tiến')
-    await page.getByLabel('Mật khẩu').fill('e2e-password-not-secret')
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('e2e-password-not-secret')
     await page.getByRole('button', { name: 'Tạo tài khoản' }).nth(1).click()
     await expect(page.getByRole('heading', { level: 1, name: 'Nhà của bạn', exact: true })).toBeVisible({ timeout: 60_000 })
     owner = await page.evaluate(() => JSON.parse(localStorage.getItem('fair-share:session') ?? 'null'))
@@ -49,7 +49,7 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     await minh.getByRole('button', { name: 'Tạo tài khoản' }).first().click()
     await minh.getByLabel('Email').fill(`e2e-${Date.now()}-minh@fair-share.test`)
     await minh.getByLabel('Tên của bạn').fill('Minh')
-    await minh.getByLabel('Mật khẩu').fill('e2e-password-not-secret')
+    await minh.getByLabel('Mật khẩu', { exact: true }).fill('e2e-password-not-secret')
     await minh.getByRole('button', { name: 'Tạo tài khoản' }).nth(1).click()
     await expect(minh.getByRole('heading', { level: 1, name: 'Nhà của bạn', exact: true })).toBeVisible()
     await minh.goto(`/join/${code}`)

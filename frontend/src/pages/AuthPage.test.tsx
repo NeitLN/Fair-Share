@@ -68,7 +68,7 @@ test('the title says what the form does: sign in, or create an account', async (
 
 // specs/008-wider-desktop-signin: on a computer the page is one block, the brand on the left and the
 // form with its switches on the right; on a phone it is the form as before
-const INTRO = 'Ghi chi tiêu chung với bạn cùng phòng, xem ai cần trả ai. Nhà của bạn đi theo tài khoản, mở trên máy nào cũng thấy.'
+const INTRO = 'Ghi chi tiêu chung với bạn cùng phòng và thấy rõ ai cần trả ai, trên mọi thiết bị.'
 
 const follows = (later: Element, earlier: Element) =>
   Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING)
@@ -110,4 +110,24 @@ test('an invite link keeps its note in the form on a computer', async () => {
   expect(await screen.findByRole('heading', { level: 1, name: 'Vào nhà bạn được mời' })).toBeInTheDocument()
   const note = screen.getByText(/Bạn được mời vào một nhà/)
   expect(note.closest('.auth')).not.toBeNull()
+})
+
+// Sign-in review of 07/11: the password can be shown to check it, and hidden again
+test('Hiện shows the password and Ẩn hides it again, on a phone and on a computer', async () => {
+  const user = userEvent.setup()
+  renderApp('/', { signedOut: true })
+
+  const field = await screen.findByLabelText('Mật khẩu')
+  expect(field).toHaveAttribute('type', 'password')
+  await user.click(screen.getByRole('button', { name: 'Hiện mật khẩu' }))
+  expect(field).toHaveAttribute('type', 'text')
+  await user.click(screen.getByRole('button', { name: 'Ẩn mật khẩu' }))
+  expect(field).toHaveAttribute('type', 'password')
+})
+
+test('on a computer the stickers carry a line that says what they stand for', async () => {
+  onAComputer()
+  renderApp('/', { signedOut: true })
+
+  expect(await screen.findByText('Một nhà, nhiều người. Chi tiêu vẫn rõ ràng.')).toBeInTheDocument()
 })

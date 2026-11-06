@@ -41,6 +41,7 @@ function AuthPage() {
   const [mode, setMode] = useState<Mode>(invited ? 'register' : 'signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState('')
   const [problems, setProblems] = useState<Partial<Record<'email' | 'password' | 'name', string>>>({})
 
@@ -147,17 +148,29 @@ function AuthPage() {
         )}
         <div className="field">
           <label htmlFor="auth-password">{t.auth.password}</label>
-          <input
-            id="auth-password"
-            type="password"
-            autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-            value={password}
-            maxLength={128}
-            disabled={busy}
-            aria-invalid={problems.password ? true : undefined}
-            aria-describedby={problems.password ? 'auth-password-problem' : 'auth-password-hint'}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          {/* Hiện / Ẩn inside the field, so a long password can be checked before it is sent */}
+          <div className="password-field">
+            <input
+              id="auth-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+              value={password}
+              maxLength={128}
+              disabled={busy}
+              aria-invalid={problems.password ? true : undefined}
+              aria-describedby={problems.password ? 'auth-password-problem' : 'auth-password-hint'}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              aria-controls="auth-password"
+              aria-label={showPassword ? t.auth.hidePasswordLabel : t.auth.showPasswordLabel}
+              onClick={() => setShowPassword((shown) => !shown)}
+            >
+              {showPassword ? t.auth.hidePassword : t.auth.showPassword}
+            </button>
+          </div>
           {mode === 'register' && (
             <p id="auth-password-hint" className="hint">
               {t.auth.passwordHint} {t.auth.noReset}
@@ -201,11 +214,15 @@ function AuthPage() {
         <Wordmark className="wordmark" />
         <p className="tagline">{t.tagline}</p>
         <p className="lead">{t.auth.intro}</p>
-        <span className="avatar-stack" aria-hidden="true">
-          {SAMPLE_LOOKS.map((look) => (
-            <Avatar key={look.initial} look={look} size="lg" decorative />
-          ))}
-        </span>
+        {/* The stickers stand for the housemates; the line says so */}
+        <div className="auth-people">
+          <span className="avatar-stack" aria-hidden="true">
+            {SAMPLE_LOOKS.map((look) => (
+              <Avatar key={look.initial} look={look} size="lg" decorative />
+            ))}
+          </span>
+          <p>{t.auth.people}</p>
+        </div>
       </div>
       <div className="auth-form-column">
         {card}

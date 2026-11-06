@@ -2580,6 +2580,34 @@ button.ai:active:focus-visible {
   gap: 4px;
 }
 
+/* Hiện / Ẩn inside the password field, on its right; the field leaves room for it (sign-in review 07/11) */
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 76px;
+}
+
+.password-field .password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  translate: 0 -50%;
+  min-width: 64px;
+  padding: 0 10px;
+  border-color: transparent;
+  background: none;
+  color: var(--primary-text);
+  box-shadow: none;
+}
+
+/* The no-shadow above must not take the focus halo with it (#211) */
+.password-field .password-toggle:focus-visible {
+  box-shadow: 0 0 0 5px var(--ai);
+}
+
 .auth-tabs {
   justify-self: start;
 }
@@ -3068,10 +3096,12 @@ button.ai:active:focus-visible {
   /* Signing in: one block in the middle of the screen, the brand on the left and the form (still 440 px)
      with its switches on the right; no header (specs/008-wider-desktop-signin, owner review 06/11: a
      small card under a lone corner logo looked unfinished). Taller than the screen, the page scrolls */
+  /* Centred a little above the middle (5 % of the height: 38 px at 768, 54 px at 1080), where the eye
+     puts the centre; the exact middle read as low (sign-in review 07/11) */
   main.signed-out {
     min-height: 100dvh;
     align-content: center;
-    padding-block: 40px;
+    padding-block: 40px calc(40px + 10vh);
   }
 
   .auth-layout {
@@ -3120,12 +3150,55 @@ button.ai:active:focus-visible {
     margin-left: -12px;
   }
 
+  /* The stickers with a line that says what they stand for */
+  .auth-people {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .auth-people p {
+    max-width: 220px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
   .auth {
     padding: 24px;
   }
 
+  /* The form's title a size down, on one line, under the brand's tagline */
+  .auth-form-column .auth h1 {
+    font-size: 24px;
+  }
+
+  /* The two tabs as wide as the fields, half each */
+  .auth-form-column .auth-tabs {
+    justify-self: stretch;
+  }
+
+  /* Language and theme quieter than the form: no track, smaller muted words, the chosen one a light
+     pill; still 44 px to press */
   .auth-form-column .app-footer {
     margin-top: 16px;
+  }
+
+  .auth-form-column .app-footer .segmented {
+    padding: 0;
+    background: none;
+  }
+
+  .auth-form-column .app-footer .segmented button {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .auth-form-column .app-footer .segmented button[aria-pressed='true'] {
+    background: var(--surface-2);
+    color: var(--ink);
   }
 }
 
