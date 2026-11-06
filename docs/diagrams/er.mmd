@@ -1,52 +1,57 @@
-%% The database schema, exactly as db/migrations/001_init.sql to 004_payment_notices.sql create it
-%% (plus schema_migrations, which app/migrate.py keeps). Money is a whole number of đồng (bigint).
-%% The created_by columns point at users; they have no lines, so the diagram stays readable.
+%% The database schema after db/migrations/001_init.sql to 006_recurring_expenses.sql (plus
+%% schema_migrations, which app/migrate.py keeps). Each table shows its keys and the columns that carry a
+%% rule; the full column lists are in the migrations. Money is a whole number of đồng (bigint).
+%% created_by columns point at users and have no lines, so the diagram stays readable.
 erDiagram
-    direction LR
+    rate_limits {
+        text bucket PK
+        timestamptz window_start PK
+        integer hits
+    }
+    schema_migrations {
+        text version PK
+        timestamptz applied_at
+    }
     households ||--o{ members : "has"
     households ||--o{ expenses : "has"
     households ||--o{ settlements : "has"
-    members ||--o{ expenses : "paid (payer_id)"
+    households ||--o{ recurring_items : "repeats"
+    households ||--o{ payment_notices : "has"
+    members ||--o{ expenses : "pays"
     expenses ||--|{ expense_shares : "split into"
-    members ||--o{ expense_shares : "owes a share"
-    members ||--o{ settlements : "pays (from_member_id)"
-    members ||--o{ settlements : "is paid (to_member_id)"
+    members ||--o{ expense_shares : "owes"
+    members ||--o{ settlements : "from / to"
+    members ||--o{ payment_notices : "from / to"
+    recurring_items |o--o{ expenses : "recorded as"
     users ||--o{ sessions : "signs in with"
     users ||--o{ household_users : "is in"
     households ||--o{ household_users : "has people"
     members |o--o| household_users : "is the name of"
     households ||--o{ invite_codes : "invites with"
-    households ||--o{ payment_notices : "has"
-    members ||--o{ payment_notices : "tells (from_member_id)"
-    members ||--o{ payment_notices : "is told (to_member_id)"
 
     households {
         bigint id PK
-        text name "1-60 characters"
+        text name "1-60"
         text access_key "secret, only to take over an old household"
-        timestamptz created_at
     }
     members {
         bigint id PK
-        bigint household_id FK "cascade on household delete"
+        bigint household_id FK
         text name "1-40, unique per household ignoring case"
-        timestamptz created_at
     }
     expenses {
         bigint id PK
         bigint household_id FK
-        text description "1-120 characters"
-        bigint amount "dong, > 0"
         bigint payer_id FK "member of the same household"
+        bigint amount "dong, > 0"
         date spent_at
-        text source "manual or ai"
-        bigint created_by FK "user, empty before accounts"
-        timestamptz created_at
+        text category "one of 7, default other"
+        bigint recurring_item_id FK "one per item and month"
     }
     expense_shares {
-        bigint expense_id PK, FK "cascade on expense delete"
+        bigint expense_id PK, FK
         bigint member_id PK, FK
-        bigint share_amount "dong, >= 0; sum = amount (checked by the API)"
+        bigint share_amount "dong, >= 0; sum = amount"
     }
     settlements {
         bigint id PK
@@ -54,56 +59,41 @@ erDiagram
         bigint from_member_id FK "same household"
         bigint to_member_id FK "same household, not from"
         bigint amount "dong, > 0"
-        date settled_at
-        text note "0-200 characters, optional"
-        bigint created_by FK "user, empty before accounts"
-        timestamptz created_at
+    }
+    recurring_items {
+        bigint id PK
+        bigint household_id FK
+        bigint payer_id
+        bigint_array member_ids "1-50, equal split"
+        bigint amount "empty if it varies"
+        smallint day "1-31"
+        boolean active
+    }
+    payment_notices {
+        bigint household_id PK, FK
+        bigint from_member_id PK, FK
+        bigint to_member_id PK, FK
+        bigint amount "dong, > 0"
+        text status "sent or declined"
     }
     users {
         bigint id PK
-        text email "3-254, unique ignoring case"
+        text email "unique ignoring case"
         text password_hash "argon2id"
-        text display_name "1-40 characters"
-        timestamptz created_at
     }
     sessions {
         bytea token_hash PK "SHA-256 of the token"
-        bigint user_id FK "cascade on user delete"
-        timestamptz created_at
-        timestamptz last_used_at
+        bigint user_id FK
         timestamptz expires_at
     }
     household_users {
         bigint household_id PK, FK
         bigint user_id PK, FK
-        text role "owner, member or pending; one owner"
-        bigint member_id FK "same household; empty only while pending"
-        timestamptz requested_at
-        timestamptz approved_at
+        text role "owner, member or pending"
+        bigint member_id FK "empty only while pending"
     }
     invite_codes {
-        text code PK "8 characters, Crockford base32"
-        bigint household_id FK "one current code per household"
-        bigint created_by FK "user"
-        timestamptz created_at
+        text code PK "8 characters"
+        bigint household_id FK
         timestamptz expires_at
-        timestamptz revoked_at
-    }
-    payment_notices {
-        bigint household_id PK, FK
-        bigint from_member_id PK, FK "same household"
-        bigint to_member_id PK, FK "same household, not from"
-        bigint amount "dong, > 0"
-        text status "sent or declined"
-        bigint created_by FK "user"
-        timestamptz created_at
-    }
-    rate_limits {
-        text bucket PK "e.g. login-email, login-ip, register-ip"
-        timestamptz window_start PK
-        integer hits
-    }
-    schema_migrations {
-        text version PK "e.g. 001_init"
-        timestamptz applied_at
     }

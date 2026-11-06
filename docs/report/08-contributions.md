@@ -1,7 +1,6 @@
 # 8. Individual contributions
 
-*Compiled by Việt Tiến, checked and signed by all. Figures as of 27/10/2026, recomputed just before the
-PDF (T-36).*
+*Compiled by Việt Tiến, checked and signed by all; figures recomputed before the PDF (T-36).*
 
 | Member | Main work (task, pull request) | Report sections |
 |---|---|---|
@@ -9,8 +8,7 @@ PDF (T-36).*
 | **Võ Hoàng Minh** ([@Jayson135724](https://github.com/Jayson135724)), backend and database lead | Backend structure, pool and error format (T-06); schema, migrations and seed (T-07); households, members, expenses, settlements and balances APIs with their tests (T-08, T-15–T-17); validation and error contract (T-25); persistence drill (T-27); architecture and ER diagrams (T-28); final README (T-39); red-gate demo branch (T-35) | 2, 5 |
 | **Bùi Duy Anh** ([@anh7032](https://github.com/anh7032)), frontend lead, QA | React scaffold and typed API client (T-09); web image and nginx (T-10); Compose stack (T-11); households, members, expenses and dashboard pages (T-12, T-18, T-20); Quick add UI and its failure states (T-19); UI polish and Playwright smoke test (T-32, T-33); accessibility checklist as a browser test (#114); filters and CSV export (T-45, T-46); demo household data (#125); clean-clone rehearsal (T-34); slides (T-37); reviews that caught the commit-after-response bug (#84) and the invite-key bypass (#138) | 3, 6 (screenshots) |
 
-Every member reviews the others' pull requests. In the peer review (T-30, #49) each member took another
-member's area: Duy Anh → Hoàng Minh, Việt Tiến → Duy Anh, Hoàng Minh → Việt Tiến.
+Peer review (T-30, #49), each on another's area: Duy Anh → Hoàng Minh, Việt Tiến → Duy Anh, Hoàng Minh → Việt Tiến.
 
 | What the repository shows | Việt Tiến | Hoàng Minh | Duy Anh |
 |---|---|---|---|
@@ -20,8 +18,8 @@ member's area: Duy Anh → Hoàng Minh, Việt Tiến → Duy Anh, Hoàng Minh �
 | Closed issues assigned | 18 | 10 | 13 |
 | Peer-review findings filed (T-30) | 2 | 0 (due 29/10) | 4 |
 
-Taken at `main` = `e37e438` (27/10) with `git shortlog -sne --no-merges e37e438`, and `gh pr list --state merged --limit 300 --json number,author,reviews` / `gh issue list --state closed --limit 300 --json number,assignees`; a reviewer counts once per pull request, and as approving if any of their reviews on it approved. Commit counts depend on how finely each person commits, so they are read together with the pull requests
-and the tasks above, not on their own.
+Taken at `main` = `e37e438` (27/10) with `git shortlog -sne --no-merges`, `gh pr list` and `gh issue list`.
+Commit counts depend on how finely each person commits, so read them with the pull requests and tasks.
 
 We agree that the tables above describe our contributions, and on the shares below (together 100%).
 

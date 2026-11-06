@@ -38,15 +38,12 @@ allowed in `.gitleaks.toml` with that reason. The only passwords in the history 
 CI's `ci-only-not-a-secret`.
 
 **If a key leaks.** The order matters: **stop the key working first**, then clean up.
-1. Revoke it at once: AI Studio → delete the key; Supabase → reset the password; Render → regenerate the
-   hook.
-2. Put a new value only where it lives (Render env vars, Actions secrets), redeploy, check `/health/db` and
-   a Quick add.
+1. Revoke it at once: delete the AI Studio key, reset the Supabase password, regenerate the Render hook.
+2. Put the new value only where it lives (Render, Actions secrets), redeploy, check `/health/db` and Quick add.
 3. Find how it leaked: gitleaks on the full history, Actions logs, recent screenshots.
 4. If it reached Git, rewrite history with `git filter-repo` with the team's agreement, but treat the old
    value as **compromised forever**: forks, clones and caches keep it, which is why step 1 comes first.
 5. Open an issue with what happened and the prevention added, as we did for the outages
    ([OUTAGES.md](../OUTAGES.md)).
 
-With more time we would use a secret manager with rotation instead of values typed into two dashboards.
-For three people and two production secrets, environment variables plus these controls were proportionate.
+With more time we would add a secret manager with rotation; for three of us this was enough.
