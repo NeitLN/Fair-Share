@@ -1,7 +1,7 @@
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 %% Fair-Share in production. Checked against the live services on 22/10/2026 (see docs/diagrams/README.md).
 flowchart LR
-    U["Browser / phone<br/><i>untrusted: holds no secret</i>"]
+    U["Browser / phone<br/><i>untrusted: holds only its own session token</i>"]
 
     subgraph CF["Cloudflare edge"]
         EDGE["HTTPS for both services<br/>appends X-Forwarded-For"]
@@ -9,7 +9,7 @@ flowchart LR
 
     subgraph Render["Render (free tier)"]
         WEB["<b>Static Site</b> fair-share-web<br/>React SPA, built by Render<br/>rewrite /* → /index.html"]
-        subgraph TRUST["Trust boundary: the only place secrets live"]
+        subgraph TRUST["Trust boundary: the only place the app's secrets live"]
             API["<b>Web Service</b> fair-share-4bu9<br/>Docker image from ./Dockerfile<br/>FastAPI + Uvicorn, non-root<br/>env: DATABASE_URL, GEMINI_API_KEY"]
         end
     end
@@ -18,7 +18,7 @@ flowchart LR
     AI["<b>Google Gemini API</b><br/>generateContent<br/>gemini-3.5-flash-lite"]
 
     subgraph GH["GitHub Actions"]
-        CI["checks on every PR:<br/>backend · frontend · images · secrets"]
+        CI["checks on every PR:<br/>backend · frontend · images · secrets<br/><i>secrets: Render deploy hooks</i>"]
         POST["after each deploy: smoke + E2E<br/>daily: keep-alive"]
     end
 
