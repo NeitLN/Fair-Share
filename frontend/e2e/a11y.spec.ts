@@ -251,3 +251,51 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     expect(response.status(), 'test household deleted').toBe(204)
   }
 })
+
+// specs/008-wider-desktop-signin: signed out on a laptop, one centred block (brand, then the form and its
+// switches); every control 44 px, no sideways scroll, the keyboard in the order seen. A phone is unchanged.
+test('the sign-in page on a laptop and on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeVisible()
+  await expect(page.locator('header.app-header')).toHaveCount(0)
+  await expect(page.locator('.auth-intro')).toContainText('Rõ ai trả ai.')
+
+  const small = await page.locator('main button, main input').evaluateAll((els) =>
+    els
+      .filter((e) => {
+        const r = e.getBoundingClientRect()
+        return r.height < 44 || r.width < 44
+      })
+      .map((e) => e.outerHTML.slice(0, 60)),
+  )
+  expect(small, 'sign-in controls under 44 px').toEqual([])
+  const sideways = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+  expect(sideways, 'sideways scroll on sign-in at 1366 px').toBe(false)
+  // Centred: the block's middle within 24 px of the window's
+  const off = await page.locator('.auth-layout').evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return Math.abs(r.top + r.height / 2 - window.innerHeight / 2)
+  })
+  expect(off, 'sign-in block off centre').toBeLessThanOrEqual(24)
+
+  // Tab from the top: the two tabs, the fields, submit, then the language and the theme
+  const order: string[] = []
+  for (let i = 0; i < 10; i++) {
+    await page.keyboard.press('Tab')
+    order.push(
+      await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement
+        return el.id || el.textContent?.trim() || el.tagName
+      }),
+    )
+  }
+  expect(order).toEqual(['Đăng nhập', 'Tạo tài khoản', 'auth-email', 'auth-password', 'Đăng nhập', 'EN', 'VI', 'Tự động', 'Sáng', 'Tối'])
+
+  // A phone: the page as before, with the header's wordmark and no brand block
+  await page.setViewportSize({ width: 360, height: 800 })
+  await expect(page.locator('header.app-header')).toHaveCount(1)
+  await expect(page.locator('.auth-intro')).toHaveCount(0)
+  const narrow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+  expect(narrow, 'sideways scroll on sign-in at 360 px').toBe(false)
+})

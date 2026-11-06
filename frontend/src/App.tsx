@@ -2,12 +2,11 @@ import { useEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
 
 import AccountMenu from './components/AccountMenu'
-import LanguageSwitch from './components/LanguageSwitch'
-import ThemeSwitch from './components/ThemeSwitch'
 import { ToastProvider } from './components/Toast'
 import { Wordmark } from './components/Wordmark'
 import { useT } from './i18n'
 import { useSession } from './lib/session'
+import { useWide } from './lib/useWide'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -21,22 +20,29 @@ import ReportPage from './pages/ReportPage'
 function App() {
   const t = useT()
   const session = useSession()
+  const wide = useWide()
   // The tab's title follows the language too
   useEffect(() => {
     document.title = t.pageTitle
   }, [t])
 
+  // Signed out on a computer, the sign-in page carries the wordmark itself, in the middle of the screen
+  // (specs/008-wider-desktop-signin), so the header would only repeat it in a corner
+  const signInBlock = !session && wide
+
   return (
     <ToastProvider>
-      <header className="app-header">
-        <Link to="/" className="home-link">
-          <Wordmark className="wordmark" />
-        </Link>
-        {/* Signed in, language and theme live in the account menu, so the header stays one line on a
-            phone; signed out, they sit under the sign-in form */}
-        <AccountMenu />
-      </header>
-      <main>
+      {!signInBlock && (
+        <header className="app-header">
+          <Link to="/" className="home-link">
+            <Wordmark className="wordmark" />
+          </Link>
+          {/* Signed in, language and theme live in the account menu, so the header stays one line on a
+              phone; signed out, they sit under the sign-in form */}
+          <AccountMenu />
+        </header>
+      )}
+      <main className={signInBlock ? 'signed-out' : undefined}>
         {/* Every page needs an account (docs/ACCOUNTS.md). Signed out, any address shows the sign-in
             form; once signed in, the page that was asked for (an invite link included) opens. */}
         {session ? (
@@ -52,13 +58,8 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         ) : (
-          <>
-            <AuthPage />
-            <footer className="app-footer">
-              <LanguageSwitch />
-              <ThemeSwitch />
-            </footer>
-          </>
+          // The sign-in form, with the language and theme under it
+          <AuthPage />
         )}
       </main>
     </ToastProvider>

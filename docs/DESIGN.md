@@ -389,9 +389,12 @@ phone column in the middle of a wide screen. Below 1024 px nothing changes. Wher
 what is shown or its order, the page asks `lib/useWide.ts` instead of moving things with CSS, so the
 keyboard goes through the page in the order it is seen.
 
-* **Frame:** 32 px sides (40 px from 1440), and the content (header included) stops growing at 1320 px,
+* **Frame:** 32 px sides (40 px from 1440), and the content (header included) stops growing at 1520 px,
   centred. The whole screen was the owner's choice on 04/11; the design review of 05/11 measured a name
-  and its amount a thousand pixels apart at 1920 px, so the owner capped it. Up to that cap the columns
+  and its amount a thousand pixels apart at 1920 px, so the owner capped it at 1320 px; using the app
+  with three months of data on 06/11, the owner found the 300 px of bare page on each side at 1920 too
+  wide, so the cap moved to 1520 (200 px at 1920, 40 px at 1536, 1366 unchanged) and the rows are
+  bounded instead (Tổng quan below). Up to that cap the columns
   keep their 1280 proportions, with a floor so the verdict and the form never get narrower than at 1280. The header keeps the
   wordmark and the account; under it, one row for the household: its name and avatars on the left, the
   three tabs on the right as the same segmented control. No sidebar: three tabs do not pay for 270 px.
@@ -401,19 +404,35 @@ keyboard goes through the page in the order it is seen.
   Nothing is sticky, so nothing covers a focused field on a short laptop screen.
 * **Tổng quan:** two columns (equal at 1024, `minmax(480px, 2fr) 3fr` from 1280). Left: the verdict block,
   *+ Ghi khoản chi*, then Lịch sử trả. Right: this month, Số dư từng người, then **Khoản chi gần đây**, the last five
-  expenses with *Xem tất cả*, so the balances can be explained without leaving the page.
-* **Chi tiêu:** the AI box and the form on the left (360 px; `minmax(380px, 1fr) 2fr` from 1280), the list on the right as
+  expenses with *Xem tất cả*, so the balances can be explained without leaving the page. From 1280 the
+  right column's panels span it, but each line inside them (Mới ghi, this month, Số dư, Khoản chi gần
+  đây) is at most 640 px wide and centred, so a name and its amount are never more than 640 px apart
+  (variant A, chosen by the owner on 06/11 from before/after captures over lines that span the panel).
+  *Báo cáo tháng* sits on the month title's line, under it when the line is too short. The repeated
+  action on each transfer card (*Xác nhận đã nhận …đ*, the payer's *Tôi đã chuyển*) is the outlined
+  secondary button at every width: four filled purple buttons under the verdict competed with it, so
+  only *+ Ghi khoản chi* and the verdict block stay filled.
+* **Chi tiêu:** the AI box and the form on the left (360 px; 380–420 px from 1280, the table taking the rest), the list on the right as
   a **table**: Ngày, Nội dung, Người trả (with the split under the name), Số tiền right-aligned, and
   *Sửa* / *Xoá* on each row the user may change. The row being edited is tinted. Between 1024 and 1279 px
   the date and the payer fold under the description instead of squeezing it. The description is a
   button with the row chevron: it opens a tinted row under it with each share (the description and not
   the split under the payer, which that 1024–1279 fold hides). The list hint says "mới nhất ở trên". *Lưu khoản chi* sits at the end of the form, not stuck to the
-  bottom of the screen.
+  bottom of the screen. From 1280 the three filters (Tháng, Người, Danh mục) share one row, the payer
+  column is about 250 px and its split line may wrap, so a description like "Xăng đi chợ đầu mối" keeps
+  one line (06/11: kept on one line, the split line pushed the payer column wide and broke descriptions).
 * **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)
   a request to approve comes before the invite.
 * **Nhà của bạn:** a new account sees the start of §6.1 (two panels, at most 960 px). Otherwise one column up to 880 px: the groups, the wait, then *Nhập mã mời* and *+ Tạo nhà mới*
   as two buttons side by side that open their form under them.
-* **Sign in:** a 440 px form in the middle, the language and theme under it.
+* **Sign in:** one block of at most 980 px in the middle of the screen, both ways, and no header (the
+  owner on 06/11: a small card under a lone corner logo looked unfinished). On the left, holding no
+  control: the wordmark at 300 px, the tagline (*Rõ ai trả ai.*), the intro that the form shows on a phone,
+  and four overlapping 56 px sticker avatars, decoration hidden from screen readers. On the right the
+  same 440 px form, then the language and theme 16 px under it, so Tab goes form, language, theme. No
+  taro background, no sample amount, no speed claim, no stamp: the form's submit stays the strongest
+  colour. `useWide` decides it, so a phone gets exactly the form of §6.1. Taller than the screen (Tạo tài
+  khoản with errors), the page scrolls.
 * Hover tints rows and inactive tabs with `--surface-2`; the focus ring stays on top of it.
 
 ### 6.7 UI review of 03/11: what changed and why

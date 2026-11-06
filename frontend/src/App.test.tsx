@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { mockApi, renderApp } from './test/renderApp'
+import { onAComputer } from './test/screen'
 
 beforeEach(() => {
   mockApi({
@@ -157,5 +158,31 @@ describe('accounts (docs/ACCOUNTS.md)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeInTheDocument()
     expect(fetchFn.mock.calls.some(([url]) => url === '/api/auth/logout')).toBe(true)
+  })
+})
+
+// specs/008-wider-desktop-signin: signed out on a computer the wordmark is part of the sign-in block,
+// so the header's small one is not shown; everywhere else the header stays
+describe('the header around sign-in', () => {
+  test('signed out on a computer, there is no header wordmark, only the one beside the form', async () => {
+    onAComputer()
+    const { container } = renderApp('/', { signedOut: true })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Đăng nhập để vào nhà của bạn' })).toBeInTheDocument()
+    expect(container.querySelector('header.app-header')).toBeNull()
+    expect(screen.getAllByRole('img', { name: 'Fair-Share' })).toHaveLength(1)
+  })
+
+  test('signed out on a phone, the header and its wordmark link are there', async () => {
+    renderApp('/', { signedOut: true })
+
+    expect(await screen.findByRole('link', { name: 'Fair-Share' })).toBeInTheDocument()
+  })
+
+  test('signed in on a computer, the header and its wordmark link are there', async () => {
+    onAComputer()
+    renderApp('/')
+
+    expect(await screen.findByRole('link', { name: 'Fair-Share' })).toBeInTheDocument()
   })
 })
