@@ -109,7 +109,7 @@ API in `app/`, tests in `tests/`, SPA in `frontend/src/`, docs in `docs/`.
 - [X] T026 Run `ruff check .` from the repo root, `pytest -q`, and `cd frontend && npm run lint && npm test && npm run build`; run the local E2E suite against the local stack (`E2E_BASE_URL`/`E2E_API_URL` = http://172.21.33.10:3000) to confirm nothing else moved
 - [X] T027 Check the strings in the browser at 360 px and 1440 px in both themes (a long block message under *Cách chia* wraps, no horizontal scroll, contrast as the rest of the form) with a stubbed draft
 - [X] T028 Check the diff for statements about how the work was produced (the product's own quick add feature aside) and that only the files of this feature are staged
-- [ ] T029 After the owner approves: open an issue for the feature, commit as Võ Việt Tiến, push as NeitLN, open the PR with Minh and Duy Anh as reviewers; after merge and deploy, run the live corpus in `quickstart.md` (SC-004) and report the score
+- [X] T029 After the owner approves: open an issue for the feature, commit as Võ Việt Tiến, push as NeitLN, open the PR with Minh and Duy Anh as reviewers; after merge and deploy, run the live corpus in `quickstart.md` (SC-004) and report the score (17/17 and 3/3 after #221, posted on #220 and #221)
 
 ---
 

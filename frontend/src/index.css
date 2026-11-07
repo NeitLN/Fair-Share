@@ -1105,8 +1105,9 @@ button.ai:active:focus-visible {
 
 .amount-row {
   display: flex;
+  flex-wrap: wrap; /* on a narrow phone the "= 500.000 ₫" echo goes under the field, not past the card */
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
 }
 
 .amount-preview {
