@@ -3,7 +3,6 @@ import { describe, expect, test } from 'vitest'
 import type { Expense, Member } from '../api/types'
 import {
   filterExpenses,
-  involves,
   isFiltered,
   monthLabel,
   monthNumber,
@@ -61,18 +60,20 @@ describe('filterExpenses', () => {
     expect(filterExpenses(all, { month: '2026-08', memberId: null, category: null })).toEqual([])
   })
 
-  test('a member matches what they paid or share in', () => {
-    // Tiến paid the hotpot and shares the water, but has nothing to do with the rent
-    expect(involves(rent, 1)).toBe(false)
-    expect(filterExpenses(all, { month: null, memberId: 1, category: null })).toEqual([hotpot, water])
-    // Paying without a share of it still counts
+  test('a member matches what they paid, not what they only share in (owner, 07/11)', () => {
+    // Tiến paid the hotpot and shares the water: only the hotpot
+    expect(filterExpenses(all, { month: null, memberId: 1, category: null })).toEqual([hotpot])
+    expect(filterExpenses(all, { month: null, memberId: 2, category: null })).toEqual([water])
+    // Paying without a share of it counts; a share without paying does not
     const gift = expense('2026-10-10', 50_000, 3, [[1, 50_000]])
     expect(filterExpenses([gift], { month: null, memberId: 3, category: null })).toEqual([gift])
+    expect(filterExpenses([gift], { month: null, memberId: 1, category: null })).toEqual([])
   })
 
   test('month and member together', () => {
-    const filter = { month: '2026-09', memberId: 2, category: null }
+    const filter = { month: '2026-09', memberId: 3, category: null }
     expect(filterExpenses(all, filter)).toEqual([rent])
+    expect(filterExpenses(all, { ...filter, memberId: 2 })).toEqual([])
     expect(isFiltered(filter)).toBe(true)
   })
 

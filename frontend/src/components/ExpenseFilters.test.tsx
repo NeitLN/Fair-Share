@@ -18,7 +18,7 @@ test('a labelled month and member, "Tất cả" and "Cả nhà" first', () => {
     '10/2026',
     '9/2026',
   ])
-  const member = screen.getByLabelText('Người')
+  const member = screen.getByLabelText('Người trả')
   expect([...member.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Cả nhà', 'Tiến', 'Minh'])
   // All seven categories, always (specs/005-expense-categories)
   const category = screen.getByLabelText('Danh mục')
@@ -48,7 +48,7 @@ test('each choice keeps the other one; Bỏ lọc clears both', async () => {
     />,
   )
 
-  await user.selectOptions(screen.getByLabelText('Người'), 'Minh')
+  await user.selectOptions(screen.getByLabelText('Người trả'), 'Minh')
   expect(onChange).toHaveBeenLastCalledWith({ month: '2026-10', memberId: 2, category: null })
 
   await user.selectOptions(screen.getByLabelText('Tháng'), 'Tất cả')

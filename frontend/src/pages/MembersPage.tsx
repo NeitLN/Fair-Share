@@ -13,6 +13,7 @@ import {
 } from '../api/households'
 import type { Member } from '../api/types'
 import { getBalances, settlementKeys } from '../api/settlements'
+import HouseholdRename from '../components/HouseholdRename'
 import InviteCard from '../components/InviteCard'
 import JoinRequests from '../components/JoinRequests'
 import MemberList from '../components/MemberList'
@@ -78,7 +79,12 @@ function MembersPage() {
         : null
   const people = members.data ?? []
 
-  const invite = <InviteCard householdId={householdId} isOwner={isOwner} />
+  const invite = (
+    <>
+      <InviteCard householdId={householdId} isOwner={isOwner} />
+      {isOwner && household.data && <HouseholdRename householdId={householdId} name={household.data.name} />}
+    </>
+  )
   const requests = isOwner && <JoinRequests householdId={householdId} members={people} />
   const list = (
     <section aria-labelledby="people-title">

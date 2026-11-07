@@ -458,6 +458,10 @@ test('someone who is owed sees who pays them, and the total', async () => {
   const sentence = await screen.findByRole('heading', { name: 'Bạn được nhận từ Minh và An' })
   expect(sentence.nextElementSibling).toHaveTextContent('200.000đ')
   expect(within(await transfers()).getByText(/^Minh cần trả bạn/)).toBeInTheDocument()
+  // The two who send the money sit in the block's corner as stickers, decoration only (owner, 07/11)
+  const stickers = sentence.closest('section')?.querySelector('.verdict-people')
+  expect(stickers).toHaveAttribute('aria-hidden', 'true')
+  expect([...(stickers?.querySelectorAll('.avatar') ?? [])].map((a) => a.textContent)).toEqual(['M', 'A'])
 })
 
 test('every member has a row with where they stand, in words and with a sign', async () => {

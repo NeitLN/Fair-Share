@@ -67,19 +67,24 @@ test('a repayment from someone else names them', () => {
   expect(lines()[0]).toHaveTextContent('Minh xác nhận đã nhận 440.000đ từ Duy Anh')
 })
 
-test('3 at first, then Xem thêm s mụchows the rest in place', async () => {
+test('3 at first, then Xem thêm shows the rest in place, and Thu gọn folds them again', async () => {
   renderStrip([1, 2, 3, 4, 5].map((id) => expenseItem(id, 20 - id)))
   expect(lines()).toHaveLength(3)
   const more = screen.getByRole('button', { name: 'Xem thêm 2 mục' })
   expect(more).toHaveAttribute('aria-expanded', 'false')
   await userEvent.click(more)
   expect(lines()).toHaveLength(5)
-  expect(screen.queryByRole('button', { name: /^Xem thêm/ })).not.toBeInTheDocument()
-  // The button is gone, so the focus moves to the first line it revealed, not to the page (review of #201)
+  // The focus moves to the first line it revealed, not to the page (review of #201)
   expect(lines()[3]).toHaveFocus()
+  // Open, the same button folds them again and keeps the focus on itself (owner, 07/11)
+  const less = screen.getByRole('button', { name: 'Thu gọn' })
+  expect(less).toHaveAttribute('aria-expanded', 'true')
+  await userEvent.click(less)
+  expect(lines()).toHaveLength(3)
+  expect(screen.getByRole('button', { name: 'Xem thêm 2 mục' })).toHaveFocus()
 })
 
-test('from the keyboard too, Xem thêm l mụcands on the first new line', async () => {
+test('from the keyboard too, Xem thêm lands on the first new line', async () => {
   renderStrip([1, 2, 3, 4].map((id) => expenseItem(id, 20 - id)))
   screen.getByRole('button', { name: 'Xem thêm 1 mục' }).focus()
   await userEvent.keyboard('{Enter}')

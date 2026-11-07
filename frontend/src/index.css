@@ -1350,10 +1350,45 @@ button.ai:active:focus-visible {
 
 /* The verdict block: the one taro surface, answering who pays whom before anything else */
 .verdict {
+  position: relative;
+  overflow: hidden;
   padding: 18px 16px 16px;
   border-radius: var(--radius-block);
+  /* A little depth (owner's pick C, 07/11): the taro lightens only towards the top-right corner, behind
+     the stickers and the white headline, under a soft ring; the lower half, where the muted lines sit, is
+     the plain taro, so they keep 4.5:1 (measured: white ≥ 5.4:1 everywhere, muted ≥ 4.6:1 where it sits) */
   background: var(--block);
+  background: radial-gradient(circle at 100% 0, color-mix(in oklab, var(--block) 93%, var(--on-block)) 0, var(--block) 180px);
   color: var(--on-block);
+}
+
+.verdict::after {
+  content: '';
+  position: absolute;
+  top: -48px;
+  right: -48px;
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--on-block) 5%, transparent);
+  pointer-events: none;
+}
+
+.verdict > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* The people the money comes from (or goes to) as stickers in the corner; the sentence leaves them room */
+.verdict-people {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.verdict.has-people .verdict-sentence {
+  padding-right: 120px;
 }
 
 /* "Vì sao ra số này?" (specs/002-balance-explanation): a quiet link under the amount, opening a white card
@@ -1728,9 +1763,14 @@ button.ai:active:focus-visible {
 }
 
 /* + Ghi khoản chi, above the verdict: filled (the first job) but flat, so the block stays the loud place */
+/* + Ghi khoản chi in ink with a taro shadow, so it is not a second purple slab on top of the verdict (it
+   was the same purple in light and a clashing lighter one in dark); pressed, it goes down by its shadow */
 .btn-primary.cta-add {
   min-height: 48px;
-  box-shadow: none;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: 3px 3px 0 var(--block);
 }
 
 /* Close to the block it belongs to, not a section of its own */
@@ -1739,11 +1779,20 @@ button.ai:active:focus-visible {
 }
 
 .btn-primary.cta-add:active {
-  translate: none;
+  translate: 3px 3px;
+  box-shadow: 0 0 0 var(--block);
 }
 
 .btn-primary.cta-add:focus-visible {
-  box-shadow: 0 0 0 5px var(--ai);
+  box-shadow:
+    3px 3px 0 var(--block),
+    0 0 0 5px var(--ai);
+}
+
+.btn-primary.cta-add:active:focus-visible {
+  box-shadow:
+    0 0 0 var(--block),
+    0 0 0 5px var(--ai);
 }
 
 /* A section title with a small note on the right, wrapping under it on narrow phones */
@@ -1887,6 +1936,35 @@ button.ai:active:focus-visible {
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
+}
+
+/* Đổi tên nhà on Thành viên, for the owner: like Ghi khoản trả khác, its summary stays to close it and
+   the form sits on a surface, the label above the field */
+.house-rename[open] {
+  display: grid;
+  gap: 10px;
+}
+
+.fold.house-rename[open] > summary {
+  display: flex;
+}
+
+.house-rename form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.house-rename .field {
+  display: grid;
+  gap: 4px;
+}
+
+.house-rename form > button {
+  justify-self: start;
 }
 
 /* ---------------------------------------------------------------- AI quick add (DESIGN.md §6.3, T-19) */

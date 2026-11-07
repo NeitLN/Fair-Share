@@ -43,6 +43,10 @@ export const getHousehold = (id: number) => api.get<MyHousehold>(`/api/household
 /** The creator becomes its owner, with their display name in the split. */
 export const createHousehold = (name: string) => api.post<MyHousehold>('/api/households', { name })
 
+/** The owner renames the house (1 to 60 characters). */
+export const renameHousehold = (id: number, name: string) =>
+  api.patch<MyHousehold>(`/api/households/${id}`, { name }, id)
+
 export const leaveHousehold = (id: number) => api.post<void>(`/api/households/${id}/leave`, {})
 
 export const listMembers = (householdId: number) =>

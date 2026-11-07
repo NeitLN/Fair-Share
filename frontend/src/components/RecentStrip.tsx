@@ -39,7 +39,7 @@ function savedLabel(savedAt: string, at: (day: string, time: string) => string):
 function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: RecentStripProps) {
   const t = useT()
   const [open, setOpen] = useState(false)
-  // "Xem thêm" disappears once pressed: its focus goes to the first line it revealed (review of #201)
+  // "Xem thêm" sends the focus to the first line it revealed (review of #201)
   const focusRevealed = useRef(false)
   const takeFocus = (element: HTMLAnchorElement | null) => {
     if (element && focusRevealed.current) {
@@ -94,12 +94,20 @@ function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: Re
           )
         })}
       </ul>
-      {hidden > 0 && (
-        <button type="button" className="btn-ghost recent-more" aria-expanded={false} aria-controls="recent-strip-list" onClick={() => {
-            focusRevealed.current = true
-            setOpen(true)
-          }}>
-          {t.recent.more(hidden)}
+      {/* Xem thêm opens the rest and moves the focus to the first new line; once open the same
+          button reads Thu gọn and folds them again, keeping the focus on itself (owner, 07/11) */}
+      {items.length > initialCount && (
+        <button
+          type="button"
+          className="btn-ghost recent-more"
+          aria-expanded={open}
+          aria-controls="recent-strip-list"
+          onClick={() => {
+            focusRevealed.current = !open
+            setOpen(!open)
+          }}
+        >
+          {open ? t.recent.less : t.recent.more(hidden)}
         </button>
       )}
     </section>

@@ -9,7 +9,8 @@ import { language, messages } from '../i18n'
 export interface ExpenseFilter {
   /** "YYYY-MM", or null for every month. */
   month: string | null
-  /** A member who paid or shares in the expense, or null for the whole household. */
+  /** The member who paid the expense, or null for every payer. Paid by, not "involved": nearly every
+   * expense is shared by the whole house, so "involved" left the list almost unchanged (owner, 07/11). */
   memberId: number | null
   /** What the expenses were for (specs/005-expense-categories), or null for any. */
   category: Category | null
@@ -37,16 +38,12 @@ const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 /** "Tháng 10/2026". */
 export const monthLabel = (month: string) => messages().filters.monthLabel(monthNumber(month))
 
-/** Whether the member paid for the expense or has a share in it. */
-export function involves(expense: Expense, memberId: number): boolean {
-  return expense.payer_id === memberId || expense.shares.some((share) => share.member_id === memberId)
-}
 
 export function filterExpenses(expenses: Expense[], filter: ExpenseFilter): Expense[] {
   return expenses.filter(
     (expense) =>
       (filter.month === null || monthOf(expense) === filter.month) &&
-      (filter.memberId === null || involves(expense, filter.memberId)) &&
+      (filter.memberId === null || expense.payer_id === filter.memberId) &&
       (filter.category === null || (expense.category ?? 'other') === filter.category),
   )
 }
