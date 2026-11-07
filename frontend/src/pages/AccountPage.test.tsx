@@ -1,8 +1,8 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { currentSession } from '../lib/session'
+import { currentSession, updateUser } from '../lib/session'
 import { mockApi, renderApp, testUser } from '../test/renderApp'
 
 afterEach(() => {
@@ -142,4 +142,44 @@ test('a new password of the wrong length is refused before anything is sent', as
   await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
   expect(screen.getByText('Mật khẩu mới dài 8 đến 128 ký tự.')).toBeInTheDocument()
   expect(api.mock.calls.some(([url]) => url === '/api/me/password')).toBe(false)
+})
+
+// --- Status (specs/010-profile-page, US3) ---
+
+test('a status is saved, and the counter counts an emoji once', async () => {
+  const api = mockApi({
+    ...noHouses,
+    'PUT /api/me/status': (body) => [200, { ...testUser, status: (body as { status: string }).status }],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  const field = screen.getByLabelText('Trạng thái bạn cùng nhà thấy')
+  await user.type(field, 'ăn kiêng 🥗')
+  expect(screen.getByText(/^10\/60 ký tự/)).toBeInTheDocument()
+  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[1])
+  expect(await screen.findByText('Đã lưu trạng thái.')).toBeInTheDocument()
+  const sent = api.mock.calls.find(([url]) => url === '/api/me/status')
+  expect(JSON.parse(String(sent?.[1]?.body))).toEqual({ status: 'ăn kiêng 🥗' })
+  expect(currentSession()?.user.status).toBe('ăn kiêng 🥗')
+})
+
+test('Xoá trạng thái clears it, and an empty field saves no status', async () => {
+  const api = mockApi({ ...noHouses, 'PUT /api/me/status': [200, { ...testUser, status: null }] })
+  const user = userEvent.setup()
+  renderApp('/account')
+  act(() => updateUser({ ...testUser, status: 'đang ăn kiêng' }))
+  await user.click(screen.getByRole('button', { name: 'Xoá trạng thái' }))
+  expect(await screen.findByText('Đã xoá trạng thái.')).toBeInTheDocument()
+  const sent = api.mock.calls.find(([url]) => url === '/api/me/status')
+  expect(JSON.parse(String(sent?.[1]?.body))).toEqual({ status: null })
+})
+
+test('more than 60 characters is refused next to the field before anything is sent', async () => {
+  const api = mockApi({ ...noHouses })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'a'.repeat(61))
+  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[1])
+  expect(screen.getByText('Trạng thái dài tối đa 60 ký tự, trên một dòng.')).toBeInTheDocument()
+  expect(api.mock.calls.some(([url]) => url === '/api/me/status')).toBe(false)
 })

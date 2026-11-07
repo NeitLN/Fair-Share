@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { ApiError } from '../api/client'
-import { changePassword, keys, renameMe } from '../api/households'
+import { changePassword, keys, renameMe, setStatus } from '../api/households'
 import type { MyHouseholds, RenameResult } from '../api/types'
 import { useT } from '../i18n'
 import { errorMessage } from '../lib/errors'
@@ -26,6 +26,7 @@ function AccountPage() {
         <span className="hint">{t.profile.emailHint}</span>
       </p>
       <NameForm current={session.user.display_name} />
+      <StatusForm current={session.user.status ?? ''} />
       <PasswordForm />
     </div>
   )
@@ -121,6 +122,92 @@ function RenameNote({ result }: { result: RenameResult }) {
         </p>
       ))}
     </div>
+  )
+}
+
+/** Code points, as the server counts: an emoji is one, not two UTF-16 units. */
+const length = (text: string) => [...text.trim()].length
+const MAX_STATUS = 60
+
+function StatusForm({ current }: { current: string }) {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const [status, setText] = useState(current)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [saved, setSaved] = useState<'set' | 'cleared' | null>(null)
+  const save = useMutation({
+    mutationFn: (next: string | null) => setStatus(next),
+    onSuccess: (user) => {
+      setText(user.status ?? '')
+      setSaved(user.status ? 'set' : 'cleared')
+      updateUser(user)
+      queryClient.invalidateQueries({ queryKey: keys.households })
+    },
+  })
+
+  function send(next: string) {
+    if (length(next) > MAX_STATUS) {
+      setProblem(t.profile.statusProblem)
+      return
+    }
+    setProblem(null)
+    setSaved(null)
+    save.mutate(next.trim() ? next.trim() : null)
+  }
+
+  const fieldProblem = problem ?? (save.error instanceof ApiError && save.error.status === 422 ? t.profile.statusProblem : null)
+  return (
+    <section className="profile-part" aria-labelledby="profile-status-title">
+      <h2 id="profile-status-title">{t.profile.statusTitle}</h2>
+      <form
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault()
+          send(status)
+        }}
+        noValidate
+      >
+        <div className="field">
+          <label htmlFor="profile-status">{t.profile.statusLabel}</label>
+          <input
+            id="profile-status"
+            value={status}
+            maxLength={200}
+            placeholder={t.profile.statusPlaceholder}
+            aria-invalid={fieldProblem ? true : undefined}
+            aria-describedby={fieldProblem ? 'profile-status-problem' : 'profile-status-hint'}
+            onChange={(e) => {
+              setText(e.target.value)
+              setProblem(null)
+              setSaved(null)
+              save.reset()
+            }}
+          />
+          {fieldProblem ? (
+            <p id="profile-status-problem" className="field-problem" role="alert">
+              {fieldProblem}
+            </p>
+          ) : (
+            <p id="profile-status-hint" className="hint">
+              {t.profile.statusHint(length(status), MAX_STATUS)}
+            </p>
+          )}
+        </div>
+        {save.error && !fieldProblem && <p role="alert">{errorMessage(save.error)}</p>}
+        <div className="profile-live" aria-live="polite">
+          {saved && <p className="note ok">{saved === 'set' ? t.profile.statusSaved : t.profile.statusCleared}</p>}
+        </div>
+        <div className="profile-buttons">
+          <button type="submit" disabled={save.isPending}>
+            {save.isPending ? t.profile.saving : t.profile.save}
+          </button>
+          {current && (
+            <button type="button" className="btn-secondary" disabled={save.isPending} onClick={() => send('')}>
+              {t.profile.statusClear}
+            </button>
+          )}
+        </div>
+      </form>
+    </section>
   )
 }
 

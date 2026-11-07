@@ -196,6 +196,9 @@ settlement must be members of the **same household** (composite foreign keys on
 * **Money is an integer number of đồng (`bigint`)**, never a float. No rounding errors, easy to test.
 * **Equal split rule:** `base = amount // n`, the remaining `amount % n` đồng go one each to the
   participants with the lowest member id. Shares therefore always sum to the amount exactly.
+* **Profile** ([spec 010](../specs/010-profile-page/spec.md), `007_user_status.sql`): `users.status`
+  (1–60 code points) is joined into the members query through the live `household_users` link only, so a
+  person waiting, gone, or an old name shows none.
 * **Recurring expenses** ([spec 007](../specs/007-recurring-expenses/spec.md),
   `006_recurring_expenses.sql`): an item remembers how to fill the form again (equal split, amount or
   none, day of the month); it is made by ticking a new expense and recorded from by a person, never by

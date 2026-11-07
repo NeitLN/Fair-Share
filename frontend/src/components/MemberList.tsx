@@ -193,6 +193,12 @@ function MemberList({
                     </strong>
                     {look && look.short !== member.name.trim() && <small>{t.members.calledAs(look.short)}</small>}
                     {member.role === null && <small>{t.people.noAccount}</small>}
+                    {/* Plain text only: never a link or markup (specs/010-profile-page, FR-018) */}
+                    {member.status && (
+                      <small className="member-status" title={member.status}>
+                        {member.status}
+                      </small>
+                    )}
                     <span className="standing">
                       <Standing balance={balances?.get(member.id)} />
                     </span>

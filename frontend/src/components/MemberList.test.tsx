@@ -192,4 +192,25 @@ describe('MemberList', () => {
     expect(screen.queryByLabelText('Tên mới cho Lan')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Đổi tên Lan' })).toHaveFocus()
   })
+
+  // specs/010-profile-page, US3: a housemate's status, as plain text, under the name
+  test('a status shows under the name as plain text, never as a link or markup', () => {
+    render(
+      <MemberList
+        members={[
+          { id: 1, household_id: 7, name: 'Minh', created_at: '', role: 'member', user_id: 3, status: 'đang ăn kiêng 🥗' },
+          { id: 2, household_id: 7, name: 'Lan', created_at: '', role: 'member', user_id: 4, status: '<a href="x">bấm</a>' },
+          { id: 3, household_id: 7, name: 'Tiến', created_at: '', role: 'owner', user_id: 5, status: null },
+        ]}
+        loading={false}
+        error={null}
+        onRename={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('đang ăn kiêng 🥗')).toHaveAttribute('title', 'đang ăn kiêng 🥗')
+    expect(screen.getByText('<a href="x">bấm</a>')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.member-status')).toHaveLength(2)
+  })
 })

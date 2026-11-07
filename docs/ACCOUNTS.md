@@ -39,6 +39,7 @@ cookie that browsers block, and a header needs no CSRF protection.
 | Delete a repayment | any | the ones they recorded | |
 | Quick add | yes | yes | |
 | Change their own name everywhere, and their password (profile page) | yes | yes | yes, name and password only: no household changes |
+| Set their own status; see housemates' statuses | yes | yes | sets it; sees none, and nobody sees theirs there |
 | Leave | no (would need a new owner first) | yes | cancel the request |
 
 Every check is in the API (`app/access.py`, the routers). Hiding a button only makes the page easier
@@ -64,6 +65,7 @@ to use.
 | S3 | The person who owes can tell the receiver "Tôi đã chuyển" with the amount suggested then; the server checks it is a transfer suggested right now, for that amount (else 409 `suggestion_changed`). It changes no balance; everyone in the household sees it. The receiver's "Đã nhận" records that amount and removes the notice in one transaction, once however often it is pressed; "Chưa nhận được" marks it declined until the payer tells again; the payer can take it back. Both answers name the amount the receiver saw, so one from an old screen never touches a notice told again (409 `notice_changed`). A repayment typed in by hand removes the notice only if it is the told amount. A notice whose pair is no longer suggested keeps its own card until it is answered or taken back. One notice per pair (added 03/11 after the UI review) | `test_notices.py` |
 | P1 | `PATCH /api/me` sets the display name and the person's own name in every household where they are owner or member, in one transaction. A household where someone else's name already equals it ignoring case keeps the old name (a savepoint per household) and is listed in `kept`; any other failure changes nothing. Households still waiting are not touched. Saving the same name brings a household the owner renamed back in line. The owner's right to rename a name is unchanged (specs/010-profile-page) | `test_profile.py`: rename tests |
 | P2 | `POST /api/me/password` needs the current password; wrong ones count in the login limits of A2 (same buckets, counted before the check) and answer `400 wrong_password`, never 401, so the page does not sign out. A change ends every other session of the account and keeps the caller's. Both the change and the last step of a login take the user row lock and compare the stored hash, so a login that checked the old password during a change gets `401 invalid_credentials` and no session | `test_profile.py`: password tests, `test_a_login_with_the_old_password_during_the_change_…` |
+| P3 | A status (`PUT /api/me/status`) is 1 to 60 code points after cleaning like a name, direction controls removed; empty clears it. It belongs to the account and shows in a household only through a live owner or member link: someone waiting, someone who left or lost access, and a name from before accounts show none, and an account approved onto an old name shows only its own. Plain text, never a link (specs/010-profile-page, US3) | `test_status.py` |
 | L1 | The old key shows an ownerless household to take over; with an owner it answers "ask for an invite code"; a wrong key is a 404 | `test_the_first_signed_in_person_…` |
 
 ## API
@@ -89,6 +91,7 @@ to use.
 | `GET`, `POST /api/households/{id}/claim` with `X-Household-Key` | take over a household from before accounts |
 | `PATCH /api/me` `{display_name}` | `{user, kept: [{household_id, household_name, name}]}` (P1) |
 | `POST /api/me/password` `{current_password, new_password}` | `204`; `400 wrong_password`; `429` as login (P2) |
+| `PUT /api/me/status` `{status}` | the account with its status (P3); `Member` and `User` carry `status` |
 
 ## Data
 
@@ -96,7 +99,7 @@ to use.
 name), `invite_codes` and `rate_limits`, and `created_by` on expenses and settlements. 001 and 002
 are unchanged; `households.access_key` stays only for L1. `004_payment_notices.sql` adds
 `payment_notices` (S3): one row per pair, removed with either name, when it is answered "Đã nhận", or when
-the told amount is recorded by hand.
+the told amount is recorded by hand. `007_user_status.sql` adds `users.status` (P3).
 
 ## Limits we accept
 

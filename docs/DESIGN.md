@@ -374,7 +374,8 @@ Hôm qua, 20/10
 Order on a phone (UI review 03/11): someone asking to join first (the owner's next task), then the list
 titled "Thành viên · 3", then the invite card. A list, not a card grid (it scales to 6 long names). Each
 row: large avatar, **full name**, "gọi là *Anh*" (left out when it is the whole name), the signed amount
-with *cần trả* / *được nhận* as on Tổng quan (no coloured pill) or SẠCH NỢ, the *bạn* chip for you, and two 44 px
+with *cần trả* / *được nhận* as on Tổng quan (no coloured pill) or SẠCH NỢ, the *bạn* chip for you, the person's status
+under the name if they set one (muted, one line with an ellipsis, the whole text in its title; plain text), and two 44 px
 buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (asks first). One tap fewer than a *Sửa* menu,
 and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
 field's hint: "App gọi mỗi người bằng tên cuối: Hương, Minh, Lan…". A last word that reads as a pronoun
@@ -550,12 +551,14 @@ own form with its own button, so an error in one never loses what was typed in a
   enabled for the same name (saving it again brings back a household the owner renamed). The answer is
   "Đã đổi tên ở mọi nhà." in a green note, or one line per household that kept the old name: "Ở Nhà B đã có
   người tên Lan, nên ở đó bạn vẫn là Tiến." The account initial in the header follows at once.
+* **Trạng thái**: one line, placeholder "VD: đang ăn kiêng 🥗", the hint counts "10/60 ký tự" (an emoji is
+  one) and says where it shows; *Lưu* and, when one is set, *Xoá trạng thái* side by side.
 * **Mật khẩu**: current and new password, the new one with its 8–128 hint; both fields empty after any
   answer. A wrong current password is said under its field; too many tries reads like sign-in ("Bạn thử
   quá nhiều lần…"); success: "Đã đổi mật khẩu. Các nơi khác đã đăng xuất."
 
 Field problems sit under their field (`field-problem`, `aria-describedby`); answers are in a polite live
-region. Later parts of the spec (status, photo, gender) add their own cards here.
+region. Later parts of the spec (photo, gender) add their own cards here.
 
 ## 7. Copy
 

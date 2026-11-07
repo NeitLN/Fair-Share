@@ -122,7 +122,7 @@ def user_for_token(conn: Connection, token: str | None) -> dict | None:
     digest = token_hash(token)
     row = fetch_one(
         conn,
-        "SELECT u.id, u.email, u.display_name, s.created_at, s.last_used_at, s.expires_at"
+        "SELECT u.id, u.email, u.display_name, u.status, s.created_at, s.last_used_at, s.expires_at"
         " FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = %s",
         (digest,),
     )
@@ -138,7 +138,7 @@ def user_for_token(conn: Connection, token: str | None) -> dict | None:
             " expires_at = least(now() + %s, created_at + %s) WHERE token_hash = %s",
             (IDLE_LIFETIME, MAX_LIFETIME, digest),
         )
-    return {"id": row["id"], "email": row["email"], "display_name": row["display_name"]}
+    return {key: row[key] for key in ("id", "email", "display_name", "status")}
 
 
 def current_user(

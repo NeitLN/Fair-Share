@@ -35,9 +35,13 @@ router = APIRouter(prefix="/api", tags=["households"], dependencies=[HouseholdAc
 
 HOUSEHOLD_COLUMNS = "id, name, created_at"
 # A member with the role of the account that took the name, if any
+# Profile fields come through the live owner or member link only (specs/010-profile-page): a person
+# waiting has no linked name, one who left has no link, an old name has no account
 SELECT_MEMBERS = (
-    "SELECT m.id, m.household_id, m.name, m.created_at, hu.role, hu.user_id FROM members m"
+    "SELECT m.id, m.household_id, m.name, m.created_at, hu.role, hu.user_id,"
+    " CASE WHEN hu.role IN ('owner', 'member') THEN u.status END AS status FROM members m"
     " LEFT JOIN household_users hu ON hu.household_id = m.household_id AND hu.member_id = m.id"
+    " LEFT JOIN users u ON u.id = hu.user_id"
 )
 # No more members than one expense can be split between, so an equal split for the whole
 # household always works (#134)

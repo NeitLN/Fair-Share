@@ -191,6 +191,14 @@ const vi = {
     newProblem: 'Mật khẩu mới dài 8 đến 128 ký tự.',
     passwordChanged: 'Đã đổi mật khẩu. Các nơi khác đã đăng xuất.',
     changePassword: 'Đổi mật khẩu',
+    statusTitle: 'Trạng thái',
+    statusLabel: 'Trạng thái bạn cùng nhà thấy',
+    statusPlaceholder: 'VD: đang ăn kiêng 🥗',
+    statusHint: (n: number, max: number) => `${n}/${max} ký tự. Hiện dưới tên bạn ở trang Thành viên của mọi nhà.`,
+    statusProblem: 'Trạng thái dài tối đa 60 ký tự, trên một dòng.',
+    statusSaved: 'Đã lưu trạng thái.',
+    statusCleared: 'Đã xoá trạng thái.',
+    statusClear: 'Xoá trạng thái',
   },
   // A new account with no house and no request: one place to start (design review 05/11)
   start: {

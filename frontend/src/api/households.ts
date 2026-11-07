@@ -38,6 +38,9 @@ export const getMe = () => api.get<User>('/api/auth/me')
 export const renameMe = (displayName: string) =>
   api.patch<RenameResult>('/api/me', { display_name: displayName })
 
+/** A short status housemates see, or null to clear it. */
+export const setStatus = (status: string | null) => api.put<User>('/api/me/status', { status })
+
 /** A wrong current password is a 400 `wrong_password`, not a 401, so it never signs out. */
 export const changePassword = (currentPassword: string, newPassword: string) =>
   api.post<void>('/api/me/password', { current_password: currentPassword, new_password: newPassword })
