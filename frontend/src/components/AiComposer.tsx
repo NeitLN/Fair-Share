@@ -73,15 +73,19 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
           description: applied.has('description') ? draft.description : '',
           amount: applied.has('amount') ? draft.amount : null,
           payer_id: applied.has('payer') ? draft.payer_id : null,
-          split: { ...draft.split, member_ids: applied.has('split') ? draft.split.member_ids : [] },
+          split: applied.has('split') ? draft.split : { type: 'equal', member_ids: [] },
         },
         members,
       )
+      // Said beside Cách chia instead: participants_assumed, and why a split by amounts is blocked
+      const split = draft.split
+      const blockedBy = split.type === 'blocked' ? warnings.find((w) => w.code === split.reason) : undefined
       setState({
         step: 'filled',
         summary: summary || t.ai.nothingFilled,
-        // participants_assumed is about the split: the form shows it beside Cách chia instead
-        warnings: warnings.filter((w) => w.code !== 'participants_assumed').map(warningMessage),
+        warnings: warnings
+          .filter((w) => w.code !== 'participants_assumed' && w !== blockedBy)
+          .map(warningMessage),
         kept: result.kept,
       })
     } catch (error) {

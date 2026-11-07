@@ -20,8 +20,13 @@ export function draftSummary(draft: ExpenseDraft, members: Member[]): string {
     parts.push(t.ai.pays(payer?.name ?? t.common.removedMember))
   }
 
+  // A split by named amounts says how many people have a share; a blocked one is said by its warning
+  if (draft.split.type === 'custom') {
+    const people = draft.split.shares.filter((share) => share.amount > 0).length
+    if (people > 0) parts.push(t.ai.splitCustom(people))
+  }
   // No ids: the split was not filled (the user had set it), so it is not mentioned
-  const ids = draft.split.member_ids
+  const ids = draft.split.type === 'equal' ? draft.split.member_ids : []
   if (ids.length > 0) {
     const everyone =
       members.length > 0 &&

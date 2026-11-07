@@ -270,3 +270,47 @@ describe('AiComposer, the split warning', () => {
     expect(screen.queryByText('AI chia cho cả nhà, bạn kiểm tra lại.')).not.toBeInTheDocument()
   })
 })
+
+describe('AiComposer, named amounts (specs/009-ai-custom-split)', () => {
+  test('the reason a split is blocked is said beside Cách chia, not twice', async () => {
+    const over = { code: 'over_total', message: 'over', named_sum: 600_000, total: 240_000 }
+    const noPayer = { code: 'no_payer', message: 'Choose who paid' }
+    const blocked: AiDraft = {
+      draft: { ...answer.draft, split: { type: 'blocked', reason: 'over_total', preview: [] } },
+      warnings: [noPayer, over],
+    }
+    const props = setup(() => Promise.resolve(blocked))
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k, Minh 300k, Tiến 300k')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+
+    expect(await screen.findByText('Chọn người trả.')).toBeInTheDocument()
+    expect(screen.queryByText(/Các phần đã nêu cộng lại/)).not.toBeInTheDocument()
+    expect(props.onDraft).toHaveBeenCalledWith(blocked.draft, blocked.warnings)
+  })
+
+  test('a custom split that was applied is described', async () => {
+    const custom: AiDraft = {
+      draft: {
+        ...answer.draft,
+        split: {
+          type: 'custom',
+          shares: [
+            { member_id: 1, amount: 140_000 },
+            { member_id: 2, amount: 100_000 },
+          ],
+          rest_to: 2,
+          rest_amount: 100_000,
+          rest_to_payer: true,
+        },
+      },
+      warnings: [],
+    }
+    setup(() => Promise.resolve(custom))
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả, Tiến 140k')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+    const note = await screen.findByText(/^Đã điền:/)
+    expect(plain(note.textContent)).toBe('Đã điền: Lẩu · 240.000đ · Minh trả · tự chia 2 người.')
+  })
+})

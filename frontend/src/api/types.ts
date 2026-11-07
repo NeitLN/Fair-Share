@@ -238,16 +238,44 @@ export interface ExpenseDraft {
   /** Plain date, "YYYY-MM-DD". */
   spent_at: string
   source: 'ai'
-  split: { type: 'equal'; member_ids: number[] }
+  split: DraftSplit
 }
+
+export interface DraftShare {
+  member_id: number
+  amount: number
+}
+
+/**
+ * How the draft splits the amount (specs/009-ai-custom-split): equally as before; by the amounts the
+ * sentence named, adding up to the draft's amount; or blocked, with the amounts as read for display
+ * only and the code of the warning that says why.
+ */
+export type DraftSplit =
+  | { type: 'equal'; member_ids: number[] }
+  | {
+      type: 'custom'
+      shares: DraftShare[]
+      /** Who took what was left after the named amounts; null when nothing was left or it was split equally. */
+      rest_to: number | null
+      rest_amount: number
+      /** The rest went to the payer, so the split only holds with that payer. */
+      rest_to_payer: boolean
+    }
+  | { type: 'blocked'; reason: string; preview: DraftShare[] }
 
 /** Something the user should check before saving the draft. */
 export interface DraftWarning {
   code: string
   /** The server's English text, used only when the code has no Vietnamese wording. */
   message: string
-  /** The name as written, for unknown_member. */
+  /** The name as written, for unknown_member and the other codes about one name. */
   name?: string | null
+  /** over_total: the named amounts' sum and the total. */
+  named_sum?: number | null
+  total?: number | null
+  /** no_rest_taker, nobody_for_equal_rest: what was left to place. */
+  remainder?: number | null
 }
 
 export interface AiDraft {

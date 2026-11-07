@@ -358,8 +358,8 @@ sequenceDiagram
     API->>API: per-IP limit (5/min) + global budget, length ≤ 300 chars
     API->>G: generateContent(prompt + member names + today, JSON schema), timeout 20 s
     alt success
-        G-->>API: {description, amount, payer, participants, spent_at}
-        API->>API: validate: amount > 0, names ∈ household members
+        G-->>API: {description, amount, payer, participants, spent_at, named_amounts, rest, unsupported}
+        API->>API: validate: amount > 0, names ∈ household members; place named amounts (allocation.py)
         API-->>SPA: 200 {draft, warnings}
         SPA-->>User: pre-filled form → user presses Save (normal POST /expenses)
     else 429 from Gemini or our limiter
@@ -400,6 +400,36 @@ accents (`"tien"` → Tiến), and a single word matches when only one member ha
 | `no_payer` | The sentence does not say who paid |
 | `no_amount` | The sentence has no amount |
 | `participants_assumed` | Nobody was named, so the draft splits between everyone |
+
+**Named amounts** ([specs/009-ai-custom-split](../specs/009-ai-custom-split/spec.md)). "lẩu 500k Tiến
+trả, Minh 200k, Lan 100k" gives a custom split. Gemini only *reads* the sentence: `named_amounts` (name as
+written, or `ME` for the person typing, and what that person owes, in order), `rest` (`none` · `person` ·
+`equal`, with names) and `unsupported` (`fraction_or_percent` · `several_payers` · `paid_amount` ·
+`payer_not_sharing`). The split itself is worked out by `app/services/allocation.py` with fixed
+arithmetic: each share is the amount named for that member plus their part of the rest, where the rest
+(total minus the named amounts) goes to the person the sentence names, is split equally (leftover đồng to
+the lowest member ids, as in §4), or else goes to the payer. Named amounts are never scaled, dropped or
+changed, and `ME` is the caller's own member id from the access check, never the model's guess. A missing
+payer stays missing. Sentences with no named amounts and nothing about the rest take exactly the old path.
+
+`split` is then one of three kinds:
+
+```jsonc
+{"type": "equal", "member_ids": [1, 3]}
+{"type": "custom", "shares": [{"member_id": 1, "amount": 200000}, {"member_id": 2, "amount": 200000},
+                              {"member_id": 3, "amount": 100000}],      // add up to `amount`
+ "rest_to": 1, "rest_amount": 200000, "rest_to_payer": true}
+{"type": "blocked", "reason": "over_total",                            // never a usable split
+ "preview": [{"member_id": 2, "amount": 300000}, {"member_id": 4, "amount": 300000}]}
+```
+
+A blocked split carries one warning whose `code` is its `reason`, with its figures (`named_sum`, `total`,
+`remainder`, `name`): `over_total`, `unknown_member`, `ambiguous_member`, `duplicate_member`,
+`no_rest_taker`, `no_total`, `nobody_for_equal_rest`, `fraction_or_percent`, `several_payers`,
+`paid_amount`, `payer_not_sharing`, `unreadable_shares`. The form shows the amounts as read and keeps
+*Lưu* refused until the user changes the split by hand: a split that merely adds up may still not be what
+was said (dropping an unknown person's amount can make it add up). The form also refuses to apply a
+custom split when the total, or the payer who took the rest, already in the form differs from the draft.
 
 **Errors:** `404 household_not_found`, `409 no_members` (add members first), `422 validation_error`
 (empty or over 300 characters), `422 ai_unparseable`, `422 too_many_participants` (over 50 people), `429 ai_rate_limited`, `503 ai_unavailable` (Gemini slow or down: retry may work), `503 ai_not_configured` (no key on this server: the page disables Quick add).

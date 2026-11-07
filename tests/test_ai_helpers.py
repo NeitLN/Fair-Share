@@ -7,7 +7,7 @@ import pytest
 from app.errors import ApiError
 from app.routers.ai import UNRESOLVED, pick_client_ip, to_draft
 from app.services.gemini import ExpenseDraft as Found
-from app.services.names import match_member, normalize
+from app.services.names import match_candidates, match_member, normalize
 from app.services.rate_limit import AiBudget
 
 MEMBERS = {1: "Tiến", 2: "Minh", 3: "Duy Anh"}
@@ -175,3 +175,12 @@ def test_a_retry_counts_globally_but_not_against_the_visitor():
     assert budget.try_spend("a")  # the retry did not use the visitor's own limit
     assert not budget.try_spend_retry()  # but it did use the global one: 3 calls this minute
     assert not budget.try_spend("b")
+
+
+def test_candidates_tell_nobody_from_several():
+    members = {1: "Minh Anh", 2: "Duy Anh", 3: "Lan"}
+    assert match_candidates("Hùng", members) == []
+    assert match_candidates("anh", members) == [1, 2]
+    assert match_candidates("lan", members) == [3]
+    assert match_candidates("Minh Anh", members) == [1]
+    assert match_candidates("  ", members) == []
