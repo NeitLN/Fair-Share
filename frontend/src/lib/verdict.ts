@@ -50,10 +50,6 @@ export function verdict(suggested: Transfer[], me: number | null, nameOf: NameOf
 }
 
 /**
- * One transfer from where you stand: "Bạn cần trả Minh", "Minh cần trả bạn" ("You owe Minh", "Minh owes
- * you"). Once it is recorded as paid it reads as done: "Bạn đã trả Minh" ("You paid Minh").
- */
-/**
  * Whose stickers sit in the verdict block's corner (owner, 07/11): owed money, the people who will send
  * it to you; owing, the people you send it to (you would only see yourself). In the order of the
  * transfers, each once; nobody when you are in none of them or nobody is chosen.
@@ -69,6 +65,10 @@ export function verdictPeople(owed: Transfer[], me: number | null): number[] {
   return people
 }
 
+/**
+ * One transfer from where you stand: "Bạn cần trả Minh", "Minh cần trả bạn" ("You owe Minh", "Minh owes
+ * you"). Once it is recorded as paid it reads as done: "Bạn đã trả Minh" ("You paid Minh").
+ */
 export function transferText(transfer: Transfer, me: number | null, nameOf: NameOf, paid = false): string {
   const t = messages().verdict
   const fromIsYou = transfer.from_member_id === me
