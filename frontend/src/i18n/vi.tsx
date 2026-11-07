@@ -515,7 +515,6 @@ const vi = {
     all: 'Tất cả',
     person: 'Người trả',
     category: 'Danh mục',
-    everyone: 'Cả nhà',
     clear: 'Bỏ lọc',
     monthLabel: (month: string) => `Tháng ${month}`,
     monthTotal: 'cả nhà chi',

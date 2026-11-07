@@ -515,7 +515,6 @@ const en: Messages = {
     all: 'All',
     person: 'Paid by',
     category: 'Category',
-    everyone: 'Everyone',
     clear: 'Clear filters',
     monthLabel: (month: string) => month,
     monthTotal: 'the group spent',
