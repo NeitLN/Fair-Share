@@ -222,6 +222,13 @@ const en: Messages = {
     photoRemoved: 'Photo removed. Your avatar is your initial again.',
     photoTooBig: 'That photo is over 10 MB. Please choose another.',
     photoUnreadable: "That picture can't be read. Please choose a JPEG, PNG or WebP.",
+    genderTitle: 'Gender',
+    genderNotice:
+      'Optional. It shares your gender with your housemates; your current and future housemates see it. Kept until you change or clear it. Choosing Not stated deletes it.',
+    genderNone: 'Not stated',
+    genders: { male: 'Male', female: 'Female', other: 'Other' },
+    genderSaved: 'Gender saved.',
+    genderCleared: 'Gender cleared.',
   },
   start: {
     title: (name: string) => `Hi ${name}, let's get started`,

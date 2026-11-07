@@ -93,6 +93,29 @@ test('lists the expenses with who paid', async () => {
   expect(list().getByText(/^Tiến trả · chia đều 2 người/)).toBeInTheDocument()
 })
 
+// #228 review: saving an expense refreshes the house, but must not fetch every photo again
+test('saving an expense does not fetch the photos again', async () => {
+  const photo = 'data:image/jpeg;base64,/9j/AA=='
+  const withPhoto = [{ ...members[0], role: 'owner', user_id: 9, photo_version: 'aaaaaaaaaaaa' }, members[1]]
+  const fetchFn = api(
+    { 'GET /api/households/7/photos': [200, { photos: [{ member_id: 1, version: 'aaaaaaaaaaaa', data: photo }] }] },
+    withPhoto,
+  )
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+  await waitFor(() => expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull())
+
+  await user.type(await screen.findByLabelText('Nội dung'), 'Ăn tối')
+  await user.type(screen.getByLabelText('Số tiền'), '240k')
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+  expect(await list().findByText('Ăn tối')).toBeInTheDocument()
+
+  const calls = (path: string) => fetchFn.mock.calls.filter(([url]) => url === path).length
+  await waitFor(() => expect(calls('/api/households/7/members')).toBeGreaterThan(1)) // the house did refresh
+  expect(calls('/api/households/7/photos')).toBe(1)
+  expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull()
+})
+
 test('adding an expense puts it on the list and clears the form', async () => {
   const fetchFn = api()
   const user = userEvent.setup()

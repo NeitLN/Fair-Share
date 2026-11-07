@@ -212,6 +212,13 @@ const vi = {
     photoRemoved: 'Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.',
     photoTooBig: 'Ảnh lớn quá 10 MB. Chọn ảnh khác nhé.',
     photoUnreadable: 'Chưa đọc được ảnh này. Chọn ảnh JPEG, PNG hoặc WebP nhé.',
+    genderTitle: 'Giới tính',
+    genderNotice:
+      'Không bắt buộc. Dùng để cho bạn cùng nhà biết giới tính của bạn; bạn cùng nhà hiện tại và sau này đều thấy. Giữ tới khi bạn đổi hoặc bỏ. Chọn Không nêu là xoá hẳn.',
+    genderNone: 'Không nêu',
+    genders: { male: 'Nam', female: 'Nữ', other: 'Khác' } as Record<'male' | 'female' | 'other', string>,
+    genderSaved: 'Đã lưu giới tính.',
+    genderCleared: 'Đã xoá giới tính.',
   },
   // A new account with no house and no request: one place to start (design review 05/11)
   start: {

@@ -20,6 +20,9 @@ export function useMemberPhotos(householdId: number, members: Member[] | undefin
     queryFn: () => householdPhotos(householdId),
     enabled: versions !== '',
     staleTime: Infinity,
+    // While a changed batch loads, the same house keeps its last photos, so avatars do not flash
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === householdId ? previous : undefined,
   })
   return useMemo(
     () => (photos.data ? new Map(photos.data.photos.map((p) => [p.member_id, p.data])) : undefined),

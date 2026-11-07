@@ -4,15 +4,17 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { ApiError } from '../api/client'
 import {
   changePassword,
+  GENDER_NOTICE,
   getMyPhoto,
   keys,
   removePhoto,
   renameMe,
+  setGender,
   setStatus,
   uploadPhoto,
 } from '../api/households'
 import { Avatar } from '../components/Avatar'
-import type { MyHouseholds, RenameResult } from '../api/types'
+import type { Gender, MyHouseholds, RenameResult } from '../api/types'
 import { useT } from '../i18n'
 import { errorMessage } from '../lib/errors'
 import { initialOf } from '../lib/names'
@@ -40,6 +42,7 @@ function AccountPage() {
       <NameForm current={session.user.display_name} />
       <StatusForm current={session.user.status ?? ''} />
       <PasswordForm />
+      <GenderForm current={session.user.gender ?? null} />
     </div>
   )
 }
@@ -320,6 +323,66 @@ function StatusForm({ current }: { current: string }) {
             </button>
           )}
         </div>
+      </form>
+    </section>
+  )
+}
+
+const GENDERS: (Gender | null)[] = [null, 'male', 'female', 'other']
+
+function GenderForm({ current }: { current: Gender | null }) {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const [choice, setChoice] = useState<Gender | null>(current)
+  const [saved, setSaved] = useState(false)
+  const save = useMutation({
+    mutationFn: () => setGender(choice),
+    onSuccess: (user) => {
+      setChoice(user.gender ?? null)
+      setSaved(true)
+      updateUser(user)
+      queryClient.invalidateQueries({ queryKey: keys.households })
+    },
+  })
+  return (
+    <section className="profile-part" aria-labelledby="profile-gender-title">
+      <h2 id="profile-gender-title">{t.profile.genderTitle}</h2>
+      <form
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault()
+          setSaved(false)
+          save.mutate()
+        }}
+      >
+        {/* The notice comes before the choice, so it is read before saving (FR-029) */}
+        <p className="hint" id="profile-gender-notice" data-notice={GENDER_NOTICE}>
+          {t.profile.genderNotice}
+        </p>
+        <fieldset className="profile-choices" aria-describedby="profile-gender-notice">
+          <legend className="visually-hidden">{t.profile.genderTitle}</legend>
+          {GENDERS.map((value) => (
+            <label key={value ?? 'none'} className="profile-choice">
+              <input
+                type="radio"
+                name="profile-gender"
+                checked={choice === value}
+                onChange={() => {
+                  setChoice(value)
+                  setSaved(false)
+                  save.reset()
+                }}
+              />
+              {value ? t.profile.genders[value] : t.profile.genderNone}
+            </label>
+          ))}
+        </fieldset>
+        {save.error && <p role="alert">{errorMessage(save.error)}</p>}
+        <div className="profile-live" aria-live="polite">
+          {saved && <p className="note ok">{choice ? t.profile.genderSaved : t.profile.genderCleared}</p>}
+        </div>
+        <button type="submit" disabled={save.isPending}>
+          {save.isPending ? t.profile.saving : t.profile.save}
+        </button>
       </form>
     </section>
   )

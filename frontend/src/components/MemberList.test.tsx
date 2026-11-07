@@ -213,4 +213,22 @@ describe('MemberList', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(document.querySelectorAll('.member-status')).toHaveLength(2)
   })
+
+  // specs/010-profile-page, US5: a stated gender is a small label after the name; none shows nothing
+  test('a stated gender shows after the name, and nothing shows without one', () => {
+    render(
+      <MemberList
+        members={[
+          { id: 1, household_id: 7, name: 'Minh', created_at: '', role: 'member', user_id: 3, gender: 'male' },
+          { id: 2, household_id: 7, name: 'Lan', created_at: '', role: 'member', user_id: 4, gender: null },
+        ]}
+        loading={false}
+        error={null}
+        onRename={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Nam')).toHaveClass('member-gender')
+    expect(document.querySelectorAll('.member-gender')).toHaveLength(1)
+  })
 })

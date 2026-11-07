@@ -31,7 +31,16 @@ from app.auth import (
 from app.db import ConnDep, connection, fetch_all, fetch_one
 from app.errors import ApiError
 from app.routers import accounts
-from app.schemas import MeIn, MyPhoto, PasswordIn, PhotoVersion, RenameResult, StatusIn, User
+from app.schemas import (
+    GenderIn,
+    MeIn,
+    MyPhoto,
+    PasswordIn,
+    PhotoVersion,
+    RenameResult,
+    StatusIn,
+    User,
+)
 from app.services.images import PhotoBusy, PhotoRefused, clean_photo, data_url
 
 router = APIRouter(prefix="/api", tags=["me"])
@@ -39,6 +48,9 @@ router = APIRouter(prefix="/api", tags=["me"])
 Authorization = Annotated[str | None, Header()]
 # The unique index that says a name is taken in a household (db/migrations/001_init.sql)
 NAME_TAKEN = "members_household_name_key"
+
+# What a route answering with the account returns (schemas.User): never the hash or the notice
+USER_COLUMNS = "id, email, display_name, status, gender"
 
 # Photos (specs/010-profile-page, FR-023): uploads per hour, and all photos together
 PHOTO_WINDOW = timedelta(hours=1)
@@ -70,7 +82,7 @@ def rename_me(body: MeIn, user: CurrentUser, conn: ConnDep):
     renamed = fetch_one(
         conn,
         "UPDATE users SET display_name = %s WHERE id = %s"
-        " RETURNING id, email, display_name, status",
+        f" RETURNING {USER_COLUMNS}",
         (body.display_name, user["id"]),
     )
     # Owner or member only: a person still waiting has no name yet (FR-009). Locked in a fixed
@@ -111,9 +123,26 @@ def set_status(body: StatusIn, user: CurrentUser, conn: ConnDep):
     """A short status the person's housemates see, or none (specs/010-profile-page, US3)."""
     return fetch_one(
         conn,
-        "UPDATE users SET status = %s WHERE id = %s RETURNING id, email, display_name, status",
+        f"UPDATE users SET status = %s WHERE id = %s RETURNING {USER_COLUMNS}",
         (body.status, user["id"]),
     )
+
+
+@router.put("/me/gender", response_model=User)
+def set_gender(body: GenderIn, user: CurrentUser, conn: ConnDep):
+    """An optional gender, kept with the notice the person saw and when (specs/010-profile-page,
+    US5); "Không nêu" (null) deletes all three."""
+    if body.gender is None:
+        sql = (
+            "UPDATE users SET gender = NULL, gender_notice = NULL, gender_set_at = NULL"
+            f" WHERE id = %s RETURNING {USER_COLUMNS}"
+        )
+        return fetch_one(conn, sql, (user["id"],))
+    sql = (
+        "UPDATE users SET gender = %s, gender_notice = %s, gender_set_at = now()"
+        f" WHERE id = %s RETURNING {USER_COLUMNS}"
+    )
+    return fetch_one(conn, sql, (body.gender, body.notice, user["id"]))
 
 
 @router.put("/me/photo", response_model=PhotoVersion)

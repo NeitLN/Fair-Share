@@ -200,6 +200,8 @@ settlement must be members of the **same household** (composite foreign keys on
   (1–60 code points) is joined into the members query through the live `household_users` link only, so a
   person waiting, gone, or an old name shows none. `008_user_photos.sql` keeps one photo per account
   (`user_photos`: the server's own 256 × 256 JPEG, at most 32 KiB, and a 12-character version).
+  `009_user_gender.sql` adds an optional `users.gender` with `gender_notice` and `gender_set_at`, all set
+  or all null (a check constraint); only `gender` is joined into the members query.
 * **Recurring expenses** ([spec 007](../specs/007-recurring-expenses/spec.md),
   `006_recurring_expenses.sql`): an item remembers how to fill the form again (equal split, amount or
   none, day of the month); it is made by ticking a new expense and recorded from by a person, never by
@@ -290,6 +292,8 @@ Photos (P4): `PUT /api/me/photo` reads the raw picture, counts the upload, then 
 the write sums the stored bytes under an advisory lock to keep all photos under 50 MB. An `<img>` cannot
 send the Bearer token, so the members list carries each photo's version and the page asks
 `GET /api/households/{id}/photos` once for data URLs, again only when a version changes; nothing polls.
+Its cache key is `['photos', id, versions]`, outside `['households', id]`, so saving an expense does not
+fetch the photos again (#228 review).
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.

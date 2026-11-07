@@ -190,6 +190,7 @@ function MemberList({
                       {member.name}
                       {me === member.id && <Chip kind="me">{t.common.you}</Chip>}
                       {member.role === 'owner' && <Chip kind="zero">{t.people.owner}</Chip>}
+                      {member.gender && <span className="member-gender">{t.profile.genders[member.gender]}</span>}
                     </strong>
                     {look && look.short !== member.name.trim() && <small>{t.members.calledAs(look.short)}</small>}
                     {member.role === null && <small>{t.people.noAccount}</small>}

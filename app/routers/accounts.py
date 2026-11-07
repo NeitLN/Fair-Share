@@ -104,7 +104,7 @@ def register(body: RegisterIn, request: Request):
                 user = fetch_one(
                     conn,
                     "INSERT INTO users (email, password_hash, display_name) VALUES (%s, %s, %s)"
-                    " RETURNING id, email, display_name, status",
+                    " RETURNING id, email, display_name, status, gender",
                     (body.email, password_hash, body.display_name),
                 )
         except errors.UniqueViolation:
@@ -127,7 +127,7 @@ def login(body: LoginIn, request: Request):
         )
         user = allowed and fetch_one(
             conn,
-            "SELECT id, email, display_name, status, password_hash FROM users"
+            "SELECT id, email, display_name, status, gender, password_hash FROM users"
             " WHERE lower(email) = %s",
             (body.email,),
         )
