@@ -37,6 +37,7 @@ import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
 import { useSession } from '../lib/session'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
+import { useMemberPhotos } from '../lib/useMemberPhotos'
 import { marksAfter, readMarks, recentItems, writeMarks } from '../lib/recent'
 import type { SeenMarks } from '../lib/recent'
 import { REFRESH_MS } from '../lib/refresh'
@@ -161,8 +162,9 @@ function Dashboard({ householdId }: { householdId: number }) {
   const mine = me === null ? undefined : explanations.get(me)
   // Names come from the members; until they load (or if they fail) the balances carry the same names,
   // so a transfer is never shown as "Thành viên đã xoá" just because its member is not loaded yet
+  const photos = useMemberPhotos(householdId, members.data)
   const looks = useMemo(() => {
-    if (members.data) return memberLooks(members.data)
+    if (members.data) return memberLooks(members.data, photos)
     const fromBalances = (balances.data?.balances ?? []).map((b) => ({
       id: b.member_id,
       household_id: householdId,
@@ -170,7 +172,7 @@ function Dashboard({ householdId }: { householdId: number }) {
       created_at: '',
     }))
     return memberLooks(fromBalances)
-  }, [members.data, balances.data, householdId])
+  }, [members.data, balances.data, householdId, photos])
   const nameOf = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
 
   // "Đến ngày ghi" (specs/007-recurring-expenses): worked out here from the items and the expenses; nothing

@@ -6,9 +6,12 @@ current password must stay counted, so the count is committed before the answer,
 is held while the slow hash runs.
 """
 
+import hashlib
+from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from psycopg import errors
 
 from app.auth import (
@@ -26,14 +29,36 @@ from app.auth import (
     wrong_password,
 )
 from app.db import ConnDep, connection, fetch_all, fetch_one
+from app.errors import ApiError
 from app.routers import accounts
-from app.schemas import MeIn, PasswordIn, RenameResult, StatusIn, User
+from app.schemas import MeIn, MyPhoto, PasswordIn, PhotoVersion, RenameResult, StatusIn, User
+from app.services.images import PhotoBusy, PhotoRefused, clean_photo, data_url
 
 router = APIRouter(prefix="/api", tags=["me"])
 
 Authorization = Annotated[str | None, Header()]
 # The unique index that says a name is taken in a household (db/migrations/001_init.sql)
 NAME_TAKEN = "members_household_name_key"
+
+# Photos (specs/010-profile-page, FR-023): uploads per hour, and all photos together
+PHOTO_WINDOW = timedelta(hours=1)
+PHOTO_PER_USER = 10
+PHOTO_PER_IP = 30
+PHOTO_STORAGE_BYTES = 50 * 1024 * 1024
+
+
+def unsupported_image() -> ApiError:
+    return ApiError(
+        415, "unsupported_image", "Choose a JPEG, PNG or WebP picture of at most 512 × 512"
+    )
+
+
+def photo_storage_full() -> ApiError:
+    return ApiError(507, "photo_storage_full", "Photo storage is full; no new photo for now")
+
+
+def photo_busy() -> ApiError:
+    return ApiError(503, "busy", "Busy with other photos; try again in a few seconds")
 
 
 @router.patch("/me", response_model=RenameResult)
@@ -89,6 +114,74 @@ def set_status(body: StatusIn, user: CurrentUser, conn: ConnDep):
         "UPDATE users SET status = %s WHERE id = %s RETURNING id, email, display_name, status",
         (body.status, user["id"]),
     )
+
+
+@router.put("/me/photo", response_model=PhotoVersion)
+async def set_photo(request: Request, authorization: Authorization = None):
+    """The raw picture in the body (image/jpeg, image/png or image/webp), within the app's 64 KiB
+    limit. Read here, then checked and stored off the event loop."""
+    data = await request.body()
+    declared = request.headers.get("content-type", "")
+    token = bearer_token(authorization)
+    return await run_in_threadpool(store_photo, request, token, data, declared)
+
+
+def store_photo(request: Request, token: str | None, data: bytes, declared: str) -> dict:
+    """Counts the upload first (a refused one stays counted, so failures cannot burn the CPU for
+    free), re-encodes it (app/services/images.py), and stores it under the storage ceiling."""
+    with connection(request) as conn:
+        user = user_for_token(conn, token)
+    if user is None:
+        raise not_authenticated()
+    with connection(request) as conn:
+        allowed = reserve(conn, f"photo-user:{user['id']}", PHOTO_WINDOW, PHOTO_PER_USER) and (
+            reserve(conn, f"photo-ip:{request_ip(request)}", PHOTO_WINDOW, PHOTO_PER_IP)
+        )
+    if not allowed:
+        raise too_many(PHOTO_WINDOW)
+    try:
+        image = clean_photo(data, declared)
+    except PhotoRefused:
+        raise unsupported_image() from None
+    except PhotoBusy:
+        raise photo_busy() from None
+    version = hashlib.sha256(image).hexdigest()[:12]
+    with connection(request) as conn:
+        # One writer at a time, so two uploads at the same moment both count against the ceiling
+        conn.execute("SELECT pg_advisory_xact_lock(hashtext('user_photos'))")
+        others = conn.execute(
+            "SELECT coalesce(sum(octet_length(image)), 0) FROM user_photos WHERE user_id <> %s",
+            (user["id"],),
+        ).fetchone()[0]
+        full = others + len(image) > PHOTO_STORAGE_BYTES
+        if not full:
+            conn.execute(
+                "INSERT INTO user_photos (user_id, image, version) VALUES (%s, %s, %s)"
+                " ON CONFLICT (user_id) DO UPDATE SET image = excluded.image,"
+                " version = excluded.version, updated_at = now()",
+                (user["id"], image, version),
+            )
+    if full:
+        raise photo_storage_full()
+    return {"version": version}
+
+
+@router.delete("/me/photo", status_code=204)
+def remove_photo(user: CurrentUser, conn: ConnDep):
+    """Back to the initial; nothing is kept."""
+    conn.execute("DELETE FROM user_photos WHERE user_id = %s", (user["id"],))
+
+
+@router.get("/me/photo", response_model=MyPhoto)
+def my_photo(user: CurrentUser, conn: ConnDep, response: Response):
+    """The caller's own photo, for the profile page, also with no household."""
+    response.headers["Cache-Control"] = "no-store"
+    row = fetch_one(
+        conn, "SELECT version, image FROM user_photos WHERE user_id = %s", (user["id"],)
+    )
+    if row is None:
+        return {"version": None, "data": None}
+    return {"version": row["version"], "data": data_url(row["image"])}
 
 
 @router.post("/me/password", status_code=204)

@@ -20,6 +20,7 @@ import MemberList from '../components/MemberList'
 import { errorMessage } from '../lib/errors'
 import { useMe } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import { useMemberPhotos } from '../lib/useMemberPhotos'
 import { useWide } from '../lib/useWide'
 import { useT } from '../i18n'
 
@@ -44,7 +45,8 @@ function MembersPage() {
   })
   const isOwner = household.data?.role === 'owner'
 
-  const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  const photos = useMemberPhotos(householdId, members.data)
+  const looks = useMemo(() => memberLooks(members.data ?? [], photos), [members.data, photos])
   const byMember = useMemo(
     () => (balances.data ? new Map(balances.data.balances.map((b) => [b.member_id, b])) : undefined),
     [balances.data],

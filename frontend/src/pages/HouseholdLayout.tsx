@@ -12,6 +12,7 @@ import { IdentityProvider } from '../components/IdentityProvider'
 import { closeFoldOnEscape } from '../lib/fold'
 import { keyFromHash } from '../lib/invite'
 import { memberLooks } from '../lib/names'
+import { useMemberPhotos } from '../lib/useMemberPhotos'
 import { useT } from '../i18n'
 
 // Shared frame for one household (DESIGN.md §6.2): its name and people, the tabs. "Bạn" is the
@@ -34,7 +35,8 @@ function HouseholdLayout() {
     queryFn: () => listMembers(householdId),
     enabled: validId && household.isSuccess,
   })
-  const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  const photos = useMemberPhotos(householdId, members.data)
+  const looks = useMemo(() => memberLooks(members.data ?? [], photos), [members.data, photos])
   // The account's other houses, for Nhà khác (design review 05/11); the same query as Nhà của bạn
   const mine = useQuery({
     queryKey: keys.households,

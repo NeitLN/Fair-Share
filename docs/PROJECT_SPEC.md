@@ -96,6 +96,12 @@ will not carry them and they add nothing to the assessed pipeline.
 > presses Lưu: the app records no money by itself, and there is no scheduler, notification or email.
 > The database keeps at most one expense per item and month.
 
+> **Since 07/11 (approved by the owner):** profile photos ([specs/010](../specs/010-profile-page/spec.md)).
+> A person may put a photo on their avatar; only their current housemates see it. The browser crops it to
+> a small square and the server only checks it and saves its own 256 × 256 JPEG without metadata (at most
+> 32 KiB each, 50 MB for all, 10 uploads an hour per account). That narrow check is the only image work;
+> receipts and other images stay out of scope.
+
 ### 3.4 Stretch goals (only after every Week 8 milestone is green)
 
 * Filter expenses by month and member; monthly total per member.

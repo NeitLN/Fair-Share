@@ -42,6 +42,19 @@ export interface Member {
   user_id?: number | null
   /** That account's status while it is an owner or member here (specs/010-profile-page). */
   status?: string | null
+  /** The version of that account's photo, under the same rule; the photo comes from the photos batch. */
+  photo_version?: string | null
+}
+
+/** GET /api/me/photo: the caller's own photo as a data URL, or nulls. */
+export interface MyPhoto {
+  version: string | null
+  data: string | null
+}
+
+/** GET /api/households/{id}/photos: every current owner's and member's photo. */
+export interface HouseholdPhotos {
+  photos: { member_id: number; version: string; data: string }[]
 }
 
 // --- Accounts (docs/ACCOUNTS.md) -----------------------------------------------------------------

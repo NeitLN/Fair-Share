@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import { expect, test } from '@playwright/test'
 
 import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
@@ -94,6 +96,56 @@ test('a status is seen by a housemate on Thành viên, and gone once cleared', a
     await page.reload()
     await expect(page.locator('.member-row').first()).toBeVisible()
     await expect(page.locator('.member-status')).toHaveCount(0)
+  } finally {
+    await deleteHousehold(request, house.id, lan)
+  }
+})
+
+test('a photo uploaded on the profile page shows to a housemate, and the initial is back once removed', async ({
+  browser,
+  request,
+}) => {
+  const lan = await signUp(request, 'Lan')
+  const minh = await signUp(request, 'Minh')
+  const house = await (
+    await request.post(`${API}/api/households`, { data: { name: `E2E photo ${Date.now()}` }, headers: bearer(lan) })
+  ).json()
+  try {
+    await addMember(request, house.id, lan, minh)
+
+    const mine = await browser.newPage()
+    await mine.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+    await signInPage(mine, lan)
+    await mine.goto('/account')
+    await mine.locator('#profile-photo-file').setInputFiles(fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url)))
+    await expect(mine.getByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')).toBeVisible()
+    await mine.getByRole('button', { name: 'Lưu' }).first().click()
+    await expect(mine.getByText('Đã lưu ảnh đại diện.')).toBeVisible()
+
+    // The server kept its own clean 256 × 256 copy, not the 800 × 600 file with its camera data
+    const stored = await (await request.get(`${API}/api/me/photo`, { headers: bearer(lan) })).json()
+    const bytes = Buffer.from(stored.data.split(',')[1], 'base64')
+    expect(bytes.includes(Buffer.from('FixtureCam'))).toBe(false)
+
+    const theirs = await browser.newPage()
+    await theirs.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+    await signInPage(theirs, minh)
+    const batches: string[] = []
+    theirs.on('request', (r) => {
+      if (r.url().endsWith(`/api/households/${house.id}/photos`)) batches.push(r.url())
+    })
+    await theirs.goto(`/households/${house.id}/members`)
+    await expect(theirs.locator('.member-row img[src^="data:image/jpeg"]')).toHaveCount(1)
+    await expect(theirs.locator('.house-head .avatar img')).toHaveCount(1) // the header stack too
+    expect(batches).toHaveLength(1)
+
+    await mine.getByRole('button', { name: 'Gỡ ảnh' }).click()
+    await expect(mine.getByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).toBeVisible()
+    await theirs.reload()
+    await expect(theirs.locator('.member-row').first()).toBeVisible()
+    await expect(theirs.locator('.member-row img')).toHaveCount(0)
+    await mine.close()
+    await theirs.close()
   } finally {
     await deleteHousehold(request, house.id, lan)
   }

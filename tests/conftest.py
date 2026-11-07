@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from app.routers import accounts
+from app.routers import accounts, me
 
 os.environ.setdefault("APP_ENV", "test")
 
@@ -55,6 +55,7 @@ def generous_limits(monkeypatch):
     monkeypatch.setattr(accounts, "REGISTER_PER_IP", 1_000_000)
     monkeypatch.setattr(accounts, "LOGIN_PER_IP", 1_000_000)
     monkeypatch.setattr(accounts, "JOIN_PER_IP", 1_000_000)
+    monkeypatch.setattr(me, "PHOTO_PER_IP", 1_000_000)
 
 
 @pytest.fixture

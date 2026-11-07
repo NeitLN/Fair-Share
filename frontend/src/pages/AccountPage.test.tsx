@@ -3,7 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { currentSession, updateUser } from '../lib/session'
+import { cropToSquare, PhotoPickError } from '../lib/photoCrop'
 import { mockApi, renderApp, testUser } from '../test/renderApp'
+
+// jsdom draws no canvas: the crop itself is tested in lib/photoCrop.test.ts
+vi.mock('../lib/photoCrop', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/photoCrop')>()),
+  cropToSquare: vi.fn(),
+}))
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -163,6 +170,15 @@ test('a status is saved, and the counter counts an emoji once', async () => {
   expect(currentSession()?.user.status).toBe('ăn kiêng 🥗')
 })
 
+// #226 review: some keyboards type "ế" as e + two combining marks; the server counts after NFC
+test('letters typed with separate accent marks count once, as the server counts them', async () => {
+  mockApi({ ...noHouses })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'đang ăn kiêng'.normalize('NFD'))
+  expect(screen.getByText(/^13\/60 ký tự/)).toBeInTheDocument()
+})
+
 test('Xoá trạng thái clears it, and an empty field saves no status', async () => {
   const api = mockApi({ ...noHouses, 'PUT /api/me/status': [200, { ...testUser, status: null }] })
   const user = userEvent.setup()
@@ -182,4 +198,79 @@ test('more than 60 characters is refused next to the field before anything is se
   await user.click(screen.getAllByRole('button', { name: 'Lưu' })[1])
   expect(screen.getByText('Trạng thái dài tối đa 60 ký tự, trên một dòng.')).toBeInTheDocument()
   expect(api.mock.calls.some(([url]) => url === '/api/me/status')).toBe(false)
+})
+
+// --- Photo (specs/010-profile-page, US4) ---
+
+const photo = 'data:image/jpeg;base64,/9j/AA=='
+const noPhoto = { 'GET /api/me/photo': [200, { version: null, data: null }] } as Record<string, [number, unknown]>
+
+// jsdom has no object URLs; the preview only needs a stand-in
+Object.assign(URL, { createObjectURL: () => 'blob:preview', revokeObjectURL: () => {} })
+
+function pickFile() {
+  const input = document.querySelector<HTMLInputElement>('#profile-photo-file')!
+  const file = new File(['x'], 'me.heic', { type: 'image/heic' })
+  return userEvent.upload(input, file)
+}
+
+test('a picked photo is previewed as it will be saved, then sent as a JPEG', async () => {
+  vi.mocked(cropToSquare).mockResolvedValue(new Blob(['jpeg'], { type: 'image/jpeg' }))
+  const api = mockApi({ ...noHouses, ...noPhoto, 'PUT /api/me/photo': [200, { version: 'aaaaaaaaaaaa' }] })
+  const user = userEvent.setup()
+  renderApp('/account')
+  expect(await screen.findByRole('button', { name: 'Chọn ảnh' })).toBeInTheDocument()
+  await pickFile()
+  expect(await screen.findByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')).toBeInTheDocument()
+  expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', 'blob:preview')
+  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  expect(await screen.findByText('Đã lưu ảnh đại diện.')).toBeInTheDocument()
+  const sent = api.mock.calls.find(([url, init]) => url === '/api/me/photo' && init?.method === 'PUT')
+  expect(new Headers(sent?.[1]?.headers).get('Content-Type')).toBe('image/jpeg')
+  expect(sent?.[1]?.body).toBeInstanceOf(Blob)
+})
+
+test('a picture the browser cannot open says which kinds work, and nothing is sent', async () => {
+  vi.mocked(cropToSquare).mockRejectedValue(new PhotoPickError('unreadable'))
+  const api = mockApi({ ...noHouses, ...noPhoto })
+  renderApp('/account')
+  await screen.findByRole('button', { name: 'Chọn ảnh' })
+  await pickFile()
+  expect(await screen.findByText('Chưa đọc được ảnh này. Chọn ảnh JPEG, PNG hoặc WebP nhé.')).toBeInTheDocument()
+  expect(api.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
+})
+
+test('a saved photo shows, and Gỡ ảnh goes back to the initial', async () => {
+  let current: unknown = { version: 'aaaaaaaaaaaa', data: photo }
+  mockApi({
+    ...noHouses,
+    'GET /api/me/photo': () => [200, current],
+    'DELETE /api/me/photo': () => {
+      current = { version: null, data: null }
+      return [204]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await waitFor(() => expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', photo))
+  await user.click(screen.getByRole('button', { name: 'Gỡ ảnh' }))
+  expect(await screen.findByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).toBeInTheDocument()
+  await waitFor(() => expect(document.querySelector('.profile-photo img')).toBeNull())
+  expect(document.querySelector('.profile-photo .avatar')).toHaveTextContent('T')
+})
+
+test('a full photo store is said in plain words', async () => {
+  vi.mocked(cropToSquare).mockResolvedValue(new Blob(['jpeg'], { type: 'image/jpeg' }))
+  mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'PUT /api/me/photo': [507, { error: { code: 'photo_storage_full', message: 'full' } }],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await screen.findByRole('button', { name: 'Chọn ảnh' })
+  await pickFile()
+  await screen.findByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')
+  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  expect(await screen.findByText('Kho ảnh đã đầy, tạm thời chưa thêm ảnh mới được.')).toBeInTheDocument()
 })

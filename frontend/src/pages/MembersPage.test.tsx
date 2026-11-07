@@ -306,3 +306,24 @@ test('on a phone that can share, Gửi link mời opens the share sheet with the
     Reflect.deleteProperty(navigator, 'share')
   }
 })
+
+// specs/010-profile-page, US4: one request for the house's photos, then avatars show them
+test('the photos come in one request for the whole house and show on that person', async () => {
+  const photo = 'data:image/jpeg;base64,/9j/AA=='
+  const fetchFn = api(asOwner, {
+    'GET /api/households/7/members': [200, [{ ...minh, photo_version: 'aaaaaaaaaaaa' }, tien, anh]],
+    'GET /api/households/7/photos': [200, { photos: [{ member_id: 1, version: 'aaaaaaaaaaaa', data: photo }] }],
+  })
+  renderApp('/households/7/members')
+  await waitFor(() => expect(document.querySelectorAll(`img[src="${photo}"]`).length).toBeGreaterThan(0))
+  expect(row('Minh').querySelector(`img[src="${photo}"]`)).not.toBeNull()
+  expect(row('Tiến').querySelector('img')).toBeNull()
+  expect(fetchFn.mock.calls.filter(([url]) => url === '/api/households/7/photos')).toHaveLength(1)
+})
+
+test('nobody with a photo means no photo request at all', async () => {
+  const fetchFn = api()
+  renderApp('/households/7/members')
+  expect(await screen.findByText('Minh', { selector: '.who strong' })).toBeInTheDocument()
+  expect(fetchFn.mock.calls.some(([url]) => url === '/api/households/7/photos')).toBe(false)
+})

@@ -1,13 +1,15 @@
 // Households, members, invite codes and accounts endpoints (docs/ARCHITECTURE.md §5, docs/ACCOUNTS.md)
-import { api, KEY_HEADER } from './client'
+import { api, KEY_HEADER, request } from './client'
 import type {
   ClaimInfo,
+  HouseholdPhotos,
   InviteCode,
   JoinRequest,
   JoinResult,
   Member,
   MyHousehold,
   MyHouseholds,
+  MyPhoto,
   RenameResult,
   Session,
   User,
@@ -20,6 +22,9 @@ export const keys = {
   members: (householdId: number) => ['households', householdId, 'members'] as const,
   invite: (householdId: number) => ['households', householdId, 'invite'] as const,
   requests: (householdId: number) => ['households', householdId, 'requests'] as const,
+  /** The versions are in the key, so a new or removed photo asks again and nothing else does. */
+  photos: (householdId: number, versions: string) => ['households', householdId, 'photos', versions] as const,
+  myPhoto: ['me', 'photo'] as const,
 }
 
 // --- Account ------------------------------------------------------------------------------------
@@ -40,6 +45,21 @@ export const renameMe = (displayName: string) =>
 
 /** A short status housemates see, or null to clear it. */
 export const setStatus = (status: string | null) => api.put<User>('/api/me/status', { status })
+
+/** The picture made by lib/photoCrop.ts, sent as it is (specs/010-profile-page, US4). */
+export const uploadPhoto = (picture: Blob) =>
+  request<{ version: string }>('/api/me/photo', {
+    method: 'PUT',
+    body: picture,
+    headers: { 'Content-Type': 'image/jpeg' },
+  })
+
+export const removePhoto = () => api.delete('/api/me/photo')
+
+export const getMyPhoto = () => api.get<MyPhoto>('/api/me/photo')
+
+export const householdPhotos = (householdId: number) =>
+  api.get<HouseholdPhotos>(`/api/households/${householdId}/photos`)
 
 /** A wrong current password is a 400 `wrong_password`, not a 401, so it never signs out. */
 export const changePassword = (currentPassword: string, newPassword: string) =>
