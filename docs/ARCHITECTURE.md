@@ -414,10 +414,12 @@ payer stays missing. Sentences with no named amounts and nothing about the rest 
 
 Before that, `app/services/sentence.py` holds the reading to the sentence itself, because the model fills
 every field and on short sentences it guessed (live corpus, #220): a payer the sentence never names is
-dropped, a total it never writes is dropped (the split waits for the total), a person or "equal" for the
-rest is dropped when the sentence says nothing about the rest (so the payer takes it, as above), and a
-name, `ME` or amount in the shares that the sentence never writes makes the split blocked
-(`unreadable_shares`).
+dropped, a total it never writes is dropped (the split waits for the total), a rest taker the sentence
+never writes, for a rest it never mentions, is dropped (so the payer takes it, as above), a rest it never
+mentions ("còn lại", or "chia đều" for an equal one) but whose people it writes is blocked, and a name,
+`ME` or amount in the shares that the sentence never writes makes the split blocked
+(`unreadable_shares`). A name counts as written with its accents, or typed without any ("tien"), so
+"tiền" and "mình" never stand in for Tiến and Minh.
 
 `split` is then one of three kinds:
 

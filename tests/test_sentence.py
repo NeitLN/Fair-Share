@@ -27,10 +27,20 @@ from app.services.sentence import (
         ("chợ 200000", {200_000}),
         ("2 mình trả", {2}),  # "m" of "mình" is not "million"
         ("2 trả", {2}),
+        ("tiền nhà 1 triệu 200k", {1_000_000, 200_000}),
     ],
 )
 def test_amounts_written(text, amounts):
     assert amounts_written(text) == amounts
+
+
+@pytest.mark.parametrize(
+    ("text", "amount"),
+    [("điện 1 triệu 2", 1_200_000), ("điện 1 triệu 2", 1_000_000),
+     ("tiền nhà 2 triệu rưỡi", 2_500_000), ("lẩu nửa triệu", 500_000)],
+)
+def test_amounts_written_in_words_give_the_total(text, amount):
+    assert amount in amounts_written(text)
 
 
 def test_a_name_is_written_ignoring_accents_and_by_one_word_of_it():
@@ -38,6 +48,12 @@ def test_a_name_is_written_ignoring_accents_and_by_one_word_of_it():
     assert name_written("Duy Anh", "350k Duy trả")
     assert not name_written("Tiến", "lẩu 500k, Minh 200k, còn lại mình")
     assert not name_written("Duy Anh", "anh trả 350k")  # "anh" alone is an everyday word
+
+
+def test_mình_is_never_the_name_minh_but_minh_without_accents_is():
+    assert not name_written("Minh", "lẩu 600k, Lan 200k, mình 100k")
+    assert name_written("Minh", "lau 600k, Lan 200k, minh 100k")
+    assert not name_written("Tiến", "tiền chợ 350k Duy Anh trả")  # "tiền" is money, not Tiến
 
 
 def test_the_speaker_keeps_the_accents_so_minh_is_not_minh():
@@ -115,3 +131,38 @@ def test_amounts_written_in_a_way_not_read_here_are_not_held_against_it():
     found = reading(amount=500_000, named_amounts=[NamedAmount("Minh", 200_000)])
     held = held_to_sentence(found, "lẩu năm trăm Tiến trả, Minh hai trăm")
     assert held.amount == 500_000 and held.shares_readable
+
+
+def test_people_sharing_the_rest_equally_are_kept_without_còn_lại():
+    found = reading(
+        amount=600_000,
+        named_amounts=[NamedAmount("Minh", 200_000)],
+        rest=Rest("equal", ["Lan", "Duy Anh"]),
+    )
+    text = "lẩu 600k Tiến trả, Minh 200k, Lan với Duy Anh chia đều"
+    assert held_to_sentence(found, text) == found
+    others = reading(named_amounts=[NamedAmount("Minh", 200_000)], rest=Rest("equal", []))
+    text = "lẩu 500k Tiến trả, Minh 200k, mấy người kia chia đều"
+    assert held_to_sentence(others, text) == others
+
+
+@pytest.mark.parametrize("rest", [Rest("person", ["Lan"]), Rest("equal", ["Lan"]), Rest("equal")])
+def test_a_rest_never_mentioned_but_for_written_people_is_blocked_not_given_to_the_payer(rest):
+    found = reading(
+        amount=350_000,
+        payer="Duy Anh",
+        named_amounts=[NamedAmount("Lan", 50_000), NamedAmount("Minh", 100_000)],
+        rest=rest,
+    )
+    held = held_to_sentence(found, "tiền chợ 350k Duy Anh trả, Lan 50k, Minh 100k")
+    assert not held.shares_readable
+
+
+def test_mình_read_as_minh_is_no_payer_and_unreadable_shares():
+    found = reading(
+        amount=600_000,
+        payer="Minh",
+        named_amounts=[NamedAmount("Lan", 200_000), NamedAmount("Minh", 100_000)],
+    )
+    held = held_to_sentence(found, "lẩu 600k, Lan 200k, mình 100k")
+    assert held.payer is None and not held.shares_readable

@@ -371,6 +371,38 @@ def test_a_total_the_sentence_never_writes_waits_for_the_user(client, house):
     assert {w["code"] for w in body["warnings"]} == {"no_total", "no_amount"}
 
 
+def test_people_who_share_the_rest_equally_stay_without_còn_lại(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(
+        amount=600_000,
+        named_amounts=[NamedAmount("Minh", 200_000)],
+        rest=Rest("equal", ["Duy Anh", "Tiến"]),
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 600k Tiến trả, Minh 200k, Duy Anh với Tiến chia đều")
+    split = body.json()["draft"]["split"]
+    assert split["type"] == "custom"
+    assert {s["member_id"]: s["amount"] for s in split["shares"]} == {
+        tien: 200_000,
+        minh: 200_000,
+        duy: 200_000,
+    }
+
+
+def test_mình_read_as_minh_is_blocked_not_a_split_for_minh(client, house):
+    reading = hotpot(
+        amount=600_000,
+        payer="Minh",
+        named_amounts=[NamedAmount("Duy Anh", 200_000), NamedAmount("Minh", 100_000)],
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 600k, Duy Anh 200k, mình 100k").json()
+    assert body["draft"]["payer_id"] is None
+    assert body["draft"]["split"]["type"] == "blocked"
+    assert body["draft"]["split"]["reason"] == "unreadable_shares"
+    assert {w["code"] for w in body["warnings"]} == {"no_payer", "unreadable_shares"}
+
+
 def test_too_many_shares_is_the_usual_error(client, house, monkeypatch):
     monkeypatch.setattr("app.routers.ai.MAX_PARTICIPANTS", 2)
     reading = hotpot(named_amounts=[NamedAmount("Minh", 100_000), NamedAmount("Duy", 100_000)])
