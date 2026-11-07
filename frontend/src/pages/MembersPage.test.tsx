@@ -273,6 +273,24 @@ test('a member sees the code but no owner tools, and can leave', async () => {
   expect(await screen.findByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeInTheDocument()
 })
 
+// #230 review: the photos of a house you left are not kept in this browser
+test('leaving a house drops its photos from the cache too', async () => {
+  const photo = 'data:image/jpeg;base64,/9j/AA=='
+  api(asMember, {
+    'GET /api/households/7/members': [200, [{ ...minh, photo_version: 'aaaaaaaaaaaa' }, tien, anh]],
+    'GET /api/households/7/photos': [200, { photos: [{ member_id: 1, version: 'aaaaaaaaaaaa', data: photo }] }],
+    'POST /api/households/7/leave': [204],
+    'GET /api/households': [200, { households: [], pending: [] }],
+  })
+  const user = userEvent.setup()
+  const { client } = renderApp('/households/7/members')
+  await waitFor(() => expect(client.getQueriesData({ queryKey: ['photos', 7] }).some(([, d]) => d)).toBe(true))
+  await user.click(screen.getByRole('button', { name: 'Rời nhà này' }))
+  expect(await screen.findByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeInTheDocument()
+  // A page closing may leave an empty, switched-off entry; no photo data may stay
+  expect(client.getQueriesData({ queryKey: ['photos', 7] }).every(([, data]) => data === undefined)).toBe(true)
+})
+
 test('on a computer the people come first, then a request to approve, then the invite', async () => {
   onAComputer()
   api()

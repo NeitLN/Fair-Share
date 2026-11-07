@@ -67,6 +67,8 @@ function MembersPage() {
     mutationFn: () => leaveHousehold(householdId),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: keys.household(householdId) })
+      // The photos live under their own key (#228 review): a house you left keeps none of them (#230 review)
+      queryClient.removeQueries({ queryKey: ['photos', householdId] })
       void queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
       navigate('/')
     },
