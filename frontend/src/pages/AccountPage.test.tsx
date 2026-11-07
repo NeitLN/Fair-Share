@@ -274,3 +274,39 @@ test('a full photo store is said in plain words', async () => {
   await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
   expect(await screen.findByText('Kho ảnh đã đầy, tạm thời chưa thêm ảnh mới được.')).toBeInTheDocument()
 })
+
+// --- Gender (specs/010-profile-page, US5) ---
+
+test('gender starts as Không nêu, and the notice is shown before the choice', async () => {
+  mockApi({ ...noHouses, ...noPhoto })
+  renderApp('/account')
+  const none = await screen.findByRole('radio', { name: 'Không nêu' })
+  expect(none).toBeChecked()
+  const notice = screen.getByText(/^Không bắt buộc\. Dùng để cho bạn cùng nhà biết giới tính của bạn/)
+  expect(notice.compareDocumentPosition(none) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('a chosen gender is sent with the notice version, and Không nêu sends null', async () => {
+  const api = mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'PUT /api/me/gender': (body) => [200, { ...testUser, gender: (body as { gender: string | null }).gender }],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.click(await screen.findByRole('radio', { name: 'Nữ' }))
+  const saves = screen.getAllByRole('button', { name: 'Lưu' })
+  await user.click(saves[saves.length - 1])
+  expect(await screen.findByText('Đã lưu giới tính.')).toBeInTheDocument()
+  await user.click(screen.getByRole('radio', { name: 'Không nêu' }))
+  await user.click(saves[saves.length - 1])
+  expect(await screen.findByText('Đã xoá giới tính.')).toBeInTheDocument()
+  const sent = api.mock.calls
+    .filter(([url]) => url === '/api/me/gender')
+    .map(([, init]) => JSON.parse(String(init?.body)))
+  expect(sent).toEqual([
+    { gender: 'female', notice: '2026-11-v1' },
+    { gender: null, notice: '2026-11-v1' },
+  ])
+  expect(currentSession()?.user.gender).toBeNull()
+})

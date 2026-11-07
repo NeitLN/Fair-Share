@@ -157,6 +157,7 @@ class Member(BaseModel):
     # (specs/010-profile-page); the photo itself comes from GET /api/households/{id}/photos
     status: str | None = None
     photo_version: str | None = None
+    gender: Literal["male", "female", "other"] | None = None
 
 
 # --- Accounts (docs/ACCOUNTS.md) ----------------------------------------------------------------
@@ -206,6 +207,7 @@ class User(BaseModel):
     email: str
     display_name: str
     status: str | None = None  # specs/010-profile-page, US3
+    gender: Literal["male", "female", "other"] | None = None  # US5; None = "Không nêu"
 
 
 # --- The signed-in person's own account (specs/010-profile-page) ---------------------------------
@@ -269,6 +271,22 @@ class MemberPhoto(BaseModel):
 
 class HouseholdPhotos(BaseModel):
     photos: list[MemberPhoto]
+
+
+# The notice shown next to the gender choice; the page sends the version it showed, so a stale page
+# cannot record agreement to words it did not show (specs/010-profile-page, FR-029)
+GENDER_NOTICE = "2026-11-v1"
+
+
+def current_notice(value: Any) -> Any:
+    if value != GENDER_NOTICE:
+        raise ValueError("is not the current notice; reload the page")
+    return value
+
+
+class GenderIn(BaseModel):
+    gender: Literal["male", "female", "other"] | None = None
+    notice: Annotated[str, BeforeValidator(current_notice)]
 
 
 class PasswordIn(BaseModel):

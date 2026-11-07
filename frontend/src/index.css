@@ -3505,3 +3505,27 @@ button.ai:active:focus-visible {
 .profile-photo .avatar {
   --size: 88px;
 }
+
+/* The gender choice: one 44 px row per option */
+.profile-choices {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.profile-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--target);
+  font-weight: 600;
+}
+
+/* A stated gender after the name on Thành viên: small and quiet */
+.member-gender {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 500;
+}

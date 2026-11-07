@@ -132,11 +132,11 @@ SC-005 to SC-007 are proven by tests (race, rate limits, access matrix).
 
 **Independent Test**: choose Nữ; housemates see the label; choose Không nêu; nothing shows and nothing is kept.
 
-- [ ] T040 [US5] Issue + branch `feat/profile-gender` from `main`; migration db/migrations/009_user_gender.sql: `users.gender text NULL CHECK (gender IN ('male', 'female', 'other'))`, `users.gender_notice text NULL`, `users.gender_set_at timestamptz NULL`, `CHECK ((gender IS NULL) = (gender_notice IS NULL) AND (gender IS NULL) = (gender_set_at IS NULL))`
-- [ ] T041 [P] [US5] pytest in tests/test_gender.py: never chosen = null; set with notice `2026-11-v1` stores all three; another notice version is 422; null clears all three; the members response carries `gender` with the same access matrix as status; `gender_notice` and `gender_set_at` never appear in any household response; no other route asks for gender
-- [ ] T042 [US5] `GenderIn {gender: Literal['male','female','other'] | None, notice: str}` in app/schemas.py; `PUT /api/me/gender` in app/routers/me.py; `User.gender`, `Member.gender` (owner/member rows only) in app/routers/households.py
-- [ ] T043 [P] [US5] Gender section in frontend/src/pages/AccountPage.tsx: radio group Không nêu (default) / Nam / Nữ / Khác with the notice text above it (ui-contract), Lưu sends the notice version; small muted label after the name in frontend/src/components/MemberList.tsx; strings in vi.tsx/en.tsx
-- [ ] T044 [P] [US5] Vitest: the notice shows before saving, Không nêu sends null, MemberList shows the label only when stated (frontend/src/pages/AccountPage.test.tsx, frontend/src/components/MemberList.test.tsx)
+- [X] T040 [US5] Issue + branch `feat/profile-gender` from `main`; migration db/migrations/009_user_gender.sql: `users.gender text NULL CHECK (gender IN ('male', 'female', 'other'))`, `users.gender_notice text NULL`, `users.gender_set_at timestamptz NULL`, `CHECK ((gender IS NULL) = (gender_notice IS NULL) AND (gender IS NULL) = (gender_set_at IS NULL))`
+- [X] T041 [P] [US5] pytest in tests/test_gender.py: never chosen = null; set with notice `2026-11-v1` stores all three; another notice version is 422; null clears all three; the members response carries `gender` with the same access matrix as status; `gender_notice` and `gender_set_at` never appear in any household response; no other route asks for gender
+- [X] T042 [US5] `GenderIn {gender: Literal['male','female','other'] | None, notice: str}` in app/schemas.py; `PUT /api/me/gender` in app/routers/me.py; `User.gender`, `Member.gender` (owner/member rows only) in app/routers/households.py
+- [X] T043 [P] [US5] Gender section in frontend/src/pages/AccountPage.tsx: radio group Không nêu (default) / Nam / Nữ / Khác with the notice text above it (ui-contract), Lưu sends the notice version; small muted label after the name in frontend/src/components/MemberList.tsx; strings in vi.tsx/en.tsx
+- [X] T044 [P] [US5] Vitest: the notice shows before saving, Không nêu sends null, MemberList shows the label only when stated (frontend/src/pages/AccountPage.test.tsx, frontend/src/components/MemberList.test.tsx)
 
 **Checkpoint**: PR4 complete with its docs (T046–T047). Open PR4.
 
@@ -149,7 +149,7 @@ SC-005 to SC-007 are proven by tests (race, rate limits, access matrix).
 - [X] T047 docs/DESIGN.md: the profile page, status line and gender label in member rows, the photo variant of the avatar (§5)
 - [X] T048 docs/ARCHITECTURE.md: `/api/me` routes, the login re-check (PR1); images, the photos batch and the storage ceiling (PR3)
 - [X] T049 PR3 only: PROJECT_SPEC.md §3.3 and .specify/memory/constitution.md Scope ("Approved extensions": 07/11 profile photos with a narrow server-side check of small pictures; receipts and other images stay out of scope)
-- [ ] T050 Before each PR: `ruff check .` from the root, full pytest, `npm run lint && npm test && npm run build`, local E2E; after merge and deploy, the live checks in quickstart.md
+- [X] T050 Before each PR: `ruff check .` from the root, full pytest, `npm run lint && npm test && npm run build`, local E2E; after merge and deploy, the live checks in quickstart.md
 
 ---
 

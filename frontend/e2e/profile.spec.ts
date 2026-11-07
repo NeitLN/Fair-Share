@@ -101,6 +101,45 @@ test('a status is seen by a housemate on Thành viên, and gone once cleared', a
   }
 })
 
+test('a gender chosen after reading the notice is seen by a housemate, and Không nêu removes it', async ({
+  browser,
+  request,
+}) => {
+  const lan = await signUp(request, 'Lan')
+  const minh = await signUp(request, 'Minh')
+  const house = await (
+    await request.post(`${API}/api/households`, { data: { name: `E2E gender ${Date.now()}` }, headers: bearer(lan) })
+  ).json()
+  try {
+    await addMember(request, house.id, lan, minh)
+    const mine = await browser.newPage()
+    await mine.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+    await signInPage(mine, lan)
+    await mine.goto('/account')
+    await expect(mine.getByText(/^Không bắt buộc\. Dùng để cho bạn cùng nhà biết giới tính/)).toBeVisible()
+    await mine.getByRole('radio', { name: 'Nữ' }).check()
+    await mine.getByRole('button', { name: 'Lưu' }).last().click()
+    await expect(mine.getByText('Đã lưu giới tính.')).toBeVisible()
+
+    const theirs = await browser.newPage()
+    await theirs.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
+    await signInPage(theirs, minh)
+    await theirs.goto(`/households/${house.id}/members`)
+    await expect(theirs.locator('.member-gender')).toHaveText('Nữ')
+
+    await mine.getByRole('radio', { name: 'Không nêu' }).check()
+    await mine.getByRole('button', { name: 'Lưu' }).last().click()
+    await expect(mine.getByText('Đã xoá giới tính.')).toBeVisible()
+    await theirs.reload()
+    await expect(theirs.locator('.member-row').first()).toBeVisible()
+    await expect(theirs.locator('.member-gender')).toHaveCount(0)
+    await mine.close()
+    await theirs.close()
+  } finally {
+    await deleteHousehold(request, house.id, lan)
+  }
+})
+
 test('a photo uploaded on the profile page shows to a housemate, and the initial is back once removed', async ({
   browser,
   request,

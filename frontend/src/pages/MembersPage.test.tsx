@@ -321,6 +321,23 @@ test('the photos come in one request for the whole house and show on that person
   expect(fetchFn.mock.calls.filter(([url]) => url === '/api/households/7/photos')).toHaveLength(1)
 })
 
+// #228 review: saving an expense invalidates ['households', 7]; the photos must not come again
+test('a change elsewhere in the house does not fetch the photos again', async () => {
+  const photo = 'data:image/jpeg;base64,/9j/AA=='
+  const fetchFn = api(asOwner, {
+    'GET /api/households/7/members': [200, [{ ...minh, photo_version: 'aaaaaaaaaaaa' }, tien, anh]],
+    'GET /api/households/7/photos': [200, { photos: [{ member_id: 1, version: 'aaaaaaaaaaaa', data: photo }] }],
+  })
+  const { client } = renderApp('/households/7/members')
+  await waitFor(() => expect(row('Minh').querySelector(`img[src="${photo}"]`)).not.toBeNull())
+  await client.invalidateQueries({ queryKey: ['households', 7] })
+  await waitFor(() =>
+    expect(fetchFn.mock.calls.filter(([url]) => url === '/api/households/7/members').length).toBeGreaterThan(1),
+  )
+  expect(fetchFn.mock.calls.filter(([url]) => url === '/api/households/7/photos')).toHaveLength(1)
+  expect(row('Minh').querySelector(`img[src="${photo}"]`)).not.toBeNull()
+})
+
 test('nobody with a photo means no photo request at all', async () => {
   const fetchFn = api()
   renderApp('/households/7/members')

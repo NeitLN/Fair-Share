@@ -44,6 +44,8 @@ export interface Member {
   status?: string | null
   /** The version of that account's photo, under the same rule; the photo comes from the photos batch. */
   photo_version?: string | null
+  /** That account's gender if they stated one, under the same rule. */
+  gender?: Gender | null
 }
 
 /** GET /api/me/photo: the caller's own photo as a data URL, or nulls. */
@@ -65,7 +67,11 @@ export interface User {
   display_name: string
   /** A short status housemates see; null for none (specs/010-profile-page). */
   status?: string | null
+  /** An optional gender; null is "Không nêu", the default. */
+  gender?: Gender | null
 }
+
+export type Gender = 'male' | 'female' | 'other'
 
 /** A household where the new name was someone else's, so the old one stayed (specs/010-profile-page). */
 export interface KeptName {

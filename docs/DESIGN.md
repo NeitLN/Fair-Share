@@ -374,7 +374,7 @@ Hôm qua, 20/10
 Order on a phone (UI review 03/11): someone asking to join first (the owner's next task), then the list
 titled "Thành viên · 3", then the invite card. A list, not a card grid (it scales to 6 long names). Each
 row: large avatar, **full name**, "gọi là *Anh*" (left out when it is the whole name), the signed amount
-with *cần trả* / *được nhận* as on Tổng quan (no coloured pill) or SẠCH NỢ, the *bạn* chip for you, the person's status
+with *cần trả* / *được nhận* as on Tổng quan (no coloured pill) or SẠCH NỢ, the *bạn* chip for you, their stated gender as a small muted word after the name (nothing for Không nêu), the person's status
 under the name if they set one (muted, one line with an ellipsis, the whole text in its title; plain text), and two 44 px
 buttons under the name, *Đổi tên* (opens the field in place) and *Xoá* (asks first). One tap fewer than a *Sửa* menu,
 and both still fit at 360 px with long names. Removing someone who is in an expense shows a note under that row (API `member_in_use`). The add
@@ -562,7 +562,12 @@ own form with its own button, so an error in one never loses what was typed in a
   quá nhiều lần…"); success: "Đã đổi mật khẩu. Các nơi khác đã đăng xuất."
 
 Field problems sit under their field (`field-problem`, `aria-describedby`); answers are in a polite live
-region. The gender card comes last, in the spec's fourth part.
+region.
+
+* **Giới tính** (last): the notice first, "Không bắt buộc. Dùng để cho bạn cùng nhà biết giới tính của bạn;
+  bạn cùng nhà hiện tại và sau này đều thấy. Giữ tới khi bạn đổi hoặc bỏ. Chọn Không nêu là xoá hẳn.", then
+  four 44 px radio rows, *Không nêu* (checked by default), *Nam*, *Nữ*, *Khác*, and *Lưu*. Nobody is asked
+  for a gender anywhere else.
 
 ## 7. Copy
 

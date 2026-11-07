@@ -2,6 +2,7 @@
 import { api, KEY_HEADER, request } from './client'
 import type {
   ClaimInfo,
+  Gender,
   HouseholdPhotos,
   InviteCode,
   JoinRequest,
@@ -22,8 +23,11 @@ export const keys = {
   members: (householdId: number) => ['households', householdId, 'members'] as const,
   invite: (householdId: number) => ['households', householdId, 'invite'] as const,
   requests: (householdId: number) => ['households', householdId, 'requests'] as const,
-  /** The versions are in the key, so a new or removed photo asks again and nothing else does. */
-  photos: (householdId: number, versions: string) => ['households', householdId, 'photos', versions] as const,
+  /**
+   * The versions are in the key, so a new or removed photo asks again and nothing else does. Not under
+   * ['households', id]: saving an expense invalidates that, and must not fetch every photo again (#228).
+   */
+  photos: (householdId: number, versions: string) => ['photos', householdId, versions] as const,
   myPhoto: ['me', 'photo'] as const,
 }
 
@@ -45,6 +49,16 @@ export const renameMe = (displayName: string) =>
 
 /** A short status housemates see, or null to clear it. */
 export const setStatus = (status: string | null) => api.put<User>('/api/me/status', { status })
+
+/**
+ * The version of the notice shown next to the gender choice. The server refuses any other, so a page
+ * left open with older words cannot record agreement to them (specs/010-profile-page, FR-029).
+ */
+export const GENDER_NOTICE = '2026-11-v1'
+
+/** null is "Không nêu": it deletes the gender and the record of the notice together. */
+export const setGender = (gender: Gender | null) =>
+  api.put<User>('/api/me/gender', { gender, notice: GENDER_NOTICE })
 
 /** The picture made by lib/photoCrop.ts, sent as it is (specs/010-profile-page, US4). */
 export const uploadPhoto = (picture: Blob) =>
