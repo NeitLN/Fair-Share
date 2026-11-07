@@ -412,6 +412,13 @@ the lowest member ids, as in §4), or else goes to the payer. Named amounts are 
 changed, and `ME` is the caller's own member id from the access check, never the model's guess. A missing
 payer stays missing. Sentences with no named amounts and nothing about the rest take exactly the old path.
 
+Before that, `app/services/sentence.py` holds the reading to the sentence itself, because the model fills
+every field and on short sentences it guessed (live corpus, #220): a payer the sentence never names is
+dropped, a total it never writes is dropped (the split waits for the total), a person or "equal" for the
+rest is dropped when the sentence says nothing about the rest (so the payer takes it, as above), and a
+name, `ME` or amount in the shares that the sentence never writes makes the split blocked
+(`unreadable_shares`).
+
 `split` is then one of three kinds:
 
 ```jsonc

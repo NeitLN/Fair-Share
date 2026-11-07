@@ -42,6 +42,7 @@ from app.services.allocation import Blocked, Named, Target, allocate
 from app.services.gemini import GeminiBusy, GeminiClient, ai_not_configured, ai_rate_limited
 from app.services.names import match_candidates, match_member
 from app.services.rate_limit import AiBudget
+from app.services.sentence import held_to_sentence
 
 router = APIRouter(prefix="/api", tags=["ai"])
 logger = logging.getLogger("uvicorn.error")
@@ -147,15 +148,23 @@ def parse_expense(
         # much longer than AI_TIMEOUT in total.
         left = max(1.0, gemini.timeout - (time.monotonic() - started))
         found = gemini.parse_expense(body.text, list(members.values()), today, timeout=left)
-    return to_draft(found, members, today, me)
+    return to_draft(found, members, today, me, body.text)
 
 
 def pause() -> None:
     time.sleep(random.uniform(0.3, 0.8))  # a little jitter, so two visitors do not retry together
 
 
-def to_draft(found, members: dict[int, str], today: dt.date, me: int | None = None) -> AiDraft:
-    """Turn Gemini's names into member ids, and say what the user should check."""
+def to_draft(
+    found, members: dict[int, str], today: dt.date, me: int | None = None, text: str | None = None
+) -> AiDraft:
+    """Turn Gemini's names into member ids, and say what the user should check. Given the sentence
+    (`text`), a reading with named amounts keeps only what the sentence writes."""
+    named = found.named_amounts or found.rest.kind != "none" or found.unsupported != "none" or (
+        not found.shares_readable
+    )
+    if named and text is not None:
+        found = held_to_sentence(found, text)
     warnings: list[DraftWarning] = []
     reported: set[str] = set()
 
@@ -182,9 +191,7 @@ def to_draft(found, members: dict[int, str], today: dt.date, me: int | None = No
     # Above the expense API's limit the draft could never be saved, so the user types it instead.
     amount = found.amount if found.amount is not None and found.amount <= MAX_AMOUNT else None
 
-    if found.named_amounts or found.rest.kind != "none" or found.unsupported != "none" or (
-        not found.shares_readable
-    ):
+    if named:
         split = named_split(found, members, me, amount, payer_id, warnings, unknown)
     else:
         split = EqualDraftSplit(member_ids=equal_members(found, members, warnings, unknown))
