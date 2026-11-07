@@ -43,7 +43,7 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
           value={filter.memberId ?? ''}
           onChange={(e) => onChange({ ...filter, memberId: e.target.value ? Number(e.target.value) : null })}
         >
-          <option value="">{t.filters.everyone}</option>
+          <option value="">{t.filters.all}</option>
           {members.map((member) => (
             <option key={member.id} value={member.id}>
               {member.name}

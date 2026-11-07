@@ -19,7 +19,7 @@ test('a labelled month and member, "Tất cả" and "Cả nhà" first', () => {
     '9/2026',
   ])
   const member = screen.getByLabelText('Người trả')
-  expect([...member.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Cả nhà', 'Tiến', 'Minh'])
+  expect([...member.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Tất cả', 'Tiến', 'Minh'])
   // All seven categories, always (specs/005-expense-categories)
   const category = screen.getByLabelText('Danh mục')
   expect([...category.querySelectorAll('option')].map((o) => o.textContent)).toEqual([

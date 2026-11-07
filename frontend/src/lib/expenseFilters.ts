@@ -38,7 +38,6 @@ const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 /** "Tháng 10/2026". */
 export const monthLabel = (month: string) => messages().filters.monthLabel(monthNumber(month))
 
-
 export function filterExpenses(expenses: Expense[], filter: ExpenseFilter): Expense[] {
   return expenses.filter(
     (expense) =>
