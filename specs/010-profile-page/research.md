@@ -80,6 +80,10 @@ Decisions behind [plan.md](plan.md). Facts about the current code are checked ag
   (`app/routers/accounts.py`), so a login that verified the old password could open a session after the
   change deleted the others (review B3). With both steps under the row lock, either the login's session
   exists before the change (and is deleted by it) or the login sees the new hash and is refused.
+- **Known limit** (#224 review): both steps compare stored hashes, not passwords. If a login rehashes a
+  password made with older argon2 settings at the same moment, the other step sees a different hash and
+  answers `wrong_password` (or `invalid_credentials`) once, although the password was right; trying again
+  works. No session ever comes out of an old password, so this is accepted.
 - **Wrong current password**: 400 `wrong_password`, never 401, because `api/client.ts` signs out on any
   401 outside the sign-in routes; it keeps the attempt counted. Success releases both buckets, as login
   does.

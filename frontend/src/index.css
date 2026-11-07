@@ -3459,3 +3459,24 @@ button.ai:active:focus-visible {
   border-top: 1px solid var(--line);
   font-weight: 600;
 }
+
+/* Save and Clear side by side; they wrap on a narrow phone */
+.profile-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-buttons button {
+  min-height: var(--target);
+}
+
+/* A housemate's status under their name on Thành viên: one line, the rest in the title */
+.member-status {
+  max-width: 100%;
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

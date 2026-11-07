@@ -40,6 +40,8 @@ export interface Member {
   /** The role of the account using this name; null for a name from before accounts nobody took. */
   role?: Role | null
   user_id?: number | null
+  /** That account's status while it is an owner or member here (specs/010-profile-page). */
+  status?: string | null
 }
 
 // --- Accounts (docs/ACCOUNTS.md) -----------------------------------------------------------------
@@ -48,6 +50,8 @@ export interface User {
   id: number
   email: string
   display_name: string
+  /** A short status housemates see; null for none (specs/010-profile-page). */
+  status?: string | null
 }
 
 /** A household where the new name was someone else's, so the old one stayed (specs/010-profile-page). */

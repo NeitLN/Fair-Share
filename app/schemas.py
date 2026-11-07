@@ -153,6 +153,8 @@ class Member(BaseModel):
     # Whose account this name belongs to; None for a name from before accounts nobody has taken yet
     role: Literal["owner", "member"] | None = None
     user_id: int | None = None
+    # That account's status, only while it is an owner or member here (specs/010-profile-page)
+    status: str | None = None
 
 
 # --- Accounts (docs/ACCOUNTS.md) ----------------------------------------------------------------
@@ -201,6 +203,7 @@ class User(BaseModel):
     id: int
     email: str
     display_name: str
+    status: str | None = None  # specs/010-profile-page, US3
 
 
 # --- The signed-in person's own account (specs/010-profile-page) ---------------------------------
@@ -221,6 +224,28 @@ class KeptName(BaseModel):
 class RenameResult(BaseModel):
     user: User
     kept: list[KeptName]
+
+
+# Text direction controls could turn the rest of a row around; a status has no use for them
+BIDI_CONTROLS = dict.fromkeys(map(ord, "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"))
+MAX_STATUS = 60
+
+
+def clean_status(value: Any) -> Any:
+    """A status is cleaned like a name, without direction controls; empty or spaces only = none.
+    The limit counts code points after cleaning, as PostgreSQL's char_length does."""
+    if not isinstance(value, str):
+        return value
+    value = clean_text(value.translate(BIDI_CONTROLS))
+    if not value:
+        return None
+    if len(value) > MAX_STATUS:
+        raise ValueError(f"must be at most {MAX_STATUS} characters")
+    return value
+
+
+class StatusIn(BaseModel):
+    status: Annotated[str | None, BeforeValidator(clean_status)] = None
 
 
 class PasswordIn(BaseModel):

@@ -28,7 +28,7 @@ test('a new name reaches every household, and one where it is taken keeps the ol
 
     const field = page.getByLabel('Tên hiển thị')
     await field.fill('Ngọc Lan')
-    await page.getByRole('button', { name: 'Lưu' }).click()
+    await page.getByRole('button', { name: 'Lưu' }).first().click()
     await expect(page.getByText(`Ở E2E B ${stamp} đã có người tên Ngọc Lan, nên ở đó bạn vẫn là Lan.`)).toBeVisible()
     await expect(page.getByLabel('Tài khoản: Ngọc Lan')).toBeVisible()
 
@@ -75,4 +75,26 @@ test('a new password keeps this browser signed in and signs the other one out', 
   expect(fresh.status()).toBe(200)
   await phone.close()
   await other.close()
+})
+
+test('a status is seen by a housemate on Thành viên, and gone once cleared', async ({ page, request }) => {
+  const lan = await signUp(request, 'Lan')
+  const minh = await signUp(request, 'Minh')
+  const house = await (
+    await request.post(`${API}/api/households`, { data: { name: `E2E status ${Date.now()}` }, headers: bearer(lan) })
+  ).json()
+  try {
+    await addMember(request, house.id, lan, minh)
+    const status = await request.put(`${API}/api/me/status`, { data: { status: 'đang ăn kiêng 🥗' }, headers: bearer(lan) })
+    expect(status.status()).toBe(200)
+    await signInPage(page, minh)
+    await page.goto(`/households/${house.id}/members`)
+    await expect(page.locator('.member-status')).toHaveText('đang ăn kiêng 🥗')
+    await request.put(`${API}/api/me/status`, { data: { status: null }, headers: bearer(lan) })
+    await page.reload()
+    await expect(page.locator('.member-row').first()).toBeVisible()
+    await expect(page.locator('.member-status')).toHaveCount(0)
+  } finally {
+    await deleteHousehold(request, house.id, lan)
+  }
 })

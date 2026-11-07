@@ -27,7 +27,7 @@ from app.auth import (
 )
 from app.db import ConnDep, connection, fetch_all, fetch_one
 from app.routers import accounts
-from app.schemas import MeIn, PasswordIn, RenameResult
+from app.schemas import MeIn, PasswordIn, RenameResult, StatusIn, User
 
 router = APIRouter(prefix="/api", tags=["me"])
 
@@ -44,7 +44,8 @@ def rename_me(body: MeIn, user: CurrentUser, conn: ConnDep):
     conn.execute("SELECT 1 FROM users WHERE id = %s FOR UPDATE", (user["id"],))
     renamed = fetch_one(
         conn,
-        "UPDATE users SET display_name = %s WHERE id = %s RETURNING id, email, display_name",
+        "UPDATE users SET display_name = %s WHERE id = %s"
+        " RETURNING id, email, display_name, status",
         (body.display_name, user["id"]),
     )
     # Owner or member only: a person still waiting has no name yet (FR-009). Locked in a fixed
@@ -78,6 +79,16 @@ def rename_me(body: MeIn, user: CurrentUser, conn: ConnDep):
                 }
             )
     return {"user": renamed, "kept": kept}
+
+
+@router.put("/me/status", response_model=User)
+def set_status(body: StatusIn, user: CurrentUser, conn: ConnDep):
+    """A short status the person's housemates see, or none (specs/010-profile-page, US3)."""
+    return fetch_one(
+        conn,
+        "UPDATE users SET status = %s WHERE id = %s RETURNING id, email, display_name, status",
+        (body.status, user["id"]),
+    )
 
 
 @router.post("/me/password", status_code=204)
