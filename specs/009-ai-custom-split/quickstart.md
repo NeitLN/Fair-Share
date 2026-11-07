@@ -49,6 +49,10 @@ a usable split different from the expected one.
 
 Also: a sentence with no named amounts ("lẩu 500k Minh trả chia 3") must fill an equal split exactly as before.
 
+First live run (07/11, after #220): 12/17 supported, 3/3 blocked. The model guessed a rest taker on #10,
+a payer on #6/#15 and a total of 1 000 000 on #5/#14; the follow-up checks the reading against the
+sentence (`app/services/sentence.py`) and gives the prompt these three cases as examples.
+
 Not counted, but noted with the score (#220 review): "mình trả 500k, Minh 200k, Lan 100k" is expected to be blocked
 (`no_rest_taker`), because "mình trả" is not turned into a payer (research R3). How often people type it this way
 tells whether that rule is worth revisiting.

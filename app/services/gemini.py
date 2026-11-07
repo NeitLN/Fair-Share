@@ -94,9 +94,11 @@ DRAFT_SCHEMA = {
 PROMPT = """You read one sentence about a shared household expense and return its fields as JSON.
 Rules:
 - amount is a whole number of Vietnamese đồng: "240k" or "240 nghìn" = 240000, "1tr2" = 1200000,
-  "1,5 triệu" = 1500000. If no amount is given, use 0.
+  "1,5 triệu" = 1500000. It is the total as written in the sentence, never a sum you work out.
+  If no amount is given, use 0.
 - payer and participants must be written exactly like one of these household members: {members}.
-  If a name is not one of them, still return it as written.
+  If a name is not one of them, still return it as written. payer is "" when the sentence does not
+  say who paid: never guess it, and you do not know who is typing.
 - "split 3 ways", "chia đều", "cả nhà", "everyone" with no names means everyone = true.
 - spent_at: today is {today}; "hôm qua"/"yesterday" is the day before. Default: today.
 - description: 1 to 5 words, the same language as the sentence.
@@ -111,6 +113,13 @@ Rules:
   kind none, names []. "chia đều" or "split 3 ways" on its own is everyone = true, not rest.
 - unsupported: fraction_or_percent for shares like "1/3" or "40%"; payer_not_sharing when the payer
   says they do not share ("trả hộ", "không ăn", "not eating"); otherwise none.
+Examples (fields not shown are as the rules say):
+- "500k Tiến trả, Minh 500k": amount 500000, payer "Tiến", named_amounts [Minh 500000], rest none.
+  The number before "X trả" / "X paid" is the total; it is not an amount for X.
+- "chợ 350k Duy Anh trả, Lan 50k, Minh 100k": amount 350000, payer "Duy Anh",
+  named_amounts [Lan 50000, Minh 100000], rest none (nothing is said about the rest).
+- "lẩu 500k, Minh 200k, còn lại mình": amount 500000, payer "", named_amounts [Minh 200000],
+  rest person [ME].
 Sentence: {text}"""
 
 

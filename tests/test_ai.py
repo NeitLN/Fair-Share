@@ -320,9 +320,87 @@ def test_an_unknown_name_in_the_shares_is_blocked_and_reported_once(client, hous
 
 def test_no_total_keeps_the_amount_warning_and_blocks_the_split(client, house):
     use(client, FakeGemini(hotpot(amount=None, named_amounts=[NamedAmount("Minh", 200_000)])))
-    body = parse(client, house["id"], "Minh 200k").json()
+    body = parse(client, house["id"], "Tiến trả, Minh 200k").json()
     assert body["draft"]["split"]["reason"] == "no_total"
     assert {w["code"] for w in body["warnings"]} == {"no_total", "no_amount"}
+
+
+# Live readings of the corpus (#220): what the sentence never writes is not trusted.
+
+
+def test_a_rest_taker_the_sentence_never_names_is_dropped(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(
+        amount=350_000,
+        payer="Duy Anh",
+        named_amounts=[NamedAmount("Minh", 100_000)],
+        rest=Rest("person", ["Tiến"]),
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "chợ 350k Duy Anh trả, Minh 100k").json()
+    assert body["warnings"] == []
+    split = body["draft"]["split"]
+    assert split["rest_to"] == duy and split["rest_to_payer"]
+    assert {s["member_id"]: s["amount"] for s in split["shares"]} == {minh: 100_000, duy: 250_000}
+
+
+def test_a_payer_the_sentence_never_names_is_no_payer(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(
+        named_amounts=[NamedAmount("Minh", 200_000), NamedAmount("Duy Anh", 100_000)],
+        rest=Rest("person", ["ME"]),
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 500k, Minh 200k, Duy Anh 100k, còn lại mình").json()
+    assert body["draft"]["payer_id"] is None
+    assert [w["code"] for w in body["warnings"]] == ["no_payer"]
+    split = body["draft"]["split"]
+    assert split["rest_to"] == tien and not split["rest_to_payer"]
+
+
+def test_a_total_the_sentence_never_writes_waits_for_the_user(client, house):
+    reading = hotpot(
+        amount=1_000_000,
+        named_amounts=[NamedAmount("Tiến", 500_000), NamedAmount("Minh", 500_000)],
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "500k Tiến trả, Minh 500k").json()
+    assert body["draft"]["amount"] is None
+    assert body["draft"]["split"]["type"] == "blocked"
+    assert body["draft"]["split"]["reason"] == "no_total"
+    assert {w["code"] for w in body["warnings"]} == {"no_total", "no_amount"}
+
+
+def test_people_who_share_the_rest_equally_stay_without_còn_lại(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(
+        amount=600_000,
+        named_amounts=[NamedAmount("Minh", 200_000)],
+        rest=Rest("equal", ["Duy Anh", "Tiến"]),
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 600k Tiến trả, Minh 200k, Duy Anh với Tiến chia đều")
+    split = body.json()["draft"]["split"]
+    assert split["type"] == "custom"
+    assert {s["member_id"]: s["amount"] for s in split["shares"]} == {
+        tien: 200_000,
+        minh: 200_000,
+        duy: 200_000,
+    }
+
+
+def test_mình_read_as_minh_is_blocked_not_a_split_for_minh(client, house):
+    reading = hotpot(
+        amount=600_000,
+        payer="Minh",
+        named_amounts=[NamedAmount("Duy Anh", 200_000), NamedAmount("Minh", 100_000)],
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 600k, Duy Anh 200k, mình 100k").json()
+    assert body["draft"]["payer_id"] is None
+    assert body["draft"]["split"]["type"] == "blocked"
+    assert body["draft"]["split"]["reason"] == "unreadable_shares"
+    assert {w["code"] for w in body["warnings"]} == {"no_payer", "unreadable_shares"}
 
 
 def test_too_many_shares_is_the_usual_error(client, house, monkeypatch):
