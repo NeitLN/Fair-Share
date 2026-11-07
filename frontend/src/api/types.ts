@@ -50,6 +50,19 @@ export interface User {
   display_name: string
 }
 
+/** A household where the new name was someone else's, so the old one stayed (specs/010-profile-page). */
+export interface KeptName {
+  household_id: number
+  household_name: string
+  name: string
+}
+
+/** PATCH /api/me: the account as it is now, and the households that kept the old name. */
+export interface RenameResult {
+  user: User
+  kept: KeptName[]
+}
+
 /** What signing up or in answers: the token goes in `Authorization: Bearer …`. */
 export interface Session {
   token: string

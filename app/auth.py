@@ -49,6 +49,12 @@ def not_authenticated() -> ApiError:
     return ApiError(401, "not_authenticated", "Sign in to continue")
 
 
+def wrong_password() -> ApiError:
+    """The current password, when changing it. Not a 401: the session is fine, and the web app
+    signs out on any 401 (specs/010-profile-page, FR-013)."""
+    return ApiError(400, "wrong_password", "The current password is not right")
+
+
 def forbidden(message: str = "You are not allowed to do this in this household") -> ApiError:
     return ApiError(403, "forbidden", message)
 

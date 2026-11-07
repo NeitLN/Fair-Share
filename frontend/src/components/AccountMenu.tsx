@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 
 import { logout } from '../api/households'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -68,6 +69,16 @@ function AccountMenu() {
           <br />
           <small>{email}</small>
         </p>
+        {/* Closes the menu on the way, so it does not stay open over the profile page */}
+        <Link
+          to="/account"
+          className="account-profile-link"
+          onClick={() => {
+            if (menu.current) menu.current.open = false
+          }}
+        >
+          {t.account.profile}
+        </Link>
         <div className="account-setting">
           <span className="hint" aria-hidden="true">
             {t.language.label}

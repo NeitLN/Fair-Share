@@ -38,6 +38,7 @@ cookie that browsers block, and a header needs no CSRF protection.
 | Tell the receiver "I've sent it"; say "not received" | when they owe it / received it | when they owe it / received it | |
 | Delete a repayment | any | the ones they recorded | |
 | Quick add | yes | yes | |
+| Change their own name everywhere, and their password (profile page) | yes | yes | yes, name and password only: no household changes |
 | Leave | no (would need a new owner first) | yes | cancel the request |
 
 Every check is in the API (`app/access.py`, the routers). Hiding a button only makes the page easier
@@ -61,6 +62,8 @@ to use.
 | S1 | Expenses and repayments remember who recorded them (`created_by`); older ones belong to the owner | `test_a_member_adds_expenses_…` |
 | S2 | A repayment is recorded by the person who received it | `test_only_the_person_who_received_…` |
 | S3 | The person who owes can tell the receiver "Tôi đã chuyển" with the amount suggested then; the server checks it is a transfer suggested right now, for that amount (else 409 `suggestion_changed`). It changes no balance; everyone in the household sees it. The receiver's "Đã nhận" records that amount and removes the notice in one transaction, once however often it is pressed; "Chưa nhận được" marks it declined until the payer tells again; the payer can take it back. Both answers name the amount the receiver saw, so one from an old screen never touches a notice told again (409 `notice_changed`). A repayment typed in by hand removes the notice only if it is the told amount. A notice whose pair is no longer suggested keeps its own card until it is answered or taken back. One notice per pair (added 03/11 after the UI review) | `test_notices.py` |
+| P1 | `PATCH /api/me` sets the display name and the person's own name in every household where they are owner or member, in one transaction. A household where someone else's name already equals it ignoring case keeps the old name (a savepoint per household) and is listed in `kept`; any other failure changes nothing. Households still waiting are not touched. Saving the same name brings a household the owner renamed back in line. The owner's right to rename a name is unchanged (specs/010-profile-page) | `test_profile.py`: rename tests |
+| P2 | `POST /api/me/password` needs the current password; wrong ones count in the login limits of A2 (same buckets, counted before the check) and answer `400 wrong_password`, never 401, so the page does not sign out. A change ends every other session of the account and keeps the caller's. Both the change and the last step of a login take the user row lock and compare the stored hash, so a login that checked the old password during a change gets `401 invalid_credentials` and no session | `test_profile.py`: password tests, `test_a_login_with_the_old_password_during_the_change_…` |
 | L1 | The old key shows an ownerless household to take over; with an owner it answers "ask for an invite code"; a wrong key is a 404 | `test_the_first_signed_in_person_…` |
 
 ## API
@@ -84,6 +87,8 @@ to use.
 | `POST /api/households/{id}/notices/{from_member}/accept` `{amount, settled_at}` | "Đã nhận" on a notice (the receiver): records it, 201 with the settlement |
 | `POST /api/households/{id}/notices/{from_member}/decline` `{amount}` | "Chưa nhận được" (the receiver) |
 | `GET`, `POST /api/households/{id}/claim` with `X-Household-Key` | take over a household from before accounts |
+| `PATCH /api/me` `{display_name}` | `{user, kept: [{household_id, household_name, name}]}` (P1) |
+| `POST /api/me/password` `{current_password, new_password}` | `204`; `400 wrong_password`; `429` as login (P2) |
 
 ## Data
 
