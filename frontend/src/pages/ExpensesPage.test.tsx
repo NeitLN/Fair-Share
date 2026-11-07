@@ -240,6 +240,47 @@ test('a sentence fills the form, saving records an AI expense and clears the box
   expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('')
 })
 
+test('named amounts fill Tự chia and are saved as those shares (specs/009-ai-custom-split)', async () => {
+  const custom = {
+    draft: {
+      ...lau.draft,
+      split: {
+        type: 'custom',
+        shares: [
+          { member_id: 1, amount: 140_000 },
+          { member_id: 2, amount: 100_000 },
+        ],
+        rest_to: 2,
+        rest_amount: 100_000,
+        rest_to_payer: true,
+      },
+    },
+    warnings: [],
+  }
+  const fetchFn = api({ 'POST /api/households/7/ai/parse-expense': [200, custom] })
+  const user = userEvent.setup()
+  renderApp('/households/7/expenses')
+
+  await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả, Tiến 140k')
+  await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+  expect(await screen.findByText(/^Đã điền: Lẩu/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Phần của Tiến')).toHaveValue('140000')
+  expect(screen.getByText(/tính cho Minh \(người trả\)/)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+  expect(await list().findByText('Lẩu')).toBeInTheDocument()
+  const post = fetchFn.mock.calls.find(
+    ([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST',
+  )
+  expect(JSON.parse(post?.[1]?.body as string).split).toEqual({
+    type: 'custom',
+    shares: [
+      { member_id: 1, amount: 140_000 },
+      { member_id: 2, amount: 100_000 },
+    ],
+  })
+})
+
 test('when the AI is busy the sentence stays and the expense is saved by hand', async () => {
   const fetchFn = api({
     'POST /api/households/7/ai/parse-expense': [

@@ -35,3 +35,46 @@ describe('warningMessage', () => {
     expect(warningMessage({ code: 'something_new', message: 'Look at this' })).toBe('Look at this')
   })
 })
+
+describe('warningMessage, named amounts (specs/009-ai-custom-split)', () => {
+  const plain = (text: string) => text.replace(/[\u00A0\u202F]/g, ' ')
+
+  test('over_total gives both sums in money format', () => {
+    expect(plain(warningMessage({ code: 'over_total', message: 'x', named_sum: 600_000, total: 500_000 }))).toBe(
+      'Các phần đã nêu cộng lại 600.000đ, hơn tổng 500.000đ. Sửa lại cách chia rồi mới lưu được.',
+    )
+  })
+
+  test('the codes about one name say the name', () => {
+    expect(warningMessage({ code: 'ambiguous_member', message: 'x', name: 'Anh' })).toBe(
+      '“Anh” trùng tên nhiều người trong nhà. Bạn tự chia giúp nhé.',
+    )
+    expect(warningMessage({ code: 'duplicate_member', message: 'x', name: 'Tien' })).toBe(
+      'Tien được nêu hai số tiền. Bạn tự chia giúp nhé.',
+    )
+  })
+
+  test('the codes about what is left say how much', () => {
+    expect(plain(warningMessage({ code: 'no_rest_taker', message: 'x', remainder: 300_000 }))).toBe(
+      'Còn 300.000đ chưa biết tính cho ai. Chọn người trả hoặc tự chia.',
+    )
+    expect(plain(warningMessage({ code: 'nobody_for_equal_rest', message: 'x', remainder: 500_000 }))).toBe(
+      'Còn 500.000đ để chia đều nhưng ai cũng đã có phần. Bạn tự chia giúp nhé.',
+    )
+  })
+
+  test.each([
+    ['no_total', 'Nhập tổng số tiền rồi chia lại.'],
+    ['fraction_or_percent', 'Chưa đọc được phần chia theo phân số hay phần trăm. Bạn tự chia giúp nhé.'],
+    ['several_payers', 'Câu có nhiều người trả, mỗi khoản chi chỉ ghi một người trả. Bạn tự chia giúp nhé.'],
+    ['paid_amount', 'Có số tiền là tiền ai đó đã trả, không phải phần phải chịu. Bạn tự chia giúp nhé.'],
+    ['payer_not_sharing', 'Người trả không chia phần, nên phần còn lại chưa biết tính cho ai. Bạn tự chia giúp nhé.'],
+    ['unreadable_shares', 'Chưa đọc được các phần chia. Bạn tự chia giúp nhé.'],
+  ])('%s has its own sentence', (code, sentence) => {
+    expect(warningMessage({ code, message: 'server text' })).toBe(sentence)
+  })
+
+  test('a figure missing falls back to the server message', () => {
+    expect(warningMessage({ code: 'over_total', message: 'server text' })).toBe('server text')
+  })
+})

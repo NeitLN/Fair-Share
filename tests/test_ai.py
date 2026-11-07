@@ -4,7 +4,14 @@ import pytest
 
 from app.routers.ai import get_gemini
 from app.services.gemini import ExpenseDraft as Found
-from app.services.gemini import GeminiBusy, ai_rate_limited, ai_unavailable, ai_unparseable
+from app.services.gemini import (
+    GeminiBusy,
+    NamedAmount,
+    Rest,
+    ai_rate_limited,
+    ai_unavailable,
+    ai_unparseable,
+)
 from tests.api import error_code, household, member
 
 pytestmark = [pytest.mark.db, pytest.mark.usefixtures("cleanup")]
@@ -225,3 +232,103 @@ def test_proxy_settings_decide_who_the_visitor_is(make_client):
     response = parse(client, house["id"], ip="10.9.9.99, 198.51.100.7, 172.70.1.99, 10.201.0.99")
     assert response.status_code == 429
     assert parse(client, house["id"], ip="198.51.100.8, 172.70.1.5, 10.201.0.5").status_code == 200
+
+
+# --- Named amounts (specs/009-ai-custom-split) ---------------------------------------------------
+# The house fixture: Tiến (the caller), Minh, Duy Anh.
+
+
+def hotpot(**reading):
+    base = {"description": "Lẩu", "amount": 500_000, "payer": "Tiến", "spent_at": "2026-11-07"}
+    return Found(**{**base, **reading})
+
+
+def test_named_amounts_become_a_custom_split_that_can_be_saved(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(named_amounts=[NamedAmount("Minh", 200_000), NamedAmount("Duy", 100_000)])
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 500k Tiến trả, Minh 200k, Duy 100k").json()
+    assert body["warnings"] == []
+    assert body["draft"]["split"] == {
+        "type": "custom",
+        "shares": [
+            {"member_id": tien, "amount": 200_000},
+            {"member_id": minh, "amount": 200_000},
+            {"member_id": duy, "amount": 100_000},
+        ],
+        "rest_to": tien,
+        "rest_amount": 200_000,
+        "rest_to_payer": True,
+    }
+    draft = body["draft"]
+    expense = {**draft, "split": {"type": "custom", "shares": draft["split"]["shares"]}}
+    saved = client.post(f"/api/households/{house['id']}/expenses", json=expense)
+    assert saved.status_code == 201, saved.text
+
+
+def test_me_is_the_person_typing_and_the_payer_stays_missing(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(
+        payer=None,
+        named_amounts=[NamedAmount("Minh", 200_000), NamedAmount("Duy Anh", 100_000)],
+        rest=Rest("person", ["ME"]),
+    )
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 500k, Minh 200k, Duy Anh 100k, còn lại mình").json()
+    assert body["draft"]["payer_id"] is None
+    assert [w["code"] for w in body["warnings"]] == ["no_payer"]
+    split = body["draft"]["split"]
+    assert split["type"] == "custom" and split["rest_to"] == tien and not split["rest_to_payer"]
+    assert {s["member_id"]: s["amount"] for s in split["shares"]} == {
+        tien: 200_000,
+        minh: 200_000,
+        duy: 100_000,
+    }
+
+
+def test_a_payer_read_as_me_is_no_payer(client, house):
+    use(client, FakeGemini(hotpot(payer="ME", everyone=True)))
+    body = parse(client, house["id"], "lẩu 500k chia đều").json()
+    assert body["draft"]["payer_id"] is None
+    assert [w["code"] for w in body["warnings"]] == ["no_payer"]
+
+
+def test_over_the_total_is_blocked_with_its_figures(client, house):
+    tien, minh, duy = (m["id"] for m in house["members"])
+    reading = hotpot(named_amounts=[NamedAmount("Minh", 300_000), NamedAmount("Duy", 300_000)])
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "lẩu 500k Tiến trả, Minh 300k, Duy 300k").json()
+    assert body["draft"]["amount"] == 500_000 and body["draft"]["payer_id"] == tien
+    assert body["draft"]["split"] == {
+        "type": "blocked",
+        "reason": "over_total",
+        "preview": [{"member_id": minh, "amount": 300_000}, {"member_id": duy, "amount": 300_000}],
+    }
+    over = [w for w in body["warnings"] if w["code"] == "over_total"]
+    assert len(over) == 1
+    assert (over[0]["named_sum"], over[0]["total"]) == (600_000, 500_000)
+
+
+def test_an_unknown_name_in_the_shares_is_blocked_and_reported_once(client, house):
+    reading = hotpot(named_amounts=[NamedAmount("Minh", 500_000), NamedAmount("Hùng", 100_000)])
+    use(client, FakeGemini(reading))
+    body = parse(client, house["id"], "500k Tiến trả, Minh 500k, Hùng 100k").json()
+    assert body["draft"]["split"]["type"] == "blocked"
+    assert body["draft"]["split"]["reason"] == "unknown_member"
+    assert [(w["code"], w["name"]) for w in body["warnings"]] == [("unknown_member", "Hùng")]
+
+
+def test_no_total_keeps_the_amount_warning_and_blocks_the_split(client, house):
+    use(client, FakeGemini(hotpot(amount=None, named_amounts=[NamedAmount("Minh", 200_000)])))
+    body = parse(client, house["id"], "Minh 200k").json()
+    assert body["draft"]["split"]["reason"] == "no_total"
+    assert {w["code"] for w in body["warnings"]} == {"no_total", "no_amount"}
+
+
+def test_too_many_shares_is_the_usual_error(client, house, monkeypatch):
+    monkeypatch.setattr("app.routers.ai.MAX_PARTICIPANTS", 2)
+    reading = hotpot(named_amounts=[NamedAmount("Minh", 100_000), NamedAmount("Duy", 100_000)])
+    use(client, FakeGemini(reading))
+    response = parse(client, house["id"], "lẩu 500k Tiến trả, Minh 100k, Duy 100k")
+    assert response.status_code == 422
+    assert error_code(response) == "too_many_participants"

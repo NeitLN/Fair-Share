@@ -13,19 +13,22 @@ def normalize(name: str) -> str:
     return " ".join(plain.casefold().split())
 
 
-def match_member(name: str, members: dict[int, str]) -> int | None:
-    """The id of the one member this name means, or None if it means none or several.
+def match_candidates(name: str, members: dict[int, str]) -> list[int]:
+    """Every member this name could mean: [] for nobody, two or more when it is ambiguous.
 
-    First an exact match ignoring case and accents; failing that, a member with a word equal to the
-    name ("Duy" → "Duy Anh"), but only when exactly one member has it.
+    First an exact match ignoring case and accents; failing that, the members with a word equal to
+    the name ("Duy" → "Duy Anh").
     """
     wanted = normalize(name)
     if not wanted:
-        return None
+        return []
     exact = [mid for mid, member in members.items() if normalize(member) == wanted]
-    if len(exact) == 1:
-        return exact[0]
     if exact:
-        return None
-    by_word = [mid for mid, member in members.items() if wanted in normalize(member).split()]
-    return by_word[0] if len(by_word) == 1 else None
+        return exact
+    return [mid for mid, member in members.items() if wanted in normalize(member).split()]
+
+
+def match_member(name: str, members: dict[int, str]) -> int | None:
+    """The id of the one member this name means, or None if it means none or several."""
+    candidates = match_candidates(name, members)
+    return candidates[0] if len(candidates) == 1 else None

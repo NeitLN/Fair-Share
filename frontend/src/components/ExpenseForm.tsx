@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent, Ref } from 'react'
 
-import type { Category, Expense, ExpenseInput, Member, RecurringItem, SplitType } from '../api/types'
+import type { Category, DraftShare, Expense, ExpenseInput, Member, RecurringItem, SplitType } from '../api/types'
 import { guessCategory } from '../lib/categories'
 import { monthNumber } from '../lib/expenseFilters'
 import { keptPeople } from '../lib/recurring'
@@ -26,6 +26,19 @@ export interface FormFill {
   member_ids?: number[] | null
   /** A remark about the split, shown beside Cách chia while the filled split stands (§6.3). */
   splitNote?: string | null
+  /**
+   * Named amounts placed by the server (specs/009-ai-custom-split). Applied only while they still hold
+   * in the form: the total, and the payer when the rest went to them, are the draft's, and the user has
+   * not set the split. Otherwise the split is left alone and Lưu waits for the user to set it.
+   */
+  custom?: {
+    shares: DraftShare[]
+    restTo: number | null
+    restAmount: number
+    restToPayer: boolean
+  } | null
+  /** Named amounts that could not be placed: shown as read, and Lưu waits until the split is edited. */
+  blocked?: { preview: DraftShare[]; message: string } | null
 }
 
 /**
@@ -97,6 +110,12 @@ function ExpenseForm({
   const looks = useMemo(() => givenLooks ?? memberLooks(members), [givenLooks, members])
   const shortName = (id: number) => (looks.get(id) ?? REMOVED_MEMBER).short
   const validPayer = (id: number | null) => (id !== null && members.some((m) => m.id === id) ? id : '')
+  /** "Còn lại 200.000đ tính cho Tiến (người trả)": who took what the named amounts left. */
+  function restNote(restTo: number | null, restAmount: number, toPayer: boolean): string {
+    const money = formatVND(restAmount)
+    if (restTo === null) return t.form.restEqual(money)
+    return toPayer ? t.form.restToPayer(money, shortName(restTo)) : t.form.restTo(money, shortName(restTo))
+  }
 
   // Filled from a recurring item: only the people still in the house, and who was left out (FR-008)
   const [kept] = useState(() => (fromItem ? keptPeople(fromItem, members) : null))
@@ -154,6 +173,13 @@ function ExpenseForm({
   const [fromAi, setFromAi] = useState(false)
   // e.g. "AI chia cho cả nhà, bạn kiểm tra lại.": only while the split the AI filled is untouched
   const [splitNote, setSplitNote] = useState<string | null>(null)
+  // Why Lưu waits for the user to set the split (specs/009-ai-custom-split): named amounts that could
+  // not be placed, or no longer hold. Only an edit of the split (or Hoàn tác) lifts it; changing the
+  // total or the payer does not, since a split that merely adds up may still not be what was said.
+  const [splitBlock, setSplitBlock] = useState<string | null>(null)
+  // A split by named amounts the AI filled, while it stands: who the rest went to was the payer then
+  // (#220 review). Picking another payer afterwards would leave that rest on the wrong person.
+  const [restFrom, setRestFrom] = useState<{ payer: number | null; toPayer: boolean } | null>(null)
   // The latest fill: the fields it changed (minus those the user has edited since) and their old values
   const lastFill = useRef<{
     fields: Set<FillField>
@@ -166,6 +192,7 @@ function ExpenseForm({
       splitType: SplitType
       selected: Set<number>
       customText: Record<number, string>
+      splitBlock: string | null
     }
   } | null>(null)
   const descriptionInput = useRef<HTMLInputElement>(null)
@@ -193,7 +220,14 @@ function ExpenseForm({
   function edited(field: FillField) {
     // A field edited after a fill is the user's now: undo must not take it back
     lastFill.current?.fields.delete(field)
-    if (field === 'split') setSplitNote(null)
+    if (field === 'split') {
+      setSplitNote(null)
+      setSplitBlock(null)
+      setRestFrom(null)
+    }
+    // "Còn lại 200.000đ tính cho Tiến" was about the total the AI read; a new total makes it untrue
+    // (the shares then stop adding up, so Lưu is refused by the usual check)
+    if (field === 'amount' && restFrom) setSplitNote(null)
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -220,7 +254,10 @@ function ExpenseForm({
         ['amount', values.amount != null && values.amount > 0],
         ['payer', values.payer_id != null && memberIds.has(values.payer_id)],
         ['date', Boolean(values.spent_at)],
-        ['split', Boolean(values.member_ids?.some((id) => memberIds.has(id)))],
+        [
+          'split',
+          Boolean(values.member_ids?.some((id) => memberIds.has(id)) || values.custom || values.blocked),
+        ],
       ]
       const result: FillResult = { filled: [], kept: [], cleared: [] }
       for (const [field, available] of offered) {
@@ -234,11 +271,52 @@ function ExpenseForm({
       }
       const fill = new Set(result.filled)
       const clear = new Set(result.cleared)
-      if (fill.size === 0 && clear.size === 0) return result
+
+      // Named amounts (specs/009-ai-custom-split): what goes in the split, and whether Lưu must wait
+      let shares: DraftShare[] | null = null
+      let block: string | null = null
+      let note = values.splitNote?.trim() || null
+      let rest: { payer: number | null; toPayer: boolean } | null = null
+      if (values.blocked) {
+        shares = values.blocked.preview.filter((s) => memberIds.has(s.member_id))
+        block = values.blocked.message
+        note = null
+      } else if (values.custom) {
+        const custom = values.custom
+        // The total and payer the form will hold once this fill is applied
+        const amountAfter = fill.has('amount') ? values.amount : clear.has('amount') ? null : parseAmount(amountText)
+        const payerAfter = fill.has('payer') ? values.payer_id : clear.has('payer') || payerId === '' ? null : payerId
+        const holds =
+          fill.has('split') &&
+          amountAfter === values.amount &&
+          (!custom.restToPayer || payerAfter === values.payer_id) &&
+          custom.shares.every((s) => memberIds.has(s.member_id))
+        if (holds) {
+          shares = custom.shares
+          note = custom.restAmount > 0 ? restNote(custom.restTo, custom.restAmount, custom.restToPayer) : null
+          rest = custom.restAmount > 0 ? { payer: values.payer_id ?? null, toPayer: custom.restToPayer } : null
+        } else {
+          block = t.ai.formDiffers
+          // The user's split (or the one there) stays as it is
+          fill.delete('split')
+          result.filled = result.filled.filter((field) => field !== 'split')
+        }
+      }
+      if (fill.size === 0 && clear.size === 0 && block === null) return result
 
       lastFill.current = {
         fields: new Set([...fill, ...clear]),
-        before: { description, amountText, payerId, payerIsDefault, spentAt, splitType, selected, customText },
+        before: {
+          description,
+          amountText,
+          payerId,
+          payerIsDefault,
+          spentAt,
+          splitType,
+          selected,
+          customText,
+          splitBlock,
+        },
       }
       if (fill.has('description')) setDescription((values.description as string).trim())
       if (fill.has('amount')) setAmountText(String(values.amount))
@@ -249,10 +327,25 @@ function ExpenseForm({
       if (fill.has('date')) setSpentAt(values.spent_at as string)
       if (fill.has('split')) {
         // The split is one group: type, who takes part and any custom amounts change together
-        setSplitType('equal')
-        setSelected(new Set((values.member_ids as number[]).filter((id) => memberIds.has(id))))
-        setCustomText({})
-        setSplitNote(values.splitNote?.trim() || null)
+        if (shares) {
+          setSplitType('custom')
+          setSelected(new Set(shares.map((s) => s.member_id)))
+          setCustomText(Object.fromEntries(shares.map((s) => [s.member_id, String(s.amount)])))
+          // Folded, the split would be saved unseen: open it so the amounts are read before Lưu
+          setSplitOpen(true)
+        } else {
+          setSplitType('equal')
+          setSelected(new Set((values.member_ids ?? []).filter((id) => memberIds.has(id))))
+          setCustomText({})
+        }
+        setSplitNote(note)
+        setRestFrom(rest)
+      }
+      if (block !== null) {
+        setSplitBlock(block)
+        setSplitOpen(true)
+      } else if (fill.has('split')) {
+        setSplitBlock(null)
       }
       setJustFilled(fill)
       if (fill.size > 0) setFromAi(true)
@@ -278,7 +371,10 @@ function ExpenseForm({
         setSelected(before.selected)
         setCustomText(before.customText)
         setSplitNote(null)
+        setRestFrom(null)
       }
+      // A block set by this fill goes with it, even when the split itself was the user's
+      setSplitBlock(before.splitBlock)
       setJustFilled(new Set())
       setFromAi(false)
       lastFill.current = null
@@ -313,7 +409,9 @@ function ExpenseForm({
     if (!spentAt) found.date = t.form.dateMissing
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
     else if (!isDayInRange(spentAt)) found.date = t.form.dateRange
-    if (repeat && offerRepeat && splitType === 'custom') {
+    if (splitBlock) {
+      found.split = splitBlock
+    } else if (repeat && offerRepeat && splitType === 'custom') {
       found.split = t.recurring.equalOnly
     } else if (splitType === 'equal') {
       if (selected.size === 0) found.split = t.form.pickSomeone
@@ -386,6 +484,8 @@ function ExpenseForm({
         setJustFilled(new Set())
         setFromAi(false)
         setSplitNote(null)
+        setSplitBlock(null)
+        setRestFrom(null)
         lastFill.current = null
       }
     } catch {
@@ -500,6 +600,13 @@ function ExpenseForm({
                     edited('payer')
                     setPayerId(m.id)
                     setPayerIsDefault(false)
+                    // The AI's split gave the rest to the payer it read: with another payer it no longer
+                    // holds, the same as at fill time (formDiffers), so Lưu waits for the split to be set
+                    if (restFrom?.toPayer && m.id !== restFrom.payer) {
+                      setSplitNote(null)
+                      setSplitBlock(t.ai.payerChanged)
+                      setSplitOpen(true)
+                    }
                   }}
                 />
                 <label htmlFor={`payer-${m.id}`} title={look.full}>
@@ -576,7 +683,11 @@ function ExpenseForm({
             aria-label={splitOpen ? t.form.splitDoneLabel : t.form.splitEditLabel}
             aria-expanded={splitOpen}
             aria-controls="expense-split-control"
-            aria-describedby={splitNote ? 'expense-split-note' : undefined}
+            aria-describedby={
+              [splitNote ? 'expense-split-note' : '', splitBlock && problems.split !== splitBlock ? 'expense-split-block' : '']
+                .filter(Boolean)
+                .join(' ') || undefined
+            }
             onClick={() => setSplitOpen((open) => !open)}
           >
             {splitOpen ? t.common.done : t.common.edit}
@@ -585,6 +696,12 @@ function ExpenseForm({
         {splitNote && (
           <p className="note field-note" id="expense-split-note">
             {splitNote}
+          </p>
+        )}
+        {/* Said before Lưu is pressed; once pressed, the same words are the field's problem below */}
+        {splitBlock && problems.split !== splitBlock && (
+          <p className="note attention field-note" id="expense-split-block">
+            {splitBlock}
           </p>
         )}
         <div id="expense-split-control" hidden={!splitOpen}>

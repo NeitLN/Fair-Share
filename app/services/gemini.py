@@ -34,6 +34,11 @@ ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:gene
 MAX_TEXT = 300  # characters; longer input is refused before any call (it would only cost quota)
 MAX_DESCRIPTION = 120  # the expense API's limit (app/schemas.py)
 
+MAX_SHARE_NAME = 60  # the members API's limit for a name
+MAX_SHARE_AMOUNT = 1_000_000_000_000  # app/schemas.py MAX_AMOUNT
+REST_KINDS = ["none", "person", "equal"]
+UNSUPPORTED = ["none", "fraction_or_percent", "several_payers", "paid_amount", "payer_not_sharing"]
+
 # What Gemini must return: JSON matching this schema (structured output), never free-form text.
 DRAFT_SCHEMA = {
     "type": "OBJECT",
@@ -48,8 +53,42 @@ DRAFT_SCHEMA = {
         },
         "everyone": {"type": "BOOLEAN", "description": "True if the whole household shares it"},
         "spent_at": {"type": "STRING", "description": "Date it was spent, YYYY-MM-DD"},
+        # specs/009-ai-custom-split: what the sentence says about shares. The model only reports it;
+        # the server works out the split (app/services/allocation.py).
+        "named_amounts": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "name": {"type": "STRING", "description": "Name as written, or ME"},
+                    "amount": {"type": "INTEGER", "description": "What this person owes, in đồng"},
+                },
+                "required": ["name", "amount"],
+            },
+            "description": "Amounts given to named people, in the order written; empty if none",
+        },
+        "rest": {
+            "type": "OBJECT",
+            "properties": {
+                "kind": {"type": "STRING", "enum": REST_KINDS},
+                "names": {"type": "ARRAY", "items": {"type": "STRING"}},
+            },
+            "required": ["kind", "names"],
+            "description": "Who takes what is left of the total after the named amounts",
+        },
+        "unsupported": {"type": "STRING", "enum": UNSUPPORTED},
     },
-    "required": ["description", "amount", "payer", "participants", "everyone", "spent_at"],
+    "required": [
+        "description",
+        "amount",
+        "payer",
+        "participants",
+        "everyone",
+        "spent_at",
+        "named_amounts",
+        "rest",
+        "unsupported",
+    ],
 }
 
 PROMPT = """You read one sentence about a shared household expense and return its fields as JSON.
@@ -61,6 +100,17 @@ Rules:
 - "split 3 ways", "chia đều", "cả nhà", "everyone" with no names means everyone = true.
 - spent_at: today is {today}; "hôm qua"/"yesterday" is the day before. Default: today.
 - description: 1 to 5 words, the same language as the sentence.
+- named_amounts: only when the sentence gives a person an amount of their own, like "Minh 200k" or
+  "Lan 100 nghìn": that is what the person owes. Keep the order written. The person typing ("mình",
+  "tôi", "tao", "me", "I", "my") is written ME. An amount someone paid, put in or paid back
+  ("Minh trả 200k", "Lan đưa 100k", "Minh paid 300k") is not a named amount: set unsupported to
+  paid_amount, or several_payers if more than one person paid. Otherwise named_amounts is [].
+- rest: only about what is left after the named amounts ("còn lại", "phần còn lại", "the rest").
+  "còn lại Lan" / "rest Lan" / "còn lại mình" = kind person with that one name (ME for the speaker).
+  "còn lại chia đều" / "split the rest" = kind equal, with the names after it if any. Nothing said =
+  kind none, names []. "chia đều" or "split 3 ways" on its own is everyone = true, not rest.
+- unsupported: fraction_or_percent for shares like "1/3" or "40%"; payer_not_sharing when the payer
+  says they do not share ("trả hộ", "không ăn", "not eating"); otherwise none.
 Sentence: {text}"""
 
 
@@ -106,6 +156,22 @@ def ai_unparseable() -> ApiError:
 
 
 @dataclass(frozen=True)
+class NamedAmount:
+    """'Minh 200k': what one person owes, as written (ME is the person typing)."""
+
+    name: str
+    amount: int
+
+
+@dataclass(frozen=True)
+class Rest:
+    """Who takes what is left of the total: none (the payer), person (one name) or equal."""
+
+    kind: str = "none"
+    names: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ExpenseDraft:
     """What Gemini read from the sentence. Names are as written; T-22 matches them to members."""
 
@@ -115,6 +181,11 @@ class ExpenseDraft:
     participants: list[str] = field(default_factory=list)
     everyone: bool = False
     spent_at: str | None = None
+    named_amounts: list[NamedAmount] = field(default_factory=list)
+    rest: Rest = field(default_factory=Rest)
+    unsupported: str = "none"
+    # False when Gemini returned shares we cannot trust: the split is then blocked, never repaired
+    shares_readable: bool = True
 
 
 # (url, headers, body, timeout) -> (status, body). Replaced in tests, so no test needs the network.
@@ -238,7 +309,42 @@ def _read_draft(raw: bytes) -> ExpenseDraft:
         else [],
         everyone=bool(fields.get("everyone")),
         spent_at=_valid_date(fields.get("spent_at")),
+        **_read_shares(fields),
     )
+
+
+def _read_shares(fields: dict) -> dict:
+    """named_amounts, rest and unsupported, all checked. One bad entry makes the whole reading of
+    shares unusable: dropping it could leave a split that adds up but is not what was said."""
+    unusable = {"shares_readable": False}
+    named_raw = fields.get("named_amounts", [])
+    rest_raw = fields.get("rest", {"kind": "none", "names": []})
+    unsupported = fields.get("unsupported", "none")
+    if not isinstance(named_raw, list) or not isinstance(rest_raw, dict):
+        return unusable
+    named: list[NamedAmount] = []
+    for entry in named_raw:
+        if not isinstance(entry, dict):
+            return unusable
+        name = entry.get("name")
+        amount = entry.get("amount")
+        if not isinstance(name, str) or not 1 <= len(name.strip()) <= MAX_SHARE_NAME:
+            return unusable
+        # type() and not isinstance(): True is an int in Python
+        if type(amount) is not int or not 0 <= amount <= MAX_SHARE_AMOUNT:
+            return unusable
+        named.append(NamedAmount(name.strip(), amount))
+    kind = rest_raw.get("kind", "none")
+    names = rest_raw.get("names", [])
+    if kind not in REST_KINDS or not isinstance(names, list) or unsupported not in UNSUPPORTED:
+        return unusable
+    if not all(isinstance(name, str) and name.strip() for name in names):
+        return unusable
+    return {
+        "named_amounts": named,
+        "rest": Rest(kind, [name.strip() for name in names]),
+        "unsupported": unsupported,
+    }
 
 
 def _valid_date(value) -> str | None:

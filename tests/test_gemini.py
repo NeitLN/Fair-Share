@@ -9,7 +9,15 @@ import pytest
 
 from app.config import Settings
 from app.errors import ApiError
-from app.services.gemini import MAX_TEXT, ExpenseDraft, GeminiBusy, GeminiClient
+from app.services.gemini import (
+    DRAFT_SCHEMA,
+    MAX_TEXT,
+    ExpenseDraft,
+    GeminiBusy,
+    GeminiClient,
+    NamedAmount,
+    Rest,
+)
 
 KEY = "test-key-never-logged"
 TODAY = dt.date(2026, 10, 20)
@@ -247,3 +255,91 @@ def test_only_a_5xx_is_worth_another_try(status, busy):
         client(fake).parse_expense("rent", MEMBERS, TODAY)
     assert isinstance(caught.value, GeminiBusy) is busy
     assert caught.value.code == "ai_unavailable"
+
+
+# --- Named amounts (specs/009-ai-custom-split) ---------------------------------------------------
+
+
+def read(fields: dict) -> ExpenseDraft:
+    base = {
+        "description": "Lẩu",
+        "amount": 500000,
+        "payer": "Tiến",
+        "participants": [],
+        "everyone": False,
+        "spent_at": "2026-10-20",
+    }
+    fake = FakeGemini(body=gemini_answer({**base, **fields}))
+    return client(fake).parse_expense("lẩu", MEMBERS, TODAY)
+
+
+def test_the_schema_asks_for_named_amounts_the_rest_and_unsupported_sharing():
+    schema = DRAFT_SCHEMA["properties"]
+    assert schema["named_amounts"]["items"]["properties"].keys() == {"name", "amount"}
+    assert schema["rest"]["properties"]["kind"]["enum"] == ["none", "person", "equal"]
+    assert schema["unsupported"]["enum"] == [
+        "none",
+        "fraction_or_percent",
+        "several_payers",
+        "paid_amount",
+        "payer_not_sharing",
+    ]
+    assert {"named_amounts", "rest", "unsupported"} <= set(DRAFT_SCHEMA["required"])
+
+
+def test_the_prompt_explains_owed_amounts_me_and_the_rest():
+    fake = FakeGemini(body=gemini_answer({"description": "Rent", "amount": 1}))
+    client(fake).parse_expense("rent", MEMBERS, TODAY)
+    prompt = fake.calls[0]["body"]["contents"][0]["parts"][0]["text"]
+    assert "ME" in prompt and "còn lại" in prompt and "paid_amount" in prompt
+
+
+def test_named_amounts_and_the_rest_are_read_in_order():
+    draft = read(
+        {
+            "named_amounts": [{"name": "Minh", "amount": 200000}, {"name": "ME", "amount": 0}],
+            "rest": {"kind": "person", "names": ["Lan"]},
+            "unsupported": "none",
+        }
+    )
+    assert draft.named_amounts == [NamedAmount("Minh", 200000), NamedAmount("ME", 0)]
+    assert draft.rest == Rest("person", ["Lan"])
+    assert draft.unsupported == "none" and draft.shares_readable
+
+
+def test_an_answer_without_the_new_fields_reads_as_no_named_amounts():
+    draft = read({})
+    assert draft.named_amounts == [] and draft.rest == Rest("none", [])
+    assert draft.unsupported == "none" and draft.shares_readable
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"name": "Minh", "amount": True},
+        {"name": "Minh", "amount": "200000"},
+        {"name": "Minh", "amount": 200000.5},
+        {"name": "Minh", "amount": -1},
+        {"name": "Minh", "amount": 10**13},
+        {"name": "  ", "amount": 100},
+        {"name": "x" * 61, "amount": 100},
+        "Minh 200k",
+    ],
+)
+def test_one_bad_named_amount_makes_the_shares_unreadable_never_dropped(entry):
+    draft = read({"named_amounts": [{"name": "Lan", "amount": 100000}, entry]})
+    assert not draft.shares_readable
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"rest": {"kind": "most", "names": []}},
+        {"rest": "Lan"},
+        {"rest": {"kind": "person", "names": "Lan"}},
+        {"unsupported": "maybe"},
+        {"named_amounts": "Minh 200k"},
+    ],
+)
+def test_an_unknown_rest_or_unsupported_value_makes_the_shares_unreadable(fields):
+    assert not read(fields).shares_readable

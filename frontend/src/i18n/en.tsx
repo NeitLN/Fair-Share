@@ -541,6 +541,10 @@ const en: Messages = {
     sharesMatch: 'Shares match the total.',
     left: (amount: string) => `Left to split: ${amount}`,
     over: (amount: string) => `Over the total: ${amount}`,
+    // AI quick add with named amounts (specs/009-ai-custom-split)
+    restTo: (amount: string, name: string) => `The other ${amount} goes to ${name}.`,
+    restToPayer: (amount: string, name: string) => `The other ${amount} goes to ${name}, who paid.`,
+    restEqual: (amount: string) => `The other ${amount} is split equally.`,
     save: 'Save expense',
     saveChanges: 'Save changes',
     descriptionEmpty: 'Enter what the expense was for.',
@@ -575,6 +579,23 @@ const en: Messages = {
     noPayer: 'Choose who paid.',
     noAmount: 'Enter the amount.',
     participantsAssumed: 'The AI assumed everyone shares this. Check the split.',
+    // Named amounts (specs/009-ai-custom-split): why the split waits for the user
+    splitCustom: (n: number) => `split by amount, ${count(n, 'person', 'people')}`,
+    overTotal: (sum: string, total: string) =>
+      `The amounts you named add up to ${sum}, more than the total ${total}. Fix the split to save.`,
+    ambiguousMember: (name: string) => `“${name}” could be more than one person in this group. Please split it yourself.`,
+    duplicateMember: (name: string) => `${name} is given two amounts. Please split it yourself.`,
+    noRestTaker: (rest: string) => `${rest} is left with nobody to take it. Choose who paid or split it yourself.`,
+    nobodyForEqualRest: (rest: string) =>
+      `${rest} is left to split equally, but everyone already has an amount. Please split it yourself.`,
+    noTotal: 'Enter the total, then set the split.',
+    fractionOrPercent: "Fractions and percentages can't be read yet. Please split it yourself.",
+    severalPayers: 'More than one person paid, and an expense has one payer. Please split it yourself.',
+    paidAmount: 'One amount is what someone paid, not what they owe. Please split it yourself.',
+    payerNotSharing: "The payer isn't sharing, so the rest has nobody to take it. Please split it yourself.",
+    unreadableShares: "Couldn't read the shares. Please split it yourself.",
+    formDiffers: "The total or payer in the form isn't the one in your sentence, so the split wasn't filled. Please split it yourself.",
+    payerChanged: 'The payer changed, so the rest no longer goes to the right person. Please set the split again.',
   },
   csv: {
     date: 'Date',

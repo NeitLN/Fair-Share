@@ -541,6 +541,10 @@ const vi = {
     sharesMatch: 'Đã chia khớp số tiền.',
     left: (amount: string) => `Chưa chia: ${amount}`,
     over: (amount: string) => `Vượt quá: ${amount}`,
+    // AI quick add with named amounts (specs/009-ai-custom-split)
+    restTo: (amount: string, name: string) => `Còn lại ${amount} tính cho ${name}.`,
+    restToPayer: (amount: string, name: string) => `Còn lại ${amount} tính cho ${name} (người trả).`,
+    restEqual: (amount: string) => `Còn lại ${amount} chia đều.`,
     save: 'Lưu khoản chi',
     saveChanges: 'Lưu thay đổi',
     descriptionEmpty: 'Nhập nội dung khoản chi.',
@@ -576,6 +580,23 @@ const vi = {
     noPayer: 'Chọn người trả.',
     noAmount: 'Nhập số tiền.',
     participantsAssumed: 'AI chia cho cả nhà, bạn kiểm tra lại.',
+    // Named amounts (specs/009-ai-custom-split): why the split waits for the user
+    splitCustom: (count: number) => `tự chia ${count}\u00a0người`,
+    overTotal: (sum: string, total: string) =>
+      `Các phần đã nêu cộng lại ${sum}, hơn tổng ${total}. Sửa lại cách chia rồi mới lưu được.`,
+    ambiguousMember: (name: string) => `“${name}” trùng tên nhiều người trong nhà. Bạn tự chia giúp nhé.`,
+    duplicateMember: (name: string) => `${name} được nêu hai số tiền. Bạn tự chia giúp nhé.`,
+    noRestTaker: (rest: string) => `Còn ${rest} chưa biết tính cho ai. Chọn người trả hoặc tự chia.`,
+    nobodyForEqualRest: (rest: string) =>
+      `Còn ${rest} để chia đều nhưng ai cũng đã có phần. Bạn tự chia giúp nhé.`,
+    noTotal: 'Nhập tổng số tiền rồi chia lại.',
+    fractionOrPercent: 'Chưa đọc được phần chia theo phân số hay phần trăm. Bạn tự chia giúp nhé.',
+    severalPayers: 'Câu có nhiều người trả, mỗi khoản chi chỉ ghi một người trả. Bạn tự chia giúp nhé.',
+    paidAmount: 'Có số tiền là tiền ai đó đã trả, không phải phần phải chịu. Bạn tự chia giúp nhé.',
+    payerNotSharing: 'Người trả không chia phần, nên phần còn lại chưa biết tính cho ai. Bạn tự chia giúp nhé.',
+    unreadableShares: 'Chưa đọc được các phần chia. Bạn tự chia giúp nhé.',
+    formDiffers: 'Số tiền hoặc người trả trong form khác câu vừa gõ, nên chưa điền phần chia. Bạn tự chia giúp nhé.',
+    payerChanged: 'Người trả vừa đổi, nên phần còn lại không còn tính đúng người. Bạn chia lại giúp nhé.',
   },
   csv: {
     date: 'Ngày',

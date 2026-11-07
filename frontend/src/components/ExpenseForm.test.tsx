@@ -833,6 +833,251 @@ describe('ExpenseForm, the note beside Cách chia', () => {
   })
 })
 
+describe('ExpenseForm, named amounts from AI quick add (specs/009-ai-custom-split)', () => {
+  // "lẩu 500k Tiến trả, Minh 200k, Duy Anh 100k": Tiến takes the other 200k
+  const custom = {
+    description: 'Lẩu',
+    amount: 500_000,
+    payer_id: 1,
+    spent_at: '2026-11-07',
+    custom: {
+      shares: [
+        { member_id: 1, amount: 200_000 },
+        { member_id: 2, amount: 200_000 },
+        { member_id: 3, amount: 100_000 },
+      ],
+      restTo: 1,
+      restAmount: 200_000,
+      restToPayer: true,
+    },
+  }
+  // "lẩu 500k Tiến trả, Minh 300k, Duy Anh 300k": 600k named, more than the total
+  const over = 'Các phần đã nêu cộng lại 600.000đ, hơn tổng 500.000đ. Sửa lại cách chia rồi mới lưu được.'
+  const blocked = {
+    description: 'Lẩu',
+    amount: 500_000,
+    payer_id: 1,
+    spent_at: '2026-11-07',
+    blocked: {
+      preview: [
+        { member_id: 2, amount: 300_000 },
+        { member_id: 3, amount: 300_000 },
+      ],
+      message: over,
+    },
+  }
+  const differs =
+    'Số tiền hoặc người trả trong form khác câu vừa gõ, nên chưa điền phần chia. Bạn tự chia giúp nhé.'
+
+  function setupWithRef() {
+    const ref = createRef<ExpenseFormHandle>()
+    const result = setup({ ref })
+    return { ...result, form: () => ref.current as ExpenseFormHandle }
+  }
+
+  test('fills Tự chia, opens it, says who takes the rest, and saves those shares', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    let result
+    act(() => {
+      result = form().fill(custom)
+    })
+
+    expect(result).toEqual({ filled: ['description', 'amount', 'payer', 'date', 'split'], kept: [], cleared: [] })
+    expect(screen.getByRole('button', { name: 'Tự chia' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Phần của Tiến')).toHaveValue('200000')
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('200000')
+    expect(screen.getByLabelText('Phần của Duy Anh')).toHaveValue('100000')
+    expect(plain(screen.getByText(/^Còn lại/).textContent)).toBe('Còn lại 200.000đ tính cho Tiến (người trả).')
+    expect(screen.getByText('Đã chia khớp số tiền.')).toBeInTheDocument()
+
+    await save(user)
+    expect(onSubmit.mock.calls[0][0].split).toEqual({
+      type: 'custom',
+      shares: [
+        { member_id: 1, amount: 200_000 },
+        { member_id: 2, amount: 200_000 },
+        { member_id: 3, amount: 100_000 },
+      ],
+    })
+  })
+
+  test('a total typed by hand that differs keeps the split and blocks Lưu', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    await user.type(screen.getByLabelText('Số tiền'), '400000')
+    let result
+    act(() => {
+      result = form().fill(custom)
+    })
+
+    expect(result).toEqual({ filled: ['description', 'payer', 'date'], kept: ['amount'], cleared: [] })
+    expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText(differs)).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByText(differs)).toHaveClass('field-problem')
+  })
+
+  test('a payer chosen by hand blocks a split whose rest went to the payer', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    await user.click(payerRadio('Duy Anh'))
+    act(() => {
+      form().fill(custom)
+    })
+    expect(screen.getByText(differs)).toBeInTheDocument()
+    // Changing only the payer back is not a change of the split: Lưu still waits
+    await user.click(payerRadio('Tiến'))
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  test('a payer chosen by hand does not matter when the rest went to a named person', async () => {
+    const { user, form } = setupWithRef()
+    await user.click(payerRadio('Duy Anh'))
+    act(() => {
+      form().fill({ ...custom, custom: { ...custom.custom, restToPayer: false } })
+    })
+    expect(screen.queryByText(differs)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('200000')
+  })
+
+  test('picking another payer after the fill drops the note and blocks Lưu (#220 review)', async () => {
+    const changed = 'Người trả vừa đổi, nên phần còn lại không còn tính đúng người. Bạn chia lại giúp nhé.'
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill(custom)
+    })
+    await user.click(payerRadio('Minh'))
+
+    expect(screen.queryByText(/tính cho Tiến/)).not.toBeInTheDocument()
+    expect(screen.getByText(changed)).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+    // Going back to Tiến is not a change of the split either
+    await user.click(payerRadio('Tiến'))
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    // Setting the split lifts it: Tiến's 200k becomes Minh's
+    const tien = screen.getByLabelText('Phần của Tiến')
+    await user.clear(tien)
+    const minh = screen.getByLabelText('Phần của Minh')
+    await user.clear(minh)
+    await user.type(minh, '400000')
+    expect(screen.queryByText(changed)).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  test('another payer is fine when the rest went to a named person', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill({ ...custom, custom: { ...custom.custom, restToPayer: false } })
+    })
+    await user.click(payerRadio('Minh'))
+    expect(screen.getByText(/^Còn lại 200/)).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  test('a new total drops the rest note; the shares no longer add up, so Lưu is refused', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill(custom)
+    })
+    const amount = screen.getByLabelText('Số tiền')
+    await user.clear(amount)
+    await user.type(amount, '600000')
+    expect(screen.queryByText(/^Còn lại/)).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  test('a split set by hand is kept and Lưu waits until it is set again', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    await openSplit(user)
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
+    let result
+    act(() => {
+      result = form().fill(custom)
+    })
+    expect(result).toEqual({ filled: ['description', 'amount', 'payer', 'date'], kept: ['split'], cleared: [] })
+    expect(screen.getByText(differs)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Duy Anh' }))
+    expect(screen.queryByText(differs)).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalled()
+  })
+
+  test('Hoàn tác takes the custom split and its note back', () => {
+    const { form } = setupWithRef()
+    act(() => {
+      form().fill(custom)
+    })
+    act(() => {
+      form().undoFill()
+    })
+    expect(screen.queryByText(/^Còn lại/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('a share changed after the fill stays the user’s on Hoàn tác', async () => {
+    const { user, form } = setupWithRef()
+    act(() => {
+      form().fill(custom)
+    })
+    const minh = screen.getByLabelText('Phần của Minh')
+    await user.clear(minh)
+    await user.type(minh, '150000')
+    act(() => {
+      form().undoFill()
+    })
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('150000')
+  })
+
+  test('blocked amounts are shown as read, and Lưu waits even when they come to add up', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill(blocked)
+    })
+
+    expect(screen.getByText(over)).toBeInTheDocument()
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('300000')
+    expect(screen.getByLabelText('Phần của Duy Anh')).toHaveValue('300000')
+    expect(plain(screen.getByText(/Vượt quá/).textContent)).toBe('Vượt quá: 100.000đ')
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    // A total that makes them add up is not a fix of the split
+    const amount = screen.getByLabelText('Số tiền')
+    await user.clear(amount)
+    await user.type(amount, '600000')
+    expect(screen.getByText('Đã chia khớp số tiền.')).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    // Changing the split itself lifts it
+    const minh = screen.getByLabelText('Phần của Minh')
+    await user.clear(minh)
+    await user.type(minh, '300000')
+    expect(screen.queryByText(over)).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  test('Hoàn tác after a blocked fill lifts the block with the amounts', () => {
+    const { form } = setupWithRef()
+    act(() => {
+      form().fill(blocked)
+    })
+    act(() => {
+      form().undoFill()
+    })
+    expect(screen.queryByText(over)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Chia đều' })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
 describe('ExpenseForm, Escape closes the folds (DESIGN.md §8)', () => {
   test('Escape in the date fold closes it and focuses Đổi ngày', async () => {
     const { user } = setup()

@@ -67,3 +67,28 @@ describe('draftSummary', () => {
     )
   })
 })
+
+describe('draftSummary, named amounts (specs/009-ai-custom-split)', () => {
+  test('a custom split says how many people have a share', () => {
+    const custom: ExpenseDraft = {
+      ...draft,
+      split: {
+        type: 'custom',
+        shares: [
+          { member_id: 1, amount: 140_000 },
+          { member_id: 2, amount: 100_000 },
+          { member_id: 3, amount: 0 },
+        ],
+        rest_to: 1,
+        rest_amount: 40_000,
+        rest_to_payer: true,
+      },
+    }
+    expect(draftSummary(custom, members)).toBe(`Đã điền: Lẩu · ${formatVND(240000)} · Minh trả · tự chia 2\u00a0người.`)
+  })
+
+  test('a blocked split is left to its warning', () => {
+    const blocked: ExpenseDraft = { ...draft, split: { type: 'blocked', reason: 'over_total', preview: [] } }
+    expect(draftSummary(blocked, members)).toBe(`Đã điền: Lẩu · ${formatVND(240000)} · Minh trả.`)
+  })
+})

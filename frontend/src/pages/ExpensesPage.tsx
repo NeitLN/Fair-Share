@@ -18,7 +18,7 @@ import ExpenseTable from '../components/ExpenseTable'
 import ExportCsvButton from '../components/ExportCsvButton'
 import MonthTotals from '../components/MonthTotals'
 import RecurringList from '../components/RecurringList'
-import { warningMessage } from '../lib/aiWarnings'
+import { draftToFill } from '../lib/draftFill'
 import { errorMessage } from '../lib/errors'
 import { today } from '../lib/date'
 import { filterExpenses, isFiltered, monthNumber, monthsOf, monthTotals, NO_FILTER } from '../lib/expenseFilters'
@@ -250,16 +250,7 @@ function ExpensesPage() {
                     members={members.data}
                     onParse={(text) => parseExpense(householdId, text)}
                     onDraft={(draft, warnings) =>
-                      expenseForm.current?.fill({
-                        description: draft.description,
-                        amount: draft.amount,
-                        payer_id: draft.payer_id,
-                        spent_at: draft.spent_at,
-                        member_ids: draft.split.member_ids,
-                      splitNote: warnings.some((w) => w.code === 'participants_assumed')
-                        ? warningMessage({ code: 'participants_assumed', message: '' })
-                        : null,
-                      }) ?? { filled: [], kept: [], cleared: [] }
+                      expenseForm.current?.fill(draftToFill(draft, warnings)) ?? { filled: [], kept: [], cleared: [] }
                     }
                     onUndo={() => expenseForm.current?.undoFill()}
                     onManual={() => expenseForm.current?.focusDescription()}

@@ -455,9 +455,37 @@ class AiParseIn(BaseModel):
     text: AiText
 
 
-class DraftSplit(BaseModel):
-    type: Literal["equal"]
+class EqualDraftSplit(BaseModel):
+    type: Literal["equal"] = "equal"
     member_ids: list[int]
+
+
+class DraftShare(BaseModel):
+    member_id: int
+    amount: int
+
+
+class CustomDraftSplit(BaseModel):
+    """Named amounts placed by app/services/allocation.py; the shares add up to the amount."""
+
+    type: Literal["custom"] = "custom"
+    shares: list[DraftShare]  # member id order
+    rest_to: int | None  # who took what was left after the named amounts; None when nothing was
+    rest_amount: int
+    rest_to_payer: bool  # the rest went to the payer, so the split only holds with that payer
+
+
+class BlockedDraftSplit(BaseModel):
+    """Named amounts that cannot be placed safely: shown as read, never a usable split."""
+
+    type: Literal["blocked"] = "blocked"
+    reason: str  # the code of the warning that says why
+    preview: list[DraftShare]
+
+
+DraftSplit = Annotated[
+    EqualDraftSplit | CustomDraftSplit | BlockedDraftSplit, Field(discriminator="type")
+]
 
 
 class ExpenseDraft(BaseModel):
@@ -473,10 +501,16 @@ class ExpenseDraft(BaseModel):
 
 
 class DraftWarning(BaseModel):
-    # unknown_member · no_payer · no_amount · participants_assumed
+    # unknown_member · no_payer · no_amount · participants_assumed, and the reasons a split is
+    # blocked (specs/009-ai-custom-split): over_total · ambiguous_member · duplicate_member ·
+    # no_rest_taker · no_total · nobody_for_equal_rest · fraction_or_percent · several_payers ·
+    # paid_amount · payer_not_sharing · unreadable_shares
     code: str
     message: str
-    name: str | None = None  # the name as written, for unknown_member
+    name: str | None = None  # the name as written, for unknown_member and the other name codes
+    named_sum: int | None = None  # over_total
+    total: int | None = None  # over_total
+    remainder: int | None = None  # no_rest_taker · nobody_for_equal_rest
 
 
 class AiDraft(BaseModel):
