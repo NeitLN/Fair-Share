@@ -25,6 +25,7 @@ import { filterExpenses, isFiltered, monthNumber, monthsOf, monthTotals, NO_FILT
 import type { ExpenseFilter } from '../lib/expenseFilters'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
+import { useMemberPhotos } from '../lib/useMemberPhotos'
 import { formatVND } from '../lib/money'
 import { useSession } from '../lib/session'
 import { useToast } from '../lib/toast'
@@ -159,7 +160,8 @@ function ExpensesPage() {
     expenseForm.current?.focusDescription()
     navigate(location.pathname, { replace: true, state: null })
   }, [wantsDescription, members.isSuccess, navigate, location.pathname])
-  const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  const photos = useMemberPhotos(householdId, members.data)
+  const looks = useMemo(() => memberLooks(members.data ?? [], photos), [members.data, photos])
   // Names from before accounts that nobody has taken (role null) stay in old expenses only (M3)
   const withAccount = useMemo(() => (members.data ?? []).filter((m) => m.role !== null), [members.data])
   // You, else whoever paid last on this device (DESIGN.md §6.3)

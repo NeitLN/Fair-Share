@@ -40,6 +40,7 @@ cookie that browsers block, and a header needs no CSRF protection.
 | Quick add | yes | yes | |
 | Change their own name everywhere, and their password (profile page) | yes | yes | yes, name and password only: no household changes |
 | Set their own status; see housemates' statuses | yes | yes | sets it; sees none, and nobody sees theirs there |
+| Set or remove their own photo; see housemates' photos | yes | yes | sets it; sees none, and nobody sees theirs there |
 | Leave | no (would need a new owner first) | yes | cancel the request |
 
 Every check is in the API (`app/access.py`, the routers). Hiding a button only makes the page easier
@@ -66,6 +67,7 @@ to use.
 | P1 | `PATCH /api/me` sets the display name and the person's own name in every household where they are owner or member, in one transaction. A household where someone else's name already equals it ignoring case keeps the old name (a savepoint per household) and is listed in `kept`; any other failure changes nothing. Households still waiting are not touched. Saving the same name brings a household the owner renamed back in line. The owner's right to rename a name is unchanged (specs/010-profile-page) | `test_profile.py`: rename tests |
 | P2 | `POST /api/me/password` needs the current password; wrong ones count in the login limits of A2 (same buckets, counted before the check) and answer `400 wrong_password`, never 401, so the page does not sign out. A change ends every other session of the account and keeps the caller's. Both the change and the last step of a login take the user row lock and compare the stored hash, so a login that checked the old password during a change gets `401 invalid_credentials` and no session | `test_profile.py`: password tests, `test_a_login_with_the_old_password_during_the_change_…` |
 | P3 | A status (`PUT /api/me/status`) is 1 to 60 code points after cleaning like a name, direction controls removed; empty clears it. It belongs to the account and shows in a household only through a live owner or member link: someone waiting, someone who left or lost access, and a name from before accounts show none, and an account approved onto an old name shows only its own. Plain text, never a link (specs/010-profile-page, US3) | `test_status.py` |
+| P4 | A photo (`PUT /api/me/photo`, the raw picture as `image/jpeg`, `image/png` or `image/webp` within the 64 KiB body limit) is checked by `app/services/images.py`: the declared type must match the first bytes, the picture must be at most 512 × 512 (read from the header, before decoding) and one frame, and what is kept is the server's own 256 × 256 JPEG without metadata, at most 32 KiB, one per account, replaced in place. Uploads count before checking: 10 an hour per account, 30 per address (`429`); a refused one stays counted. All photos together stay under 50 MB, checked under an advisory lock (`507 photo_storage_full`); two decodings at a time (`503 busy`). A photo reaches only the person (`GET /api/me/photo`) and their current housemates (`GET /api/households/{id}/photos`, one batch, `no-store`), through signed-in requests, never at an address of its own; the same live-link rule as P3 | `test_photos.py`, `test_images.py` |
 | L1 | The old key shows an ownerless household to take over; with an owner it answers "ask for an invite code"; a wrong key is a 404 | `test_the_first_signed_in_person_…` |
 
 ## API
@@ -92,6 +94,8 @@ to use.
 | `PATCH /api/me` `{display_name}` | `{user, kept: [{household_id, household_name, name}]}` (P1) |
 | `POST /api/me/password` `{current_password, new_password}` | `204`; `400 wrong_password`; `429` as login (P2) |
 | `PUT /api/me/status` `{status}` | the account with its status (P3); `Member` and `User` carry `status` |
+| `PUT`, `DELETE`, `GET /api/me/photo` | upload (`{version}`), remove, or read your own photo (P4) |
+| `GET /api/households/{id}/photos` | `{photos: [{member_id, version, data}]}`; `Member` carries `photo_version` (P4) |
 
 ## Data
 
@@ -99,7 +103,7 @@ to use.
 name), `invite_codes` and `rate_limits`, and `created_by` on expenses and settlements. 001 and 002
 are unchanged; `households.access_key` stays only for L1. `004_payment_notices.sql` adds
 `payment_notices` (S3): one row per pair, removed with either name, when it is answered "Đã nhận", or when
-the told amount is recorded by hand. `007_user_status.sql` adds `users.status` (P3).
+the told amount is recorded by hand. `007_user_status.sql` adds `users.status` (P3), `008_user_photos.sql` the table `user_photos` (P4).
 
 ## Limits we accept
 
@@ -123,5 +127,9 @@ the told amount is recorded by hand. `007_user_status.sql` adds `users.status` (
   one owner; the other is told to ask for an invite code.
 * The `/join/CODE` link puts the code in the path, which the static host may log (found in review).
   A code alone only asks to join: the owner still approves, and a new code replaces it.
+* Photos and statuses are not reviewed by anyone. The owner can take a member's access away, which
+  hides them in that household but does not delete them or remove them from other households; an
+  owner who misuses them is out of reach except by leaving. A photo already shown on someone's screen
+  cannot be called back; the app only stops serving it.
 * Each run of the live E2E tests leaves its two or three test accounts (`@fair-share.test`); their
   households are deleted. A clean-up, or a way to delete an account, is future work.

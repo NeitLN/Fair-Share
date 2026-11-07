@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import type { MemberLook } from '../lib/names'
 import { useT } from '../i18n'
 
@@ -10,17 +12,23 @@ interface AvatarProps {
   decorative?: boolean
 }
 
-/** A circular sticker with the member's initial (docs/DESIGN.md §5). */
+/**
+ * A circular sticker with the member's photo, or their initial (docs/DESIGN.md §5). The photo sits in
+ * the same circle, ring and shadow; the label stays on the circle, so a screen reader hears the name
+ * once. A photo that fails to show falls back to the initial.
+ */
 export function Avatar({ look, size = 'md', decorative = false }: AvatarProps) {
+  const [broken, setBroken] = useState<string | null>(null)
+  const photo = look.photo && look.photo !== broken ? look.photo : undefined
   const label = decorative ? {} : { role: 'img', 'aria-label': look.full }
   return (
     <span
-      className={`avatar avatar-${size} tint-${look.tint}`}
+      className={`avatar avatar-${size} tint-${look.tint}${photo ? ' has-photo' : ''}`}
       title={look.full}
       aria-hidden={decorative || undefined}
       {...label}
     >
-      {look.initial}
+      {photo ? <img src={photo} alt="" onError={() => setBroken(photo)} /> : look.initial}
     </span>
   )
 }

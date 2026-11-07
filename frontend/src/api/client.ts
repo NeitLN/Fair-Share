@@ -54,7 +54,8 @@ const SIGN_IN_ROUTES = /^\/api\/auth\/(login|register)$/
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
+  // A JSON body unless the caller said otherwise (a photo goes up as image/jpeg)
+  if (init.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   const session = currentSession()
   if (session) headers.set('Authorization', `Bearer ${session.token}`)
 

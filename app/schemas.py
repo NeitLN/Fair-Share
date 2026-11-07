@@ -153,8 +153,10 @@ class Member(BaseModel):
     # Whose account this name belongs to; None for a name from before accounts nobody has taken yet
     role: Literal["owner", "member"] | None = None
     user_id: int | None = None
-    # That account's status, only while it is an owner or member here (specs/010-profile-page)
+    # That account's status and photo version, only while it is an owner or member here
+    # (specs/010-profile-page); the photo itself comes from GET /api/households/{id}/photos
     status: str | None = None
+    photo_version: str | None = None
 
 
 # --- Accounts (docs/ACCOUNTS.md) ----------------------------------------------------------------
@@ -246,6 +248,27 @@ def clean_status(value: Any) -> Any:
 
 class StatusIn(BaseModel):
     status: Annotated[str | None, BeforeValidator(clean_status)] = None
+
+
+class PhotoVersion(BaseModel):
+    version: str
+
+
+class MyPhoto(BaseModel):
+    """The caller's own photo for the profile page; both None without one."""
+
+    version: str | None
+    data: str | None  # data:image/jpeg;base64,...
+
+
+class MemberPhoto(BaseModel):
+    member_id: int
+    version: str
+    data: str  # data:image/jpeg;base64,...
+
+
+class HouseholdPhotos(BaseModel):
+    photos: list[MemberPhoto]
 
 
 class PasswordIn(BaseModel):

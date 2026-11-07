@@ -124,7 +124,7 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 
 | Component | Spec |
 |---|---|
-| **Avatar** | Circle, 32 px (26 small, 44 large). Background tint per §3 (stable, no repeats up to 8), initial of the **last word** of the name in `--on-fill`, 2 px `--edge` ring, 2 px `--sticker-shadow` offset. `title` and accessible name = full name. A stack shows at most 3, then `+n` |
+| **Avatar** | Circle, 32 px (26 small, 44 large). Background tint per §3 (stable, no repeats up to 8), initial of the **last word** of the name in `--on-fill`, 2 px `--edge` ring, 2 px `--sticker-shadow` offset. `title` and accessible name = full name. A stack shows at most 3, then `+n`. With a photo (spec 010) the photo fills the same circle (`object-fit: cover`), same ring and shadow, `alt=""` so the name is read once; while it loads or if it fails, the initial |
 | **Money** | `<Money amount={n} />` → `120.000<span class="cur">đ</span>`; sign variants `+` (credit text) and `−` (debt text, a real minus `U+2212`). Replaces `formatVND`'s "₫" everywhere |
 | **Chip** | 12 px 700, pill. `credit` mint, `debt` pink, `ai` yellow (`✦ AI`): text `--on-fill`. `me` (*bạn*) is the exception: background `--ink`, text `--bg` (16:1 both themes) |
 | **Stamp ĐÃ TRẢ** | Mint sticker, 3 px edge, −8°, on a transfer the moment it is recorded; animation: scale 1.7 → 1 in 240 ms with a slight overshoot (the one deliberate bounce in the app; instant under reduce motion). The card turns `--surface-2`, never faded |
@@ -547,6 +547,10 @@ One column, at most 560 px wide. Under the h1 the email, read only, with "Email 
 được.". Then one card per part (the *start-way* card look: 1 px card edge, section radius, surface), each its
 own form with its own button, so an error in one never loses what was typed in another:
 
+* **Ảnh đại diện**: the large avatar (88 px), photo or initial, beside *Chọn ảnh* / *Đổi ảnh* and *Gỡ ảnh*.
+  A picked photo is shown as it will be saved (the centre square, upright) with *Lưu* and *Huỷ*; the
+  hint says who sees it. A picture the browser cannot open: "Chưa đọc được ảnh này. Chọn ảnh JPEG, PNG
+  hoặc WebP nhé."
 * **Tên của bạn**: the display name, with "Đổi ở đây là đổi tên của bạn ở mọi nhà đang ở."; *Lưu* stays
   enabled for the same name (saving it again brings back a household the owner renamed). The answer is
   "Đã đổi tên ở mọi nhà." in a green note, or one line per household that kept the old name: "Ở Nhà B đã có
@@ -558,7 +562,7 @@ own form with its own button, so an error in one never loses what was typed in a
   quá nhiều lần…"); success: "Đã đổi mật khẩu. Các nơi khác đã đăng xuất."
 
 Field problems sit under their field (`field-problem`, `aria-describedby`); answers are in a polite live
-region. Later parts of the spec (photo, gender) add their own cards here.
+region. The gender card comes last, in the spec's fourth part.
 
 ## 7. Copy
 

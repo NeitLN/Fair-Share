@@ -3480,3 +3480,28 @@ button.ai:active:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A photo in the avatar circle (specs/010-profile-page): the same size, ring and shadow */
+.avatar.has-photo {
+  overflow: hidden;
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* The profile page's photo: a large preview beside its buttons */
+.profile-photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-photo .avatar {
+  --size: 88px;
+}

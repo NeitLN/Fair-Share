@@ -4,7 +4,7 @@ docs/ACCOUNTS.md). docs/ARCHITECTURE.md §5."""
 import secrets
 from datetime import timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from psycopg import Connection, errors
 
 from app.access import (
@@ -21,6 +21,7 @@ from app.schemas import (
     MAX_PARTICIPANTS,
     ApproveIn,
     HouseholdIn,
+    HouseholdPhotos,
     Id,
     InviteCode,
     JoinRequest,
@@ -28,6 +29,7 @@ from app.schemas import (
     MyHousehold,
     MyHouseholds,
 )
+from app.services.images import data_url
 
 # Every route here needs a session, and one with a household id in its path an approved member of
 # that household (app/access.py)
@@ -39,9 +41,11 @@ HOUSEHOLD_COLUMNS = "id, name, created_at"
 # waiting has no linked name, one who left has no link, an old name has no account
 SELECT_MEMBERS = (
     "SELECT m.id, m.household_id, m.name, m.created_at, hu.role, hu.user_id,"
-    " CASE WHEN hu.role IN ('owner', 'member') THEN u.status END AS status FROM members m"
+    " CASE WHEN hu.role IN ('owner', 'member') THEN u.status END AS status,"
+    " CASE WHEN hu.role IN ('owner', 'member') THEN p.version END AS photo_version FROM members m"
     " LEFT JOIN household_users hu ON hu.household_id = m.household_id AND hu.member_id = m.id"
     " LEFT JOIN users u ON u.id = hu.user_id"
+    " LEFT JOIN user_photos p ON p.user_id = hu.user_id"
 )
 # No more members than one expense can be split between, so an equal split for the whole
 # household always works (#134)
@@ -201,6 +205,27 @@ def delete_household(household_id: Id, access: AccessDep, conn: ConnDep):
     deleted = conn.execute("DELETE FROM households WHERE id = %s", (household_id,)).rowcount
     if not deleted:
         raise household_not_found()
+
+
+@router.get("/households/{household_id}/photos", response_model=HouseholdPhotos)
+def household_photos(household_id: Id, conn: ConnDep, response: Response):
+    """Every current owner's and member's photo in one answer (specs/010-profile-page, research
+    R2): an <img src> cannot carry the Bearer token, so the page asks once and shows data URLs.
+    Checked like every household route; never cached by the browser or a proxy."""
+    response.headers["Cache-Control"] = "no-store"
+    rows = fetch_all(
+        conn,
+        "SELECT hu.member_id, p.version, p.image FROM household_users hu"
+        " JOIN user_photos p ON p.user_id = hu.user_id"
+        " WHERE hu.household_id = %s AND hu.role IN ('owner', 'member') ORDER BY hu.member_id",
+        (household_id,),
+    )
+    return {
+        "photos": [
+            {"member_id": r["member_id"], "version": r["version"], "data": data_url(r["image"])}
+            for r in rows
+        ]
+    }
 
 
 @router.get("/households/{household_id}/members", response_model=list[Member])

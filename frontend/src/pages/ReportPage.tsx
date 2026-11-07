@@ -19,6 +19,7 @@ import { useMe } from '../lib/identity'
 import { clampMonth, inStep, isMonth, monthRange, monthReport, shiftMonth } from '../lib/monthReport'
 import type { MonthReport, ReportLine } from '../lib/monthReport'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
+import { useMemberPhotos } from '../lib/useMemberPhotos'
 import type { MemberLook } from '../lib/names'
 import { useWide } from '../lib/useWide'
 import { useT } from '../i18n'
@@ -66,7 +67,8 @@ function ReportPage() {
     () => (loaded ? monthReport(month, expenses.data, settlements.data, members.data, current) : null),
     [loaded, month, expenses.data, settlements.data, members.data, current],
   )
-  const looks = useMemo(() => memberLooks(members.data ?? []), [members.data])
+  const photos = useMemberPhotos(householdId, members.data)
+  const looks = useMemo(() => memberLooks(members.data ?? [], photos), [members.data, photos])
   const waiting = report !== null && range !== null && month === range.last && !inStep(report, balances.data!.balances)
 
   // Out of step: one of the queries is older than the others; ask all of them again, once per mismatch

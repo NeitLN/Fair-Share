@@ -1,11 +1,22 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 
 import { ApiError } from '../api/client'
-import { changePassword, keys, renameMe, setStatus } from '../api/households'
+import {
+  changePassword,
+  getMyPhoto,
+  keys,
+  removePhoto,
+  renameMe,
+  setStatus,
+  uploadPhoto,
+} from '../api/households'
+import { Avatar } from '../components/Avatar'
 import type { MyHouseholds, RenameResult } from '../api/types'
 import { useT } from '../i18n'
 import { errorMessage } from '../lib/errors'
+import { initialOf } from '../lib/names'
+import { cropToSquare, PhotoPickError } from '../lib/photoCrop'
 import { updateUser, useSession } from '../lib/session'
 
 /**
@@ -25,6 +36,7 @@ function AccountPage() {
         <strong>{session.user.email}</strong>
         <span className="hint">{t.profile.emailHint}</span>
       </p>
+      <PhotoForm name={session.user.display_name} userId={session.user.id} />
       <NameForm current={session.user.display_name} />
       <StatusForm current={session.user.status ?? ''} />
       <PasswordForm />
@@ -125,8 +137,110 @@ function RenameNote({ result }: { result: RenameResult }) {
   )
 }
 
-/** Code points, as the server counts: an emoji is one, not two UTF-16 units. */
-const length = (text: string) => [...text.trim()].length
+function PhotoForm({ name, userId }: { name: string; userId: number }) {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const input = useRef<HTMLInputElement>(null)
+  const mine = useQuery({ queryKey: keys.myPhoto, queryFn: getMyPhoto })
+  const [picked, setPicked] = useState<{ blob: Blob; url: string } | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [saved, setSaved] = useState<'set' | 'removed' | null>(null)
+  // The preview's object URL is freed when it is replaced or the page closes
+  useEffect(
+    () => () => {
+      if (picked) URL.revokeObjectURL(picked.url)
+    },
+    [picked],
+  )
+
+  const done = (what: 'set' | 'removed') => {
+    setPicked(null)
+    setSaved(what)
+    queryClient.invalidateQueries({ queryKey: keys.myPhoto })
+    // Every household shows the new photo at its next look (FR-032)
+    queryClient.invalidateQueries({ queryKey: keys.households })
+  }
+  const save = useMutation({ mutationFn: (blob: Blob) => uploadPhoto(blob), onSuccess: () => done('set') })
+  const remove = useMutation({ mutationFn: removePhoto, onSuccess: () => done('removed') })
+  const busy = save.isPending || remove.isPending
+
+  async function pick(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // the same file can be picked again after Huỷ
+    if (!file) return
+    setProblem(null)
+    setSaved(null)
+    save.reset()
+    try {
+      const blob = await cropToSquare(file)
+      setPicked({ blob, url: URL.createObjectURL(blob) })
+    } catch (error) {
+      setProblem(error instanceof PhotoPickError && error.reason === 'too_big' ? t.profile.photoTooBig : t.profile.photoUnreadable)
+    }
+  }
+
+  const look = {
+    full: name,
+    short: name,
+    initial: initialOf(name),
+    tint: (userId % 8) + 1,
+    photo: picked?.url ?? mine.data?.data ?? undefined,
+  }
+  const failure = save.error ?? remove.error
+  return (
+    <section className="profile-part" aria-labelledby="profile-photo-title">
+      <h2 id="profile-photo-title">{t.profile.photoTitle}</h2>
+      <div className="profile-photo">
+        <Avatar look={look} size="lg" />
+        <div className="profile-buttons">
+          {picked ? (
+            <>
+              <button type="button" disabled={busy} onClick={() => save.mutate(picked.blob)}>
+                {save.isPending ? t.profile.saving : t.profile.save}
+              </button>
+              <button type="button" className="btn-secondary" disabled={busy} onClick={() => setPicked(null)}>
+                {t.common.cancel}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" disabled={busy} onClick={() => input.current?.click()}>
+                {mine.data?.data ? t.profile.photoChange : t.profile.photoPick}
+              </button>
+              {mine.data?.data && (
+                <button type="button" className="btn-secondary" disabled={busy} onClick={() => remove.mutate()}>
+                  {remove.isPending ? t.profile.saving : t.profile.photoRemove}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      <input
+        ref={input}
+        id="profile-photo-file"
+        // Opened by the Chọn ảnh button, which is the control people reach and read
+        hidden
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic"
+        aria-label={t.profile.photoPick}
+        onChange={pick}
+      />
+      <p className="hint">{picked ? t.profile.photoPreview : t.profile.photoHint}</p>
+      {(problem || failure) && (
+        <p className="field-problem" role="alert">
+          {problem ?? errorMessage(failure)}
+        </p>
+      )}
+      <div className="profile-live" aria-live="polite">
+        {saved && <p className="note ok">{saved === 'set' ? t.profile.photoSaved : t.profile.photoRemoved}</p>}
+      </div>
+    </section>
+  )
+}
+
+/** Code points after NFC, as the server counts: an emoji is one, and "ế" typed as e + marks is one too. */
+const length = (text: string) => [...text.normalize('NFC').trim()].length
 const MAX_STATUS = 60
 
 function StatusForm({ current }: { current: string }) {

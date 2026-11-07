@@ -103,7 +103,7 @@ What runs in production, checked against the live services on 22 Oct 2026
 | Layer | Technology | Where it runs |
 |---|---|---|
 | Presentation | React + TypeScript + Vite | Render Static Site (CDN, HTTPS) |
-| Application | Python 3.12 (same in the image and in CI), FastAPI, Uvicorn, psycopg 3 | Docker container on a Render Web Service, non-root |
+| Application | Python 3.12 (same in the image and in CI), FastAPI, Uvicorn, psycopg 3, Pillow (profile photos only) | Docker container on a Render Web Service, non-root |
 | Data | PostgreSQL | Supabase (cloud) · `postgres:16-alpine` (local and CI) |
 | AI | Google Gemini API, structured JSON output | Called from the API only |
 | CI/CD | GitHub Actions → Render deploy hooks | GitHub-hosted runners |

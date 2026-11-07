@@ -198,7 +198,8 @@ settlement must be members of the **same household** (composite foreign keys on
   participants with the lowest member id. Shares therefore always sum to the amount exactly.
 * **Profile** ([spec 010](../specs/010-profile-page/spec.md), `007_user_status.sql`): `users.status`
   (1–60 code points) is joined into the members query through the live `household_users` link only, so a
-  person waiting, gone, or an old name shows none.
+  person waiting, gone, or an old name shows none. `008_user_photos.sql` keeps one photo per account
+  (`user_photos`: the server's own 256 × 256 JPEG, at most 32 KiB, and a 12-character version).
 * **Recurring expenses** ([spec 007](../specs/007-recurring-expenses/spec.md),
   `006_recurring_expenses.sql`): an item remembers how to fill the form again (equal split, amount or
   none, day of the month); it is made by ticking a new expense and recorded from by a person, never by
@@ -284,6 +285,11 @@ kept per household through a savepoint (ACCOUNTS.md P1); `POST /api/me/password`
 password against the login limits on its own connections, as login does, then writes the new hash and
 ends the other sessions under the user row lock. Login's last step takes the same lock and compares the
 hash it verified, so no session comes out of a password that changed meanwhile (P2).
+Photos (P4): `PUT /api/me/photo` reads the raw picture, counts the upload, then `app/services/images.py`
+(Pillow, at most two at a time) refuses anything but one small still JPEG, PNG or WebP and re-encodes it;
+the write sums the stored bytes under an advisory lock to keep all photos under 50 MB. An `<img>` cannot
+send the Bearer token, so the members list carries each photo's version and the page asks
+`GET /api/households/{id}/photos` once for data URLs, again only when a version changes; nothing polls.
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.

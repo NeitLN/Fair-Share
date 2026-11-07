@@ -11,6 +11,8 @@ export interface MemberLook {
   initial: string
   /** Avatar tint 1–8 (--tint-1 … --tint-8). */
   tint: number
+  /** The person's photo as a data URL, when they have one and it has arrived (specs/010-profile-page). */
+  photo?: string
 }
 
 export const TINTS = 8
@@ -91,7 +93,7 @@ export function tints(members: Member[]): Map<number, number> {
 }
 
 /** Everything needed to show the members of one household, keyed by member id. */
-export function memberLooks(members: Member[]): Map<number, MemberLook> {
+export function memberLooks(members: Member[], photos?: Map<number, string>): Map<number, MemberLook> {
   const shorts = shortNames(members)
   const colours = tints(members)
   return new Map(
@@ -102,6 +104,8 @@ export function memberLooks(members: Member[]): Map<number, MemberLook> {
         short: shorts.get(m.id) ?? m.name,
         initial: initialOf(m.name),
         tint: colours.get(m.id) ?? 1,
+        // Only while the member still has one: a removed photo is never shown from an older batch
+        photo: m.photo_version ? photos?.get(m.id) : undefined,
       },
     ]),
   )
