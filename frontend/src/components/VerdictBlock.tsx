@@ -6,7 +6,7 @@ import { closeFoldOnEscape } from '../lib/fold'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
-import { transferText, verdict } from '../lib/verdict'
+import { transferText, verdict, verdictPeople } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Stamp } from './Chip'
 import { Money } from './Money'
@@ -203,6 +203,7 @@ function VerdictBlock({
   }
 
   const { sentence, total } = verdict(owed, me, nameOf, started)
+  const people = verdictPeople(owed, me)
 
   // A notice whose pair is no longer suggested (an expense or another repayment changed the balances)
   // keeps its own card, so it can still be answered or taken back: the money may have moved. A declined
@@ -228,7 +229,17 @@ function VerdictBlock({
 
   return (
     <>
-      <section className="verdict" aria-labelledby={`${id}-title`}>
+      <section className={`verdict${people.length > 0 ? ' has-people' : ''}`} aria-labelledby={`${id}-title`}>
+        {/* Who the money comes from (or goes to, when you owe), as stickers in the corner (owner, 07/11).
+            Decoration: the sentence already names them */}
+        {people.length > 0 && (
+          <span className="avatar-stack verdict-people" aria-hidden="true">
+            {people.slice(0, 3).map((memberId) => (
+              <Avatar key={memberId} look={lookOf(memberId)} size="lg" decorative />
+            ))}
+            {people.length > 3 && <span className="avatar avatar-lg avatar-more">+{people.length - 3}</span>}
+          </span>
+        )}
         <h2 id={`${id}-title`} ref={heading} className="verdict-sentence" tabIndex={-1}>
           {sentence}
         </h2>

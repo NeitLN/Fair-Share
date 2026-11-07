@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import type { MemberBalance, Transfer } from '../api/types'
-import { reminderMessage, tookPart, transferText, verdict } from './verdict'
+import { reminderMessage, tookPart, transferText, verdict, verdictPeople } from './verdict'
 
 const names: Record<number, string> = { 1: 'Tiến', 2: 'Minh', 3: 'Anh', 4: 'Lan', 5: 'Hương' }
 const nameOf = (id: number) => names[id] ?? 'Thành viên cũ'
@@ -82,4 +82,14 @@ test('taking part means any money at all, not a non-zero balance', () => {
   expect(tookPart(b(0, 0))).toBe(false)
   expect(tookPart(b(100, 100))).toBe(true)
   expect(tookPart(b(0, 0, 0, 5))).toBe(true)
+})
+
+// Owner, 07/11: the stickers in the verdict's corner are the people the money comes from
+test('the verdict shows who sends you money, or who you send it to, never yourself', () => {
+  const tr = (from: number, to: number) => ({ from_member_id: from, to_member_id: to, amount: 1 })
+  expect(verdictPeople([tr(2, 1), tr(3, 1), tr(2, 3)], 1)).toEqual([2, 3])
+  expect(verdictPeople([tr(1, 2), tr(1, 3)], 1)).toEqual([2, 3])
+  expect(verdictPeople([tr(2, 1), tr(2, 1)], 1)).toEqual([2])
+  expect(verdictPeople([tr(2, 3)], 1)).toEqual([])
+  expect(verdictPeople([tr(2, 1)], null)).toEqual([])
 })

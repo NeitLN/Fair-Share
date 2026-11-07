@@ -37,8 +37,8 @@ How we got here:
    (`#C8B99F` light, `#544B40` dark) and no shadow. Inside a panel, spacing and quiet `--line` dividers
    group things, never a second frame; fields and controls keep their own 2 px `--control-line`. The
    taro verdict block and its transfer cards stay borderless (their fill already stands out, 6.3:1).
-   Avatars, the two stamps, a form's submit and the AI button keep their 2–3 px offset shadow, and
-   pressing one moves it down by exactly its shadow. (UI review 04/11: on a laptop the white panels
+   Avatars, the two stamps, a form's submit, the AI button and *+ Ghi khoản chi* on Tổng quan keep
+   their 2–3 px offset shadow, and pressing one moves it down by exactly its shadow. (UI review 04/11: on a laptop the white panels
    vanished against the page at 1.30:1; the edge is 1.70:1 to the page. The cream of 05/11 kept it at
    1.71:1, darker than the mockup's 1.42:1.)
 3. **Money is sacred.** Bold, tabular figures, right-aligned in lists, always with a sign or a word
@@ -188,19 +188,19 @@ avatar stack would need one more request per house. If it is added later, one
 ←  Fair·Share
 Nhà trọ Q7                     (T)(M)(A)+1      ← 22 px on a phone
 [ Tổng quan | Chi tiêu | Thành viên ]
-[ + Ghi khoản chi ]                              ← 48 px, filled, no sticker shadow
+[ + Ghi khoản chi ]                              ← 48 px, ink fill, 3 px taro shadow (07/11)
 ╔══════════ taro block ═══════════╗   ← verdict B (05/11): only the answer
-║ Bạn cần trả Minh                 ║
+║ Bạn cần trả Minh           (M)   ║   ← verdict C (07/11): who it is about, top right
 ║ 120.000đ                         ║   ← 44 px
 ║ Vì sao ra số này?                ║   ← when your balance is not 0
 ║ Đã báo chuyển 120.000đ · chờ Minh xác nhận ║ ← only your own sent notice
 ╚═════════════════════════════════╝
 ┌─────────── transfers panel ─────┐   ← white, 1 px --card-edge, right under the block
-│ (T) Bạn trả Minh 120.000đ        │   ← yours first
+│ (T) Bạn cần trả Minh 120.000đ    │   ← yours first
 │     Đã báo, chờ Minh xác nhận.   │   ← where it stands
-│     Huỷ báo                      │   ← then what you can do (flat buttons)
+│     Huỷ thông báo                │   ← then what you can do (flat buttons)
 │ ─────────────────────────────── │   ← --line between the rows
-│ (A) Duy Anh trả Minh 80.000đ · Chưa trả. │
+│ (A) Duy Anh cần trả Minh 80.000đ │
 │ [ Sao chép tin nhắn nhắc nợ ]    │   ← secondary button, last
 └─────────────────────────────────┘
 Tháng 10/2026: cả nhà chi 3.460.000đ             ← this month, a section of its own
@@ -210,13 +210,22 @@ Số dư từng người                   tính từ đầu tới hôm nay
  (M) Minh   tổng đã chi 1.065.000đ  +200.000đ  được nhận
  (T) Tiến bạn                      −120.000đ  cần trả
  (L) Lan                                  0đ  SẠCH NỢ
-Lịch sử trả                      Ghi khoản trả khác
+Lịch sử trả tiền                 Ghi khoản trả khác
 ```
 * **Verdict B** (design review 05/11, mockup variant B). The taro block holds only the answer: the
   sentence, the amount, *Vì sao ra số này?* and your own sent notice. The transfer cards, their actions
   and *Sao chép tin nhắn nhắc nợ* sit in a white panel right under it, as rows with `--line` dividers;
   white cards nested in the taro made the one loud place heavy. With no transfer and nothing to copy
   there is no panel.
+* **Verdict C** (owner's choice, 07/11). The block got a little depth and says who it is about at a
+  glance. The fill is the same taro with a soft light corner top right (a radial gradient that fades
+  into `--block` within 180 px) and a faint 5 % ring behind it, so every point of the block keeps white
+  ≥ 5.9:1 and `--on-block-muted` ≥ 4.5:1 in both themes (measured at 360 and 1440 px). In that corner
+  sit the avatars of the people in your transfers: those who owe you when you are owed, those you owe
+  when you owe. Up to three, then *+n*; none when you are not in any transfer. They are decorative
+  (`aria-hidden`), since the sentence already names them, and the sentence keeps 120 px clear of them.
+  *+ Ghi khoản chi* is filled with `--ink` and carries a 3 px taro shadow, so it reads as the one action
+  without a second purple block next to the verdict.
 * **Identity.** Since accounts ([ACCOUNTS.md](ACCOUNTS.md)) "bạn" is the name the signed-in account
   has in the household, given by the API (`member_id`); there is nothing to choose. It powers "Bạn…"
   sentences, the default payer, and who sees **Đã nhận** on a transfer (only its receiver). Before
@@ -281,15 +290,15 @@ Lịch sử trả                      Ghi khoản trả khác
   number on the page; the items under a line show only while they add up to it, otherwise "Đang cập
   nhật…" for the moment one request refreshed before the other. A zero line does not open. Nothing
   changes from here: an expense opens Chi tiêu with that row revealed, a repayment scrolls to its row in
-  Lịch sử trả. Line amounts carry a sign but no colour; only the total is coloured, with its words.
+  Lịch sử trả tiền. Line amounts carry a sign but no colour; only the total is coloured, with its words.
 
 **Mới ghi** ([spec 006](../specs/006-recently-added/spec.md)): a quiet strip (white surface, card edge, not
 the taro block) at the top of the right column on a computer; on a phone it follows the verdict and its
 transfers, so the money actions stay first. It lists the expenses and repayments another account saved
 since you last pressed *Đánh dấu đã xem hết* in this browser, newest first: "Minh ghi Lẩu tối · 90.000đ",
-"Minh ghi đã nhận 45.000đ từ bạn", each with its time ("Hôm nay, 06/11 · 14:05"). 3 lines on a computer
-and 5 on a phone, so *Báo cáo tháng* stays in the first screen; *Xem thêm N* shows the rest in place. An
-expense opens in Chi tiêu (revealed), a repayment scrolls to its row in Lịch sử trả. Your own records,
+"Minh xác nhận đã nhận 45.000đ từ bạn", each with its time ("Hôm nay, 06/11 · 14:05"). 3 lines on a computer
+and 5 on a phone, so *Báo cáo tháng* stays in the first screen; *Xem thêm N mục* shows the rest in place and then reads *Thu gọn*, which folds them again (owner, 07/11). An
+expense opens in Chi tiêu (revealed), a repayment scrolls to its row in Lịch sử trả tiền. Your own records,
 records from before accounts, edits, deletions and "Tôi đã chuyển" notices are not in it: it is "recently
 added", not an activity log. The marks are kept per account and per house in this browser only (two, one
 for expenses and one for repayments, since they refresh on different schedules); a first visit shows the
@@ -376,6 +385,9 @@ nhà, nên chỉ gửi cho người trong nhà." and *Sao chép link mời* (toa
 Gửi vào nhóm chat của nhà nhé."). Where the clipboard is blocked, the link is shown in a read-only field,
 selected, to copy by hand. The Tổng quan reminder ends with the same link.
 
+For the owner, a fold *Đổi tên nhà* under the invite: the name (1–60 characters, like a new house) and
+*Lưu tên nhà*; the header and Nhà của bạn follow (owner, 07/11: the API could rename, the page could not).
+
 ### 6.5 States on every screen
 
 Loading: skeleton rows in `--surface-2` (no spinners over 300 ms). Empty: one sentence that says what to
@@ -406,7 +418,7 @@ keyboard goes through the page in the order it is seen.
   wordmark led out, and changing house took two pages).
   Nothing is sticky, so nothing covers a focused field on a short laptop screen.
 * **Tổng quan:** two columns (equal at 1024, `minmax(480px, 2fr) 3fr` from 1280). Left: the verdict block,
-  *+ Ghi khoản chi*, then Lịch sử trả. Right: this month, Số dư từng người, then **Khoản chi gần đây**, the last five
+  *+ Ghi khoản chi*, then Lịch sử trả tiền. Right: this month, Số dư từng người, then **Khoản chi gần đây**, the last five
   expenses with *Xem tất cả*, so the balances can be explained without leaving the page. From 1280 the
   right column's panels span it, but each line inside them (Mới ghi, this month, Số dư, Khoản chi gần
   đây) is at most 640 px wide and centred, so a name and its amount are never more than 640 px apart
@@ -421,7 +433,7 @@ keyboard goes through the page in the order it is seen.
   the date and the payer fold under the description instead of squeezing it. The description is a
   button with the row chevron: it opens a tinted row under it with each share (the description and not
   the split under the payer, which that 1024–1407 fold hides). The list hint says "mới nhất ở trên". *Lưu khoản chi* sits at the end of the form, not stuck to the
-  bottom of the screen. From 1280 the three filters (Tháng, Người, Danh mục) share one row, the payer
+  bottom of the screen. From 1280 the three filters (Tháng, Người trả, Danh mục) share one row, the payer
   column is about 250 px and its split line may wrap, so a description like "Xăng đi chợ đầu mối" keeps
   one line (06/11: kept on one line, the split line pushed the payer column wide and broke descriptions).
 * **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)

@@ -397,18 +397,21 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(minh).toHaveTextContent(/Minh.*đã chi 100\.000đ.*325\.000đ.*phần chia/)
   })
 
-  test('a member keeps what they paid or share in; with no match, Xem tất cả clears the filter', async () => {
+  test('a payer keeps what they paid, not what they only share in; Bỏ lọc clears it (owner, 07/11)', async () => {
     three()
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
     await list().findByText('Tiền nhà tháng 9')
 
-    await user.selectOptions(list().getByLabelText('Người'), 'Tiến')
+    // Tiến paid the electricity and only shares the rent
+    await user.selectOptions(list().getByLabelText('Người trả'), 'Tiến')
+    expect(list().getByText('Tiền điện')).toBeInTheDocument()
     expect(list().queryByText('Tiền nước')).not.toBeInTheDocument()
-    expect(list().getByText('Tiền nhà tháng 9')).toBeInTheDocument()
+    expect(list().queryByText('Tiền nhà tháng 9')).not.toBeInTheDocument()
 
     await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
-    await user.selectOptions(list().getByLabelText('Người'), 'Minh')
+    await user.selectOptions(list().getByLabelText('Người trả'), 'Minh')
+    expect(list().getByText('Tiền nước')).toBeInTheDocument()
     await user.selectOptions(list().getByLabelText('Tháng'), '9/2026')
     expect(list().getByText('Tiền nhà tháng 9')).toBeInTheDocument()
 
@@ -424,7 +427,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     renderApp('/households/7/expenses')
     await list().findByText('Tiền nước')
 
-    await user.selectOptions(list().getByLabelText('Người'), 'Tiến')
+    await user.selectOptions(list().getByLabelText('Người trả'), 'Tiến')
 
     expect(list().getByText('Không có khoản chi nào khớp bộ lọc.')).toBeInTheDocument()
     await user.click(list().getByRole('button', { name: 'Xem tất cả' }))

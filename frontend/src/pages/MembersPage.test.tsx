@@ -237,6 +237,26 @@ test('renaming keeps edit mode open when the name is taken', async () => {
   expect(screen.getByLabelText('Tên mới cho Minh')).toHaveValue('Tiến')
 })
 
+// Owner, 07/11: the API could rename a house but the page had no way to
+test('the owner renames the house from Thành viên; an empty name is refused before sending', async () => {
+  const fetchFn = api(asOwner, { 'PATCH /api/households/7': [200, { ...asOwner, name: 'Nhà trọ Q7' }] })
+  const user = userEvent.setup()
+  renderApp('/households/7/members')
+
+  await user.click(await screen.findByText('Đổi tên nhà'))
+  const field = screen.getByLabelText('Tên nhà')
+  expect(field).toHaveValue('Nhà 7')
+  await user.clear(field)
+  await user.click(screen.getByRole('button', { name: 'Lưu tên nhà' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Tên nhà phải từ 1 đến 60 ký tự.')
+
+  await user.type(field, '  Nhà trọ Q7 ')
+  await user.click(screen.getByRole('button', { name: 'Lưu tên nhà' }))
+  expect(await screen.findByText('Đã đổi tên nhà.')).toBeInTheDocument()
+  const patch = fetchFn.mock.calls.find(([url, init]) => String(url).endsWith('/api/households/7') && init?.method === 'PATCH')
+  expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ name: 'Nhà trọ Q7' })
+})
+
 test('a member sees the code but no owner tools, and can leave', async () => {
   const fetchFn = api(asMember, { 'POST /api/households/7/leave': [204], 'GET /api/households': [200, { households: [], pending: [] }] })
   const user = userEvent.setup()
@@ -246,6 +266,7 @@ test('a member sees the code but no owner tools, and can leave', async () => {
   expect(screen.queryByRole('button', { name: 'Đổi mã mới' })).not.toBeInTheDocument()
   expect(screen.queryByRole('region', { name: 'Người xin vào nhà' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /^Đổi tên/ })).not.toBeInTheDocument()
+  expect(screen.queryByText('Đổi tên nhà')).not.toBeInTheDocument()
   expect(fetchFn.mock.calls.some(([url]) => String(url).endsWith('/requests'))).toBe(false)
 
   await user.click(screen.getByRole('button', { name: 'Rời nhà này' }))
