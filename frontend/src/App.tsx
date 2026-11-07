@@ -7,6 +7,7 @@ import { Wordmark } from './components/Wordmark'
 import { useT } from './i18n'
 import { useSession } from './lib/session'
 import { useWide } from './lib/useWide'
+import AccountPage from './pages/AccountPage'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -49,6 +50,7 @@ function App() {
           <Routes>
             <Route index element={<HouseholdsPage />} />
             <Route path="join/:code?" element={<HouseholdsPage />} />
+            <Route path="account" element={<AccountPage />} />
             <Route path="households/:householdId" element={<HouseholdLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="expenses" element={<ExpensesPage />} />

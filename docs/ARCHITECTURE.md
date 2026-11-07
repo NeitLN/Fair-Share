@@ -275,6 +275,13 @@ member without the right gets `403 forbidden`. The accounts, invite code, approv
 the table of rights, are in ACCOUNTS.md. The old `access_key` (`002_household_keys.sql`) is used only to
 take over a household from before accounts.
 
+**The profile page** (`/account`, [specs/010-profile-page](../specs/010-profile-page/spec.md)) uses
+`app/routers/me.py`: `PATCH /api/me` renames the person everywhere in one transaction, a taken name
+kept per household through a savepoint (ACCOUNTS.md P1); `POST /api/me/password` checks the current
+password against the login limits on its own connections, as login does, then writes the new hash and
+ends the other sessions under the user row lock. Login's last step takes the same lock and compares the
+hash it verified, so no session comes out of a password that changed meanwhile (P2).
+
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.
 

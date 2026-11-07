@@ -119,6 +119,18 @@ describe('the session (docs/ACCOUNTS.md)', () => {
     expect(currentSession()?.token).toBe('still-good')
   })
 
+  // specs/010-profile-page: the current password on the profile page is a 400, so the session stays
+  test('a wrong current password when changing it does not sign out; a 401 there still does', async () => {
+    signIn({ token: 'still-good', user })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(400, { error: { code: 'wrong_password', message: 'x' } }))))
+    const body = { current_password: 'x', new_password: 'mat-khau-moi-1' }
+    await expect(api.post('/api/me/password', body)).rejects.toMatchObject({ code: 'wrong_password' })
+    expect(currentSession()?.token).toBe('still-good')
+    sent(401)
+    await expect(api.post('/api/me/password', body)).rejects.toMatchObject({ status: 401 })
+    expect(currentSession()).toBeNull()
+  })
+
   // A request from the last account that answers after someone else signed in on this tab
   function answersLate(status: number, body: unknown) {
     let answer: (response: Response) => void = () => {}

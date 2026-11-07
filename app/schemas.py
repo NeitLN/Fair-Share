@@ -203,6 +203,32 @@ class User(BaseModel):
     display_name: str
 
 
+# --- The signed-in person's own account (specs/010-profile-page) ---------------------------------
+
+
+class MeIn(BaseModel):
+    display_name: DisplayName
+
+
+class KeptName(BaseModel):
+    """A household where the new name was someone else's, so the old one stayed there."""
+
+    household_id: int
+    household_name: str
+    name: str
+
+
+class RenameResult(BaseModel):
+    user: User
+    kept: list[KeptName]
+
+
+class PasswordIn(BaseModel):
+    # Any length is checked against the hash, as at login; only the new one has the 8 to 128 rule
+    current_password: Annotated[str, StringConstraints(max_length=1024)]
+    new_password: Password
+
+
 class SessionOut(BaseModel):
     """The token goes in `Authorization: Bearer <token>` on every later request."""
 

@@ -36,6 +36,11 @@ function set(session: Session | null) {
 
 export const signIn = (session: Session) => set(session)
 
+/** The same session with the account's new details (a rename on the profile page). */
+export const updateUser = (user: Session['user']) => {
+  if (current) set({ ...current, user })
+}
+
 /** Forgets the session on this browser (after logout, or when the API no longer accepts it). */
 export const signOut = () => set(null)
 

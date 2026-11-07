@@ -8,6 +8,7 @@ import type {
   Member,
   MyHousehold,
   MyHouseholds,
+  RenameResult,
   Session,
   User,
 } from './types'
@@ -32,6 +33,14 @@ export const login = (email: string, password: string) =>
 export const logout = () => api.post<void>('/api/auth/logout', {})
 
 export const getMe = () => api.get<User>('/api/auth/me')
+
+/** The display name and the person's own name in every household (specs/010-profile-page). */
+export const renameMe = (displayName: string) =>
+  api.patch<RenameResult>('/api/me', { display_name: displayName })
+
+/** A wrong current password is a 400 `wrong_password`, not a 401, so it never signs out. */
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api.post<void>('/api/me/password', { current_password: currentPassword, new_password: newPassword })
 
 // --- Households -----------------------------------------------------------------------------------
 

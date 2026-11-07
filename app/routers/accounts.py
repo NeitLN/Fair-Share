@@ -137,11 +137,22 @@ def login(body: LoginIn, request: Request):
     # A hash from older settings is made again now, without holding a connection while it runs
     fresh = hash_password(body.password) if needs_rehash(user["password_hash"]) else None
     with connection(request) as conn:
-        release(conn, email_bucket, LOGIN_WINDOW)
-        release(conn, ip_bucket, LOGIN_WINDOW)
-        if fresh:
-            conn.execute("UPDATE users SET password_hash = %s WHERE id = %s", (fresh, user["id"]))
-        token = open_session(conn, user["id"])
+        # The password may have changed while it was being checked (POST /api/me/password ends
+        # every other session under this same row lock): then no session comes out of the old one.
+        current = fetch_one(
+            conn, "SELECT password_hash FROM users WHERE id = %s FOR UPDATE", (user["id"],)
+        )
+        unchanged = current is not None and current["password_hash"] == user["password_hash"]
+        if unchanged:
+            release(conn, email_bucket, LOGIN_WINDOW)
+            release(conn, ip_bucket, LOGIN_WINDOW)
+            if fresh:
+                conn.execute(
+                    "UPDATE users SET password_hash = %s WHERE id = %s", (fresh, user["id"])
+                )
+            token = open_session(conn, user["id"])
+    if not unchanged:
+        raise invalid_credentials()
     user.pop("password_hash")
     return {"token": token, "user": user}
 

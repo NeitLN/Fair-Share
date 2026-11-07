@@ -539,6 +539,24 @@ taro on `--surface-2` and scaled to the biggest category, only decorates: the li
 value and screen readers skip the bar. A line opens Chi tiêu filtered to that month and category. No
 chart for an empty month.
 
+### 6.10 Hồ sơ của bạn `/account`
+
+Opened from *Hồ sơ của bạn* in the account menu ([specs/010-profile-page](../specs/010-profile-page/spec.md)).
+One column, at most 560 px wide. Under the h1 the email, read only, with "Email là tên tài khoản, không đổi
+được.". Then one card per part (the *start-way* card look: 1 px card edge, section radius, surface), each its
+own form with its own button, so an error in one never loses what was typed in another:
+
+* **Tên của bạn**: the display name, with "Đổi ở đây là đổi tên của bạn ở mọi nhà đang ở."; *Lưu* stays
+  enabled for the same name (saving it again brings back a household the owner renamed). The answer is
+  "Đã đổi tên ở mọi nhà." in a green note, or one line per household that kept the old name: "Ở Nhà B đã có
+  người tên Lan, nên ở đó bạn vẫn là Tiến." The account initial in the header follows at once.
+* **Mật khẩu**: current and new password, the new one with its 8–128 hint; both fields empty after any
+  answer. A wrong current password is said under its field; too many tries reads like sign-in ("Bạn thử
+  quá nhiều lần…"); success: "Đã đổi mật khẩu. Các nơi khác đã đăng xuất."
+
+Field problems sit under their field (`field-problem`, `aria-describedby`); answers are in a polite live
+region. Later parts of the spec (status, photo, gender) add their own cards here.
+
 ## 7. Copy
 
 | Use | Not |

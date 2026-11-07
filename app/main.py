@@ -20,6 +20,7 @@ from app.routers import (
     balances,
     expenses,
     households,
+    me,
     members,
     recurring,
     settlements,
@@ -75,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     errors.install(app)
     app.include_router(system.router)
     app.include_router(accounts.router)
+    app.include_router(me.router)
     app.include_router(households.router)
     app.include_router(members.router)
     app.include_router(expenses.router)

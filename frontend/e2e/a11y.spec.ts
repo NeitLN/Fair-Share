@@ -54,6 +54,7 @@ test('the household screens meet the accessibility checklist', async ({ page, re
       `/households/${id}/expenses`,
       `/households/${id}/members`,
       `/households/${id}/report`,
+      '/account', // the profile page (specs/010-profile-page)
     ]) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
