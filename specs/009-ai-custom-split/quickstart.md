@@ -48,3 +48,7 @@ a usable split different from the expected one.
 | 20 | dinner 500k, Minh paid 300k, Lan paid 200k | blocked several_payers |
 
 Also: a sentence with no named amounts ("lẩu 500k Minh trả chia 3") must fill an equal split exactly as before.
+
+Not counted, but noted with the score (#220 review): "mình trả 500k, Minh 200k, Lan 100k" is expected to be blocked
+(`no_rest_taker`), because "mình trả" is not turned into a payer (research R3). How often people type it this way
+tells whether that rule is worth revisiting.

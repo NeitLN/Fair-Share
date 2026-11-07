@@ -595,6 +595,7 @@ const en: Messages = {
     payerNotSharing: "The payer isn't sharing, so the rest has nobody to take it. Please split it yourself.",
     unreadableShares: "Couldn't read the shares. Please split it yourself.",
     formDiffers: "The total or payer in the form isn't the one in your sentence, so the split wasn't filled. Please split it yourself.",
+    payerChanged: 'The payer changed, so the rest no longer goes to the right person. Please set the split again.',
   },
   csv: {
     date: 'Date',

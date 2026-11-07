@@ -177,6 +177,9 @@ function ExpenseForm({
   // not be placed, or no longer hold. Only an edit of the split (or Hoàn tác) lifts it; changing the
   // total or the payer does not, since a split that merely adds up may still not be what was said.
   const [splitBlock, setSplitBlock] = useState<string | null>(null)
+  // A split by named amounts the AI filled, while it stands: who the rest went to was the payer then
+  // (#220 review). Picking another payer afterwards would leave that rest on the wrong person.
+  const [restFrom, setRestFrom] = useState<{ payer: number | null; toPayer: boolean } | null>(null)
   // The latest fill: the fields it changed (minus those the user has edited since) and their old values
   const lastFill = useRef<{
     fields: Set<FillField>
@@ -220,7 +223,11 @@ function ExpenseForm({
     if (field === 'split') {
       setSplitNote(null)
       setSplitBlock(null)
+      setRestFrom(null)
     }
+    // "Còn lại 200.000đ tính cho Tiến" was about the total the AI read; a new total makes it untrue
+    // (the shares then stop adding up, so Lưu is refused by the usual check)
+    if (field === 'amount' && restFrom) setSplitNote(null)
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -269,6 +276,7 @@ function ExpenseForm({
       let shares: DraftShare[] | null = null
       let block: string | null = null
       let note = values.splitNote?.trim() || null
+      let rest: { payer: number | null; toPayer: boolean } | null = null
       if (values.blocked) {
         shares = values.blocked.preview.filter((s) => memberIds.has(s.member_id))
         block = values.blocked.message
@@ -286,6 +294,7 @@ function ExpenseForm({
         if (holds) {
           shares = custom.shares
           note = custom.restAmount > 0 ? restNote(custom.restTo, custom.restAmount, custom.restToPayer) : null
+          rest = custom.restAmount > 0 ? { payer: values.payer_id ?? null, toPayer: custom.restToPayer } : null
         } else {
           block = t.ai.formDiffers
           // The user's split (or the one there) stays as it is
@@ -330,6 +339,7 @@ function ExpenseForm({
           setCustomText({})
         }
         setSplitNote(note)
+        setRestFrom(rest)
       }
       if (block !== null) {
         setSplitBlock(block)
@@ -361,6 +371,7 @@ function ExpenseForm({
         setSelected(before.selected)
         setCustomText(before.customText)
         setSplitNote(null)
+        setRestFrom(null)
       }
       // A block set by this fill goes with it, even when the split itself was the user's
       setSplitBlock(before.splitBlock)
@@ -474,6 +485,7 @@ function ExpenseForm({
         setFromAi(false)
         setSplitNote(null)
         setSplitBlock(null)
+        setRestFrom(null)
         lastFill.current = null
       }
     } catch {
@@ -588,6 +600,13 @@ function ExpenseForm({
                     edited('payer')
                     setPayerId(m.id)
                     setPayerIsDefault(false)
+                    // The AI's split gave the rest to the payer it read: with another payer it no longer
+                    // holds, the same as at fill time (formDiffers), so Lưu waits for the split to be set
+                    if (restFrom?.toPayer && m.id !== restFrom.payer) {
+                      setSplitNote(null)
+                      setSplitBlock(t.ai.payerChanged)
+                      setSplitOpen(true)
+                    }
                   }}
                 />
                 <label htmlFor={`payer-${m.id}`} title={look.full}>

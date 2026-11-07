@@ -596,6 +596,7 @@ const vi = {
     payerNotSharing: 'Người trả không chia phần, nên phần còn lại chưa biết tính cho ai. Bạn tự chia giúp nhé.',
     unreadableShares: 'Chưa đọc được các phần chia. Bạn tự chia giúp nhé.',
     formDiffers: 'Số tiền hoặc người trả trong form khác câu vừa gõ, nên chưa điền phần chia. Bạn tự chia giúp nhé.',
+    payerChanged: 'Người trả vừa đổi, nên phần còn lại không còn tính đúng người. Bạn chia lại giúp nhé.',
   },
   csv: {
     date: 'Ngày',

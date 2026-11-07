@@ -940,6 +940,58 @@ describe('ExpenseForm, named amounts from AI quick add (specs/009-ai-custom-spli
     expect(screen.getByLabelText('Phần của Minh')).toHaveValue('200000')
   })
 
+  test('picking another payer after the fill drops the note and blocks Lưu (#220 review)', async () => {
+    const changed = 'Người trả vừa đổi, nên phần còn lại không còn tính đúng người. Bạn chia lại giúp nhé.'
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill(custom)
+    })
+    await user.click(payerRadio('Minh'))
+
+    expect(screen.queryByText(/tính cho Tiến/)).not.toBeInTheDocument()
+    expect(screen.getByText(changed)).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+    // Going back to Tiến is not a change of the split either
+    await user.click(payerRadio('Tiến'))
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    // Setting the split lifts it: Tiến's 200k becomes Minh's
+    const tien = screen.getByLabelText('Phần của Tiến')
+    await user.clear(tien)
+    const minh = screen.getByLabelText('Phần của Minh')
+    await user.clear(minh)
+    await user.type(minh, '400000')
+    expect(screen.queryByText(changed)).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  test('another payer is fine when the rest went to a named person', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill({ ...custom, custom: { ...custom.custom, restToPayer: false } })
+    })
+    await user.click(payerRadio('Minh'))
+    expect(screen.getByText(/^Còn lại 200/)).toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  test('a new total drops the rest note; the shares no longer add up, so Lưu is refused', async () => {
+    const { user, onSubmit, form } = setupWithRef()
+    act(() => {
+      form().fill(custom)
+    })
+    const amount = screen.getByLabelText('Số tiền')
+    await user.clear(amount)
+    await user.type(amount, '600000')
+    expect(screen.queryByText(/^Còn lại/)).not.toBeInTheDocument()
+    await save(user)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   test('a split set by hand is kept and Lưu waits until it is set again', async () => {
     const { user, onSubmit, form } = setupWithRef()
     await openSplit(user)

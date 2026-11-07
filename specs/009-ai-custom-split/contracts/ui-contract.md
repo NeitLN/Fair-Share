@@ -19,6 +19,9 @@ The split counts as filled for undo when it was changed; `splitBlock` is saved i
 - While `splitBlock` is set, `validate()` reports it on the split field and Lưu does nothing else; the fold opens and the field gets focus, as for any split error.
 - Editing the split (mode, a person, an amount) clears the block; editing description, total, payer or date does not.
 - The live "Chưa chia: X" / "Vượt quá: X" line keeps working on the preview amounts.
+- After a custom fill whose rest went to the payer, picking another payer drops the rest note and sets the block
+  `ai.payerChanged` (the same mismatch `fill()` refuses as `form_differs`); a new total drops the rest note, and
+  the shares then stop adding up (#220 review).
 
 ## Strings (vi / en)
 
