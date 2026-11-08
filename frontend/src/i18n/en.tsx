@@ -19,6 +19,10 @@ const MONTHS = [
 const en: Messages = {
   tagline: 'See who owes who.',
   pageTitle: 'Fair-Share · See who owes who.',
+  app: {
+    slowNotice:
+      'This is taking longer than usual. The server may be starting up, which usually takes about a minute. No need to reload the page.',
+  },
   common: {
     tryAgain: 'Try again',
     retrying: 'Trying again…',
@@ -444,6 +448,7 @@ const en: Messages = {
     stopConfirm: (description: string) =>
       `Stop repeating ${description}? What was recorded stays; it just will not remind any more.`,
     stopped: (description: string) => `Stopped repeating ${description}.`,
+    stopUnclear: 'We could not confirm that it stopped repeating.',
     empty: 'No recurring expenses yet. Tick Repeat every month when you add an expense.',
     taken: (month: string, description: string) => `${description} for ${month} has already been recorded.`,
     seeTaken: 'See the recorded expense',
@@ -621,6 +626,9 @@ const en: Messages = {
   },
   ai: {
     title: 'Quick add with AI',
+    unavailable: 'Quick add with AI is not switched on for this server.',
+    typedSentence: 'What you typed:',
+    typeIntoForm: 'Put the details from it into the form below.',
     sentenceLabel: 'Describe the expense',
     placeholder: 'hotpot 240k, Minh paid, split equally among everyone',
     fill: 'Fill form',

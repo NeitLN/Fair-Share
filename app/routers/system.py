@@ -3,7 +3,7 @@
 from typing import Annotated
 
 import psycopg
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.config import APP_VERSION, Settings
 from app.db import ConnDep
@@ -56,11 +56,19 @@ def health_db(conn: ConnDep):
 
 
 @router.get("/api/version")
-def version(settings: SettingsDep):
-    """Which build is live. After a merge, the pipeline waits until commit = the merged SHA."""
+def version(settings: SettingsDep, request: Request, response: Response):
+    """Which build is live. After a merge, the pipeline waits until commit = the merged SHA.
+
+    `ai` says whether quick add can work here (specs/011-first-impressions, FR-017): whether a
+    Gemini key is configured, the same check the AI route makes before calling Gemini. Only that
+    yes or no; the key never leaves the server and Gemini is not called. Never cached, so a reload
+    after the key is added or removed sees the change.
+    """
+    response.headers["Cache-Control"] = "no-store"
     return {
         "app": settings.app_name,
         "version": APP_VERSION,
         "env": settings.app_env,
         "commit": settings.commit,
+        "ai": bool(request.app.state.gemini.configured),
     }

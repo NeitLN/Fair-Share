@@ -1,7 +1,8 @@
-import { screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
+import { request } from './api/client'
 import { mockApi, renderApp } from './test/renderApp'
 import { onAComputer } from './test/screen'
 
@@ -184,5 +185,58 @@ describe('the header around sign-in', () => {
     renderApp('/')
 
     expect(await screen.findByRole('link', { name: 'Fair-Share' })).toBeInTheDocument()
+  })
+})
+
+// specs/011-first-impressions, US2: a sleeping server takes about 50 s to answer
+describe('a slow answer', () => {
+  const notice = 'Phản hồi đang lâu hơn bình thường. Máy chủ có thể đang khởi động, thường mất khoảng 1 phút. Bạn không cần tải lại trang.'
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  test('on the sign-in page: shown after 5 s, gone once the answer is read', async () => {
+    let answer: (reply: [number, unknown]) => void = () => {}
+    mockApi({ 'GET /api/held': () => new Promise((resolve) => (answer = resolve)) })
+    renderApp('/', { signedOut: true })
+    const pending = request('/api/held')
+    act(() => vi.advanceTimersByTime(4_000))
+    expect(screen.queryByText(notice)).toBeNull()
+    act(() => vi.advanceTimersByTime(1_500))
+    expect(screen.getByText(notice)).toBeInTheDocument()
+    await act(async () => {
+      answer([200, {}])
+      await pending
+    })
+    expect(screen.queryByText(notice)).toBeNull()
+  })
+
+  test('in a house, read out once: moving to another page keeps the same notice', async () => {
+    let answer: (reply: [number, unknown]) => void = () => {}
+    mockApi({
+      'GET /api/households': [200, { households: [], pending: [] }],
+      'GET /api/households/7': [200, { id: 7, name: 'Nhà 7', created_at: '2026-10-16T00:00:00Z' }],
+      'GET /api/households/7/members': [200, []],
+      'GET /api/held': () => new Promise((resolve) => (answer = resolve)),
+    })
+    renderApp('/households/7')
+    await screen.findByRole('heading', { level: 2, name: 'Tổng quan' })
+    const pending = request('/api/held')
+    act(() => vi.advanceTimersByTime(6_000))
+    const shown = screen.getByText(notice)
+    // In the live region: a new episode
+    expect(shown.closest('[aria-live="polite"]')).not.toBeNull()
+    await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(screen.getByRole('link', { name: 'Chi tiêu' }))
+    await screen.findByRole('heading', { level: 2, name: 'Chi tiêu' })
+    // The very same element: nothing new is put in the live region, so nothing is read again
+    expect(screen.getByText(notice)).toBe(shown)
+    await act(async () => {
+      answer([200, {}])
+      await pending
+    })
+    expect(screen.queryByText(notice)).toBeNull()
   })
 })

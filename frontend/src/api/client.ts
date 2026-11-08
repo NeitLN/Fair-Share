@@ -1,6 +1,7 @@
 // Every call to the FastAPI backend goes through request(), so error handling lives in one place.
 import { messages } from '../i18n'
 import { currentSession, signOut } from '../lib/session'
+import { beginRequest, endRequest } from '../lib/slowRequests'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -52,32 +53,43 @@ export const KEY_HEADER = 'X-Household-Key'
 // A wrong password is a 401 too, but it does not mean the session ended
 const SIGN_IN_ROUTES = /^\/api\/auth\/(login|register)$/
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * `countsAsSlow: false` leaves a request out of the slow-server notice: one that is slow by nature, like
+ * quick add, whose AI usually takes 7 to 9 s and has its own "AI đang đọc… n giây" (review of #240).
+ */
+export async function request<T>(path: string, init: RequestInit = {}, { countsAsSlow = true } = {}): Promise<T> {
   const headers = new Headers(init.headers)
   // A JSON body unless the caller said otherwise (a photo goes up as image/jpeg)
   if (init.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   const session = currentSession()
   if (session) headers.set('Authorization', `Bearer ${session.token}`)
 
-  let response: Response
+  // Counted until the answer has been read, whatever happens, so a sleeping server is explained on
+  // screen after 5 s (specs/011, FR-007, FR-009)
+  const token = countsAsSlow ? beginRequest() : null
   try {
-    response = await fetch(`${BASE_URL}${path}`, { ...init, headers })
-  } catch {
-    // fetch only throws when no response arrived at all (offline, DNS, CORS)
-    throw new ApiError(0, 'network_error', messages().failure.network)
+    let response: Response
+    try {
+      response = await fetch(`${BASE_URL}${path}`, { ...init, headers })
+    } catch {
+      // fetch only throws when no response arrived at all (offline, DNS, CORS)
+      throw new ApiError(0, 'network_error', messages().failure.network)
+    }
+
+    // Someone else signed in on this tab while the request was on its way (review of #166): its
+    // answer belongs to the last account, so it must neither sign the new one out nor reach its cache
+    const changed = () => currentSession()?.token !== session?.token
+    if (changed()) throw sessionChanged()
+
+    // The session ended (logged out elsewhere, or expired): back to the sign-in page
+    if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut()
+    if (!response.ok) throw await toApiError(response)
+    const body = response.status === 204 ? undefined : await response.json()
+    if (changed()) throw sessionChanged()
+    return body as T
+  } finally {
+    if (token !== null) endRequest(token)
   }
-
-  // Someone else signed in on this tab while the request was on its way (review of #166): its
-  // answer belongs to the last account, so it must neither sign the new one out nor reach its cache
-  const changed = () => currentSession()?.token !== session?.token
-  if (changed()) throw sessionChanged()
-
-  // The session ended (logged out elsewhere, or expired): back to the sign-in page
-  if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut()
-  if (!response.ok) throw await toApiError(response)
-  const body = response.status === 204 ? undefined : await response.json()
-  if (changed()) throw sessionChanged()
-  return body as T
 }
 
 const sessionChanged = () => new ApiError(0, 'session_changed', messages().failure.unexpected)

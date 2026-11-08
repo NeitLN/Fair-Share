@@ -70,8 +70,8 @@
 
 ### Phase 5: Setup (PR-D)
 
-- [ ] T019 Open a GitHub issue "Slow-answer notice, quick add guard and AI availability, per-item stop errors (spec 011, PR-D)" and create branch `feat/011-app-shell` from `main`
-- [ ] T020 [P] Add the PR-D strings in vi and en, in new or owned groups only: `app.slowNotice` (the text of US2, scenario 1, and its English), `ai.unavailable` ("Gõ nhanh bằng AI chưa được bật trên máy chủ này."), `ai.typedSentence` ("Câu bạn đã gõ:"), `ai.typeIntoForm` ("Nhập các thông tin trong câu vào biểu mẫu bên dưới."), `recurring.stopUnclear` ("Chưa xác nhận được là đã ngừng lặp."), in frontend/src/i18n/vi.tsx and frontend/src/i18n/en.tsx
+- [X] T019 Open a GitHub issue "Slow-answer notice, quick add guard and AI availability, per-item stop errors (spec 011, PR-D)" and create branch `feat/011-app-shell` from `main`
+- [X] T020 [P] Add the PR-D strings in vi and en, in new or owned groups only: `app.slowNotice` (the text of US2, scenario 1, and its English), `ai.unavailable` ("Gõ nhanh bằng AI chưa được bật trên máy chủ này."), `ai.typedSentence` ("Câu bạn đã gõ:"), `ai.typeIntoForm` ("Nhập các thông tin trong câu vào biểu mẫu bên dưới."), `recurring.stopUnclear` ("Chưa xác nhận được là đã ngừng lặp."), in frontend/src/i18n/vi.tsx and frontend/src/i18n/en.tsx
 
 ### Phase 6: User Story 2, a slow answer says what may be going on (P1)
 
@@ -79,11 +79,11 @@
 
 **Independent Test**: with fake timers, a request pending 6 s shows the notice; it hides when the request ends; reshowing within 10 s is not announced again.
 
-- [ ] T021 [P] [US2] Create frontend/src/lib/slowRequests.ts: `begin(): token` (starts a 5 s timer that marks the token slow), `end(token)` (clears timer and slow mark), `useSlowRequests(): { slow: boolean; announce: boolean }` via `useSyncExternalStore`; episode rule: `announce` becomes true when `slow` turns on and the notice has been hidden at least 10 s (or never shown), false otherwise; Vitest in frontend/src/lib/slowRequests.test.ts with fake timers for 4.9 s (not slow), 5 s (slow), two staggered tokens (hides only when both end), reshow within 10 s (no announce), after 10 s (announce)
-- [ ] T022 [US2] In frontend/src/api/client.ts call `begin()` before `fetch` and `end()` in a `finally` that wraps the fetch and the body read, so every exit (success, HTTP error, network error, abort, the session-changed throw) ends the token; add Vitest cases in frontend/src/api/client.test.ts that a request rejecting, a 401 and a session change all end their token
-- [ ] T023 [US2] Create frontend/src/components/SlowNotice.tsx rendering `.slow-notice` with `t.app.slowNotice` when `slow`, inside a `role="status"` region whose text is set only when `announce` is true (otherwise the visible text is in a non-live element); render `<SlowNotice />` in frontend/src/App.tsx just before `<main>` in both the signed-in and the signed-out layouts (no change to AuthPage)
-- [ ] T024 [P] [US2] Add `.slow-notice` styles in frontend/src/index.css: full width in the page column, muted surface, 44 px min height, not sticky, text 4.5:1 in light and dark, no layout jump larger than its own height
-- [ ] T025 [US2] Vitest in frontend/src/App.test.tsx: a request held 6 s shows the notice on the sign-in page and on a household page; it disappears when the request resolves; a route change while showing does not re-announce
+- [X] T021 [P] [US2] Create frontend/src/lib/slowRequests.ts: `begin(): token` (starts a 5 s timer that marks the token slow), `end(token)` (clears timer and slow mark), `useSlowRequests(): { slow: boolean; announce: boolean }` via `useSyncExternalStore`; episode rule: `announce` becomes true when `slow` turns on and the notice has been hidden at least 10 s (or never shown), false otherwise; Vitest in frontend/src/lib/slowRequests.test.ts with fake timers for 4.9 s (not slow), 5 s (slow), two staggered tokens (hides only when both end), reshow within 10 s (no announce), after 10 s (announce)
+- [X] T022 [US2] In frontend/src/api/client.ts call `begin()` before `fetch` and `end()` in a `finally` that wraps the fetch and the body read, so every exit (success, HTTP error, network error, abort, the session-changed throw) ends the token; add Vitest cases in frontend/src/api/client.test.ts that a request rejecting, a 401 and a session change all end their token
+- [X] T023 [US2] Create frontend/src/components/SlowNotice.tsx rendering `.slow-notice` with `t.app.slowNotice` when `slow`, inside a `role="status"` region whose text is set only when `announce` is true (otherwise the visible text is in a non-live element); render `<SlowNotice />` in frontend/src/App.tsx just before `<main>` in both the signed-in and the signed-out layouts (no change to AuthPage)
+- [X] T024 [P] [US2] Add `.slow-notice` styles in frontend/src/index.css: full width in the page column, muted surface, 44 px min height, not sticky, text 4.5:1 in light and dark, no layout jump larger than its own height
+- [X] T025 [US2] Vitest in frontend/src/App.test.tsx: a request held 6 s shows the notice on the sign-in page and on a household page; it disappears when the request resolves; a route change while showing does not re-announce
 
 ### Phase 7: User Story 5, quick add when busy or switched off (P2)
 
@@ -91,12 +91,12 @@
 
 **Independent Test**: three Enters, a button press and a Retry during one reading send one request; with `ai: false` the line shows and keeps a typed sentence.
 
-- [ ] T026 [P] [US5] Backend: in app/routers/system.py add `"ai": bool(request.app.state.gemini.configured)` to `/api/version` and set `Cache-Control: no-store` on that response; pytest in tests/test_health.py: `ai` is false without a key and true with a configured fake client, the header is `no-store`, the response never contains the key value
-- [ ] T027 [P] [US5] Create frontend/src/lib/aiAvailability.ts: a module-level promise fetching `/api/version` once per page load through `request()`, and `useAiAvailability(): 'unknown' | 'on' | 'off'` (missing field or error → `'unknown'`); Vitest in frontend/src/lib/aiAvailability.test.ts: one fetch for two components, `ai: false` → `'off'`, failure → `'unknown'`
-- [ ] T028 [US5] In frontend/src/components/AiComposer.tsx add an `inFlight` ref set at the start of `read()` and cleared in the `finally` of the call; `read()` returns at once while it is set, so Enter, the button and Retry share the guard, including after "Nhập tay" until the earlier call ends; keep Shift+Enter and the `isComposing` / keyCode 229 guards
-- [ ] T029 [US5] In the same file use `useAiAvailability()`: `'off'` replaces the composer with `ai.unavailable` and, when text was typed, `ai.typedSentence` + the sentence as selectable wrapping text + `ai.typeIntoForm`; `'unknown'` and `'on'` keep today's composer and today's `ai_not_configured` fallback
-- [ ] T030 [US5] Vitest in frontend/src/components/AiComposer.test.tsx: three Enters, a button press and a Retry during a pending read → exactly one request; after "Nhập tay" a new Enter while the first call is pending → no request; `'off'` → the line and no textarea; text typed then availability resolves `'off'` → the sentence is shown; `'unknown'` → today's composer
-- [ ] T031 [US5] Update docs/ARCHITECTURE.md (the `/api/version` `ai` field and why it is safe) and docs/DESIGN.md §6.3 (quick add when not set up)
+- [X] T026 [P] [US5] Backend: in app/routers/system.py add `"ai": bool(request.app.state.gemini.configured)` to `/api/version` and set `Cache-Control: no-store` on that response; pytest in tests/test_health.py: `ai` is false without a key and true with a configured fake client, the header is `no-store`, the response never contains the key value
+- [X] T027 [P] [US5] Create frontend/src/lib/aiAvailability.ts: a module-level promise fetching `/api/version` once per page load through `request()`, and `useAiAvailability(): 'unknown' | 'on' | 'off'` (missing field or error → `'unknown'`); Vitest in frontend/src/lib/aiAvailability.test.ts: one fetch for two components, `ai: false` → `'off'`, failure → `'unknown'`
+- [X] T028 [US5] In frontend/src/components/AiComposer.tsx add an `inFlight` ref set at the start of `read()` and cleared in the `finally` of the call; `read()` returns at once while it is set, so Enter, the button and Retry share the guard, including after "Nhập tay" until the earlier call ends; keep Shift+Enter and the `isComposing` / keyCode 229 guards
+- [X] T029 [US5] In the same file use `useAiAvailability()`: `'off'` replaces the composer with `ai.unavailable` and, when text was typed, `ai.typedSentence` + the sentence as selectable wrapping text + `ai.typeIntoForm`; `'unknown'` and `'on'` keep today's composer and today's `ai_not_configured` fallback
+- [X] T030 [US5] Vitest in frontend/src/components/AiComposer.test.tsx: three Enters, a button press and a Retry during a pending read → exactly one request; after "Nhập tay" a new Enter while the first call is pending → no request; `'off'` → the line and no textarea; text typed then availability resolves `'off'` → the sentence is shown; `'unknown'` → today's composer
+- [X] T031 [US5] Update docs/ARCHITECTURE.md (the `/api/version` `ai` field and why it is safe) and docs/DESIGN.md §6.3 (quick add when not set up)
 
 ### Phase 8: User Story 6, stopping a repeating item says when it is unclear (P3)
 
@@ -104,10 +104,10 @@
 
 **Independent Test**: a failed stop shows the message under that item only; stopping two items keeps separate states; moving house drops a late answer.
 
-- [ ] T032 [US6] In frontend/src/pages/ExpensesPage.tsx replace the single stop mutation state with `stopping: Set<number>` and `stopErrors: Record<number, string>` keyed to the current `householdId` (reset when it changes); each stop call captures the house id and ignores its result if the house changed; on success clear that item's error and show today's toast; on failure set `t.recurring.stopUnclear` + the error message for that item (no other change in this file)
-- [ ] T033 [US6] In frontend/src/components/RecurringList.tsx replace `stoppingId` with `stoppingIds: Set<number>` and add `errors: Record<number, string>`; disable each "Ngừng lặp" only while its own stop waits; render the error under its item in `.recurring-error` with `role="alert"` (mounted even when the fold is closed so it is announced)
-- [ ] T034 [P] [US6] Add `.recurring-error` styles in frontend/src/index.css (debt text, wraps, 4.5:1)
-- [ ] T035 [US6] Vitest in frontend/src/components/RecurringList.test.tsx and frontend/src/pages/ExpensesPage.test.tsx: a failed stop shows "Chưa xác nhận được là đã ngừng lặp." under that item only; two stops at once keep separate disabled states; a late answer after switching house shows nothing; a later success clears the message and toasts
+- [X] T032 [US6] In frontend/src/pages/ExpensesPage.tsx replace the single stop mutation state with `stopping: Set<number>` and `stopErrors: Record<number, string>` keyed to the current `householdId` (reset when it changes); each stop call captures the house id and ignores its result if the house changed; on success clear that item's error and show today's toast; on failure set `t.recurring.stopUnclear` + the error message for that item (no other change in this file)
+- [X] T033 [US6] In frontend/src/components/RecurringList.tsx replace `stoppingId` with `stoppingIds: Set<number>` and add `errors: Record<number, string>`; disable each "Ngừng lặp" only while its own stop waits; render the error under its item in `.recurring-error` with `role="alert"` (mounted even when the fold is closed so it is announced)
+- [X] T034 [P] [US6] Add `.recurring-error` styles in frontend/src/index.css (debt text, wraps, 4.5:1)
+- [X] T035 [US6] Vitest in frontend/src/components/RecurringList.test.tsx and frontend/src/pages/ExpensesPage.test.tsx: a failed stop shows "Chưa xác nhận được là đã ngừng lặp." under that item only; two stops at once keep separate disabled states; a late answer after switching house shows nothing; a later success clears the message and toasts
 
 **Checkpoint PR-D**: `ruff check .`, pytest, lint, Vitest, build, local E2E (the local stack has no Gemini key: one case that the quick-add line shows once `/api/version` answers). Open PR-D.
 

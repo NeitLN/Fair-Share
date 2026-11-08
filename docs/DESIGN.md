@@ -402,7 +402,8 @@ Hôm qua, 20/10
   | Filled | Mint note "Đã điền: Lẩu · 240.000đ · Minh trả · chia đều 4 người.", fields that were filled flash yellow once; **only fields the user has not touched are filled** ("Giữ nguyên số tiền bạn đã nhập."); button **Hoàn tác điền** restores the form |
   | Warnings | Pink note per API warning. `unknown_member` (payer **or** a participant): "“Hùng” không có trong nhà. Kiểm tra người trả và người cùng chia bên dưới." · `no_payer`: "Chọn người trả." · `no_amount`: "Nhập số tiền." · `participants_assumed`: shown beside the split fold, "AI chia cho cả nhà, bạn kiểm tra lại." |
   | Failed | The typed sentence is always kept and the form stays usable; the note depends on the code (wording in `lib/errors.ts`): `ai_unavailable` (503) → "AI đang bận…" + **Thử lại** · `ai_rate_limited` (429) → "…đợi một phút rồi thử lại" + **Thử lại** · `ai_unparseable` / `too_many_participants` (422) → fix the sentence or use the form, **Thử lại** after an edit |
-  | Not set up | `ai_not_configured` (503, no Gemini key on this server): "Gõ nhanh chưa được bật. Bạn nhập thông tin bên dưới nhé." **Điền giúp** is disabled until the page is reloaded; no **Thử lại** |
+  | Not set up | Known up front since [spec 011](../specs/011-first-impressions/spec.md): `/api/version` says `"ai": false`, and the box gives way to one line, "Gõ nhanh bằng AI chưa được bật trên máy chủ này."; a sentence typed before that answer stays under it, as selectable text with "Nhập các thông tin trong câu vào biểu mẫu bên dưới." Until the answer comes (a sleeping server, or the question failed) the box works as before, and `ai_not_configured` (503) still says "Gõ nhanh chưa được bật. Bạn nhập thông tin bên dưới nhé." with **Điền giúp** disabled until the page is reloaded; no **Thử lại**. A busy or rate-limited AI is never mistaken for this: only the explicit answer hides the box |
+  | One at a time | While AI reads, Enter, **Điền giúp** and **Thử lại** send nothing more, and after **Nhập tay** a new Enter waits until the earlier call has ended (each call spends the house's shared daily quota) |
   | Named amounts | ([specs/009-ai-custom-split](../specs/009-ai-custom-split/spec.md)) "lẩu 500k Tiến trả, Minh 200k, Lan 100k": the mint note says "tự chia 3 người", *Cách chia* opens on **Tự chia** with the amounts, and a line under it says who took the rest, "Còn lại 200.000đ tính cho Tiến (người trả)." The split is applied only while it still holds: when the total or payer already in the form differ, or the user had set the split, it is left alone with a pink line "Số tiền hoặc người trả trong form khác câu vừa gõ…". Picking another payer after such a fill (when the rest went to the payer) drops the "Còn lại…" line and blocks **Lưu** with "Người trả vừa đổi, nên phần còn lại không còn tính đúng người…" until the split is set again |
   | Split blocked | Named amounts that cannot be placed (over the total, a name not in the house or meaning several people, one person given two amounts, nobody to take the rest, no total, fractions, several payers): **Tự chia** opens with the amounts as read, the reason shows once, as a pink line under *Cách chia* (not again in the composer), e.g. "Các phần đã nêu cộng lại 600.000đ, hơn tổng 500.000đ. Sửa lại cách chia rồi mới lưu được." **Lưu** is refused with that reason until the user changes the split itself; changing only the total or the payer does not lift it, and **Hoàn tác** does |
 
@@ -433,6 +434,16 @@ For the owner, a fold *Đổi tên nhà* under the invite: the name (1–60 char
 Loading: skeleton rows in `--surface-2` (no spinners over 300 ms). Empty: one sentence that says what to
 do next, with the action. Error: a note with the message from `lib/errors.ts` and *Thử lại*; nothing
 already typed is lost.
+
+Slow: the free server sleeps after about 15 minutes and takes about 50 s to wake. While any request has
+waited more than 5 s, a band above the page, signed in or not, says "Phản hồi đang lâu hơn bình thường. Máy
+chủ có thể đang khởi động, thường mất khoảng 1 phút. Bạn không cần tải lại trang." It sits in the page flow
+(`--surface-2`, 44 px), covers nothing, and goes by itself once no request has waited that long; a
+failure then shows the usual error. Quick add's AI call is left out: it usually takes 7 to 9 s and has
+its own "AI đang đọc… n giây". Screen readers hear it once per episode: shown again within 10 s of
+hiding, or kept while moving between pages, it is not read again ([spec 011](../specs/011-first-impressions/spec.md)).
+A repeating item whose *Ngừng lặp* did not go through says so under it: "Chưa xác nhận được là đã ngừng
+lặp." with the reason; each item has its own wait.
 
 ### 6.6 On a computer (1024 px and wider)
 
@@ -625,6 +636,7 @@ region.
 | Chưa ghi khoản trả (nothing recorded) | Chưa trả (the app cannot know what happened outside it) |
 | Đến ngày ghi · Ngừng lặp (recurring reminders) | Tới hạn (reads as a payment deadline) |
 | Chưa lưu được: … (a refused save) · Sửa lại · Lưu thật (the large-amount question) | Lỗi! · Xác nhận / OK |
+| Máy chủ có thể đang khởi động (it may be; the app cannot know) · Chưa xác nhận được là đã ngừng lặp (the answer was lost, not a refusal) | Máy chủ đang khởi động · Ngừng lặp thất bại |
 | Bỏ quyền vào nhà (keeps the name and its records) · Xoá (removes a name nobody uses) | using one for the other |
 | link mời · nhập thông tin bên dưới · Huỷ / Xoá / khoá | đường dẫn mời · form / biểu mẫu in everyday hints · Hủy / Xóa (mixed) |
 

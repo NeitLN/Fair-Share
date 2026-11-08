@@ -173,6 +173,7 @@ function ExpenseForm({
   // "Lưu thật" acts on a click, or on a key pressed while it had the focus: never on an Enter held
   // since before it appeared
   const keyOnConfirm = useRef(false)
+  const saving = useRef(false)
   const [prefill, setPrefill] = useState<Prefill>(initial?.split_type === 'custom' ? 'off' : 'pending')
   // The date and the split are folded: the 90% case is "today, everyone, equally"
   const [dateOpen, setDateOpen] = useState(false)
@@ -564,6 +565,9 @@ function ExpenseForm({
   }
 
   async function save(confirmed: boolean) {
+    // A second press (double click, Enter in a field) while the first save is on its way does nothing,
+    // whatever the page has re-rendered by then
+    if (saving.current) return
     const found = check()
     setProblems(found)
     // A new attempt: the last server message has been acted on
@@ -583,6 +587,7 @@ function ExpenseForm({
       setConfirming(amount)
       return
     }
+    saving.current = true
     try {
       await onSubmit(toInput())
       setSubmittedOnce(false)
@@ -615,6 +620,8 @@ function ExpenseForm({
       }
     } catch {
       // The page shows the server's message through `error`; keep what the user typed
+    } finally {
+      saving.current = false
     }
   }
 

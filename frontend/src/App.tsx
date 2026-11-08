@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
 
 import AccountMenu from './components/AccountMenu'
+import SlowNotice from './components/SlowNotice'
 import { ToastProvider } from './components/Toast'
 import { Wordmark } from './components/Wordmark'
 import { useT } from './i18n'
@@ -43,6 +44,8 @@ function App() {
           <AccountMenu />
         </header>
       )}
+      {/* A sleeping server takes about 50 s to answer: said above every page, signed in or not */}
+      <SlowNotice />
       <main className={signInBlock ? 'signed-out' : undefined}>
         {/* Every page needs an account (docs/ACCOUNTS.md). Signed out, any address shows the sign-in
             form; once signed in, the page that was asked for (an invite link included) opens. */}

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -701,5 +701,62 @@ describe('recurring expenses in Chi tiêu', () => {
       expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/recurring/7/stop' && init?.method === 'POST')).toBe(true),
     )
     expect(await screen.findByText('Đã ngừng lặp Tiền nhà.')).toBeInTheDocument()
+  })
+
+  // Pressing Lưu twice fast (specs/011 review): the button is only disabled after the page re-renders
+  test('a double click on Lưu khoản chi records one expense', async () => {
+    const fetchFn = api()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await user.type(await screen.findByLabelText('Nội dung'), 'Lẩu')
+    await user.type(screen.getByLabelText('Số tiền'), '300000')
+    await user.dblClick(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    await screen.findByText(/^Đã lưu: Lẩu/)
+    expect(sentBodies(fetchFn, 'POST').filter((body) => body && 'description' in body)).toHaveLength(1)
+  })
+
+  // specs/011-first-impressions, US6
+  test('a stop that fails says so under that item only; trying again and succeeding clears it', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    let tries = 0
+    let answerInternet: (reply: [number, unknown?]) => void = () => {}
+    api({
+      'GET /api/households/7/recurring': [200, [rent, { ...rent, id: 8, description: 'Internet' }]],
+      'POST /api/recurring/7/stop': () => (++tries === 1 ? [503, { error: { code: 'x', message: 'Máy chủ đang bận.' } }] : [204]),
+      'POST /api/recurring/8/stop': () => new Promise((resolve) => (answerInternet = resolve)),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await user.click(await screen.findByText('Khoản định kỳ (2)'))
+    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Internet' }))
+    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    // Each its own wait: Internet still waits, Tiền nhà has answered
+    expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).toBeDisabled()
+    const fold = screen.getByText('Khoản định kỳ (2)').closest('details') as HTMLElement
+    const [rentRow, internetRow] = within(fold).getAllByRole('listitem')
+    await waitFor(() => expect(rentRow).toHaveTextContent('Chưa xác nhận được là đã ngừng lặp. Máy chủ đang bận.'))
+    expect(internetRow).not.toHaveTextContent('Chưa xác nhận')
+    expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).toBeEnabled()
+    await act(async () => answerInternet([204]))
+
+    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    expect(await screen.findByText('Đã ngừng lặp Tiền nhà.')).toBeInTheDocument()
+    expect(rentRow).not.toHaveTextContent('Chưa xác nhận')
+  })
+
+  test('an answer that comes after leaving the page says nothing', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    let answer: (reply: [number, unknown?]) => void = () => {}
+    api({
+      'GET /api/households/7/recurring': [200, [rent]],
+      'POST /api/recurring/7/stop': () => new Promise((resolve) => (answer = resolve)),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await user.click(await screen.findByText('Khoản định kỳ (1)'))
+    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    await user.click(screen.getByRole('link', { name: 'Tổng quan' }))
+    await act(async () => answer([204]))
+    expect(screen.queryByText('Đã ngừng lặp Tiền nhà.')).toBeNull()
   })
 })
