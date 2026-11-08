@@ -287,8 +287,11 @@ test('leaving a house drops its photos from the cache too', async () => {
   await waitFor(() => expect(client.getQueriesData({ queryKey: ['photos', 7] }).some(([, d]) => d)).toBe(true))
   await user.click(screen.getByRole('button', { name: 'Rời nhà này' }))
   expect(await screen.findByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeInTheDocument()
-  // A page closing may leave an empty, switched-off entry; no photo data may stay
-  expect(client.getQueriesData({ queryKey: ['photos', 7] }).every(([, data]) => data === undefined)).toBe(true)
+  // A page closing may leave an empty, switched-off entry; no photo data may stay. Waited for: on a slow
+  // runner the members page can still be closing when the house list shows (seen once in CI on #235)
+  await waitFor(() =>
+    expect(client.getQueriesData({ queryKey: ['photos', 7] }).every(([, data]) => data === undefined)).toBe(true),
+  )
 })
 
 test('on a computer the people come first, then a request to approve, then the invite', async () => {
