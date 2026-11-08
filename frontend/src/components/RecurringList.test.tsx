@@ -59,7 +59,9 @@ test('Ngừng lặp only where allowed, and only after a yes', async () => {
   expect(screen.getAllByRole('button', { name: /^Ngừng lặp/ })).toHaveLength(1)
   const stop = screen.getByRole('button', { name: 'Ngừng lặp Internet' })
   await userEvent.click(stop)
-  expect(confirm).toHaveBeenCalledWith('Ngừng lặp Internet? Các khoản đã ghi vẫn giữ nguyên, chỉ không nhắc nữa.')
+  expect(confirm).toHaveBeenCalledWith(
+    'Ngừng lặp Internet? Các khoản đã ghi vẫn giữ nguyên, chỉ không hiện trên Tổng quan nữa.',
+  )
   expect(onStop).not.toHaveBeenCalled()
   confirm.mockReturnValue(true)
   await userEvent.click(stop)

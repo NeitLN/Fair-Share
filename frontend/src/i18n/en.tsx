@@ -11,10 +11,10 @@ const MONTHS = [
 ]
 
 /**
- * The English words on screen, the default language. Terms used everywhere (agreed in the
- * translation review): a "nhà" is a **group**, money paid back between members is a **repayment**,
- * shared purchases are **expenses**, and the net result is a **balance**. Buttons and headings use
- * sentence case; only the stamps are upper case.
+ * The English words on screen, shown when the browser's first language is English. Terms used
+ * everywhere (agreed in the translation review): a "nhà" is a **group**, money paid back between
+ * members is a **repayment**, shared purchases are **expenses**, and the net result is a **balance**.
+ * Buttons and headings use sentence case; only the stamps are upper case.
  */
 const en: Messages = {
   tagline: 'See who owes who.',
@@ -65,8 +65,8 @@ const en: Messages = {
     unknown_member: "Someone isn't in this group. Reload the page and try again.",
     duplicate_member: 'One person was picked twice in the split.',
     same_member: "Someone can't repay themselves.",
-    notice_changed: 'This notice just changed or was answered. The page is up to date now; have another look.',
-    suggestion_changed: 'The suggested amount just changed. The page is up to date now; check it and tell them again.',
+    notice_changed: 'This notice just changed or was answered. The figures are refreshing; have another look once they show.',
+    suggestion_changed: 'The suggested amount just changed. The figures are refreshing; check them and tell them again.',
     database_unavailable: "We can't load your data right now. Try again in a few minutes.",
     database_not_configured: "The server's database is not set up.",
     database_not_initialized: "The database isn't ready yet. Try again in a few minutes.",
@@ -115,6 +115,7 @@ const en: Messages = {
     fallbackName: (id: number) => `Group #${id}`,
     loading: 'Loading group',
     nameLabel: 'Group name',
+    nameEmpty: 'Enter a group name.',
     nameProblem: 'The group name must be 1 to 60 characters.',
     create: 'Create group',
     rename: 'Rename group',
@@ -171,6 +172,7 @@ const en: Messages = {
     registering: 'Creating…',
     emailProblem: 'Enter an email address, such as minh@gmail.com.',
     passwordProblem: 'The password must be 8 to 128 characters.',
+    nameEmpty: 'Enter your name.',
     nameProblem: 'The name must be 1 to 40 characters.',
     noReset: "There's no password reset yet, so use a password you'll remember.",
     showPassword: 'Show',
@@ -192,12 +194,13 @@ const en: Messages = {
     emailHint: 'Your email is the name of the account and cannot be changed.',
     nameTitle: 'Your name',
     nameLabel: 'Display name',
-    nameHint: 'Changing it here changes your name in every household you are in.',
+    nameHint: 'Changing it here changes your name in every group you are in.',
+    nameEmpty: 'Enter your name.',
     nameProblem: 'A name is 1 to 40 characters.',
     save: 'Save',
     saving: 'Saving…',
-    renamedEverywhere: 'Your name changed in every household.',
-    renamedNoHouse: 'Your name changed. You are not in a household yet.',
+    renamedEverywhere: 'Your name changed in every group.',
+    renamedNoHouse: 'Your name changed. You are not in a group yet.',
     kept: (house: string, newName: string, oldName: string) =>
       `${house} already has someone called ${newName}, so you are still ${oldName} there.`,
     passwordTitle: 'Password',
@@ -211,7 +214,7 @@ const en: Messages = {
     statusTitle: 'Status',
     statusLabel: 'Status your housemates see',
     statusPlaceholder: 'e.g. on a diet 🥗',
-    statusHint: (n: number, max: number) => `${n}/${max} characters. Shown under your name on Members in every household.`,
+    statusHint: (n: number, max: number) => `${n}/${max} characters. Shown under your name on Members in every group.`,
     statusProblem: 'A status is at most 60 characters, on one line.',
     statusSaved: 'Status saved.',
     statusCleared: 'Status cleared.',
@@ -228,7 +231,7 @@ const en: Messages = {
     photoUnreadable: "That picture can't be read. Please choose a JPEG, PNG or WebP.",
     genderTitle: 'Gender',
     genderNotice:
-      'Optional. It shares your gender with your housemates; your current and future housemates see it. Kept until you change or clear it. Choosing Not stated deletes it.',
+      'Optional, to let your group know your gender. Current and future members see it, until you change it. Not stated deletes it.',
     genderNone: 'Not stated',
     genders: { male: 'Male', female: 'Female', other: 'Other' },
     genderSaved: 'Gender saved.',
@@ -424,7 +427,7 @@ const en: Messages = {
   // Recurring expenses (specs/007-recurring-expenses)
   recurring: {
     tick: 'Repeat every month',
-    hint: (day: number) => `Reminds on day ${day} each month · never records by itself`,
+    hint: (day: number) => `Shows on Overview from day ${day} each month · never saved for you`,
     varying: 'The amount changes every month',
     equalOnly: 'A recurring expense is split equally. Switch to an equal split or untick Repeat every month.',
     equalOnlyLocked: 'Recurring items are split equally.',
@@ -446,7 +449,7 @@ const en: Messages = {
     stop: 'Stop repeating',
     stopLabel: (description: string) => `Stop repeating ${description}`,
     stopConfirm: (description: string) =>
-      `Stop repeating ${description}? What was recorded stays; it just will not remind any more.`,
+      `Stop repeating ${description}? Expenses already recorded stay; it just stops showing on Overview.`,
     stopped: (description: string) => `Stopped repeating ${description}.`,
     stopUnclear: 'We could not confirm that it stopped repeating.',
     empty: 'No recurring expenses yet. Tick Repeat every month when you add an expense.',
@@ -477,7 +480,7 @@ const en: Messages = {
     amountDiffers: "Not today's suggestion: marking it received records the amount they told you.",
     outdated: 'The balances changed after this was told.',
     noticesFailed: "Couldn't load the “I've sent it” notices.",
-    cancelNotice: 'Take back',
+    cancelNotice: 'Withdraw notice',
     declinedBy: (to: string) => `${to} says it hasn't arrived. Check, then tell them again.`,
     toldMe: (from: string) => `${from} says they sent`,
     notReceived: 'Not received',

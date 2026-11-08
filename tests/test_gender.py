@@ -61,6 +61,13 @@ def test_another_notice_version_is_refused(client):
     assert me(client)["gender"] is None
 
 
+def test_the_previous_notice_version_is_refused(client):
+    old = set_gender(client, "male", notice="2026-11-v1")
+    assert old.status_code == 422
+    assert error_code(old) == "validation_error"
+    assert me(client)["gender"] is None
+
+
 def test_the_database_never_keeps_a_gender_without_its_notice(client, db_url):
     user_id = me(client)["id"]
     with pytest.raises(psycopg.errors.CheckViolation), psycopg.connect(db_url) as conn:

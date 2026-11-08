@@ -40,12 +40,12 @@ Then, in a second terminal or the browser:
 | 3 | http://localhost:8000/health | `{"status":"ok"}` |
 | 4 | http://localhost:8000/health/db | `{"db":"ok","schema":"002_household_keys"}` |
 | 5 | http://localhost:8000/docs | Swagger UI |
-| 6 | Open http://localhost:3000 and sign in as `tien@demo.local` with the password `fairshare-demo` (README; `docker compose logs api \| grep "demo household"` names the account too) | **Nhà trọ Bình Thạnh** on the home page, marked Owner: three members, five expenses over two months, a verdict on Overview (Tổng quan in Vietnamese) |
+| 6 | Open http://localhost:3000 and sign in as `tien@demo.local` with the password `fairshare-demo` (README; `docker compose logs api \| grep "demo household"` names the account too) | **Nhà trọ Bình Thạnh** on the home page, marked **Trưởng nhóm**: three members, five expenses over two months, a verdict on Tổng quan |
 | 7 | Reload on a deep link, e.g. http://localhost:3000/households/1/expenses | The page, not a 404 |
 | 8 | `docker compose down`, then `docker compose up -d --wait` (time it) | Comes back in seconds; anything you added is still there |
 | 9 | `docker compose down -v` | Removes the local database; the next `up` starts from the demo household again |
-| 10 | In a private window, create a second account and enter the demo house's invite code (Members shows it to the demo account) | The app says **Waiting for approval**; the house's name is not shown |
-| 11 | Back as the demo account, open the Members tab and approve the request; reload the second window | The second account now sees the house |
+| 10 | In a private window, create a second account and enter the demo house's invite code (Thành viên shows it to the demo account) | The app says **Đang chờ duyệt** (waiting for approval); the house's name is not shown |
+| 11 | Back as the demo account, open the Thành viên tab and approve the request; reload the second window | The second account now sees the house |
 
 Optional, with Node 22 on the machine (`cd frontend && npm ci && npx playwright install chromium`):
 `E2E_BASE_URL=http://localhost:3000 E2E_API_URL=http://localhost:3000 npm run e2e` runs the main flow and

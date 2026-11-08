@@ -63,7 +63,8 @@ function AuthPage() {
     if (!EMAIL.test(email.trim())) found.email = t.auth.emailProblem
     if (mode === 'register') {
       if (password.length < 8 || password.length > 128) found.password = t.auth.passwordProblem
-      if (name.trim().length < 1 || name.trim().length > 40) found.name = t.auth.nameProblem
+      if (name.trim().length === 0) found.name = t.auth.nameEmpty
+      else if (name.trim().length > 40) found.name = t.auth.nameProblem
     } else if (!password) {
       found.password = t.auth.passwordProblem
     }
@@ -140,9 +141,11 @@ function AuthPage() {
               aria-describedby={problems.name ? 'auth-name-problem' : 'auth-name-hint'}
               onChange={(event) => setName(event.target.value)}
             />
-            <p id="auth-name-hint" className="hint">
-              {t.auth.displayNameHint}
-            </p>
+            {!problems.name && (
+              <p id="auth-name-hint" className="hint">
+                {t.auth.displayNameHint}
+              </p>
+            )}
             {problem('name')}
           </div>
         )}
@@ -171,7 +174,7 @@ function AuthPage() {
               {showPassword ? t.auth.hidePassword : t.auth.showPassword}
             </button>
           </div>
-          {mode === 'register' && (
+          {mode === 'register' && !problems.password && (
             <p id="auth-password-hint" className="hint">
               {t.auth.passwordHint} {t.auth.noReset}
             </p>

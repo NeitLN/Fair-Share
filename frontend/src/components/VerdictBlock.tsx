@@ -450,7 +450,7 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onCance
             disabled={busy || !known}
             onClick={() => onNotify?.(transfer)}
           >
-            {busy ? t.verdict.notifying : t.verdict.debtorSend(<Money amount={amount} />, to)}
+            {busy ? t.verdict.notifying : <span>{t.verdict.debtorSend(<Money amount={amount} />, to)}</span>}
           </button>
         </>
       )}

@@ -1240,7 +1240,7 @@ describe('ExpenseForm, recurring', () => {
     await fillBasics(user, '300k')
     await user.click(tick())
     const day = Number(new Date().getDate())
-    expect(screen.getByText(`Nhắc ngày ${day} hằng tháng · không tự lưu khoản chi`)).toBeInTheDocument()
+    expect(screen.getByText(`Hiện trên Tổng quan từ ngày ${day} hằng tháng · không tự lưu khoản chi`)).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: 'Số tiền thay đổi mỗi tháng' }))
     await save(user)
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recurring: { varying_amount: true } }))

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-/** The app speaks English by default; Vietnamese is one tap away in the header. */
+/** The app speaks Vietnamese unless the browser's first language is English; the header switches. */
 export type Language = 'en' | 'vi'
 
 export const LANGUAGE_KEY = 'fair-share:language'
@@ -9,13 +9,18 @@ function isLanguage(value: unknown): value is Language {
   return value === 'en' || value === 'vi'
 }
 
-/** The saved choice; English when nothing is saved or storage is blocked (private mode). */
+/**
+ * The saved choice; otherwise Vietnamese, unless the browser's first language starts with `en`.
+ * Storage blocked (private mode) or any other failure still opens in Vietnamese.
+ */
 function readLanguage(): Language {
   try {
     const saved = localStorage.getItem(LANGUAGE_KEY)
-    return isLanguage(saved) ? saved : 'en'
+    if (isLanguage(saved)) return saved
+    const first = (navigator.languages?.[0] ?? navigator.language ?? '').toLowerCase()
+    return first.startsWith('en') ? 'en' : 'vi'
   } catch {
-    return 'en'
+    return 'vi'
   }
 }
 

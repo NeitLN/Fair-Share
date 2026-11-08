@@ -18,7 +18,11 @@ function HouseholdCreateForm({ onCreate, submitting, error }: HouseholdCreateFor
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmed = name.trim()
-    if (trimmed.length < 1 || trimmed.length > 60) {
+    if (trimmed.length === 0) {
+      setValidation(t.households.nameEmpty)
+      return
+    }
+    if (trimmed.length > 60) {
       setValidation(t.households.nameProblem)
       return
     }
