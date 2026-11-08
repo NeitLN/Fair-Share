@@ -776,7 +776,8 @@ input:disabled {
   opacity: 1;
 }
 
-button:disabled {
+button:disabled,
+button[aria-disabled='true'] {
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
@@ -2322,6 +2323,14 @@ button.ai:active:focus-visible {
   padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px))
     max(16px, env(safe-area-inset-left, 0px));
   pointer-events: none;
+}
+
+/* On a phone the save bar of Chi tiêu sticks to the bottom of the screen: "Đã lưu: …" sits above it,
+   not over it (the bar is 64 px; from 1024 px it is not sticky) */
+@media (max-width: 1023px) {
+  body:has(.form-actions) .toasts {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .toast {

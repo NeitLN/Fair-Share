@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
+import { keys } from '../api/households'
 import { mockApi, renderApp } from '../test/renderApp'
 import { onAComputer } from '../test/screen'
 
@@ -284,13 +285,13 @@ test('leaving a house drops its photos from the cache too', async () => {
   })
   const user = userEvent.setup()
   const { client } = renderApp('/households/7/members')
-  await waitFor(() => expect(client.getQueriesData({ queryKey: ['photos', 7] }).some(([, d]) => d)).toBe(true))
+  await waitFor(() => expect(client.getQueriesData({ queryKey: keys.housePhotos(7) }).some(([, d]) => d)).toBe(true))
   await user.click(screen.getByRole('button', { name: 'Rời nhà này' }))
   expect(await screen.findByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeInTheDocument()
   // A page closing may leave an empty, switched-off entry; no photo data may stay. Waited for: on a slow
   // runner the members page can still be closing when the house list shows (seen once in CI on #235)
   await waitFor(() =>
-    expect(client.getQueriesData({ queryKey: ['photos', 7] }).every(([, data]) => data === undefined)).toBe(true),
+    expect(client.getQueriesData({ queryKey: keys.housePhotos(7) }).every(([, data]) => data === undefined)).toBe(true),
   )
 })
 
