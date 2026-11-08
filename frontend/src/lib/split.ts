@@ -11,6 +11,11 @@ export function equalSplit(amount: number, memberIds: number[]): Map<number, num
   return shares
 }
 
+// Above this total the form asks once before saving: a typo guard, not a limit (specs/011, FR-011)
+export const LARGE_AMOUNT = 50_000_000
+// The most one expense can be, the same as the API (app/schemas.py): refused on the page first (FR-013)
+export const MAX_AMOUNT = 1_000_000_000_000
+
 // Thousands and millions the way amounts are written every day: "240k", "2tr", "2 triệu"
 const UNITS: Record<string, number> = { k: 1_000, tr: 1_000_000, triệu: 1_000_000, trieu: 1_000_000 }
 // A whole number, its unit, and an optional fraction before the unit ("1,5tr") or after it ("1tr5")

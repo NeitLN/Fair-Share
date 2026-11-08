@@ -337,7 +337,10 @@ Hôm qua, 20/10
   between everyone. The 90% case needs only *Nội dung*, *Số tiền* and *Lưu*.
 * **Lặp lại hằng tháng** ([spec 007](../specs/007-recurring-expenses/spec.md)): a tick before Lưu when
   adding (not when editing or recording a due item), with "Nhắc ngày 5 mỗi tháng · không tự ghi tiền";
-  once ticked, "Số tiền thay đổi mỗi tháng". Only an equal split recurs (a custom one says so). Filled
+  once ticked, "Số tiền thay đổi mỗi tháng". Only an equal split recurs: choosing *Tự chia* (by hand or by
+  an AI fill) unticks the box and locks it, with "Khoản định kỳ chỉ chia đều được." under it; back on
+  *Chia đều* it is free again but stays unticked, and *Hoàn tác điền* gives back what was ticked before the
+  fill ([spec 011](../specs/011-first-impressions/spec.md)). Filled
   from a due item, people no longer in the house are left out and named. A second expense of the same
   item in one month is refused: "Kỳ 11/2026 của Tiền nhà đã có người ghi", with *Xem khoản đã ghi*.
   Under the form, a folded *Khoản định kỳ (n)* lists each item, its day and this month (đã ghi, đến ngày ghi,
@@ -350,7 +353,20 @@ Hôm qua, 20/10
   Editing keeps the stored category. Each row in the list ends with it ("chia đều 3 người · Ăn uống"),
   the filters gain *Danh mục*, and the CSV a column.
 * **Errors** appear under the field (`aria-invalid`, `aria-describedby`) and the first invalid field gets
-  focus; the server's message stays above the button.
+  focus, scrolled into view (a share that does not add up focuses the first share). Since
+  [spec 011](../specs/011-first-impressions/spec.md) the reason also shows in the sticky save area, right
+  above *Lưu khoản chi*, so it is seen with the keyboard open: "Chưa lưu được: Tổng các phần phải bằng đúng
+  số tiền của khoản chi." The server's refusal goes there too, and focuses the field it is about when it
+  names one. After a failed save each edit checks again, so the line goes as soon as the problem is fixed.
+* **Large amounts:** above 50.000.000đ, *Lưu* first swaps the buttons for "Số tiền 120.000.000đ lớn bất
+  thường. Lưu thật nhé?" with *Sửa lại* (focused) and *Lưu thật*, in the same sticky area, not a pop-up.
+  The answer holds for that amount only; changing it asks again. Escape is *Sửa lại*, and Enter held over
+  from the form never presses *Lưu thật*. Above 1.000.000.000.000đ the amount is refused: "Một khoản chi
+  tối đa 1.000.000.000.000đ."
+* **Tự chia starts at the equal split:** the first switch to *Tự chia* fills each share with what Chia
+  đều would give; without a total yet it waits until the person
+  leaves *Số tiền* with one, never on each digit. It runs once per expense and never over a share
+  already typed. Each share shows its value under it, "= 120.000đ", like *Số tiền*.
 * **Expense rows** are `<details>`: tap a row to reveal *Sửa* and *Xoá* (44 px). Deleting still asks
   first. AI-made expenses carry the `✦ AI` chip. Since the design review of 05/11 every row opens, first
   to who shares it and how much each (a share of 0đ is not listed), then *Sửa* / *Xoá* for the rows you
@@ -586,6 +602,7 @@ region.
 | Lưu khoản chi · Lưu khoản trả (the save buttons) | Ghi nhận khoản này (no object; "ghi nhận" may still explain something) |
 | Chưa ghi khoản trả (nothing recorded) | Chưa trả (the app cannot know what happened outside it) |
 | Đến ngày ghi · Ngừng lặp (recurring reminders) | Tới hạn (reads as a payment deadline) |
+| Chưa lưu được: … (a refused save) · Sửa lại · Lưu thật (the large-amount question) | Lỗi! · Xác nhận / OK |
 | Bỏ quyền vào nhà (keeps the name and its records) · Xoá (removes a name nobody uses) | using one for the other |
 | link mời · nhập thông tin bên dưới · Huỷ / Xoá / khoá | đường dẫn mời · form / biểu mẫu in everyday hints · Hủy / Xóa (mixed) |
 

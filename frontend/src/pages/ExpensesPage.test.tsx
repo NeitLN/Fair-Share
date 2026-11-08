@@ -192,7 +192,8 @@ test('a split the server refuses is explained in Vietnamese and the form keeps i
   await user.type(screen.getByLabelText('Số tiền'), '240000')
   await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('Có người không thuộc nhà này.')
+  // In the save area, with the split that it is about (specs/011, FR-002)
+  expect(await screen.findByText(/^Chưa lưu được: Có người không thuộc nhà này/)).toBeInTheDocument()
   expect(screen.getByLabelText('Nội dung')).toHaveValue('Ăn tối')
 })
 

@@ -20,6 +20,7 @@ import MonthTotals from '../components/MonthTotals'
 import RecurringList from '../components/RecurringList'
 import { draftToFill } from '../lib/draftFill'
 import { errorMessage } from '../lib/errors'
+import { formError } from '../lib/formError'
 import { today } from '../lib/date'
 import { filterExpenses, isFiltered, monthNumber, monthsOf, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import type { ExpenseFilter } from '../lib/expenseFilters'
@@ -167,6 +168,8 @@ function ExpensesPage() {
   // You, else whoever paid last on this device (DESIGN.md §6.3)
   const defaultPayer = me ?? readLastPayer(householdId)
   const form = editing ? update : create
+  // One object per failure, so the form can tell a new one from the one it already showed (spec 011)
+  const serverError = useMemo(() => formError(form.error), [form.error])
   // "Kỳ 11/2026 của Tiền nhà đã có người ghi": said with the month and the item, and the way to it
   const taken =
     form.error instanceof ApiError && form.error.code === 'recurring_month_taken'
@@ -274,7 +277,7 @@ function ExpensesPage() {
                   }
                   onCancel={editing ? () => setEditing(null) : undefined}
                   submitting={form.isPending}
-                  error={form.error instanceof ApiError && form.error.code === 'recurring_month_taken' ? null : errorMessage(form.error)}
+                  serverError={serverError}
                 />
                 {form.error instanceof ApiError && form.error.code === 'recurring_month_taken' && (
                   <p className="note" role="alert">

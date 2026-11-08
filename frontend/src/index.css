@@ -1188,14 +1188,75 @@ button.ai:active:focus-visible {
   flex: 1;
 }
 
+/* The save area stacks: why the save did not happen, then the buttons (specs/011, FR-001) */
+.form-actions {
+  flex-direction: column;
+}
+
+.form-summary {
+  color: var(--debt-text);
+  font-size: var(--text-small);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.form-summary:empty {
+  display: none;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* Lưu 120.000.000 ₫ thật chứ? in place of the buttons, never a pop-up (FR-011) */
+.form-confirm {
+  display: grid;
+  gap: 8px;
+}
+
+.form-confirm p {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.form-confirm-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.form-confirm-buttons button {
+  flex: 1 1 8rem;
+}
+
 .split-rows li {
   justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+/* A share and its "= 120.000 ₫" under it, right-aligned like the figures (FR-015) */
+.share-input {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  flex: 0 1 9rem;
+  min-width: 0;
 }
 
 .split-rows input[type='text'] {
-  flex: 0 1 8rem;
+  width: 100%;
   text-align: right;
   font-weight: 700;
+}
+
+.share-preview {
+  font-size: var(--text-small);
+}
+
+.split-rows .field-problem {
+  flex-basis: 100%;
+  text-align: right;
 }
 
 .remainder {
