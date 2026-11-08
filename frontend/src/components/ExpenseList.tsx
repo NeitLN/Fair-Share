@@ -12,6 +12,7 @@ import ShareList from './ShareList'
 import Skeleton from './Skeleton'
 import { closeFoldOnEscape } from '../lib/fold'
 import { byDay, splitAndCategory } from '../lib/expenseRows'
+import { useClampedDescriptions } from '../lib/useClamped'
 import { useT } from '../i18n'
 
 interface ExpenseListProps {
@@ -68,6 +69,17 @@ function ExpenseList({
       return next
     })
   }
+  // A description cut by the two lines gets Xem đủ, for that row only (spec 012, US5)
+  const { clamped, ref: descriptionRef } = useClampedDescriptions(expenses)
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set())
+  function toggleExpanded(id: number) {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (loading) {
     return <Skeleton label={t.expenses.loadingList} />
@@ -100,7 +112,9 @@ function ExpenseList({
                   <li
                     key={expense.id}
                     data-expense={expense.id}
-                    className={`expense-row${highlightId === expense.id ? ' just-saved' : ''}`}
+                    className={`expense-row${highlightId === expense.id ? ' just-saved' : ''}${
+                      expanded.has(expense.id) ? ' expanded' : ''
+                    }`}
                   >
                     {/* Every row opens to who shares it; the ones you may change also offer Sửa and Xoá */}
                     <details
@@ -110,10 +124,30 @@ function ExpenseList({
                       <summary>
                         <Avatar look={payer} decorative />
                         <span className="expense-main">
-                          <span className="expense-description">
-                            {expense.description}
+                          <span
+                            className={`expense-description${expanded.has(expense.id) ? ' expanded' : ''}`}
+                            title={expense.description}
+                          >
+                            <span className="expense-description-text" ref={descriptionRef(expense.id)}>
+                              {expense.description}
+                            </span>
                             {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
                           </span>
+                          {clamped.has(expense.id) && (
+                            <button
+                              type="button"
+                              className="expense-show-full"
+                              aria-expanded={expanded.has(expense.id)}
+                              onClick={(event) => {
+                                // Inside the summary: it must not also open the row
+                                event.preventDefault()
+                                event.stopPropagation()
+                                toggleExpanded(expense.id)
+                              }}
+                            >
+                              {expanded.has(expense.id) ? t.expenses.showLess : t.expenses.showFull}
+                            </button>
+                          )}
                           <small>{t.expenses.paidBy(payer.short, splitAndCategory(expense, memberIds))}</small>
                         </span>
                         <Money amount={expense.amount} className="expense-amount" />

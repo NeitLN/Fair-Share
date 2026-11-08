@@ -21,6 +21,11 @@ export const NO_FILTER: ExpenseFilter = { month: null, memberId: null, category:
 /** "2026-10" for an expense spent on 2026-10-22. */
 export const monthOf = (expense: Expense) => expense.spent_at.slice(0, 7)
 
+/** A real "YYYY-MM", so a filter keeps a month even when it has no expense (FR-014). */
+export function isMonth(value: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value)
+}
+
 /** Every month that has an expense, newest first. */
 export function monthsOf(expenses: Expense[]): string[] {
   return [...new Set(expenses.map(monthOf))].sort((a, b) => b.localeCompare(a))

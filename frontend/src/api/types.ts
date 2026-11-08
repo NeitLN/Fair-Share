@@ -17,6 +17,10 @@ export type Role = 'owner' | 'member'
 export interface MyHousehold extends Household {
   role: Role
   member_id: number
+  /** What the house owes them (or they owe it) in đồng, from the same answer as the list. */
+  my_net?: number
+  /** Join requests to approve (owner only) and "Tôi đã chuyển" notices to answer. */
+  waiting?: number
 }
 
 /** A request to join that is still waiting: nothing about the household until it is approved. */

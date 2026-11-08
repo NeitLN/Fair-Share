@@ -22,7 +22,15 @@ import { draftToFill } from '../lib/draftFill'
 import { errorMessage } from '../lib/errors'
 import { formError } from '../lib/formError'
 import { today } from '../lib/date'
-import { filterExpenses, isFiltered, monthNumber, monthsOf, monthTotals, NO_FILTER } from '../lib/expenseFilters'
+import {
+  filterExpenses,
+  isFiltered,
+  isMonth,
+  monthNumber,
+  monthsOf,
+  monthTotals,
+  NO_FILTER,
+} from '../lib/expenseFilters'
 import type { ExpenseFilter } from '../lib/expenseFilters'
 import { readLastPayer, useMe, writeLastPayer } from '../lib/identity'
 import { memberLooks } from '../lib/names'
@@ -211,9 +219,10 @@ function ExpensesPage() {
   const allExpenses = useMemo(() => expenses.data ?? [], [expenses.data])
   const months = useMemo(() => monthsOf(allExpenses), [allExpenses])
   const chosen = filterOf.householdId === householdId ? filterOf.filter : NO_FILTER
-  // A month whose last expense was deleted, or a member who left, no longer filters anything
+  // A month stays chosen even after its last expense goes (FR-014): only a value that is not a
+  // month is dropped. A member who left, or a category no longer offered, still stops filtering
   const filter: ExpenseFilter = {
-    month: chosen.month !== null && months.includes(chosen.month) ? chosen.month : null,
+    month: chosen.month !== null && isMonth(chosen.month) ? chosen.month : null,
     memberId: (members.data ?? []).some((m) => m.id === chosen.memberId) ? chosen.memberId : null,
     category: chosen.category !== null && CATEGORIES.includes(chosen.category) ? chosen.category : null,
   }
@@ -356,13 +365,21 @@ function ExpensesPage() {
                 householdName={household.data?.name ?? ''}
               />
             </div>
-            {allExpenses.length > 0 && (
+            {(allExpenses.length > 0 || filter.month !== null) && (
               <ExpenseFilters months={months} members={members.data ?? []} filter={filter} onChange={setFilter} />
             )}
-            {totals && filter.month && (
+            {totals && filter.month && months.includes(filter.month) && (
               <MonthTotals month={filter.month} totals={totals} looks={looks} me={me} highlight={filter.memberId} />
             )}
-            {isFiltered(filter) && shown.length === 0 ? (
+            {filter.month !== null && !months.includes(filter.month) ? (
+              // The month stays chosen with nothing in it, and says so (FR-014)
+              <p className="empty">
+                {t.expenses.emptyMonth(monthNumber(filter.month))}{' '}
+                <button type="button" className="ghost" onClick={() => setFilter(NO_FILTER)}>
+                  {t.filters.clear}
+                </button>
+              </p>
+            ) : isFiltered(filter) && shown.length === 0 ? (
               <p className="empty">
                 {t.expenses.noMatch}{' '}
                 <button type="button" className="ghost" onClick={() => setFilter(NO_FILTER)}>

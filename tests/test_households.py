@@ -21,7 +21,7 @@ def test_create_then_get(client):
     created = household(client, "  Nhà trọ Q7  ")
     assert created["name"] == "Nhà trọ Q7"  # trimmed
     # The creator owns it, with a name of their own in the split; no key any more
-    assert set(created) == {"id", "name", "created_at", "role", "member_id"}
+    assert set(created) == {"id", "name", "created_at", "role", "member_id", "my_net", "waiting"}
     assert created["role"] == "owner"
 
     assert client.get(f"/api/households/{created['id']}").json() == created
@@ -252,3 +252,127 @@ def test_member_in_an_expense_cannot_be_removed(client, db_url):
         assert response.status_code == 409
         assert error_code(response) == "member_in_use"
     assert len(client.get(f"/api/households/{house['id']}/members").json()) == 3
+
+
+# --- What is going on in each house (US4, spec 012) -------------------------------------------
+
+
+def listed(client, token: str | None = None) -> dict:
+    response = client.get("/api/households", headers=bearer(token) if token else {})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def card(client, household_id: int, token: str | None = None) -> dict:
+    return next(h for h in listed(client, token)["households"] if h["id"] == household_id)
+
+
+def net_for(client, household_id: int, member_id: int) -> int:
+    rows = client.get(f"/api/households/{household_id}/balances").json()["balances"]
+    return next(row["net"] for row in rows if row["member_id"] == member_id)
+
+
+def add_expense(
+    client, household_id: int, payer: int, amount: int, participants: list[int]
+) -> None:
+    response = client.post(
+        f"/api/households/{household_id}/expenses",
+        json={"description": "Chi tiêu", "amount": amount, "payer_id": payer,
+              "spent_at": "2026-11-01", "split": {"type": "equal", "member_ids": participants}},
+    )
+    assert response.status_code == 201, response.text
+
+
+def repay(client, household_id: int, payer: int, payee: int, amount: int) -> None:
+    response = client.post(
+        f"/api/households/{household_id}/settlements",
+        json={"from_member_id": payer, "to_member_id": payee, "amount": amount,
+              "settled_at": "2026-11-02"},
+    )
+    assert response.status_code == 201, response.text
+
+
+def test_a_card_carries_the_callers_balance_from_the_same_numbers_as_the_house(client):
+    """Credit, debt and settled all read the same as the house's own Tổng quan."""
+    created = household(client)
+    tien = member(client, created["id"], "Tiến")["id"]
+    minh = member(client, created["id"], "Minh")["id"]
+
+    assert card(client, created["id"])["my_net"] == net_for(client, created["id"], tien) == 0
+
+    # Minh pays for both: Tiến owes his half
+    add_expense(client, created["id"], minh, 300_000, [tien, minh])
+    assert card(client, created["id"])["my_net"] == net_for(client, created["id"], tien) == -150_000
+
+    # Tiến pays Minh back: settled
+    repay(client, created["id"], tien, minh, 150_000)
+    assert card(client, created["id"])["my_net"] == net_for(client, created["id"], tien) == 0
+
+    # Tiến pays one for both: the house owes him
+    add_expense(client, created["id"], tien, 400_000, [tien, minh])
+    assert card(client, created["id"])["my_net"] == net_for(client, created["id"], tien) == 200_000
+
+
+def pending_joiner(client, household_id: int, name: str) -> str:
+    """An account asking to join, not approved: returns its token."""
+    token = client.sign_up(display_name=name)
+    code = client.get(f"/api/households/{household_id}/invite").json()["code"]
+    response = client.post("/api/join", json={"code": code}, headers=bearer(token))
+    assert response.status_code == 200, response.text
+    return token
+
+
+def test_waiting_counts_join_requests_for_the_owner_and_notices_sent_to_them(client):
+    created = household(client)
+    tien = member(client, created["id"], "Tiến")["id"]
+    minh = member(client, created["id"], "Minh")["id"]
+    pending_joiner(client, created["id"], "Lan")
+    pending_joiner(client, created["id"], "Hoa")
+    assert card(client, created["id"])["waiting"] == 2
+
+    # Minh owes Tiến and says he sent it: one more thing waits for the owner's answer
+    add_expense(client, created["id"], tien, 300_000, [tien, minh])
+    told = client.put(
+        f"/api/households/{created['id']}/notices",
+        json={"to_member_id": tien, "amount": 150_000},
+        headers=bearer(client.member_tokens[minh]),
+    )
+    assert told.status_code == 200, told.text
+    assert card(client, created["id"])["waiting"] == 3
+
+    # A declined notice waits for nobody
+    declined = client.post(
+        f"/api/households/{created['id']}/notices/{minh}/decline", json={"amount": 150_000}
+    )
+    assert declined.status_code == 200, declined.text
+    assert card(client, created["id"])["waiting"] == 2
+
+
+def test_a_member_waits_for_notices_but_never_for_other_peoples_join_requests(client):
+    created = household(client)
+    tien = member(client, created["id"], "Tiến")["id"]
+    minh = member(client, created["id"], "Minh")["id"]
+    minh_token = client.member_tokens[minh]
+    pending_joiner(client, created["id"], "Lan")
+    pending_joiner(client, created["id"], "Hoa")
+
+    assert card(client, created["id"], minh_token)["waiting"] == 0
+
+    # Tiến owes Minh and says he sent it: now one thing waits for Minh
+    add_expense(client, created["id"], minh, 300_000, [tien, minh])
+    told = client.put(
+        f"/api/households/{created['id']}/notices",
+        json={"to_member_id": minh, "amount": 150_000},
+    )
+    assert told.status_code == 200, told.text
+    assert card(client, created["id"], minh_token)["waiting"] == 1
+    assert card(client, created["id"])["waiting"] == 2  # the owner's two join requests only
+
+
+def test_a_pending_request_carries_neither_the_balance_nor_the_waiting_count(client):
+    created = household(client)
+    token = pending_joiner(client, created["id"], "Lan")
+
+    body = listed(client, token)
+    assert body["households"] == []
+    assert set(body["pending"][0]) == {"household_id", "requested_at"}

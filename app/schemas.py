@@ -122,10 +122,13 @@ class Household(BaseModel):
 
 
 class MyHousehold(Household):
-    """A household as the signed-in user sees it: their role and their name in the split."""
+    """A household as the signed-in user sees it: their role, their name in the split, and what is
+    going on there for them (US4)."""
 
     role: Literal["owner", "member"]
     member_id: int
+    my_net: int = 0
+    waiting: int = 0
 
 
 class PendingRequest(BaseModel):
