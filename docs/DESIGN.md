@@ -360,7 +360,8 @@ Hôm qua, 20/10
   names one. After a failed save each edit checks again, so the line goes as soon as the problem is fixed.
 * **Large amounts:** above 50.000.000đ, *Lưu* first swaps the buttons for "Số tiền 120.000.000đ lớn bất
   thường. Lưu thật nhé?" with *Sửa lại* (focused) and *Lưu thật*, in the same sticky area, not a pop-up.
-  The answer holds for that amount only; changing it asks again. Escape is *Sửa lại*, and Enter held over
+  The answer holds for that amount only; changing it asks again, and editing an expense without changing
+  its saved amount does not ask. Both buttons carry the question for screen readers. Escape is *Sửa lại*, and Enter held over
   from the form never presses *Lưu thật*. Above 1.000.000.000.000đ the amount is refused: "Một khoản chi
   tối đa 1.000.000.000.000đ."
 * **Tự chia starts at the equal split:** the first switch to *Tự chia* fills each share with what Chia

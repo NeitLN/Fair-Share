@@ -114,6 +114,17 @@ describe('US1: a failed save says why, where you can see it', () => {
     expect(summary()).toBeEmptyDOMElement()
     expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
   })
+
+  test('a lost connection stays while the amount is edited; a split refusal goes with it', async () => {
+    const { user, rerender } = setup()
+    await basics(user)
+    rerender({ serverError: { message: 'Không kết nối được.', field: null } })
+    await user.type(screen.getByLabelText('Số tiền'), '0')
+    expect(summary()).toHaveTextContent('Chưa lưu được: Không kết nối được.')
+    rerender({ serverError: { message: 'Có người không thuộc nhà này.', field: 'split' } })
+    await user.type(screen.getByLabelText('Số tiền'), '0')
+    expect(summary()).toBeEmptyDOMElement()
+  })
 })
 
 describe('US3: repeating monthly and Tự chia cannot clash', () => {
@@ -162,8 +173,30 @@ describe('US4: large amounts', () => {
     expect(onSubmit).not.toHaveBeenCalled()
     expect(confirmText()).toHaveTextContent('Số tiền 50.000.001đ lớn bất thường. Lưu thật nhé?')
     expect(screen.getByRole('button', { name: 'Sửa lại' })).toHaveFocus()
+    // The question is read with whichever button has the focus
+    const question = 'Số tiền 50.000.001đ lớn bất thường. Lưu thật nhé?'
+    expect(screen.getByRole('button', { name: 'Sửa lại' })).toHaveAccessibleDescription(question)
+    expect(screen.getByRole('button', { name: 'Lưu thật' })).toHaveAccessibleDescription(question)
     await user.click(screen.getByRole('button', { name: 'Lưu thật' }))
     expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  test('editing a large expense without changing its amount does not ask; a new amount does', async () => {
+    const { user, onSubmit } = setup({
+      initial: {
+        id: 9, household_id: 7, description: 'Máy lạnh', amount: 60_000_000, payer_id: 1, spent_at: '2026-11-01',
+        source: 'manual', category: 'other', created_at: '', split_type: 'equal',
+        shares: [{ member_id: 1, amount: 30_000_000 }, { member_id: 2, amount: 30_000_000 }],
+      },
+    })
+    await user.type(screen.getByLabelText('Nội dung'), ' mới')
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    await user.clear(screen.getByLabelText('Số tiền'))
+    await user.type(screen.getByLabelText('Số tiền'), '70tr')
+    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(confirmText()).not.toBeNull()
   })
 
   test('Escape or Sửa lại goes back to the amount without saving', async () => {

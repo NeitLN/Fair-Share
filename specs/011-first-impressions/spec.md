@@ -238,7 +238,8 @@ each gets its own result.
 - **FR-012**: The confirmation MUST be tied to the parsed amount: a different parsed amount (typed, filled or undone)
   asks again, the same amount written differently does not; a failed save keeps it; a successful save or a reset
   clears it. It applies to new expenses, edits, recording a due month and creating a repeating item; a quick-add fill
-  never opens it.
+  never opens it, and neither does an edit that keeps the amount already saved (review of PR-B, #235). The question
+  is read out with whichever of its two buttons has the focus.
 - **FR-013**: A total above 1.000.000.000.000đ MUST be refused on the page with the usual message, before any
   confirmation.
 - **FR-014**: The first time a person switches a form from Chia đều to Tự chia, the shares MUST start at the equal

@@ -276,7 +276,11 @@ function ExpenseForm({
     // "Còn lại 200.000đ tính cho Tiến" was about the total the AI read; a new total makes it untrue
     // (the shares then stop adding up, so Lưu is refused by the usual check)
     if (field === 'amount' && restFrom) setSplitNote(null)
-    if (serverError && (field === serverError.field || SPLIT_INPUTS.includes(field))) setSettledError(serverError)
+    // A refusal about the split goes when anything the split depends on changes; any other one (a lost
+    // connection has no field) only when its own field does
+    if (serverError && (field === serverError.field || (serverError.field === 'split' && SPLIT_INPUTS.includes(field)))) {
+      setSettledError(serverError)
+    }
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -573,7 +577,9 @@ function ExpenseForm({
       focusField.current = first === 'split' ? splitTarget() : first
       return
     }
-    if (!confirmed && amount !== null && amount > LARGE_AMOUNT && confirmedAmount !== amount) {
+    // An edit that keeps the amount already saved is not asked about again (review of #235)
+    const savedBefore = initial !== undefined && initial !== null && amount === initial.amount
+    if (!confirmed && amount !== null && amount > LARGE_AMOUNT && confirmedAmount !== amount && !savedBefore) {
       setConfirming(amount)
       return
     }
@@ -991,14 +997,21 @@ function ExpenseForm({
               cancelConfirm()
             }}
           >
-            <p>{t.form.confirmLarge(formatVND(confirming as number))}</p>
+            <p id="expense-confirm-question">{t.form.confirmLarge(formatVND(confirming as number))}</p>
             <div className="form-confirm-buttons">
-              <button type="button" className="btn-secondary" autoFocus onClick={cancelConfirm}>
+              <button
+                type="button"
+                className="btn-secondary"
+                autoFocus
+                aria-describedby="expense-confirm-question"
+                onClick={cancelConfirm}
+              >
                 {t.form.confirmEdit}
               </button>
               <button
                 type="button"
                 className="btn-primary"
+                aria-describedby="expense-confirm-question"
                 disabled={submitting}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') keyOnConfirm.current = true
