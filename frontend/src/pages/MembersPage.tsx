@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate, useParams } from 'react-router'
 
 import {
@@ -66,14 +67,13 @@ function MembersPage() {
   const leave = useMutation({
     mutationFn: () => leaveHousehold(householdId),
     onSuccess: () => {
-      navigate('/')
-      // Once the house's pages are gone: removed while they were still on screen, their queries came back
-      // at once and could fetch the photos again, so the house you left kept them (a test failing now
-      // and then, 08/11). The photos live under their own key (#228 review) and none may stay (#230 review)
-      setTimeout(() => {
-        queryClient.removeQueries({ queryKey: keys.household(householdId) })
-        queryClient.removeQueries({ queryKey: keys.housePhotos(householdId) })
-      }, 0)
+      // The house's pages are gone before its queries are removed (flushSync commits the navigation now):
+      // removed while they were still on screen, their queries came back at once and could fetch the
+      // photos again, so the house you left kept them (a test failing now and then, 08/11; review of
+      // #248). The photos live under their own key (#228 review) and none may stay (#230 review)
+      flushSync(() => navigate('/'))
+      queryClient.removeQueries({ queryKey: keys.household(householdId) })
+      queryClient.removeQueries({ queryKey: keys.housePhotos(householdId) })
       void queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
     },
   })
