@@ -153,7 +153,7 @@ describe('this month (US1)', () => {
 
   test('a "Tôi đã chuyển" waiting for an answer changes no figure (ACCOUNTS.md S3)', async () => {
     onAComputer()
-    api({ notices: [{ from_member_id: 3, to_member_id: 1, amount: 130_000, status: 'sent', created_at: '' }] })
+    api({ notices: [{ from_member_id: 3, to_member_id: 1, amount: 130_000, status: 'sent', created_at: '', version: 1 }] })
     renderApp(`/households/7/report/${cur}`)
     const rows = within(await table()).getAllByRole('row')
     expect(cells(rows[3])).toEqual([signed(-100_000), plain(0), plain(30_000), plain(0), plain(0), signed(-130_000)])

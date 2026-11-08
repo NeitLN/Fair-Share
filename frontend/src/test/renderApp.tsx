@@ -17,7 +17,7 @@ type Handler = Reply | ((body: unknown, init: RequestInit) => Reply | Promise<Re
 export function mockApi(routes: Record<string, Handler>) {
   const fetchFn = vi.fn(async (url: string, init: RequestInit = {}) => {
     const key = `${init.method ?? 'GET'} ${url}`
-    const handler = routes[key]
+    const handler = routes[key] ?? routes[key.split('?')[0]]
     if (!handler) return json(404, { detail: 'Not Found' })
     const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined
     // A handler may answer later, for tests of what the page shows while a request is slow

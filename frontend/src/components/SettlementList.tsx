@@ -1,4 +1,4 @@
-import type { Settlement } from '../api/types'
+import type { Notice, Settlement } from '../api/types'
 import { dayLabel } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { REMOVED_MEMBER } from '../lib/names'
@@ -22,6 +22,8 @@ interface SettlementListProps {
   retrying?: boolean
   /** Whether Xoá is offered: the owner, or whoever recorded it (docs/ACCOUNTS.md). */
   canDelete?: (settlement: Settlement) => boolean
+  /** The household's notices: deleting a repayment recorded from one says what happens to it (specs/014). */
+  notices?: Notice[]
 }
 
 const always = () => true
@@ -37,6 +39,7 @@ function SettlementList({
   onRetry,
   retrying = false,
   canDelete = always,
+  notices = [],
 }: SettlementListProps) {
   const t = useT()
   if (loading) {
@@ -54,7 +57,17 @@ function SettlementList({
 
   // Deleting cannot be undone from the UI, so ask first
   function confirmDelete(settlement: Settlement) {
-    if (window.confirm(t.settlements.confirmDelete(describe(settlement)))) onDelete(settlement)
+    const what = describe(settlement)
+    const from = nameOf(settlement.from_member_id)
+    // Recorded from a notice: the amount goes back to one, unless the pair already has another
+    const question = !settlement.notice_amount
+      ? t.settlements.confirmDelete(what)
+      : notices.some(
+            (n) => n.from_member_id === settlement.from_member_id && n.to_member_id === settlement.to_member_id,
+          )
+        ? t.settlements.confirmDeleteNoGiveBack(what, from)
+        : t.settlements.confirmDeleteGivesBack(what, from, formatVND(settlement.notice_amount))
+    if (window.confirm(question)) onDelete(settlement)
   }
 
   return (

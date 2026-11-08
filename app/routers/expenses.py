@@ -21,6 +21,7 @@ from app.access import (
 )
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
+from app.routers.households import lock_household
 from app.schemas import Expense, ExpenseIn, Id
 from app.services.splitting import equal_split, is_equal_split
 
@@ -181,6 +182,7 @@ def list_expenses(household_id: Id, conn: ConnDep):
 
 @router.post("/households/{household_id}/expenses", response_model=Expense, status_code=201)
 def create_expense(household_id: Id, body: ExpenseIn, access: AccessDep, conn: ConnDep):
+    lock_household(conn, household_id, shared=True)  # never while a transfer is being told
     shares = compute_shares(conn, household_id, body)
     item_id = None
     if body.recurring is not None:
@@ -213,6 +215,7 @@ def read_expense(expense_id: Id, conn: ConnDep):
 @router.put("/expenses/{expense_id}", response_model=Expense)
 def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: ConnDep):
     """Replaces the whole expense, shares included. Balances are computed, so they follow."""
+    lock_household(conn, access.household_id, shared=True)
     row = fetch_one(
         conn,
         "SELECT household_id, payer_id, created_by, recurring_item_id FROM expenses"
@@ -257,6 +260,7 @@ def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: Con
 @router.delete("/expenses/{expense_id}", status_code=204)
 def delete_expense(expense_id: Id, access: AccessDep, conn: ConnDep):
     """Its shares go with it (ON DELETE CASCADE)."""
+    lock_household(conn, access.household_id, shared=True)
     row = fetch_one(conn, "SELECT created_by FROM expenses WHERE id = %s FOR UPDATE", (expense_id,))
     if row is None:
         raise expense_not_found()

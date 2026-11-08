@@ -487,6 +487,13 @@ const vi = {
     declinedBy: (to: string) => `${to} báo chưa nhận được tiền. Kiểm tra lại rồi báo lại.`,
     toldMe: (from: string) => `${from} báo đã chuyển`,
     notReceived: 'Chưa nhận được',
+    // specs/014: the receiver records less than was told; the rest keeps waiting
+    noticeGone: 'Thông báo này đã đổi. Trang vừa tải lại.',
+    receiveOther: 'Nhận số khác',
+    receivedLabel: 'Số tiền đã nhận',
+    recordThis: 'Ghi số này',
+    atMost: (amount: string) => `Tối đa ${amount}, số đã báo.`,
+    overTold: (amount: string) => `Không ghi được quá số đã báo (${amount}).`,
     notPaidYet: 'Chưa ghi khoản trả.',
     toldOthers: (from: string, to: string) => `${from} đã báo chuyển, chờ ${to} xác nhận.`,
     notified: (to: string) => `Đã báo ${to}.`,
@@ -521,6 +528,15 @@ const vi = {
     loading: 'Đang tải các khoản trả',
     describe: (from: string, to: string, amount: string) => `khoản ${from} trả ${to} ${amount}`,
     confirmDelete: (what: string) => `Xoá ${what}?`,
+    // Deleting a repayment recorded from a notice (specs/014, FR-011a)
+    confirmDeleteGivesBack: (what: string, from: string, amount: string) =>
+      `Xoá ${what}? ${from} sẽ lại có thông báo ${amount} chờ bạn xác nhận.`,
+    confirmDeleteNoGiveBack: (what: string, from: string) =>
+      `Xoá ${what}? ${from} đang có thông báo khác, nên số này không trở lại thông báo; ${from} có thể cần báo lại.`,
+    // A repayment typed in while the payer's notice waits (specs/014, FR-008)
+    whichMoney: 'Khoản này là',
+    toldMoney: (from: string, amount: string) => `Tiền ${from} đã báo (${amount})`,
+    otherMoney: 'Khoản trả khác',
     deleteLabel: (what: string) => `Xoá ${what}`,
     empty: 'Chưa ghi khoản trả nào.',
     row: (from: ReactNode, to: ReactNode, amount: ReactNode) => (

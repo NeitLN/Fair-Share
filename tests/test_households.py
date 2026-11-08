@@ -334,7 +334,7 @@ def test_waiting_counts_join_requests_for_the_owner_and_notices_sent_to_them(cli
     add_expense(client, created["id"], tien, 300_000, [tien, minh])
     told = client.put(
         f"/api/households/{created['id']}/notices",
-        json={"to_member_id": tien, "amount": 150_000},
+        json={"to_member_id": tien, "amount": 150_000, "version": None},
         headers=bearer(client.member_tokens[minh]),
     )
     assert told.status_code == 200, told.text
@@ -342,7 +342,8 @@ def test_waiting_counts_join_requests_for_the_owner_and_notices_sent_to_them(cli
 
     # A declined notice waits for nobody
     declined = client.post(
-        f"/api/households/{created['id']}/notices/{minh}/decline", json={"amount": 150_000}
+        f"/api/households/{created['id']}/notices/{minh}/decline",
+        json={"version": told.json()["version"]},
     )
     assert declined.status_code == 200, declined.text
     assert card(client, created["id"])["waiting"] == 2
@@ -362,7 +363,7 @@ def test_a_member_waits_for_notices_but_never_for_other_peoples_join_requests(cl
     add_expense(client, created["id"], minh, 300_000, [tien, minh])
     told = client.put(
         f"/api/households/{created['id']}/notices",
-        json={"to_member_id": minh, "amount": 150_000},
+        json={"to_member_id": minh, "amount": 150_000, "version": None},
     )
     assert told.status_code == 200, told.text
     assert card(client, created["id"], minh_token)["waiting"] == 1

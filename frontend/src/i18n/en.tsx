@@ -488,6 +488,12 @@ const en: Messages = {
     declinedBy: (to: string) => `${to} says it hasn't arrived. Check, then tell them again.`,
     toldMe: (from: string) => `${from} says they sent`,
     notReceived: 'Not received',
+    noticeGone: 'This notice has changed. The page has been reloaded.',
+    receiveOther: 'Received a different amount',
+    receivedLabel: 'Amount received',
+    recordThis: 'Record this',
+    atMost: (amount: string) => `At most ${amount}, the amount they told you.`,
+    overTold: (amount: string) => `You cannot record more than they told you (${amount}).`,
     notPaidYet: 'No repayment recorded yet.',
     toldOthers: (from: string, to: string) => `${from} says it's sent. Waiting for ${to} to confirm.`,
     notified: (to: string) => `Told ${to}.`,
@@ -522,6 +528,13 @@ const en: Messages = {
     loading: 'Loading repayments',
     describe: (from: string, to: string, amount: string) => `the repayment from ${from} to ${to} of ${amount}`,
     confirmDelete: (what: string) => `Delete ${what}?`,
+    confirmDeleteGivesBack: (what: string, from: string, amount: string) =>
+      `Delete ${what}? ${from}'s notice of ${amount} will be waiting for you again.`,
+    confirmDeleteNoGiveBack: (what: string, from: string) =>
+      `Delete ${what}? ${from} has told you about another payment, so this amount will not go back to a notice; ${from} may need to tell you again.`,
+    whichMoney: 'This payment is',
+    toldMoney: (from: string, amount: string) => `The money ${from} told you about (${amount})`,
+    otherMoney: 'Another payment',
     deleteLabel: (what: string) => `Delete ${what}`,
     empty: 'No repayments recorded yet.',
     row: (from, to, amount) => (

@@ -31,7 +31,7 @@ const balance = (member_id: number, paid: number, owed: number, sent: number, re
 const tien = balance(1, 450_000, 1_890_000, 1_000_000, 0)
 const minh = balance(2, 4_740_000, 1_850_000, 0, 1_000_000)
 const notice = (from: number, to: number, amount: number, status: Notice['status']) =>
-  ({ household_id: 1, from_member_id: from, to_member_id: to, amount, status, created_at: '' }) as Notice
+  ({ household_id: 1, from_member_id: from, to_member_id: to, amount, status, created_at: '', version: 1 }) as Notice
 
 describe('the four lines', () => {
   test('come in a fixed order, from the balance, and add up to its net', () => {

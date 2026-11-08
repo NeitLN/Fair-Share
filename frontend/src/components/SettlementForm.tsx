@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import type { Member, SettlementInput } from '../api/types'
+import type { Member, Notice, SettlementInput } from '../api/types'
 import { isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { parseAmount } from '../lib/split'
@@ -18,12 +18,17 @@ interface SettlementFormProps {
    * Without it either side can be picked.
    */
   receiver?: number | null
+  /**
+   * The household's "Tôi đã chuyển" notices: when the chosen payer told the receiver about money, the
+   * form asks whether this is that money (taken out of the notice) or another payment (specs/014).
+   */
+  notices?: Notice[]
 }
 
 const MAX_NOTE = 200
 
 // US-08: "A paid B x đồng", for payments that do not match a suggested transfer exactly
-function SettlementForm({ members, onSubmit, submitting, error, receiver = null }: SettlementFormProps) {
+function SettlementForm({ members, onSubmit, submitting, error, receiver = null, notices = [] }: SettlementFormProps) {
   const t = useT()
   const firstOther = members.find((m) => m.id !== receiver)?.id ?? ''
   const [fromId, setFromId] = useState<number | ''>(receiver === null ? (members[0]?.id ?? '') : firstOther)
@@ -32,8 +37,12 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null 
   const [settledAt, setSettledAt] = useState(today())
   const [note, setNote] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
+  // Whether this is the money the payer told about; asked only when there is such a notice
+  const [asTold, setAsTold] = useState(true)
 
   const amount = parseAmount(amountText)
+  const told = notices.find((n) => n.from_member_id === fromId && n.to_member_id === toId)
+  const nameOf = (id: number | '') => members.find((m) => m.id === id)?.name ?? ''
 
   function problem(): string | null {
     if (fromId === '' || toId === '') return t.settlements.pickBoth
@@ -58,6 +67,7 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null 
       settled_at: settledAt,
     }
     if (note.trim()) input.note = note.trim()
+    if (told && asTold) input.notice = { version: told.version }
     try {
       await onSubmit(input)
       setAmountText('')
@@ -110,6 +120,20 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null 
       <span id="settlement-amount-preview" className="hint">
         {amount !== null && amount > 0 ? formatVND(amount) : ''}
       </span>
+
+      {told && (
+        <fieldset className="settlement-which">
+          <legend>{t.settlements.whichMoney}</legend>
+          <label className="inline">
+            <input type="radio" name="settlement-which" checked={asTold} onChange={() => setAsTold(true)} />
+            {t.settlements.toldMoney(nameOf(fromId), formatVND(told.amount))}
+          </label>
+          <label className="inline">
+            <input type="radio" name="settlement-which" checked={!asTold} onChange={() => setAsTold(false)} />
+            {t.settlements.otherMoney}
+          </label>
+        </fieldset>
+      )}
 
       <label htmlFor="settlement-date">{t.settlements.dateLabel}</label>
       <input

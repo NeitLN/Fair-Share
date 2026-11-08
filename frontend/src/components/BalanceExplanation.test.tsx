@@ -18,7 +18,7 @@ const balance = (member_id: number, paid: number, owed: number, sent: number, re
   ({ member_id, name: '', paid, owed, sent, received, net: paid - owed + sent - received }) as MemberBalance
 const tien = balance(1, 450_000, 1_890_000, 1_000_000, 0)
 const notice = (from: number, to: number, amount: number): Notice =>
-  ({ household_id: 7, from_member_id: from, to_member_id: to, amount, status: 'sent', created_at: '' }) as Notice
+  ({ household_id: 7, from_member_id: from, to_member_id: to, amount, status: 'sent', created_at: '', version: 1 }) as Notice
 
 function show(b: MemberBalance, me: number | null, notices: Notice[] = []) {
   render(

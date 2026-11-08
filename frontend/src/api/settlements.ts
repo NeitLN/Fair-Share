@@ -13,21 +13,28 @@ export const settlementKeys = {
 export const listNotices = (householdId: number) =>
   api.get<Notice[]>(`/api/households/${householdId}/notices`)
 
-export const sendNotice = (householdId: number, toMemberId: number, amount: number) =>
-  api.put<Notice>(`/api/households/${householdId}/notices`, { to_member_id: toMemberId, amount })
+// Every action names the version of the notice its screen showed (null: it showed none); a notice
+// that changed since is not touched (409 notice_changed). specs/014-partial-transfer-notices.
+export const sendNotice = (householdId: number, toMemberId: number, amount: number, version: number | null) =>
+  api.put<Notice>(`/api/households/${householdId}/notices`, { to_member_id: toMemberId, amount, version })
 
-export const cancelNotice = (householdId: number, toMemberId: number) =>
-  api.delete(`/api/households/${householdId}/notices/${toMemberId}`)
+export const cancelNotice = (householdId: number, toMemberId: number, version: number) =>
+  api.delete(`/api/households/${householdId}/notices/${toMemberId}?version=${version}`)
 
-// The receiver's answers name the amount they saw: one told again since is not changed (409 notice_changed)
-export const acceptNotice = (householdId: number, fromMemberId: number, amount: number, settledAt: string) =>
+/** "Đã nhận": `received` arrived (all of the notice, or less with "Nhận số khác"). */
+export const acceptNotice = (
+  householdId: number,
+  fromMemberId: number,
+  answer: { version: number; received: number; settledAt: string },
+) =>
   api.post<Settlement>(`/api/households/${householdId}/notices/${fromMemberId}/accept`, {
-    amount,
-    settled_at: settledAt,
+    version: answer.version,
+    received: answer.received,
+    settled_at: answer.settledAt,
   })
 
-export const declineNotice = (householdId: number, fromMemberId: number, amount: number) =>
-  api.post<Notice>(`/api/households/${householdId}/notices/${fromMemberId}/decline`, { amount })
+export const declineNotice = (householdId: number, fromMemberId: number, version: number) =>
+  api.post<Notice>(`/api/households/${householdId}/notices/${fromMemberId}/decline`, { version })
 
 export const listSettlements = (householdId: number) =>
   api.get<Settlement[]>(`/api/households/${householdId}/settlements`)

@@ -458,8 +458,26 @@ class RecurringItem(BaseModel):
 # --- Settlements (US-08) ------------------------------------------------------------------------
 
 
+# The version of a transfer notice a screen showed (specs/014): every change of a notice gives it a
+# new one, from one sequence, so an action from an old screen is refused instead of acting on a
+# notice that changed since.
+NoticeVersion = Annotated[StrictInt, Field(ge=1, le=BIGINT_MAX)]
+# A note told with a notice: one line, at most 120 characters; blank is no note.
+NoticeNote = text(120, min_length=0, multiline=True)
+
+
+class NoticeRef(BaseModel):
+    """The notice a repayment typed in by hand pays: the version the receiver's screen showed."""
+
+    version: NoticeVersion
+
+
 class SettlementIn(BaseModel):
-    """Body of POST /api/households/{id}/settlements: "from paid to `amount` đồng"."""
+    """Body of POST /api/households/{id}/settlements: "from paid to `amount` đồng".
+
+    With `notice`, it is the money the payer told about ("Đây là tiền … đã báo"): it is taken out
+    of that notice. Without it, it is another repayment and no notice changes (specs/014,
+    FR-008)."""
 
     from_member_id: MemberId
     to_member_id: MemberId
@@ -467,6 +485,7 @@ class SettlementIn(BaseModel):
     settled_at: Day
     # Optional; blank is stored as no note.
     note: text(200, min_length=0) | None = None
+    notice: NoticeRef | None = None
 
 
 class Settlement(BaseModel):
@@ -479,34 +498,45 @@ class Settlement(BaseModel):
     note: str | None
     created_at: datetime
     created_by: int | None = None
+    # How much of a transfer notice this repayment recorded, if any (specs/014)
+    notice_amount: int | None = None
 
 
 class NoticeIn(BaseModel):
     """Body of PUT /api/households/{id}/notices: "I have sent `to` this amount" (docs/ACCOUNTS.md,
-    S3). The sender is the signed-in member; the amount is the one suggested when they pressed."""
+    S3). The sender is the signed-in member. `version` is the notice the screen showed for this
+    pair, or null when it showed none; telling replaces a notice answered "Chưa nhận được"."""
 
     to_member_id: MemberId
     amount: Amount
+    note: NoticeNote | None = None
+    # Required, but may be null: the screen says whether it showed a notice for this pair
+    version: Annotated[StrictInt | None, Field(ge=1, le=BIGINT_MAX)]
 
 
 class NoticeAnswer(BaseModel):
-    """Body of the receiver's "Chưa nhận được": the amount they were shown. A notice told again
-    with another amount since then is not the one they answered."""
+    """Body of the receiver's "Chưa nhận được": the version of the notice they were shown. A notice
+    changed since then is not the one they answered."""
 
-    amount: Amount
+    version: NoticeVersion
 
 
 class NoticeAccept(NoticeAnswer):
-    """Body of the receiver's "Đã nhận" on a notice: that amount arrived on `settled_at`."""
+    """Body of the receiver's "Đã nhận" on a notice: `received` arrived on `settled_at`; all of the
+    notice when left out, or a smaller amount ("Nhận số khác"), which leaves the rest waiting."""
 
+    received: Amount | None = None
     settled_at: Day
 
 
 class Notice(BaseModel):
     from_member_id: int
     to_member_id: int
+    # Told and not yet recorded
     amount: int
     status: Literal["sent", "declined"]
+    note: str | None = None
+    version: int
     created_at: datetime
 
 

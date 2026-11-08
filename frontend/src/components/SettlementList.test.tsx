@@ -126,3 +126,29 @@ describe('SettlementList', () => {
     expect(screen.getByRole('button', { name: /^Xoá khoản Tiến trả Minh 20\.000/ })).toBeInTheDocument()
   })
 })
+
+
+// specs/014: deleting a repayment recorded from a notice says what happens to that money
+test('deleting a repayment from a notice says whether it goes back to a notice', async () => {
+  const confirm = vi.fn(() => false)
+  vi.stubGlobal('confirm', confirm)
+  // Minh (1) paid Tiến (2) from a notice
+  const fromNotice: Settlement = { ...settlements[0], from_member_id: 1, to_member_id: 2, notice_amount: 60_000 }
+  const looksForNotice = memberLooks(members)
+  const { rerender } = render(
+    <SettlementList settlements={[fromNotice]} looks={looksForNotice} onDelete={vi.fn()} notices={[]} />,
+  )
+  await userEvent.click(screen.getByRole('button', { name: /^Xoá/ }))
+  expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/Minh sẽ lại có thông báo 60\.000đ chờ bạn xác nhận\.$/))
+  rerender(
+    <SettlementList
+      settlements={[fromNotice]}
+      looks={looksForNotice}
+      onDelete={vi.fn()}
+      notices={[{ from_member_id: 1, to_member_id: 2, amount: 5_000, status: 'sent', created_at: '', version: 3 }]}
+    />,
+  )
+  await userEvent.click(screen.getByRole('button', { name: /^Xoá/ }))
+  expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/Minh đang có thông báo khác/))
+  vi.unstubAllGlobals()
+})

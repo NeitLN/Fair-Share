@@ -5,15 +5,27 @@ them, so nobody can mark someone else's debt as paid (docs/ACCOUNTS.md). The own
 mistaken one; there is no edit: it is deleted and entered again.
 """
 
-from fastapi import APIRouter
-from psycopg import errors
+from typing import Annotated
+
+from fastapi import APIRouter, Query
+from psycopg import Connection, errors
 
 from app.access import AccessDep, HouseholdAccess, require_owner_or_author, settlement_not_found
 from app.auth import forbidden
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
 from app.routers.balances import compute
-from app.schemas import Id, Notice, NoticeAccept, NoticeAnswer, NoticeIn, Settlement, SettlementIn
+from app.routers.households import lock_household
+from app.schemas import (
+    BIGINT_MAX,
+    Id,
+    Notice,
+    NoticeAccept,
+    NoticeAnswer,
+    NoticeIn,
+    Settlement,
+    SettlementIn,
+)
 
 # A session and an approved member are required, also for /settlements/{id} through its household
 # (app/access.py)
@@ -21,7 +33,7 @@ router = APIRouter(prefix="/api", tags=["settlements"], dependencies=[HouseholdA
 
 SETTLEMENT_COLUMNS = (
     "id, household_id, from_member_id, to_member_id, amount, settled_at, note, created_at,"
-    " created_by"
+    " created_by, notice_amount"
 )
 
 
@@ -44,8 +56,13 @@ def list_settlements(household_id: Id, conn: ConnDep):
     "/households/{household_id}/settlements", response_model=Settlement, status_code=201
 )
 def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, conn: ConnDep):
+    """A repayment typed in by hand. With `notice`, it is the money the payer told about: it is
+    taken out of that notice (all of it at most) in the same transaction, so the same money can
+    never be recorded again by confirming the notice. Without it, no notice changes (specs/014,
+    FR-008): today's "same amount answers the notice" guess is gone, it let money count twice."""
     if body.from_member_id == body.to_member_id:
         raise ApiError(422, "same_member", "A member cannot pay themselves")
+    lock_household(conn, household_id, shared=True)
     found = conn.execute(
         "SELECT count(*) FROM members WHERE household_id = %s AND id IN (%s, %s)",
         (household_id, body.from_member_id, body.to_member_id),
@@ -54,35 +71,87 @@ def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, c
         raise unknown_member()
     if body.to_member_id != access.member_id:
         raise forbidden("Only the person who received the money can record it")
+    taken = None
+    if body.notice is not None:
+        notice = current_notice(conn, household_id, body.from_member_id, body.to_member_id)
+        expect_version(notice, body.notice.version)
+        taken = min(body.amount, notice["amount"])
+        take_from_notice(conn, notice, taken)
+    return insert_settlement(
+        conn, household_id, body.from_member_id, body.to_member_id, body.amount,
+        body.settled_at, body.note or None, access.user_id, taken,
+    )
+
+
+def insert_settlement(conn: Connection, household_id: int, from_member: int, to_member: int,
+                      amount: int, settled_at, note: str | None, user_id: int,
+                      notice_amount: int | None) -> dict:
     try:
-        settlement = fetch_one(
+        return fetch_one(
             conn,
-            "INSERT INTO settlements"
-            " (household_id, from_member_id, to_member_id, amount, settled_at, note, created_by)"
-            f" VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING {SETTLEMENT_COLUMNS}",
-            (household_id, body.from_member_id, body.to_member_id, body.amount,
-             body.settled_at, body.note or None, access.user_id),
+            "INSERT INTO settlements (household_id, from_member_id, to_member_id, amount,"
+            " settled_at, note, created_by, notice_amount)"
+            f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING {SETTLEMENT_COLUMNS}",
+            (household_id, from_member, to_member, amount, settled_at, note, user_id,
+             notice_amount),
         )
     except errors.ForeignKeyViolation:  # a member was removed while this request ran
         raise unknown_member() from None
-    # The told amount, recorded by hand ("Ghi khoản trả khác"): that notice has been answered. Any
-    # other repayment between the two leaves it for the receiver to answer
-    conn.execute(
-        "DELETE FROM payment_notices WHERE household_id = %s AND from_member_id = %s"
-        " AND to_member_id = %s AND status = 'sent' AND amount = %s",
-        (household_id, body.from_member_id, body.to_member_id, body.amount),
-    )
-    return settlement
 
 
-# --- "Tôi đã chuyển" (docs/ACCOUNTS.md, S3) -----------------------------------------------------
+# --- "Tôi đã chuyển" (docs/ACCOUNTS.md, S3; specs/014-partial-transfer-notices) ------------------
+#
+# A notice is money the payer told the receiver about that the receiver has not recorded yet.
+# Every change gives it a new version (one sequence for all notices), and every action names the
+# version its screen showed: an action from an old screen is refused before anything changes.
 
-NOTICE_COLUMNS = "from_member_id, to_member_id, amount, status, created_at"
+NOTICE_COLUMNS = "from_member_id, to_member_id, amount, status, note, version, created_at"
+
+
+def raise_notice_changed() -> None:
+    raise notice_changed()
 
 
 def notice_changed() -> ApiError:
-    message = "This notice was taken back, answered or told again with another amount"
+    message = "This notice was taken back, answered or told again since this screen showed it"
     return ApiError(409, "notice_changed", message)
+
+
+def current_notice(conn: Connection, household_id: int, from_member: int,
+                   to_member: int) -> dict | None:
+    """The pair's notice, locked until the transaction ends (or None)."""
+    return fetch_one(
+        conn,
+        f"SELECT {NOTICE_COLUMNS} FROM payment_notices"
+        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s FOR UPDATE",
+        (household_id, from_member, to_member),
+    )
+
+
+def expect_version(notice: dict | None, version: int | None) -> dict | None:
+    """The screen saw `version` (None: no notice for this pair). Anything else changed since."""
+    if (notice["version"] if notice else None) != version:
+        raise notice_changed()
+    return notice
+
+
+def take_from_notice(conn: Connection, notice: dict, amount: int) -> None:
+    """`amount` of the notice has been recorded: what is left keeps waiting (in its state)."""
+    # A version belongs to one notice only (one sequence for all). The row is locked, and the
+    # statement names the version again, so it changes that notice or nothing
+    if amount >= notice["amount"]:
+        changed = conn.execute(
+            "DELETE FROM payment_notices WHERE version = %s", (notice["version"],)
+        ).rowcount
+    else:
+        changed = conn.execute(
+            "UPDATE payment_notices"
+            " SET amount = amount - %s, version = nextval('notice_versions')"
+            " WHERE version = %s AND amount > %s",
+            (amount, notice["version"], amount),
+        ).rowcount
+    if changed != 1:
+        raise notice_changed()
 
 
 @router.get("/households/{household_id}/notices", response_model=list[Notice])
@@ -101,13 +170,17 @@ def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnD
     repayment (S2). Telling again, after a "Chưa nhận được" too, replaces the notice.
 
     Only a transfer suggested right now can be told, for its exact amount: the one who owes tells
-    the one they owe. Balances that changed since the page loaded give suggestion_changed, and the
-    page shows the new suggestion before anyone tells again."""
+    the one they owe. The household is locked first, so no expense or repayment can change the
+    balances between the check and the write. Order of refusals: the notice changed (409
+    notice_changed), then the suggestion did (409 suggestion_changed)."""
     if body.to_member_id == access.member_id:
         raise ApiError(422, "same_member", "A member cannot pay themselves")
+    lock_household(conn, household_id)
     balances, transfers = compute(conn, household_id)
     if body.to_member_id not in {row["member_id"] for row in balances}:
         raise unknown_member()
+    expect_version(current_notice(conn, household_id, access.member_id, body.to_member_id),
+                   body.version)
     if (access.member_id, body.to_member_id, body.amount) not in transfers:
         message = "This transfer is not suggested any more; reload the balances"
         raise ApiError(409, "suggestion_changed", message)
@@ -115,27 +188,30 @@ def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnD
         return fetch_one(
             conn,
             "INSERT INTO payment_notices"
-            " (household_id, from_member_id, to_member_id, amount, created_by)"
-            " VALUES (%s, %s, %s, %s, %s)"
+            " (household_id, from_member_id, to_member_id, amount, note, created_by)"
+            " VALUES (%s, %s, %s, %s, %s, %s)"
             " ON CONFLICT (household_id, from_member_id, to_member_id) DO UPDATE"
-            " SET amount = excluded.amount, status = 'sent', created_by = excluded.created_by,"
-            " created_at = now()"
+            " SET amount = excluded.amount, note = excluded.note, status = 'sent',"
+            " created_by = excluded.created_by, created_at = now(),"
+            " version = nextval('notice_versions')"
+            # Replaces only the notice this screen showed (a new one never matches a null)
+            " WHERE payment_notices.version = %s"
             f" RETURNING {NOTICE_COLUMNS}",
-            (household_id, access.member_id, body.to_member_id, body.amount, access.user_id),
-        )
+            (household_id, access.member_id, body.to_member_id, body.amount, body.note or None,
+             access.user_id, body.version),
+        ) or raise_notice_changed()
     except errors.ForeignKeyViolation:  # removed while this request ran
         raise unknown_member() from None
 
 
 @router.delete("/households/{household_id}/notices/{to_member}", status_code=204)
-def cancel_notice(household_id: Id, to_member: Id, access: AccessDep, conn: ConnDep):
-    """The payer takes their own notice back (pressed by mistake, or after "Chưa nhận được").
-    Nobody else can."""
-    conn.execute(
-        "DELETE FROM payment_notices"
-        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s",
-        (household_id, access.member_id, to_member),
-    )
+def cancel_notice(household_id: Id, to_member: Id, access: AccessDep, conn: ConnDep,
+                  version: Annotated[int, Query(ge=1, le=BIGINT_MAX)]):
+    """The payer takes their own notice back (pressed by mistake, or after "Chưa nhận được"),
+    the version their screen showed. Nobody else can: someone else has no notice to this person."""
+    notice = current_notice(conn, household_id, access.member_id, to_member)
+    expect_version(notice, version)
+    take_from_notice(conn, notice, notice["amount"])
 
 
 @router.post(
@@ -146,30 +222,25 @@ def cancel_notice(household_id: Id, to_member: Id, access: AccessDep, conn: Conn
 def accept_notice(
     household_id: Id, from_member: Id, body: NoticeAccept, access: AccessDep, conn: ConnDep
 ):
-    """The receiver's "Đã nhận" on a notice: records the told amount and answers the notice, in one
-    transaction. The notice row is taken first, so a second "Đã nhận" (another tab, a retry after
-    a lost answer) finds nothing and records nothing; so does one for an amount told differently
-    since."""
-    taken = fetch_one(
-        conn,
-        "DELETE FROM payment_notices"
-        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s"
-        " AND status = 'sent' AND amount = %s RETURNING amount",
-        (household_id, from_member, access.member_id, body.amount),
+    """The receiver's "Đã nhận" on a waiting notice: records `received` (all of it when left out,
+    else "Nhận số khác") and takes it out of the notice, in one transaction. The notice row is
+    locked and its version checked first, so a second press, another tab, or a retry after a lost
+    answer records nothing."""
+    lock_household(conn, household_id, shared=True)
+    notice = expect_version(
+        current_notice(conn, household_id, from_member, access.member_id), body.version
     )
-    if taken is None:
+    if notice is None or notice["status"] != "sent":
         raise notice_changed()
-    try:
-        return fetch_one(
-            conn,
-            "INSERT INTO settlements"
-            " (household_id, from_member_id, to_member_id, amount, settled_at, created_by)"
-            f" VALUES (%s, %s, %s, %s, %s, %s) RETURNING {SETTLEMENT_COLUMNS}",
-            (household_id, from_member, access.member_id, taken["amount"], body.settled_at,
-             access.user_id),
-        )
-    except errors.ForeignKeyViolation:  # a member was removed while this request ran
-        raise unknown_member() from None
+    received = body.received or notice["amount"]
+    if received > notice["amount"]:
+        message = "More than was told cannot be confirmed from this notice"
+        raise ApiError(422, "more_than_told", message)
+    take_from_notice(conn, notice, received)
+    return insert_settlement(
+        conn, household_id, from_member, access.member_id, received, body.settled_at,
+        notice["note"], access.user_id, received,
+    )
 
 
 @router.post(
@@ -178,26 +249,50 @@ def accept_notice(
 def decline_notice(
     household_id: Id, from_member: Id, body: NoticeAnswer, access: AccessDep, conn: ConnDep
 ):
-    """The receiver's "Chưa nhận được" on the amount they were shown. The payer's card shows it
-    until they tell again, take it back, or the repayment is recorded."""
-    row = fetch_one(
-        conn,
-        "UPDATE payment_notices SET status = 'declined'"
-        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s"
-        f" AND status = 'sent' AND amount = %s RETURNING {NOTICE_COLUMNS}",
-        (household_id, from_member, access.member_id, body.amount),
+    """The receiver's "Chưa nhận được" on the notice they were shown. It keeps its amount and note
+    on the payer's card until they tell again or take it back; money the receiver later records
+    as the told money is taken out of it."""
+    notice = expect_version(
+        current_notice(conn, household_id, from_member, access.member_id), body.version
     )
-    if row is None:
+    if notice is None or notice["status"] != "sent":
         raise notice_changed()
-    return row
+    return fetch_one(
+        conn,
+        "UPDATE payment_notices SET status = 'declined', version = nextval('notice_versions')"
+        f" WHERE version = %s RETURNING {NOTICE_COLUMNS}",
+        (notice["version"],),
+    )
 
 
 @router.delete("/settlements/{settlement_id}", status_code=204)
 def delete_settlement(settlement_id: Id, access: AccessDep, conn: ConnDep):
+    """Deleting a repayment recorded from a notice gives that amount back as a waiting notice when
+    the pair has none at that moment, so the payer does not tell it again (specs/014, FR-011a).
+    When the pair has a notice, it is left as it is; the page warns before deleting."""
+    lock_household(conn, access.household_id, shared=True)
     row = fetch_one(
-        conn, "SELECT created_by FROM settlements WHERE id = %s FOR UPDATE", (settlement_id,)
+        conn,
+        "SELECT created_by, household_id, from_member_id, to_member_id, notice_amount"
+        " FROM settlements WHERE id = %s FOR UPDATE",
+        (settlement_id,),
     )
     if row is None:
         raise settlement_not_found()
     require_owner_or_author(access, row["created_by"])
     conn.execute("DELETE FROM settlements WHERE id = %s", (settlement_id,))
+    if row["notice_amount"]:
+        conn.execute(
+            "INSERT INTO payment_notices"
+            " (household_id, from_member_id, to_member_id, amount, created_by)"
+            # Told by the payer, not by whoever deleted the repayment (their account, if any)
+            " SELECT %s, %s, %s, %s,"
+            "   (SELECT user_id FROM household_users WHERE household_id = %s AND member_id = %s)"
+            " WHERE EXISTS (SELECT 1 FROM members WHERE household_id = %s AND id = %s)"
+            "   AND EXISTS (SELECT 1 FROM members WHERE household_id = %s AND id = %s)"
+            " ON CONFLICT (household_id, from_member_id, to_member_id) DO NOTHING",
+            (row["household_id"], row["from_member_id"], row["to_member_id"],
+             row["notice_amount"], row["household_id"], row["from_member_id"],
+             row["household_id"], row["from_member_id"], row["household_id"],
+             row["to_member_id"]),
+        )
