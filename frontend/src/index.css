@@ -3179,6 +3179,32 @@ button.ai:active:focus-visible {
 
 .pending-row {
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* "Lời mời vào Nhà trọ Q7 của Tiến" under the code field (specs/015); empty, it takes no room */
+.join-preview {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.join-preview:empty {
+  display: none;
+}
+
+/* How a request ended, until "Đã hiểu": a card like the waiting one, the button under the sentence */
+.household-list > li.outcome-card {
+  justify-items: start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.outcomes {
+  margin-bottom: 24px;
 }
 
 .pending-actions {

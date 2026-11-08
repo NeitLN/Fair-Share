@@ -184,8 +184,15 @@ Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai…
 
 **Joining.** A signed-in account sees only the houses it was approved into. A code (or the invite link
 `/join/CODE`, which fills the code in) asks to join; the owner approves, under a name of their choosing
-(docs/ACCOUNTS.md). Until then neither side shows the other's content: the person asking sees the wait,
-and the owner sees one more thing in the card's badge. An address of a house you are not in shows the
+(docs/ACCOUNTS.md). Since [spec 015](../specs/015-invite-preview/spec.md) a complete valid code shows
+"Lời mời vào Nhà trọ Q7 của Tiến" under the field before asking (a wrong one says nothing until it is sent),
+and the waiting card reads "Bạn đang xin vào Nhà trọ Q7 của Tiến · gửi ngày 08/11". Nothing else of the
+house shows until approval; the owner sees one more thing in the card's badge. While a request waits the
+page checks every 10 seconds (in front only): approved, the house appears with "Bạn đã vào Nhà trọ Q7.";
+refused, a line stays, "Tiến không duyệt yêu cầu vào Nhà trọ Q7 của bạn." with *Đã hiểu*; a deleted house
+reads "Nhà trọ Q7 không còn nữa, yêu cầu của bạn đã dừng.". Someone who arrived with a valid invite and has
+no house sees no *Chưa ai tạo nhà?* panel, only a *Tạo nhà khác* link, until that invite ends. The invite
+card on Thành viên says "Ai có mã này sẽ thấy tên nhà và tên trưởng nhóm." An address of a house you are not in shows the
 same sentence as a missing one ("Nhà này không tồn tại hoặc bạn chưa có quyền vào. Nếu được mời, hãy
 nhập mã mời ở trang Nhà của bạn.").
 

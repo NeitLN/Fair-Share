@@ -125,11 +125,17 @@ def test_a_stranger_cannot_tell_a_household_from_one_that_does_not_exist(client,
     assert hidden.json() == missing.json()
 
 
-def test_someone_waiting_sees_nothing_of_the_household_not_even_its_name(client, world):
+def test_someone_waiting_sees_the_house_name_and_owner_and_nothing_else(client, world):
+    """D4 since specs/015: the waiting card names the house and its owner; no member, no amount,
+    and the household's own pages are still closed (the 404 of a household that does not exist)."""
     listed = send(client, "GET", "/api/households", None, world["waiting"]).json()
     assert listed["households"] == []
-    assert [p["household_id"] for p in listed["pending"]] == [world["ours"]["id"]]
-    assert world["ours"]["name"] not in str(listed)
+    [waiting] = listed["pending"]
+    assert waiting["household_id"] == world["ours"]["id"]
+    assert waiting["household_name"] == world["ours"]["name"]
+    assert set(waiting) == {"household_id", "requested_at", "household_name", "owner_name"}
+    page = send(client, "GET", f"/api/households/{world['ours']['id']}", None, world["waiting"])
+    assert page.status_code == 404
 
 
 def test_the_old_key_opens_nothing(client, world, db_url):

@@ -74,6 +74,7 @@ function InviteCard({ householdId, isOwner }: { householdId: number; isOwner: bo
             <p className="hint">{t.invite.expires(formatDate(invite.data.expires_at.slice(0, 10)))}</p>
           )}
           <p className="hint">{t.invite.hint}</p>
+      <p className="hint">{t.invite.shows}</p>
           {/* Sending the link is what a phone user wants; copying the link, then the code, come after */}
           <div className="invite-actions">
             {canShare && (

@@ -285,7 +285,120 @@ test('the waiting card checks again on demand', async () => {
   renderApp('/')
 
   await user.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }))
-  await waitFor(() => expect(listCalls(fetchFn).length).toBeGreaterThan(1))
+  // The light check of the person's requests (specs/015), not the whole house list again
+  const checks = () => fetchFn.mock.calls.filter(([url]) => url === '/api/me/requests')
+  await waitFor(() => expect(checks().length).toBeGreaterThan(1))
   // Waiting to join, the tips for people who invite others are not shown
   expect(screen.queryByText(/Mời bạn cùng phòng bằng mã mời/)).not.toBeInTheDocument()
+})
+
+// --- specs/015-invite-preview -------------------------------------------------------------------
+
+const waitingQ7 = { household_id: 12, requested_at: '2026-11-08T08:00:00Z', household_name: 'Nhà trọ Q7', owner_name: 'Tiến' }
+const requests = (pending: object[] = [], joined: number[] = [], outcomes: object[] = []): [number, unknown] => [
+  200,
+  { pending, joined, outcomes },
+]
+
+test('an invite link shows the house before asking, and the create form waits behind a link', async () => {
+  mockApi({
+    'GET /api/households': mine(),
+    'GET /api/me/requests': requests(),
+    'POST /api/invites/preview': [200, { house_name: 'Nhà trọ Q7', owner_name: 'Tiến', member: false, household_id: null }],
+  })
+  const user = userEvent.setup()
+  renderApp('/join/K7QM2XRT')
+
+  expect(await screen.findByText('Lời mời vào Nhà trọ Q7 của Tiến')).toBeInTheDocument()
+  expect(screen.getByLabelText('Mã mời')).toHaveAccessibleDescription(/Lời mời vào Nhà trọ Q7 của Tiến/)
+  // No second, empty house by mistake
+  expect(screen.queryByRole('region', { name: 'Chưa ai tạo nhà?' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Tạo nhà khác' }))
+  expect(screen.getByRole('region', { name: 'Chưa ai tạo nhà?' })).toBeInTheDocument()
+})
+
+test('a wrong code says nothing while typing', async () => {
+  const fetchFn = mockApi({
+    'GET /api/households': mine(),
+    'GET /api/me/requests': requests(),
+    'POST /api/invites/preview': [404, { error: { code: 'invalid_code', message: 'This code is not right or has expired' } }],
+  })
+  const user = userEvent.setup()
+  renderApp('/')
+  await user.type(await screen.findByLabelText('Mã mời'), 'zzzz-zzzz')
+  await waitFor(() => expect(fetchFn.mock.calls.some(([url]) => url === '/api/invites/preview')).toBe(true))
+  expect(screen.queryByText(/not right/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  // The create form is there: no valid invite
+  expect(screen.getByRole('region', { name: 'Chưa ai tạo nhà?' })).toBeInTheDocument()
+})
+
+test('a waiting card names the house and its owner, and its cancel names the house', async () => {
+  mockApi({ 'GET /api/households': mine([], [waitingQ7]), 'GET /api/me/requests': requests([waitingQ7]) })
+  renderApp('/')
+  expect(await screen.findByText(/^Bạn đang xin vào Nhà trọ Q7 của Tiến · gửi ngày/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Huỷ yêu cầu vào Nhà trọ Q7' })).toBeInTheDocument()
+})
+
+test('approved while waiting: the house shows and "Bạn đã vào" says so', async () => {
+  let approved = false
+  mockApi({
+    'GET /api/households': () => (approved ? mine([{ ...nha7, id: 12, name: 'Nhà trọ Q7', role: 'member' }]) : mine([], [waitingQ7])),
+    'GET /api/me/requests': () => (approved ? requests([], [12]) : requests([waitingQ7])),
+  })
+  const user = userEvent.setup()
+  renderApp('/')
+  await screen.findByText(/^Bạn đang xin vào Nhà trọ Q7/)
+  approved = true
+  await user.click(screen.getByRole('button', { name: 'Kiểm tra lại' }))
+  expect(await screen.findByText('Bạn đã vào Nhà trọ Q7.')).toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: /^Nhà trọ Q7/ })).toBeInTheDocument()
+})
+
+test('a refusal stays as a line until "Đã hiểu", and the create form is back', async () => {
+  let outcomes = [{ id: 41, household_id: 12, household_name: 'Nhà trọ Q7', owner_name: 'Tiến', kind: 'refused', happened_at: '' }]
+  const fetchFn = mockApi({
+    'GET /api/households': mine(),
+    'GET /api/me/requests': () => requests([], [], outcomes),
+    'DELETE /api/me/outcomes/41': () => {
+      outcomes = []
+      return [204]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/')
+  expect(await screen.findByText('Tiến không duyệt yêu cầu vào Nhà trọ Q7 của bạn.')).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: 'Chưa ai tạo nhà?' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Đã hiểu' }))
+  await waitFor(() => expect(screen.queryByText(/không duyệt/)).not.toBeInTheDocument())
+  expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/me/outcomes/41' && init?.method === 'DELETE')).toBe(true)
+})
+
+test('a house deleted while waiting says so', async () => {
+  mockApi({
+    'GET /api/households': mine(),
+    'GET /api/me/requests': requests([], [], [
+      { id: 42, household_id: 12, household_name: 'Nhà trọ Q7', owner_name: 'Tiến', kind: 'house_deleted', happened_at: '' },
+    ]),
+  })
+  renderApp('/')
+  expect(await screen.findByText('Nhà trọ Q7 không còn nữa, yêu cầu của bạn đã dừng.')).toBeInTheDocument()
+})
+
+test('sending a request shows its waiting card at once, from the person\'s requests', async () => {
+  let asked = false
+  mockApi({
+    'GET /api/households': () => (asked ? mine([], [waitingQ7]) : mine()),
+    'GET /api/me/requests': () => (asked ? requests([waitingQ7]) : requests()),
+    'POST /api/invites/preview': [200, { house_name: 'Nhà trọ Q7', owner_name: 'Tiến', member: false, household_id: null }],
+    'POST /api/join': () => {
+      asked = true
+      return [200, { status: 'pending', household_id: null }]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/join/K7QM2XRT')
+  await screen.findByText('Lời mời vào Nhà trọ Q7 của Tiến')
+  await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu vào nhà' }))
+  expect(await screen.findByText(/^Bạn đang xin vào Nhà trọ Q7 của Tiến · gửi ngày/)).toBeInTheDocument()
 })

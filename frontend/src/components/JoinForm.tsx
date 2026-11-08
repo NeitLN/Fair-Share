@@ -1,14 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
-import { join, keys } from '../api/households'
+import { join, keys, previewInvite } from '../api/households'
+import type { InvitePreview } from '../api/types'
 import { errorMessage } from '../lib/errors'
 import { useToast } from '../lib/toast'
 import { useT } from '../i18n'
 
 const CODE_CHARS = /[^0-9a-z]/gi
+
+/** The code as the server reads it (rule J1): no spaces or dashes, upper case, O as 0, I and L as 1. */
+const normalCode = (typed: string) =>
+  typed.replace(CODE_CHARS, '').toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1')
 
 /**
  * "Vào nhà bằng mã mời" (docs/ACCOUNTS.md, J1): the 8 characters the owner sent, typed or filled in
@@ -18,10 +23,13 @@ const CODE_CHARS = /[^0-9a-z]/gi
 function JoinForm({
   initialCode = '',
   onRequested,
+  onPreview,
 }: {
   initialCode?: string
   /** The request was sent and now waits for the owner. */
   onRequested?: () => void
+  /** What the code in the field leads to: a house, or nothing known (specs/015). */
+  onPreview?: (preview: InvitePreview | null) => void
 }) {
   const t = useT()
   const toast = useToast()
@@ -29,11 +37,27 @@ function JoinForm({
   const queryClient = useQueryClient()
   const [code, setCode] = useState(initialCode)
   const [problem, setProblem] = useState<string | null>(null)
+  // A complete code shows its house before asking (specs/015, FR-004); a wrong one says nothing until
+  // it is sent. The answer belongs to that code only: changing the field drops it
+  const normal = normalCode(code)
+  const previewed = useQuery({
+    queryKey: keys.invitePreview(normal),
+    queryFn: () => previewInvite(normal),
+    enabled: normal.length === 8,
+    retry: false,
+    staleTime: 60_000,
+  })
+  const shown = normal.length === 8 ? previewed.data : undefined
+  useEffect(() => {
+    onPreview?.(shown ?? null)
+  }, [shown, onPreview])
 
   const send = useMutation({
     mutationFn: (typed: string) => join(typed),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
+      // The waiting card and its 10-second checks come from the person's requests (specs/015)
+      void queryClient.invalidateQueries({ queryKey: keys.myRequests })
       if (result.status === 'member' && result.household_id !== null) {
         toast({ text: t.join.already })
         navigate(`/households/${result.household_id}`)
@@ -69,9 +93,18 @@ function JoinForm({
         maxLength={20}
         disabled={send.isPending}
         aria-invalid={problem ? true : undefined}
-        aria-describedby="join-code-hint"
+        aria-describedby={shown ? 'join-code-preview join-code-hint' : 'join-code-hint'}
         onChange={(event) => setCode(event.target.value)}
       />
+      {/* Read once per code by screen readers; empty while there is nothing to say */}
+      <p id="join-code-preview" className="join-preview" aria-live="polite">
+        {shown && !shown.member && t.join.preview(shown.house_name, shown.owner_name)}
+        {shown?.member && (
+          <>
+            {t.join.alreadyIn} <Link to={`/households/${shown.household_id}`}>{t.join.openHouse}</Link>
+          </>
+        )}
+      </p>
       <p id="join-code-hint" className="hint">
         {t.join.codeHint}
       </p>
