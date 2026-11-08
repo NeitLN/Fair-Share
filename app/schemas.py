@@ -132,11 +132,13 @@ class MyHousehold(Household):
 
 
 class PendingRequest(BaseModel):
-    """A request to join that the owner has not answered yet. Nothing about the household itself
-    (not even its name) is shown until it is approved."""
+    """A request to join that the owner has not answered yet. It names the house and its owner, and
+    nothing else about the house (specs/015, docs/ACCOUNTS.md D4)."""
 
     household_id: int
     requested_at: datetime
+    household_name: str
+    owner_name: str
 
 
 class MyHouseholds(BaseModel):
@@ -308,6 +310,37 @@ class SessionOut(BaseModel):
 class JoinIn(BaseModel):
     # "k7qm 2xrt", "K7QM-2XRT": spaces and dashes are dropped and letters upper-cased in the route
     code: Annotated[str, StringConstraints(max_length=40)]
+
+
+class InvitePreview(BaseModel):
+    """What a valid invite code shows a signed-in person before they ask (specs/015): the house's
+    name and its owner's display name, nothing else; `member` when they are in it already."""
+
+    house_name: str
+    owner_name: str
+    member: bool
+    household_id: int | None = None
+
+
+class JoinOutcome(BaseModel):
+    """How a request to join ended without the person in the house: refused, or the house deleted.
+    Only that person sees it; the names are the ones from when it happened."""
+
+    id: int
+    household_id: int
+    household_name: str
+    owner_name: str
+    kind: Literal["refused", "house_deleted"]
+    happened_at: datetime
+
+
+class MyRequests(BaseModel):
+    """GET /api/me/requests: the caller's waiting requests, the houses they are in, and their
+    outcomes; no amounts (the 10-second check of the house page, specs/015)."""
+
+    pending: list[PendingRequest]
+    joined: list[int]
+    outcomes: list[JoinOutcome]
 
 
 class JoinResult(BaseModel):

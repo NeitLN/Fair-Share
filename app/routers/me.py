@@ -31,10 +31,13 @@ from app.auth import (
 from app.db import ConnDep, connection, fetch_all, fetch_one
 from app.errors import ApiError
 from app.routers import accounts
+from app.routers.households import pending_requests
 from app.schemas import (
     GenderIn,
+    Id,
     MeIn,
     MyPhoto,
+    MyRequests,
     PasswordIn,
     PhotoVersion,
     RenameResult,
@@ -257,3 +260,48 @@ def change_password(body: PasswordIn, request: Request, authorization: Authoriza
             release(conn, ip_bucket, accounts.LOGIN_WINDOW)
     if not unchanged:
         raise wrong_password()
+
+
+# --- Requests to join (specs/015-invite-preview) ------------------------------------------------
+
+
+@router.get("/me/requests", response_model=MyRequests)
+def my_requests(user: CurrentUser, conn: ConnDep):
+    """The caller's own: requests still waiting (with the house and owner names), the houses they
+    are in (ids only), and how other requests ended. No amounts: the house page asks this every 10
+    seconds while a request waits. Outcomes older than 30 days are never shown; they are deleted on
+    a check made with nothing waiting, so the 10-second checks only read."""
+    pending = pending_requests(conn, user["id"])
+    if not pending:
+        conn.execute(
+            "DELETE FROM join_outcomes"
+            " WHERE user_id = %s AND happened_at < now() - interval '30 days'",
+            (user["id"],),
+        )
+    joined = conn.execute(
+        "SELECT household_id FROM household_users WHERE user_id = %s AND role <> 'pending'"
+        " ORDER BY household_id",
+        (user["id"],),
+    ).fetchall()
+    return {
+        "pending": pending,
+        "joined": [row[0] for row in joined],
+        "outcomes": fetch_all(
+            conn,
+            "SELECT id, household_id, household_name, owner_name, kind, happened_at"
+            " FROM join_outcomes"
+            " WHERE user_id = %s AND happened_at >= now() - interval '30 days'"
+            " ORDER BY happened_at DESC, id DESC",
+            (user["id"],),
+        ),
+    }
+
+
+@router.delete("/me/outcomes/{outcome_id}", status_code=204)
+def dismiss_outcome(outcome_id: Id, user: CurrentUser, conn: ConnDep):
+    """"Đã hiểu". Only its owner can; for anyone else it does not exist."""
+    gone = conn.execute(
+        "DELETE FROM join_outcomes WHERE id = %s AND user_id = %s", (outcome_id, user["id"])
+    ).rowcount
+    if not gone:
+        raise ApiError(404, "outcome_not_found", "No such outcome")

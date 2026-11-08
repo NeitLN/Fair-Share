@@ -27,6 +27,34 @@ export interface MyHousehold extends Household {
 export interface PendingRequest {
   household_id: number
   requested_at: string
+  /** The house and its owner, by name: all a waiting person sees of it (specs/015, ACCOUNTS.md D4). */
+  household_name: string
+  owner_name: string
+}
+
+/** What a valid invite code shows a signed-in person before they ask (specs/015). */
+export interface InvitePreview {
+  house_name: string
+  owner_name: string
+  member: boolean
+  household_id: number | null
+}
+
+/** How a request to join ended without the person in the house; only they see it. */
+export interface JoinOutcome {
+  id: number
+  household_id: number
+  household_name: string
+  owner_name: string
+  kind: 'refused' | 'house_deleted'
+  happened_at: string
+}
+
+/** GET /api/me/requests: the check every 10 s while a request waits. No amounts. */
+export interface MyRequests {
+  pending: PendingRequest[]
+  joined: number[]
+  outcomes: JoinOutcome[]
 }
 
 export interface MyHouseholds {

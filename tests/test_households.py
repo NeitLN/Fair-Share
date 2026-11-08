@@ -376,4 +376,7 @@ def test_a_pending_request_carries_neither_the_balance_nor_the_waiting_count(cli
 
     body = listed(client, token)
     assert body["households"] == []
-    assert set(body["pending"][0]) == {"household_id", "requested_at"}
+    # The house and its owner by name (specs/015), and still no amount
+    assert set(body["pending"][0]) == {
+        "household_id", "requested_at", "household_name", "owner_name",
+    }

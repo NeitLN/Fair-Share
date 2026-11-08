@@ -2,6 +2,8 @@
 import { api, KEY_HEADER, request } from './client'
 import type {
   ClaimInfo,
+  InvitePreview,
+  MyRequests,
   Gender,
   HouseholdPhotos,
   InviteCode,
@@ -31,6 +33,9 @@ export const keys = {
   /** Every photo batch of one house, whatever its versions: dropped when you leave it (#231). */
   housePhotos: (householdId: number) => ['photos', householdId] as const,
   myPhoto: ['me', 'photo'] as const,
+  /** The caller's requests to join and their outcomes (specs/015). */
+  myRequests: ['me', 'requests'] as const,
+  invitePreview: (code: string) => ['invite-preview', code] as const,
 }
 
 // --- Account ------------------------------------------------------------------------------------
@@ -117,6 +122,15 @@ export const renewInvite = (householdId: number) =>
 export const join = (code: string) => api.post<JoinResult>('/api/join', { code })
 
 export const cancelRequest = (householdId: number) => api.delete(`/api/me/requests/${householdId}`)
+
+/** The house a valid code leads to (specs/015); a wrong one is the 404 invalid_code /join gives. */
+export const previewInvite = (code: string) => api.post<InvitePreview>('/api/invites/preview', { code })
+
+/** Given up after 20 s, so a slow answer never holds the next 10-second check (specs/015). */
+export const myRequests = () =>
+  request<MyRequests>('/api/me/requests', { signal: AbortSignal.timeout?.(20_000) })
+
+export const dismissOutcome = (id: number) => api.delete(`/api/me/outcomes/${id}`)
 
 export const listRequests = (householdId: number) =>
   api.get<JoinRequest[]>(`/api/households/${householdId}/requests`)

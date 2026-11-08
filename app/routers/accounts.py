@@ -36,12 +36,14 @@ from app.routers.households import (
     CODE_LENGTH,
     SELECT_MEMBERS,
     add_name,
+    house_and_owner,
     member_taken,
 )
 from app.schemas import (
     ClaimIn,
     ClaimInfo,
     Id,
+    InvitePreview,
     JoinIn,
     JoinResult,
     LoginIn,
@@ -66,6 +68,10 @@ REGISTER_PER_IP = 30
 JOIN_WINDOW = timedelta(minutes=1)
 JOIN_PER_USER = 5
 JOIN_PER_IP = 20
+# Previews of codes in all, wrong or right, per account (specs/015): a right code gives its guess
+# back to J2, so this keeps a known code from being asked without end
+PREVIEW_WINDOW = timedelta(minutes=1)
+PREVIEW_PER_USER = 30
 
 # Crockford's base32 reads O as 0 and I or L as 1, so a code copied by hand still works
 _LOOKALIKES = str.maketrans({"O": "0", "I": "1", "L": "1"})
@@ -178,7 +184,8 @@ def me(user: CurrentUser):
 @router.post("/join", response_model=JoinResult)
 def join(body: JoinIn, request: Request, authorization: Authorization = None):
     """Asks to join the household of a valid code. The owner then approves (or not); until then
-    the household shows nothing of itself, not even its name."""
+    the person asking sees only the house's name and its owner's display name (D4, specs/015),
+    nothing else of it."""
     result = None
     with connection(request) as conn:
         user = user_for_token(conn, bearer_token(authorization))
@@ -201,11 +208,16 @@ def join(body: JoinIn, request: Request, authorization: Authorization = None):
             release(conn, user_bucket, JOIN_WINDOW)
             release(conn, ip_bucket, JOIN_WINDOW)
             household_id = found["household_id"]
-            conn.execute(
+            inserted = conn.execute(
                 "INSERT INTO household_users (household_id, user_id, role)"
                 " VALUES (%s, %s, 'pending') ON CONFLICT DO NOTHING",
                 (household_id, user["id"]),
-            )
+            ).rowcount
+            if inserted:  # a new request: an earlier refusal from this house no longer stands
+                conn.execute(
+                    "DELETE FROM join_outcomes WHERE user_id = %s AND household_id = %s",
+                    (user["id"], household_id),
+                )
             role = conn.execute(
                 "SELECT role FROM household_users WHERE household_id = %s AND user_id = %s",
                 (household_id, user["id"]),
@@ -217,6 +229,59 @@ def join(body: JoinIn, request: Request, authorization: Authorization = None):
             )
     if not allowed:
         raise too_many(JOIN_WINDOW)
+    if result is None:
+        raise invalid_code()
+    return result
+
+
+@router.post("/invites/preview", response_model=InvitePreview)
+def preview_invite(body: JoinIn, request: Request, authorization: Authorization = None):
+    """The house a valid code leads to, before asking (specs/015): its name and its owner's display
+    name, and nothing else. A wrong, expired or replaced code gets exactly the answer /join gives,
+    from the same query. Guesses share the J2 limits with /join; previews in all have their own
+    limit, which never blocks /join."""
+    result = None
+    over = None
+    with connection(request) as conn:
+        user = user_for_token(conn, bearer_token(authorization))
+        if user is None:
+            raise not_authenticated()
+        user_bucket = f"join-user:{user['id']}"
+        ip_bucket = f"join-ip:{request_ip(request)}"
+        allowed = reserve(conn, user_bucket, JOIN_WINDOW, JOIN_PER_USER) and reserve(
+            conn, ip_bucket, JOIN_WINDOW, JOIN_PER_IP
+        )
+        if not allowed:
+            over = too_many(JOIN_WINDOW)
+        elif not reserve(conn, f"preview-user:{user['id']}", PREVIEW_WINDOW, PREVIEW_PER_USER):
+            # Not a guess: J2's counts go back, this limit alone refuses it
+            release(conn, user_bucket, JOIN_WINDOW)
+            release(conn, ip_bucket, JOIN_WINDOW)
+            over = too_many(PREVIEW_WINDOW)
+            over.code = "too_many_previews"
+        else:
+            code = normal_code(body.code)
+            found = code and fetch_one(
+                conn,
+                "SELECT household_id FROM invite_codes"
+                " WHERE code = %s AND revoked_at IS NULL AND expires_at > now()",
+                (code,),
+            )
+            if found:
+                release(conn, user_bucket, JOIN_WINDOW)
+                release(conn, ip_bucket, JOIN_WINDOW)
+                household_id = found["household_id"]
+                house, owner = house_and_owner(conn, household_id)
+                member = fetch_one(
+                    conn,
+                    "SELECT 1 FROM household_users WHERE household_id = %s AND user_id = %s"
+                    " AND role <> 'pending'",
+                    (household_id, user["id"]),
+                ) is not None
+                result = {"house_name": house, "owner_name": owner, "member": member,
+                          "household_id": household_id if member else None}
+    if over is not None:
+        raise over
     if result is None:
         raise invalid_code()
     return result

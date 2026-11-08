@@ -144,6 +144,8 @@ const vi = {
     renew: 'Đổi mã mới',
     renewing: 'Đang đổi…',
     renewHint: 'Mã cũ sẽ không dùng được nữa.',
+    // specs/015: what a code shows to whoever has it
+    shows: 'Ai có mã này sẽ thấy tên nhà và tên trưởng nhóm.',
     none: 'Chưa có mã mời còn hạn. Nhờ trưởng nhóm tạo mã mới.',
     loading: 'Đang tải mã mời',
   },
@@ -239,6 +241,8 @@ const vi = {
     joinHint: 'Nhập mã bạn cùng phòng gửi. Trưởng nhóm duyệt xong là bạn vào nhà.',
     createTitle: 'Chưa ai tạo nhà?',
     createHint: 'Tạo nhà rồi mời mọi người bằng mã mời. Bạn sẽ là trưởng nhóm.',
+    // Arrived with an invite: the create form waits behind this link (specs/015)
+    createAnyway: 'Tạo nhà khác',
   },
   join: {
     title: 'Vào nhà bằng mã mời',
@@ -251,6 +255,10 @@ const vi = {
     submitting: 'Đang gửi…',
     sent: 'Đã gửi yêu cầu vào nhà.',
     already: 'Bạn đã ở trong nhà này rồi.',
+    // The house a valid code leads to, before asking (specs/015)
+    preview: (house: string, owner: string) => `Lời mời vào ${house} của ${owner}`,
+    alreadyIn: 'Bạn đã ở trong nhà này.',
+    openHouse: 'Mở nhà',
   },
   pending: {
     title: 'Đang chờ duyệt',
@@ -260,6 +268,16 @@ const vi = {
     hint: 'Duyệt xong, nhà sẽ hiện ở đây. Nhắn trưởng nhóm mở mục Thành viên để duyệt.',
     check: 'Kiểm tra lại',
     checking: 'Đang kiểm tra…',
+    // specs/015: the waiting card names the house, and how a request ended
+    waitingFor: (house: string, owner: string) => `Bạn đang xin vào ${house} của ${owner}`,
+    sentOn: (date: string) => `gửi ngày ${date}`,
+    cancelFor: (house: string) => `Huỷ yêu cầu vào ${house}`,
+    joined: (house: string) => `Bạn đã vào ${house}.`,
+    open: 'Mở',
+    refused: (owner: string, house: string) => `${owner} không duyệt yêu cầu vào ${house} của bạn.`,
+    houseGone: (house: string) => `${house} không còn nữa, yêu cầu của bạn đã dừng.`,
+    gotIt: 'Đã hiểu',
+    endedTitle: 'Yêu cầu đã dừng',
   },
   requests: {
     title: 'Người xin vào nhà',

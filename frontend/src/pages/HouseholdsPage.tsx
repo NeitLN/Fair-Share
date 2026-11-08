@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
-import { cancelRequest, createHousehold, keys, listMyHouseholds } from '../api/households'
+import { cancelRequest, createHousehold, dismissOutcome, keys, listMyHouseholds } from '../api/households'
+import type { InvitePreview } from '../api/types'
 import ErrorNote from '../components/ErrorNote'
 import HouseholdCreateForm from '../components/HouseholdCreateForm'
 import HouseholdList from '../components/HouseholdList'
@@ -12,7 +13,7 @@ import { formatDate } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { shortName } from '../lib/names'
 import { closeFoldOnEscape } from '../lib/fold'
-import { REFRESH_MS } from '../lib/refresh'
+import { useJoinRequests } from '../lib/useJoinRequests'
 import { useSession } from '../lib/session'
 import { useToast } from '../lib/toast'
 import { useT } from '../i18n'
@@ -25,11 +26,18 @@ function HouseholdsPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
   const linkCode = useParams().code ?? ''
-  // While a request waits, asked again every 30 s on screen (lib/refresh.ts): the house shows up when approved
-  const mine = useQuery({
-    queryKey: keys.households,
-    queryFn: listMyHouseholds,
-    refetchInterval: (query) => (query.state.data?.pending.length ? REFRESH_MS : false),
+  const mine = useQuery({ queryKey: keys.households, queryFn: listMyHouseholds })
+  // While a request waits, a light check every 10 s with the page in front (specs/015): approved, the
+  // house shows up with "Bạn đã vào …"; refused or gone, a line says so until "Đã hiểu"
+  const requests = useJoinRequests((request) =>
+    toast({
+      text: t.pending.joined(request.household_name),
+      action: { label: t.pending.open, onAction: () => navigate(`/households/${request.household_id}`) },
+    }),
+  )
+  const dismiss = useMutation({
+    mutationFn: dismissOutcome,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.myRequests }),
   })
 
   const create = useMutation({
@@ -43,8 +51,10 @@ function HouseholdsPage() {
   })
   const cancel = useMutation({
     mutationFn: cancelRequest,
-    onSuccess: () => {
+    onSuccess: (_result, householdId) => {
       toast({ text: t.pending.cancelled })
+      setEnded((current) => [...current, householdId])
+      void queryClient.invalidateQueries({ queryKey: keys.myRequests })
       return queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
     },
   })
@@ -52,8 +62,44 @@ function HouseholdsPage() {
   // With a house or a request, the two ways in wait folded (an invite link opens joining). Once open a
   // fold stays open through a failure and the retry. Someone waiting for approval has done what they
   // came for: the wait is the page, and the two ways in stay folded below it.
-  const pending = mine.data?.pending ?? []
+  const pending = requests.pending ?? mine.data?.pending ?? []
+  const outcomes = requests.outcomes
   const none = mine.isSuccess && mine.data.households.length === 0 && pending.length === 0
+  // Arrived with a valid invite: until that request is refused, cancelled or its house deleted, the
+  // form that makes a house waits behind "Tạo nhà khác" (specs/015, FR-012)
+  const [linkPreview, setLinkPreview] = useState<InvitePreview | null>(null)
+  const [ended, setEnded] = useState<number[]>([])
+  const [createAnyway, setCreateAnyway] = useState(false)
+  // A preview names the house but not its id (it is not the person's yet): an outcome with the same
+  // house and owner, or a request cancelled here, ends that invite
+  const inviteEnded =
+    ended.length > 0 ||
+    (linkPreview !== null &&
+      outcomes.some((o) => o.household_name === linkPreview.house_name && o.owner_name === linkPreview.owner_name))
+  const inviteOn = linkCode !== '' && linkPreview !== null && !linkPreview.member && !inviteEnded
+  const outcomeLines = outcomes.length > 0 && (
+    <section aria-label={t.pending.endedTitle} className="outcomes">
+      <ul className="household-list">
+        {outcomes.map((outcome) => (
+          <li key={outcome.id} className="outcome-card">
+            <span>
+              {outcome.kind === 'refused'
+                ? t.pending.refused(outcome.owner_name, outcome.household_name)
+                : t.pending.houseGone(outcome.household_name)}
+            </span>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={dismiss.isPending}
+              onClick={() => dismiss.mutate(outcome.id)}
+            >
+              {t.pending.gotIt}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(linkCode !== '')
   // Sent a request just now: the forms fold and focus goes to the wait once it shows
@@ -91,6 +137,8 @@ function HouseholdsPage() {
     return (
       <>
         <h1>{t.households.title}</h1>
+        {/* How earlier requests ended, until "Đã hiểu" (specs/015) */}
+        {outcomeLines}
         <section aria-labelledby="start-title" className="start">
           <h2 id="start-title">{t.start.title(name)}</h2>
           <p className="hint">{t.households.howItWorks}</p>
@@ -98,17 +146,26 @@ function HouseholdsPage() {
             <section aria-labelledby="start-join" className="start-way">
               <h3 id="start-join">{t.start.joinTitle}</h3>
               <p className="hint">{t.start.joinHint}</p>
-              <JoinForm initialCode={linkCode} onRequested={onRequested} />
+              <JoinForm initialCode={linkCode} onRequested={onRequested} onPreview={setLinkPreview} />
             </section>
-            <section aria-labelledby="start-create" className="start-way">
-              <h3 id="start-create">{t.start.createTitle}</h3>
-              <p className="hint">{t.start.createHint}</p>
-              <HouseholdCreateForm
-                onCreate={create.mutateAsync}
-                submitting={create.isPending}
-                error={errorMessage(create.error)}
-              />
-            </section>
+            {inviteOn && !createAnyway ? (
+              // Came from an invite: no second, empty house by mistake (specs/015, FR-012)
+              <p className="start-way">
+                <button type="button" className="btn-ghost" onClick={() => setCreateAnyway(true)}>
+                  {t.start.createAnyway}
+                </button>
+              </p>
+            ) : (
+              <section aria-labelledby="start-create" className="start-way">
+                <h3 id="start-create">{t.start.createTitle}</h3>
+                <p className="hint">{t.start.createHint}</p>
+                <HouseholdCreateForm
+                  onCreate={create.mutateAsync}
+                  submitting={create.isPending}
+                  error={errorMessage(create.error)}
+                />
+              </section>
+            )}
           </div>
         </section>
       </>
@@ -125,6 +182,7 @@ function HouseholdsPage() {
             <ErrorNote message={errorMessage(mine.error) ?? ''} onRetry={() => mine.refetch()} retrying={mine.isFetching} />
           )}
           {showList && <HouseholdList households={mine.data.households} />}
+          {outcomeLines}
 
           {pending.length > 0 && (
             <section aria-labelledby="pending-title" className="pending">
@@ -135,20 +193,27 @@ function HouseholdsPage() {
                 {/* One card per request: where it stands and what can be done about it, together */}
                 {pending.map((request) => (
                   <li key={request.household_id} className="pending-card">
-                    <span className="pending-row">{t.pending.row(formatDate(request.requested_at.slice(0, 10)))}</span>
+                    <span className="pending-row">
+                      {request.household_name
+                        ? `${t.pending.waitingFor(request.household_name, request.owner_name)} · ${t.pending.sentOn(
+                            formatDate(request.requested_at.slice(0, 10)),
+                          )}`
+                        : t.pending.row(formatDate(request.requested_at.slice(0, 10)))}
+                    </span>
                     <span className="pending-actions">
                       <button
                         type="button"
                         className="btn-secondary"
-                        disabled={mine.isFetching}
-                        onClick={() => void mine.refetch()}
+                        disabled={requests.checking}
+                        onClick={requests.check}
                       >
-                        {mine.isFetching ? t.pending.checking : t.pending.check}
+                        {requests.checking ? t.pending.checking : t.pending.check}
                       </button>
                       <button
                         type="button"
                         className="btn-ghost"
                         disabled={cancel.isPending}
+                        aria-label={request.household_name ? t.pending.cancelFor(request.household_name) : undefined}
                         onClick={() => cancel.mutate(request.household_id)}
                       >
                         {t.pending.cancel}
@@ -176,7 +241,7 @@ function HouseholdsPage() {
             }}
           >
             <summary className="btn-secondary">{t.join.open}</summary>
-            <JoinForm initialCode={linkCode} onRequested={onRequested} />
+            <JoinForm initialCode={linkCode} onRequested={onRequested} onPreview={setLinkPreview} />
           </details>
           <details
             className="fold create-household"

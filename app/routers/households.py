@@ -183,12 +183,48 @@ def list_my_households(user: CurrentUser, conn: ConnDep):
     )
     return {
         "households": [row for row in rows if row["role"] != "pending"],
-        "pending": [
-            {"household_id": row["id"], "requested_at": row["requested_at"]}
-            for row in rows
-            if row["role"] == "pending"
-        ],
+        "pending": pending_requests(conn, user["id"]),
     }
+
+
+def pending_requests(conn: Connection, user_id: int) -> list[dict]:
+    """The user's requests still waiting, each with the house's name and its owner's display name:
+    all a waiting person may see of it (specs/015, docs/ACCOUNTS.md D4)."""
+    return fetch_all(
+        conn,
+        "SELECT hu.household_id, hu.requested_at, h.name AS household_name,"
+        " coalesce((SELECT u.display_name FROM household_users o JOIN users u ON u.id = o.user_id"
+        "           WHERE o.household_id = h.id AND o.role = 'owner'), '') AS owner_name"
+        " FROM household_users hu JOIN households h ON h.id = hu.household_id"
+        " WHERE hu.user_id = %s AND hu.role = 'pending' ORDER BY hu.requested_at, h.id",
+        (user_id,),
+    )
+
+
+def house_and_owner(conn: Connection, household_id: int) -> tuple[str, str]:
+    """The house's name and its owner's display name, as they are now."""
+    row = fetch_one(
+        conn,
+        "SELECT h.name,"
+        " coalesce((SELECT u.display_name FROM household_users o JOIN users u ON u.id = o.user_id"
+        "           WHERE o.household_id = h.id AND o.role = 'owner'), '') AS owner_name"
+        " FROM households h WHERE h.id = %s",
+        (household_id,),
+    )
+    return (row["name"], row["owner_name"]) if row else ("", "")
+
+
+def record_outcome(conn: Connection, household_id: int, user_ids: list[int], kind: str) -> None:
+    """What the people whose request just ended keep: the house and owner as they are now."""
+    if not user_ids:
+        return
+    house, owner = house_and_owner(conn, household_id)
+    for user_id in user_ids:
+        conn.execute(
+            "INSERT INTO join_outcomes (user_id, household_id, household_name, owner_name, kind)"
+            " VALUES (%s, %s, %s, %s, %s)",
+            (user_id, household_id, house, owner, kind),
+        )
 
 
 @router.post("/households", response_model=MyHousehold, status_code=201)
@@ -230,6 +266,13 @@ def delete_household(household_id: Id, access: AccessDep, conn: ConnDep):
     # The household row first, like every other change of money (lock_household): deleting the
     # expenses before it could wait in a circle with an expense being edited at the same moment
     lock_household(conn, household_id)
+    # People still waiting keep a line saying the house is gone (specs/015)
+    waiting = [row["user_id"] for row in fetch_all(
+        conn,
+        "SELECT user_id FROM household_users WHERE household_id = %s AND role = 'pending'",
+        (household_id,),
+    )]
+    record_outcome(conn, household_id, waiting, "house_deleted")
     conn.execute("DELETE FROM expenses WHERE household_id = %s", (household_id,))
     deleted = conn.execute("DELETE FROM households WHERE id = %s", (household_id,)).rowcount
     if not deleted:
@@ -327,7 +370,9 @@ def approve_request(
 @router.post("/households/{household_id}/requests/{user_id}/reject", status_code=204)
 def reject_request(household_id: Id, user_id: Id, access: AccessDep, conn: ConnDep):
     require_owner(access)
-    pending_request(conn, household_id, user_id)
+    pending_request(conn, household_id, user_id)  # locks the request: one answer stands
+    # The person keeps a line saying so, in the same step (specs/015)
+    record_outcome(conn, household_id, [user_id], "refused")
     sql = "DELETE FROM household_users WHERE household_id = %s AND user_id = %s"
     conn.execute(sql, (household_id, user_id))
 

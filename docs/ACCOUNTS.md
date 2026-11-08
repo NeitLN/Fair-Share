@@ -11,7 +11,7 @@ anyone with the link could change anything, including marking someone else's deb
 | D1 | Accounts with roles: an owner, members, and people waiting for approval |
 | D2 | Our own sign-in: email + password (argon2id), a random session token sent as `Authorization: Bearer`, no cookie |
 | D3 | Everyone signs in, and everyone in a household's split has an account; nobody adds a name without one |
-| D4 | Joining with an invite code waits for the owner's approval; until then the household shows nothing, not even its name |
+| D4 | Joining with an invite code waits for the owner's approval. A signed-in person holding a valid code, or waiting, sees the house's name and its owner's display name, and nothing else of it (no member, no amount); its pages stay closed (A5). A refusal, or the house deleted while waiting, leaves that person a line saying so, which only they read and dismiss, kept at most 30 days ([spec 015](../specs/015-invite-preview/spec.md)) |
 | D5 | Invite codes: 8 characters (Crockford base32, shown `ABCD-EFGH`), valid 7 days, one current code per household |
 | D6 | A household from before accounts: the first signed-in person who opens its old `#k=` link becomes its owner; after that the key opens nothing |
 | D7 | Shipped only if every check below passes by the evening of Thu 05/11; otherwise the demo uses `main` as it was |
@@ -57,7 +57,7 @@ to use.
 | A4 | Passwords are stored as argon2id hashes (OWASP's minimum: t=2, 19 MiB, 1 lane, about 0.4 s in a container limited like the free instance; a login makes a hash from older settings again), session tokens as SHA-256; neither is ever logged | `test_passwords_and_tokens_…`, `test_passwords_are_hashed_with_owasps_minimum_…`, `test_a_hash_made_with_the_old_settings_…` |
 | A5 | No session: 401. Not in the household, or still waiting: the 404 of a household that does not exist. In it but not allowed: 403 | `test_access.py` |
 | J1 | Codes are read without case, spaces or dashes, O as 0, I and L as 1; a wrong, expired or replaced code gets one answer that reveals nothing | `test_a_wrong_code_…`, `test_an_expired_or_renewed_…` |
-| J2 | Five wrong codes a minute for one account, 20 for one address, then 429 | `test_guessing_codes_…` |
+| J2 | Five wrong codes a minute for one account, 20 for one address, then 429, counted together for previews and requests to join. Previews in all (right or wrong) are also limited to 30 a minute per account (`too_many_previews`), which never blocks joining | `test_guessing_codes_…`, `test_invites.py` |
 | J3 | Asking again does not ask twice; a member using the code is sent to the household | `test_asking_again_…` |
 | M1 | One account per name, one name per account in each household | `test_a_name_someone_has_…` |
 | M2 | Creating a household makes its creator the owner, with their display name in the split | `test_households.py` |
