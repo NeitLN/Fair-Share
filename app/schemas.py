@@ -547,6 +547,16 @@ class NoticeIn(BaseModel):
     version: Annotated[StrictInt | None, Field(ge=1, le=BIGINT_MAX)]
 
 
+class NoticeAdd(BaseModel):
+    """Body of POST /api/households/{id}/notices/{to}/add, "Báo thêm": `amount` more sent, on top of
+    the waiting notice of `version`. `note` replaces the told note only when it is given (blank
+    clears it)."""
+
+    amount: Amount
+    note: NoticeNote | None = None
+    version: NoticeVersion
+
+
 class NoticeAnswer(BaseModel):
     """Body of the receiver's "Chưa nhận được": the version of the notice they were shown. A notice
     changed since then is not the one they answered."""

@@ -69,11 +69,23 @@ test('the reminder names everyone and links to the household', () => {
   )
 })
 
-test('the reminder does not ask for money someone already said they sent', () => {
-  const told = new Set(['3-2'])
+test('the reminder names how much someone said they sent', () => {
+  const told = [t(3, 2, 50_000)]
   expect(
     reminderMessage('Nhà trọ Q7', 10, [t(1, 2, 120_000), t(3, 2, 80_000)], nameOf, 'https://x.test/households/1', told),
-  ).toContain('• Anh trả Minh 80.000đ (đã báo chuyển, chờ Minh xác nhận)')
+  ).toContain('• Anh trả Minh 80.000đ (đã báo chuyển 50.000đ, chờ Minh xác nhận)')
+})
+
+test('a told transfer that is not suggested any more keeps a line of its own, asking for nothing', () => {
+  const message = reminderMessage('Nhà trọ Q7', 10, [t(1, 2, 120_000)], nameOf, 'https://x.test/households/1', [
+    t(3, 1, 40_000),
+  ])
+  expect(message.split('\n')).toEqual([
+    'Nhà trọ Q7 ơi, còn mấy khoản cần trả nè:',
+    '• Tiến trả Minh 120.000đ',
+    '• Anh trả Tiến (đã báo chuyển 40.000đ)',
+    'Xem chi tiết: https://x.test/households/1',
+  ])
 })
 
 test('taking part means any money at all, not a non-zero balance', () => {

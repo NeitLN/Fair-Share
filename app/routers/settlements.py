@@ -18,9 +18,11 @@ from app.routers.balances import compute
 from app.routers.households import lock_household
 from app.schemas import (
     BIGINT_MAX,
+    MAX_AMOUNT,
     Id,
     Notice,
     NoticeAccept,
+    NoticeAdd,
     NoticeAnswer,
     NoticeIn,
     Settlement,
@@ -112,6 +114,17 @@ def raise_notice_changed() -> None:
     raise notice_changed()
 
 
+def suggestion_changed() -> ApiError:
+    message = "This transfer is not suggested any more, or not this much; reload the balances"
+    return ApiError(409, "suggestion_changed", message)
+
+
+def suggested_amount(transfers, from_member: int, to_member: int) -> int | None:
+    """What `from` is suggested to send `to` right now (None: no such transfer)."""
+    return next((amount for debtor, creditor, amount in transfers
+                 if (debtor, creditor) == (from_member, to_member)), None)
+
+
 def notice_changed() -> ApiError:
     message = "This notice was taken back, answered or told again since this screen showed it"
     return ApiError(409, "notice_changed", message)
@@ -169,10 +182,11 @@ def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnD
     """The signed-in member tells `to` they sent the money. It changes no balance: `to` records the
     repayment (S2). Telling again, after a "Chưa nhận được" too, replaces the notice.
 
-    Only a transfer suggested right now can be told, for its exact amount: the one who owes tells
-    the one they owe. The household is locked first, so no expense or repayment can change the
-    balances between the check and the write. Order of refusals: the notice changed (409
-    notice_changed), then the suggestion did (409 suggestion_changed)."""
+    Only a transfer suggested right now can be told, for any amount up to it (specs/014: money
+    often goes in parts): the one who owes tells the one they owe. The household is locked first,
+    so no expense or repayment can change the balances between the check and the write. Order of
+    refusals: the notice changed (409 notice_changed), then the suggestion did (409
+    suggestion_changed)."""
     if body.to_member_id == access.member_id:
         raise ApiError(422, "same_member", "A member cannot pay themselves")
     lock_household(conn, household_id)
@@ -181,9 +195,9 @@ def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnD
         raise unknown_member()
     expect_version(current_notice(conn, household_id, access.member_id, body.to_member_id),
                    body.version)
-    if (access.member_id, body.to_member_id, body.amount) not in transfers:
-        message = "This transfer is not suggested any more; reload the balances"
-        raise ApiError(409, "suggestion_changed", message)
+    ceiling = suggested_amount(transfers, access.member_id, body.to_member_id)
+    if ceiling is None or body.amount > ceiling:
+        raise suggestion_changed()
     try:
         return fetch_one(
             conn,
@@ -202,6 +216,34 @@ def send_notice(household_id: Id, body: NoticeIn, access: AccessDep, conn: ConnD
         ) or raise_notice_changed()
     except errors.ForeignKeyViolation:  # removed while this request ran
         raise unknown_member() from None
+
+
+@router.post("/households/{household_id}/notices/{to_member}/add", response_model=Notice)
+def add_to_notice(household_id: Id, to_member: Id, body: NoticeAdd, access: AccessDep,
+                  conn: ConnDep):
+    """"Báo thêm": the payer sent `amount` more and adds it to the notice still waiting, so the
+    receiver confirms the total once. Only on a notice not answered "Chưa nhận được" (telling again
+    replaces that one). Same order as telling: the house, then the notice's version, then the
+    ceiling: the total stays within today's suggestion and the 10^12 limit."""
+    lock_household(conn, household_id)
+    _, transfers = compute(conn, household_id)
+    notice = expect_version(current_notice(conn, household_id, access.member_id, to_member),
+                            body.version)
+    if notice is None or notice["status"] != "sent":
+        raise notice_changed()
+    total = notice["amount"] + body.amount
+    if total > MAX_AMOUNT:
+        raise ApiError(422, "amount_too_large", "A notice cannot be more than 10^12 đồng")
+    ceiling = suggested_amount(transfers, access.member_id, to_member)
+    if ceiling is None or total > ceiling:
+        raise suggestion_changed()
+    note = (body.note or None) if "note" in body.model_fields_set else notice["note"]
+    return fetch_one(
+        conn,
+        "UPDATE payment_notices SET amount = %s, note = %s, version = nextval('notice_versions')"
+        f" WHERE version = %s RETURNING {NOTICE_COLUMNS}",
+        (total, note, notice["version"]),
+    ) or raise_notice_changed()
 
 
 @router.delete("/households/{household_id}/notices/{to_member}", status_code=204)

@@ -142,8 +142,9 @@ def test_a_name_from_another_household_is_refused(client, house):
 
 @pytest.mark.parametrize(
     "to, amount",
-    [("tien", 90000),  # not the suggested amount (it changed since the page loaded)
-     ("lan", 100000)],  # Minh owes Lan nothing
+    [("tien", 100001),  # more than the suggestion (it fell since the page loaded)
+     ("lan", 100000),  # Minh owes Lan nothing
+     ("lan", 1)],
 )
 def test_only_a_transfer_suggested_now_can_be_told(client, house, to, amount):
     response = tell(client, house, house[to], amount=amount)
@@ -493,3 +494,189 @@ def test_money_writes_wait_while_a_transfer_is_being_told(client, house, db_url)
         assert done == [201]
     finally:
         blocker.close()
+
+
+# --- PR-2: telling the amount actually sent, Báo thêm (specs/014, US1 and US2) -------------------
+
+
+def add_more(client, house, to, amount, version="current", note=None, token=None):
+    """Minh's "Báo thêm": `amount` more on the notice his screen showed."""
+    token = token or house["minh_token"]
+    if version == "current":
+        me = next(m for m, t in client.member_tokens.items() if t == token)
+        version = version_of(client, house, me, to)
+    body = {"amount": amount, "version": version}
+    if note is not None:
+        body["note"] = note
+    return client.post(
+        f"/api/households/{house['id']}/notices/{to}/add", json=body, headers=bearer(token)
+    )
+
+
+def raise_debt(client, house, amount=90000):
+    """Tiến pays `amount` more for the three of them: Minh owes him a third of it more."""
+    response = client.post(
+        f"/api/households/{house['id']}/expenses",
+        json={"description": "Điện", "amount": amount, "payer_id": house["tien"],
+              "spent_at": "2026-11-02",
+              "split": {"type": "equal",
+                        "member_ids": [house["tien"], house["minh"], house["lan"]]}},
+    )
+    assert response.status_code == 201, response.text
+
+
+@pytest.mark.parametrize("amount", [1, 40000, 100000])
+def test_any_amount_up_to_the_suggestion_can_be_told_with_a_note(client, house, amount):
+    response = tell(client, house, house["tien"], amount=amount, note="chuyển trước một phần")
+    assert response.status_code == 200, response.text
+    assert (response.json()["amount"], response.json()["note"]) == (amount, "chuyển trước một phần")
+
+
+@pytest.mark.parametrize("bad", [0, -1, "50000", True, 1.5, 10**12 + 1])
+def test_a_told_amount_is_a_whole_positive_number_within_the_limit(client, house, bad):
+    response = tell(client, house, house["tien"], amount=bad)
+    assert response.status_code == 422, response.text
+    assert notices(client, house["id"]) == []
+
+
+def test_confirming_a_smaller_told_amount_moves_the_balances_by_exactly_it(client, house):
+    before = balances(client, house["id"])
+    tell(client, house, house["tien"], amount=40000)
+    assert accept(client, house, house["minh"]).status_code == 201
+    after = balances(client, house["id"])
+    assert after[house["minh"]] - before[house["minh"]] == 40000
+    assert before[house["tien"]] - after[house["tien"]] == 40000
+
+
+def test_a_repayment_saved_while_telling_is_counted_before_the_ceiling(make_client, house,
+                                                                        db_url):
+    """Held on the house: a repayment of 70.000đ is being written when Minh tells 100.000đ. The
+    telling waits for it, then sees the new suggestion (30.000đ) and refuses the old amount."""
+    answers: list[int] = []
+    blocker = psycopg.connect(db_url)
+    try:
+        blocker.execute("SELECT 1 FROM households WHERE id = %s FOR SHARE", (house["id"],))
+        blocker.execute(
+            "INSERT INTO settlements (household_id, from_member_id, to_member_id, amount,"
+            " settled_at) VALUES (%s, %s, %s, 70000, '2026-11-02')",
+            (house["id"], house["minh"], house["tien"]),
+        )
+        worker = threading.Thread(target=lambda: answers.append(make_client().put(
+            f"/api/households/{house['id']}/notices",
+            json={"to_member_id": house["tien"], "amount": 100000, "version": None},
+            headers=bearer(house["minh_token"])).status_code))
+        worker.start()
+        time.sleep(0.8)
+        assert answers == []  # waiting for the house
+        blocker.commit()
+        worker.join(timeout=10)
+    finally:
+        blocker.close()
+    assert answers == [409]
+
+
+def test_bao_them_adds_to_the_same_notice(client, house):
+    tell(client, house, house["tien"], amount=60000, note="trước")
+    raise_debt(client, house)  # Minh now owes 130.000đ
+    first = version_of(client, house, house["minh"], house["tien"])
+    added = add_more(client, house, house["tien"], 70000)
+    assert added.status_code == 200, added.text
+    body = added.json()
+    assert (body["amount"], body["status"], body["note"]) == (130000, "sent", "trước")
+    assert body["version"] != first
+    [only] = notices(client, house["id"])
+    assert only["amount"] == 130000
+    # Confirmed once, for the whole
+    paid = accept(client, house, house["minh"])
+    assert paid.status_code == 201
+    assert paid.json()["amount"] == 130000
+    assert notices(client, house["id"]) == []
+
+
+def test_bao_them_replaces_the_note_only_when_given(client, house):
+    raise_debt(client, house)
+    tell(client, house, house["tien"], amount=10000, note="lần 1")
+    assert add_more(client, house, house["tien"], 10000).json()["note"] == "lần 1"
+    assert add_more(client, house, house["tien"], 10000, note="lần 2").json()["note"] == "lần 2"
+    assert add_more(client, house, house["tien"], 10000, note="  ").json()["note"] is None
+
+
+def test_bao_them_needs_a_waiting_notice(client, house):
+    missing = add_more(client, house, house["tien"], 10000, version=None)
+    assert missing.status_code == 422  # version is required to be a number
+    assert add_more(client, house, house["tien"], 10000, version=1).status_code == 409
+    tell(client, house, house["tien"], amount=50000)
+    decline(client, house, house["minh"])
+    declined = add_more(client, house, house["tien"], 10000)
+    assert declined.status_code == 409
+    assert error_code(declined) == "notice_changed"
+    assert [(n["amount"], n["status"]) for n in notices(client, house["id"])] == [
+        (50000, "declined")
+    ]
+
+
+def test_bao_them_never_passes_the_suggestion(client, house):
+    tell(client, house, house["tien"], amount=60000)
+    over = add_more(client, house, house["tien"], 40001)
+    assert over.status_code == 409
+    assert error_code(over) == "suggestion_changed"
+    assert add_more(client, house, house["tien"], 40000).status_code == 200
+
+
+def test_bao_them_from_an_old_screen_adds_nothing(client, house):
+    raise_debt(client, house)
+    tell(client, house, house["tien"], amount=60000)
+    shown = version_of(client, house, house["minh"], house["tien"])
+    assert add_more(client, house, house["tien"], 10000, version=shown).status_code == 200
+    stale = add_more(client, house, house["tien"], 10000, version=shown)
+    assert stale.status_code == 409
+    assert error_code(stale) == "notice_changed"
+    assert notices(client, house["id"])[0]["amount"] == 70000
+    # The receiver's screen still showed the old version: confirming it records nothing
+    assert accept(client, house, house["minh"], version=shown).status_code == 409
+
+
+@pytest.mark.parametrize("bad", [0, "1000", True, 2.5, 10**12 + 1])
+def test_bao_them_is_a_whole_positive_number(client, house, bad):
+    tell(client, house, house["tien"], amount=50000)
+    assert add_more(client, house, house["tien"], bad).status_code == 422
+
+
+def test_bao_them_from_two_tabs_at_once_adds_once(make_client, client, house, db_url):
+    """Both tabs showed the same notice; held together on the house, one adds and the other is
+    refused (version), so the total is told once and never twice."""
+    raise_debt(client, house)
+    tell(client, house, house["tien"], amount=60000)
+    shown = version_of(client, house, house["minh"], house["tien"])
+    one, two = make_client(), make_client()
+    answers: list[int] = []
+    blocker = psycopg.connect(db_url)
+    try:
+        blocker.execute("SELECT 1 FROM households WHERE id = %s FOR UPDATE", (house["id"],))
+        workers = [
+            threading.Thread(target=lambda c=c: answers.append(c.post(
+                f"/api/households/{house['id']}/notices/{house['tien']}/add",
+                json={"amount": 70000, "version": shown},
+                headers=bearer(house["minh_token"])).status_code))
+            for c in (one, two)
+        ]
+        for worker in workers:
+            worker.start()
+        time.sleep(0.8)
+        assert answers == []
+        blocker.rollback()
+        for worker in workers:
+            worker.join(timeout=10)
+    finally:
+        blocker.close()
+    assert sorted(answers) == [200, 409]
+    assert [n["amount"] for n in notices(client, house["id"])] == [130000]
+
+
+def test_only_the_payer_adds_to_their_own_notice(client, house):
+    tell(client, house, house["tien"], amount=50000)
+    shown = version_of(client, house, house["minh"], house["tien"])
+    # Lan has no notice to Tiến: the version Minh's screen showed is not hers
+    lan = add_more(client, house, house["tien"], 10000, version=shown, token=house["lan_token"])
+    assert lan.status_code == 409
+    assert notices(client, house["id"])[0]["amount"] == 50000

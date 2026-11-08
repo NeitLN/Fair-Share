@@ -57,7 +57,7 @@ shrinks; as another repayment, it stays; delete a repayment from a notice, it co
 
 ### Phase 4: Setup
 
-- [ ] T022 Open a GitHub issue "Notices: tell a part with a note, Báo thêm, còn thiếu (spec 014, PR-2)"; branch `feat/014-tell-part` from `main` after PR-1 is merged
+- [X] T022 Open a GitHub issue "Notices: tell a part with a note, Báo thêm, còn thiếu (spec 014, PR-2)"; branch `feat/014-tell-part` from `main` after PR-1 is merged
 
 ### Phase 5: User Story 1 - Tell the amount actually sent (Priority: P1)
 
@@ -66,10 +66,10 @@ shrinks; as another repayment, it stays; delete a repayment from a notice, it co
 **Independent Test**: tell a smaller amount with a note; the receiver sees both; confirming moves the balances by
 exactly that amount.
 
-- [ ] T023 [US1] pytest in `tests/test_notices.py` (first, red): telling 1đ..suggestion with a note → 200; 0, a string, `true`, 1.5, above the suggestion, above 10^12 → 422 or 409 `suggestion_changed`; the note is trimmed, line breaks folded, blank → null, 121 characters → 422; an expense saved during a telling cannot let it pass the new ceiling (two connections)
-- [ ] T024 [US1] In `app/routers/settlements.py` `send_notice`: allow `1 <= amount <= suggested` instead of equality; store `note`; version check before the ceiling (`notice_changed` wins)
-- [ ] T025 [US1] In `frontend/src/components/VerdictBlock.tsx` (debtor action): keep [Tôi đã chuyển {current} cho {to}] one press; add the link "Chuyển số khác" opening `NoticeAmountStep` (default the suggestion, max it, note); above 10^12 the button says the limit and opens the step; Vitest in `DashboardPage.test.tsx` (US1 scenarios 1 to 4, 6)
-- [ ] T026 [P] [US1] Words in `vi.tsx` and `en.tsx` (`verdict`): `tellOther` "Chuyển số khác", `noteLabel` "Ghi chú (không bắt buộc)", `amountTooLarge`, errors
+- [X] T023 [US1] pytest in `tests/test_notices.py` (first, red): telling 1đ..suggestion with a note → 200; 0, a string, `true`, 1.5, above the suggestion, above 10^12 → 422 or 409 `suggestion_changed`; the note is trimmed, line breaks folded, blank → null, 121 characters → 422; an expense saved during a telling cannot let it pass the new ceiling (two connections)
+- [X] T024 [US1] In `app/routers/settlements.py` `send_notice`: allow `1 <= amount <= suggested` instead of equality; store `note`; version check before the ceiling (`notice_changed` wins)
+- [X] T025 [US1] In `frontend/src/components/VerdictBlock.tsx` (debtor action): keep [Tôi đã chuyển {current} cho {to}] one press; add the link "Chuyển số khác" opening `NoticeAmountStep` (default the suggestion, max it, note); above 10^12 the button says the limit and opens the step; Vitest in `DashboardPage.test.tsx` (US1 scenarios 1 to 4, 6)
+- [X] T026 [P] [US1] Words in `vi.tsx` and `en.tsx` (`verdict`): `tellOther` "Chuyển số khác", `noteLabel` "Ghi chú (không bắt buộc)", `amountTooLarge`, errors
 
 ### Phase 6: User Story 2 - A notice that no longer matches says what is left (Priority: P1)
 
@@ -77,11 +77,11 @@ exactly that amount.
 
 **Independent Test**: tell, raise the debt, both lines show two numbers; "Báo thêm" adds and the total is confirmed once.
 
-- [ ] T027 [US2] pytest in `tests/test_notices.py` (first, red): `POST …/notices/{to}/add` adds to a `sent` notice with the version; on a declined or missing notice → 409 `notice_changed`; total above the suggestion → 409 `suggestion_changed`; above 10^12 → 422; a note replaces only when given; a stale accept after an add → 409
-- [ ] T028 [US2] Implement `add_to_notice` in `app/routers/settlements.py` (household lock `FOR UPDATE`, version, ceiling, total ≤ 10^12)
-- [ ] T029 [US2] `frontend/src/api/settlements.ts` `addToNotice(hid, to, {amount, note?, version})`; in `VerdictBlock.tsx` the payer lines of ui-contract.md (told = current, told < current with [Báo thêm] hidden at 10^12, told > current, pair not suggested, declined) and the receiver's "· lúc này {payer} cần trả bạn {current}"; "Báo thêm" opens `NoticeAmountStep` with the line "{told} + {x} = {total}"; Vitest in `DashboardPage.test.tsx` (US2 scenarios 1 to 5)
-- [ ] T030 [US2] In `frontend/src/lib/verdict.ts` the reminder names the told amount, and "(đã báo chuyển {told})" when the pair is not suggested; Vitest in `lib/verdict.test.ts`
-- [ ] T031 [P] [US2] Words (`verdict`): `toldShort` "Đã báo {told}, còn thiếu {rest}", `toldMore`, `toldNotSuggested`, `addMore` "Báo thêm", `sumLine`, `receiverCurrent`
+- [X] T027 [US2] pytest in `tests/test_notices.py` (first, red): `POST …/notices/{to}/add` adds to a `sent` notice with the version; on a declined or missing notice → 409 `notice_changed`; total above the suggestion → 409 `suggestion_changed`; above 10^12 → 422; a note replaces only when given; a stale accept after an add → 409
+- [X] T028 [US2] Implement `add_to_notice` in `app/routers/settlements.py` (household lock `FOR UPDATE`, version, ceiling, total ≤ 10^12)
+- [X] T029 [US2] `frontend/src/api/settlements.ts` `addToNotice(hid, to, {amount, note?, version})`; in `VerdictBlock.tsx` the payer lines of ui-contract.md (told = current, told < current with [Báo thêm] hidden at 10^12, told > current, pair not suggested, declined) and the receiver's "· lúc này {payer} cần trả bạn {current}"; "Báo thêm" opens `NoticeAmountStep` with the line "{told} + {x} = {total}"; Vitest in `DashboardPage.test.tsx` (US2 scenarios 1 to 5)
+- [X] T030 [US2] In `frontend/src/lib/verdict.ts` the reminder names the told amount, and "(đã báo chuyển {told})" when the pair is not suggested; Vitest in `lib/verdict.test.ts`
+- [X] T031 [P] [US2] Words (`verdict`): `toldShort` "Đã báo {told}, còn thiếu {rest}", `toldMore`, `toldNotSuggested`, `addMore` "Báo thêm", `sumLine`, `receiverCurrent`
 
 ### Phase 7: User Story 4 - Why the suggestion is one transfer to one person (Priority: P2)
 
@@ -89,12 +89,12 @@ exactly that amount.
 
 **Independent Test**: in a house where the suggestion crosses people, the line shows once and opens "Vì sao ra số này?".
 
-- [ ] T032 [US4] In `VerdictBlock.tsx` render the line once under the debtor's action, with a button that opens the existing `explain-fold`; Vitest in `DashboardPage.test.tsx`; words `combinedHint` in `vi.tsx` and `en.tsx`
+- [X] T032 [US4] In `VerdictBlock.tsx` render the line once under the debtor's action, with a button that opens the existing `explain-fold`; Vitest in `DashboardPage.test.tsx`; words `combinedHint` in `vi.tsx` and `en.tsx`
 
 ### Phase 8: Polish (PR-2)
 
-- [ ] T033 Docs: `docs/ACCOUNTS.md` S3 (any amount up to the suggestion, note, Báo thêm); `docs/DESIGN.md` §6.2 (the payer and receiver lines, the steps) and §7 (Đã báo, còn thiếu, Báo thêm, Chuyển số khác, Nhận số khác)
-- [ ] T034 E2E in `frontend/e2e/notices.spec.ts`: Lan "Chuyển số khác" 1tr with a note, Tiến sees it; an expense raises the debt; "còn thiếu" and "Báo thêm"; Tiến confirms the total once
+- [X] T033 Docs: `docs/ACCOUNTS.md` S3 (any amount up to the suggestion, note, Báo thêm); `docs/DESIGN.md` §6.2 (the payer and receiver lines, the steps) and §7 (Đã báo, còn thiếu, Báo thêm, Chuyển số khác, Nhận số khác)
+- [X] T034 E2E in `frontend/e2e/notices.spec.ts`: Lan "Chuyển số khác" 1tr with a note, Tiến sees it; an expense raises the debt; "còn thiếu" and "Báo thêm"; Tiến confirms the total once
 - [ ] T035 Accessibility pass at 320 px and 200% zoom on the steps (44 px, focus back to the opener, totals read once); `frontend/e2e/a11y.spec.ts` stays green
 - [ ] T036 Quickstart steps 6 to 10 by hand, screenshots at 360 and 1440 px in the PR; after merge, the live E2E run green
 
