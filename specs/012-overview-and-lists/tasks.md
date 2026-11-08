@@ -110,7 +110,7 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 ### Phase 8: Setup (PR-L)
 
-- [ ] T027 Open an issue "House cards with balances, short lists, honest month filter (spec 012, PR-L)" and create branch `feat/012-lists-houses` from `main`
+- [x] T027 Open an issue "House cards with balances, short lists, honest month filter (spec 012, PR-L)" and create branch `feat/012-lists-houses` from `main`
 
 ### Phase 9: User Story 4, the list of houses says what is going on (P2)
 
@@ -118,12 +118,12 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: someone in two houses sees the right balance and badge on each card; 1440 px shows a grid.
 
-- [ ] T028 [US4] Write pytest cases in tests/test_households.py for `GET /api/households`: `my_net` equals the caller's `net` in `GET /api/households/{id}/balances` for a house with expenses and a repayment (positive, negative and 0); `waiting` counts pending join requests only for the owner, plus notices with `to_member_id` = the caller's member and `status = 'sent'` (a `declined` notice does not count); a member who is not the owner gets 0 for join requests; `pending` entries have neither field
-- [ ] T029 [US4] Extend the query in `list_my_households` in app/routers/households.py with `my_net` (for `hu.member_id`: paid − owed + sent − received, the same sub-selects as app/routers/balances.py) and `waiting` (`CASE WHEN hu.role = 'owner'` count of `household_users` rows with `role = 'pending'` in that house `END` + count of `payment_notices` with `to_member_id = hu.member_id AND status = 'sent'`), computed only for owner/member rows; add `my_net: int = 0` and `waiting: int = 0` to `MyHousehold` in app/schemas.py
-- [ ] T030 [P] [US4] Add `my_net?: number` and `waiting?: number` to `MyHousehold` in frontend/src/api/types.ts
-- [ ] T031 [US4] Write Vitest cases in frontend/src/components/HouseholdList.test.tsx: credit card shows "Bạn được nhận 5.633.500đ", debt card "Bạn cần trả …", zero "Đã xong"; `waiting: 2` shows a badge with accessible name "2 việc đang chờ bạn"; missing fields show only the name and still link to the house
-- [ ] T032 [US4] Update frontend/src/components/HouseholdList.tsx: name (wraps) + "Trưởng nhóm" chip with an 8 px gap, a second line with the balance using the app's `Money` component and colours, and a right-aligned badge when `waiting > 0`; new strings `households.youGet(amount)`, `households.youOwe(amount)`, `households.settled`, `households.waiting(n)` in vi.tsx and en.tsx
-- [ ] T033 [P] [US4] In frontend/src/index.css: `.household-list` becomes `display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px` from 1024 px, one column below; card at least 44 px tall; badge as a pill (`--debt` background, white text, 4.5:1)
+- [x] T028 [US4] Write pytest cases in tests/test_households.py for `GET /api/households`: `my_net` equals the caller's `net` in `GET /api/households/{id}/balances` for a house with expenses and a repayment (positive, negative and 0); `waiting` counts pending join requests only for the owner, plus notices with `to_member_id` = the caller's member and `status = 'sent'` (a `declined` notice does not count); a member who is not the owner gets 0 for join requests; `pending` entries have neither field
+- [x] T029 [US4] Extend the query in `list_my_households` in app/routers/households.py with `my_net` (for `hu.member_id`: paid − owed + sent − received, the same sub-selects as app/routers/balances.py) and `waiting` (`CASE WHEN hu.role = 'owner'` count of `household_users` rows with `role = 'pending'` in that house `END` + count of `payment_notices` with `to_member_id = hu.member_id AND status = 'sent'`), computed only for owner/member rows; add `my_net: int = 0` and `waiting: int = 0` to `MyHousehold` in app/schemas.py
+- [x] T030 [P] [US4] Add `my_net?: number` and `waiting?: number` to `MyHousehold` in frontend/src/api/types.ts
+- [x] T031 [US4] Write Vitest cases in frontend/src/components/HouseholdList.test.tsx: credit card shows "Bạn được nhận 5.633.500đ", debt card "Bạn cần trả …", zero "Đã xong"; `waiting: 2` shows a badge with accessible name "2 việc đang chờ bạn"; missing fields show only the name and still link to the house
+- [x] T032 [US4] Update frontend/src/components/HouseholdList.tsx: name (wraps) + "Trưởng nhóm" chip with an 8 px gap, a second line with the balance using the app's `Money` component and colours, and a right-aligned badge when `waiting > 0`; new strings `households.youGet(amount)`, `households.youOwe(amount)`, `households.settled`, `households.waiting(n)` in vi.tsx and en.tsx
+- [x] T033 [P] [US4] In frontend/src/index.css: `.household-list` becomes `display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px` from 1024 px, one column below; card at least 44 px tall; badge as a pill (`--debt` background, white text, 4.5:1)
 
 ### Phase 10: User Story 5, short lists and honest filters (P2)
 
@@ -131,12 +131,12 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: a 120-character description is two lines at 360 px; a month without expenses keeps its filter and says so.
 
-- [ ] T034 [US5] Write Vitest cases in frontend/src/components/ExpenseList.test.tsx: a long description has the full text in `title` and in the DOM; when clamped (mock `scrollHeight > clientHeight`), "Xem đủ" shows and removes the clamp for that row only; a short description shows no "Xem đủ"
-- [ ] T035 [US5] Add the clamp to `.expense-description` and the meta line in frontend/src/index.css (`display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere`) and the same for the description cell of the laptop table
-- [ ] T036 [US5] In frontend/src/components/ExpenseList.tsx and frontend/src/components/ExpenseTable.tsx: put the full description in `title`, measure after layout whether it is clamped, and show a "Xem đủ" / "Show all" text button (44 px target) that toggles a `.expanded` class on that row; string `expenses.showAll` in vi.tsx and en.tsx
-- [ ] T037 [US5] Write Vitest cases in frontend/src/pages/ExpensesPage.test.tsx: arriving with month 2026-09 (state from the report) when no expense is in September keeps the month filter, shows "Tháng 9/2026 chưa có khoản chi nào." and "Bỏ lọc" clears it; deleting the last expense of the filtered month keeps the filter and shows the same text
-- [ ] T038 [US5] In frontend/src/pages/ExpensesPage.tsx keep `chosen.month` whenever it is a valid `YYYY-MM` (drop the `months.includes` condition for the month only; keep the member rule), and in frontend/src/components/ExpenseFilters.tsx include the chosen month in the month options even without expenses and show the empty-month text `expenses.emptyMonth(month)` with "Bỏ lọc"
-- [ ] T039 [US5] Update docs/DESIGN.md §6.1 (house cards) and §6.3 (clamp, empty month)
+- [x] T034 [US5] Write Vitest cases in frontend/src/components/ExpenseList.test.tsx: a long description has the full text in `title` and in the DOM; when clamped (mock `scrollHeight > clientHeight`), "Xem đủ" shows and removes the clamp for that row only; a short description shows no "Xem đủ"
+- [x] T035 [US5] Add the clamp to `.expense-description` and the meta line in frontend/src/index.css (`display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere`) and the same for the description cell of the laptop table
+- [x] T036 [US5] In frontend/src/components/ExpenseList.tsx and frontend/src/components/ExpenseTable.tsx: put the full description in `title`, measure after layout whether it is clamped, and show a "Xem đủ" / "Show all" text button (44 px target) that toggles a `.expanded` class on that row; string `expenses.showAll` in vi.tsx and en.tsx
+- [x] T037 [US5] Write Vitest cases in frontend/src/pages/ExpensesPage.test.tsx: arriving with month 2026-09 (state from the report) when no expense is in September keeps the month filter, shows "Tháng 9/2026 chưa có khoản chi nào." and "Bỏ lọc" clears it; deleting the last expense of the filtered month keeps the filter and shows the same text
+- [x] T038 [US5] In frontend/src/pages/ExpensesPage.tsx keep `chosen.month` whenever it is a valid `YYYY-MM` (drop the `months.includes` condition for the month only; keep the member rule), and in frontend/src/components/ExpenseFilters.tsx include the chosen month in the month options even without expenses and show the empty-month text `expenses.emptyMonth(month)` with "Bỏ lọc"
+- [x] T039 [US5] Update docs/DESIGN.md §6.1 (house cards) and §6.3 (clamp, empty month)
 
 **Checkpoint PR-L**: `ruff check .`, pytest, lint, Vitest, build, local E2E. Open PR-L.
 
