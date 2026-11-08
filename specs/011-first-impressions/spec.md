@@ -221,7 +221,8 @@ each gets its own result.
   once per episode, where an episode ends after the notice has stayed hidden for 10 seconds; it MUST NOT be
   announced on page changes and MUST NOT cover or block any control.
 - **FR-009**: Request tracking MUST end for every outcome: success, refusal, network failure, cancellation and a change
-  of signed-in account. No timeout or automatic retry is added.
+  of signed-in account. No timeout or automatic retry is added. Quick add's AI call is not counted: it is slow
+  by nature (7 to 9 s on the live server) and already shows how long it has been reading (review of PR-D, #240).
 
 **Repeat and split (US3)**
 

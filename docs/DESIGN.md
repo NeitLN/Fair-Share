@@ -419,7 +419,8 @@ Slow: the free server sleeps after about 15 minutes and takes about 50 s to wake
 waited more than 5 s, a band above the page, signed in or not, says "Phản hồi đang lâu hơn bình thường. Máy
 chủ có thể đang khởi động, thường mất khoảng 1 phút. Bạn không cần tải lại trang." It sits in the page flow
 (`--surface-2`, 44 px), covers nothing, and goes by itself once no request has waited that long; a
-failure then shows the usual error. Screen readers hear it once per episode: shown again within 10 s of
+failure then shows the usual error. Quick add's AI call is left out: it usually takes 7 to 9 s and has
+its own "AI đang đọc… n giây". Screen readers hear it once per episode: shown again within 10 s of
 hiding, or kept while moving between pages, it is not read again ([spec 011](../specs/011-first-impressions/spec.md)).
 A repeating item whose *Ngừng lặp* did not go through says so under it: "Chưa xác nhận được là đã ngừng
 lặp." with the reason; each item has its own wait.

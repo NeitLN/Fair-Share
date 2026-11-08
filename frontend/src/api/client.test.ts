@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { currentSession, signIn, signOut } from '../lib/session'
 import { resetSlowRequests, slowState } from '../lib/slowRequests'
-import { api, ApiError, KEY_HEADER } from './client'
+import { api, ApiError, KEY_HEADER, request } from './client'
 
 function mockFetch(response: Response | Error) {
   const fn = vi.fn(() =>
@@ -209,6 +209,16 @@ describe('slow requests', () => {
       await pending
       expect(slowState().slow).toBe(false)
     }
+  })
+
+  test('a request left out of it (quick add) never turns the notice on', async () => {
+    const settle = held()
+    const pending = request('/api/households/7/ai/parse-expense', { method: 'POST', body: '{}' }, { countsAsSlow: false })
+    vi.advanceTimersByTime(12_000)
+    expect(slowState().slow).toBe(false)
+    settle(json(200, {}))
+    await pending
+    expect(slowState().slow).toBe(false)
   })
 
   test('an answer for the last account after someone else signed in ends it too', async () => {

@@ -53,7 +53,11 @@ export const KEY_HEADER = 'X-Household-Key'
 // A wrong password is a 401 too, but it does not mean the session ended
 const SIGN_IN_ROUTES = /^\/api\/auth\/(login|register)$/
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * `countsAsSlow: false` leaves a request out of the slow-server notice: one that is slow by nature, like
+ * quick add, whose AI usually takes 7 to 9 s and has its own "AI đang đọc… n giây" (review of #240).
+ */
+export async function request<T>(path: string, init: RequestInit = {}, { countsAsSlow = true } = {}): Promise<T> {
   const headers = new Headers(init.headers)
   // A JSON body unless the caller said otherwise (a photo goes up as image/jpeg)
   if (init.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
@@ -62,7 +66,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   // Counted until the answer has been read, whatever happens, so a sleeping server is explained on
   // screen after 5 s (specs/011, FR-007, FR-009)
-  const token = beginRequest()
+  const token = countsAsSlow ? beginRequest() : null
   try {
     let response: Response
     try {
@@ -84,7 +88,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     if (changed()) throw sessionChanged()
     return body as T
   } finally {
-    endRequest(token)
+    if (token !== null) endRequest(token)
   }
 }
 
