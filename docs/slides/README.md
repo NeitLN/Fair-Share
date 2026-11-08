@@ -38,5 +38,5 @@ After changing `index.html`, print it from Chrome (**Ctrl+P**, destination *Save
 
 | # | Date | Present | Total time | Over time in | What to change |
 |---|---|---|---|---|---|
-| 1 | Thu 05/11 | | | | |
+| 1 | Sun 08/11 | Duy Anh, Hoàng Minh, Việt Tiến | 9:50 | — | Nothing; run 2 keeps the same timing |
 | 2 | Tue 10/11 | | | | |
