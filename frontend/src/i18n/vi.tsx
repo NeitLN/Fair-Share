@@ -418,6 +418,7 @@ const vi = {
     hint: (day: number) => `Nhắc ngày ${day} hằng tháng · không tự lưu khoản chi`,
     varying: 'Số tiền thay đổi mỗi tháng',
     equalOnly: 'Khoản định kỳ chỉ chia đều. Đổi sang chia đều hoặc bỏ tích Lặp lại hằng tháng.',
+    equalOnlyLocked: 'Khoản định kỳ chỉ chia đều được.',
     period: (month: string) => `Đang ghi kỳ ${month}`,
     leftOut: (names: string) => `${names} không còn trong nhà nên không được tính vào phần chia.`,
     pickPayer: 'Người trả lần trước không còn trong nhà. Chọn người trả cho lần này.',
@@ -605,6 +606,13 @@ const vi = {
     descriptionProblem: (max: number) => `Nội dung phải từ 1 đến ${max} ký tự.`,
     amountEmpty: 'Nhập số tiền.',
     amountProblem: 'Số tiền chưa hợp lệ. Ví dụ: 240000, 240.000, 240k hoặc 1tr5.',
+    amountTooLarge: 'Một khoản chi tối đa 1.000.000.000.000đ.',
+    // Asked once before saving an unusually large total (specs/011, FR-011)
+    confirmLarge: (amount: string) => `Số tiền ${amount} lớn bất thường. Lưu thật nhé?`,
+    confirmEdit: 'Sửa lại',
+    // In the save area after a failed save (specs/011, FR-001)
+    notSaved: (problem: string) => `Chưa lưu được: ${problem}`,
+    confirmSave: 'Lưu thật',
     payerProblem: 'Chọn người trả.',
     dateMissing: 'Hãy chọn ngày.',
     dateRange: 'Ngày phải trong khoảng 01/01/2000 đến 31/12/2099.',

@@ -28,7 +28,6 @@ function setup(props: Partial<Parameters<typeof ExpenseForm>[0]> = {}) {
       defaultPayer={1}
       onSubmit={onSubmit}
       submitting={false}
-      error={null}
       {...props}
     />,
   )
@@ -38,6 +37,10 @@ function setup(props: Partial<Parameters<typeof ExpenseForm>[0]> = {}) {
 const save = (user: User) => user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
 const openSplit = (user: User) => user.click(screen.getByRole('button', { name: 'Sửa cách chia' }))
 const openDate = (user: User) => user.click(screen.getByRole('button', { name: 'Đổi ngày' }))
+/** Tự chia starts at the equal split (specs/011, FR-014); tests about typed shares start from empty ones. */
+async function clearShares(user: User) {
+  for (const input of screen.getAllByLabelText(/^Phần của/)) await user.clear(input)
+}
 const payerRadio = (name: string) => screen.getByRole('radio', { name: new RegExp(`^${name}`) })
 /** The id of the checked "Ai trả?" chip, '' when nobody is chosen. */
 const payer = () =>
@@ -100,13 +103,13 @@ describe('ExpenseForm, the 90% case', () => {
   test('choosing "Bạn là ai?" later moves an untouched default payer, never a chosen one', async () => {
     const { user, view } = setup({ me: null, defaultPayer: null })
     view.rerender(
-      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} />,
     )
     expect(payer()).toBe('2')
 
     await user.click(payerRadio('Duy Anh'))
     view.rerender(
-      <ExpenseForm members={members} me={1} defaultPayer={1} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm members={members} me={1} defaultPayer={1} onSubmit={vi.fn()} submitting={false} />,
     )
     expect(payer()).toBe('3')
   })
@@ -136,7 +139,7 @@ describe('ExpenseForm, the 90% case', () => {
     await save(user)
     expect(screen.getByText('Chọn người trả.')).toBeInTheDocument()
     view.rerender(
-      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} />,
     )
     expect(payer()).toBe('2')
     expect(screen.queryByText('Chọn người trả.')).not.toBeInTheDocument()
@@ -215,6 +218,7 @@ describe('ExpenseForm, equal split', () => {
     await fillBasics(user, '240000')
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Tự chia' }))
+    await clearShares(user)
     await user.type(screen.getByLabelText('Phần của Tiến'), '140000')
     await user.type(screen.getByLabelText('Phần của Minh'), '100000')
     await save(user)
@@ -246,6 +250,7 @@ describe('ExpenseForm, custom split', () => {
     await fillBasics(user, '240000')
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Tự chia' }))
+    await clearShares(user)
     await user.type(screen.getByLabelText('Phần của Minh'), '140000')
 
     expect(plain(screen.getByText(/Chưa chia/).textContent)).toBe('Chưa chia: 100.000đ')
@@ -260,6 +265,7 @@ describe('ExpenseForm, custom split', () => {
     await fillBasics(user, '240000')
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Tự chia' }))
+    await clearShares(user)
     await user.type(screen.getByLabelText('Phần của Minh'), '140.000')
     await user.type(screen.getByLabelText('Phần của Duy Anh'), '100k')
 
@@ -280,6 +286,7 @@ describe('ExpenseForm, custom split', () => {
     await fillBasics(user, '100000')
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Tự chia' }))
+    await clearShares(user)
     await user.type(screen.getByLabelText('Phần của Tiến'), '150000')
 
     expect(plain(screen.getByText(/Vượt quá/).textContent)).toBe('Vượt quá: 50.000đ')
@@ -344,10 +351,12 @@ describe('ExpenseForm, checks and outcomes', () => {
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }))
 
     expect(screen.getByText('Tổng các phần phải bằng đúng số tiền của khoản chi.')).toBeInTheDocument()
-    // The way of splitting in use gets focus, and its button carries the message
-    const custom = screen.getByRole('button', { name: 'Tự chia' })
-    expect(custom).toHaveFocus()
-    expect(custom).toHaveAccessibleDescription('Tổng các phần phải bằng đúng số tiền của khoản chi.')
+    // Shares that do not add up: the first share gets the focus (specs/011, FR-002), and the save area
+    // says why the save did not happen
+    expect(screen.getByLabelText('Phần của Tiến')).toHaveFocus()
+    expect(document.querySelector('.form-summary')).toHaveTextContent(
+      'Chưa lưu được: Tổng các phần phải bằng đúng số tiền của khoản chi.',
+    )
   })
 
   test('after saving, the form is ready for the next expense', async () => {
@@ -360,14 +369,27 @@ describe('ExpenseForm, checks and outcomes', () => {
     expect(payerRadio('Tiến')).toBeChecked()
   })
 
-  test('when saving fails, everything typed stays and the server message shows above the button', async () => {
+  test('when saving fails, everything typed stays and the server message shows in the save area', async () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('500'))
-    const { user } = setup({ onSubmit, error: 'Máy chủ gặp lỗi. Thử lại sau ít phút.' })
+    const { user, view } = setup({ onSubmit })
     await fillBasics(user)
     await save(user)
+    // The page passes the failure it got back (lib/formError.ts): a general one has no field
+    view.rerender(
+      <ExpenseForm
+        members={members}
+        me={1}
+        defaultPayer={1}
+        onSubmit={onSubmit}
+        submitting={false}
+        serverError={{ message: 'Máy chủ gặp lỗi. Thử lại sau ít phút.', field: null }}
+      />,
+    )
 
     expect(screen.getByLabelText('Nội dung')).toHaveValue('Tiền điện')
-    expect(screen.getByRole('alert')).toHaveTextContent('Máy chủ gặp lỗi.')
+    const summary = document.querySelector('.form-actions .form-summary')
+    expect(summary).toHaveTextContent('Máy chủ gặp lỗi.')
+    expect(summary).toHaveAttribute('role', 'status')
   })
 })
 
@@ -528,7 +550,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       form().fill({ ...draft, payer_id: 1 })
     })
     view.rerender(
-      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} />,
     )
     expect(payer()).toBe('1')
   })
@@ -539,7 +561,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       form().fill({ ...draft, payer_id: null })
     })
     view.rerender(
-      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm members={members} me={2} defaultPayer={2} onSubmit={vi.fn()} submitting={false} />,
     )
     expect(payer()).toBe('')
   })
@@ -554,7 +576,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       ref.current?.undoFill()
     })
     view.rerender(
-      <ExpenseForm ref={ref} members={members} me={3} defaultPayer={3} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm ref={ref} members={members} me={3} defaultPayer={3} onSubmit={vi.fn()} submitting={false} />,
     )
     expect(payer()).toBe('3')
   })
@@ -566,7 +588,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       ref.current?.fill(draft)
     })
     view.rerender(
-      <ExpenseForm ref={ref} members={members} me={3} defaultPayer={3} onSubmit={vi.fn()} submitting={false} error={null} />,
+      <ExpenseForm ref={ref} members={members} me={3} defaultPayer={3} onSubmit={vi.fn()} submitting={false} />,
     )
     // The AI's payer is kept while the identity changes...
     expect(payer()).toBe('2')
@@ -716,6 +738,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
     await user.type(screen.getByLabelText('Số tiền'), '240000')
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Tự chia' }))
+    await clearShares(user)
     await user.type(screen.getByLabelText('Phần của Minh'), '240000')
 
     let result
@@ -735,7 +758,9 @@ describe('ExpenseForm, filled by AI quick add', () => {
     })
     await openSplit(user)
     await user.click(screen.getByRole('button', { name: 'Tự chia' }))
-    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('')
+    // The fill was an equal split, so the person's first switch to Tự chia starts at it (specs/011)
+    expect(screen.getByLabelText('Phần của Minh')).toHaveValue('120000')
+    expect(screen.getByLabelText('Phần của Duy Anh')).toHaveValue('')
     await user.click(screen.getByRole('button', { name: 'Chia đều' }))
     await save(user)
     expect(onSubmit.mock.calls[0][0].split).toEqual({ type: 'equal', member_ids: [1, 2] })
@@ -765,7 +790,7 @@ describe('ExpenseForm, the note beside Cách chia', () => {
     const ref = createRef<ExpenseFormHandle>()
     const onSubmit = vi.fn().mockResolvedValue({})
     render(
-      <ExpenseForm ref={ref} members={members} onSubmit={onSubmit} submitting={false} error={null} />,
+      <ExpenseForm ref={ref} members={members} onSubmit={onSubmit} submitting={false} />,
     )
     return { form: () => ref.current as ExpenseFormHandle, onSubmit, user: userEvent.setup() }
   }

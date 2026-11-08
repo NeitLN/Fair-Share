@@ -9,7 +9,8 @@ import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
-import { equalSplit, parseAmount } from '../lib/split'
+import type { FormError } from '../lib/formError'
+import { equalSplit, LARGE_AMOUNT, MAX_AMOUNT, parseAmount } from '../lib/split'
 import { Avatar } from './Avatar'
 import { CategoryPicker } from './CategoryPicker'
 import { useT } from '../i18n'
@@ -82,8 +83,17 @@ interface ExpenseFormProps {
   onSubmit: (input: ExpenseInput) => Promise<unknown>
   onCancel?: () => void
   submitting: boolean
-  error: string | null
+  /**
+   * Why the last save failed (lib/formError.ts): shown in the save area, and the field it is about gets
+   * the focus (specs/011-first-impressions, FR-002 to FR-004). Null when nothing failed.
+   */
+  serverError?: FormError | null
 }
+
+/** Whether the one-time equal prefill of Tự chia (FR-014) may still run, has run, or must never run. */
+type Prefill = 'pending' | 'done' | 'off'
+// Server messages about these fields go away as soon as one of them changes (FR-004)
+const SPLIT_INPUTS: FillField[] = ['amount', 'payer', 'date', 'split']
 
 const MAX_DESCRIPTION = 120
 
@@ -102,7 +112,7 @@ function ExpenseForm({
   onSubmit,
   onCancel,
   submitting,
-  error,
+  serverError = null,
 }: ExpenseFormProps) {
   const t = useT()
   const editing = Boolean(initial)
@@ -152,6 +162,18 @@ function ExpenseForm({
       : {},
   )
   const [problems, setProblems] = useState<Problems>({})
+  // After a failed save, every edit checks the form again, so the summary moves to the next problem
+  // instead of vanishing while something is still wrong (specs/011, FR-004)
+  const [submittedOnce, setSubmittedOnce] = useState(false)
+  // A server message the person has since acted on (changed its field, or saved again)
+  const [settledError, setSettledError] = useState<FormError | null>(null)
+  // A large total waiting for "Lưu thật", and the one already confirmed (FR-011, FR-012)
+  const [confirming, setConfirming] = useState<number | null>(null)
+  const [confirmedAmount, setConfirmedAmount] = useState<number | null>(null)
+  // "Lưu thật" acts on a click, or on a key pressed while it had the focus: never on an Enter held
+  // since before it appeared
+  const keyOnConfirm = useRef(false)
+  const [prefill, setPrefill] = useState<Prefill>(initial?.split_type === 'custom' ? 'off' : 'pending')
   // The date and the split are folded: the 90% case is "today, everyone, equally"
   const [dateOpen, setDateOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
@@ -193,12 +215,16 @@ function ExpenseForm({
       selected: Set<number>
       customText: Record<number, string>
       splitBlock: string | null
+      repeat: boolean
+      varying: boolean
+      prefill: Prefill
     }
   } | null>(null)
   const descriptionInput = useRef<HTMLInputElement>(null)
   const formElement = useRef<HTMLFormElement>(null)
   // The field to focus once it is on screen (a folded field opens first)
-  const focusField = useRef<FillField | null>(null)
+  // A form field, or a finer target inside the split: "split-share-<id>", "split-person" (FR-002)
+  const focusField = useRef<string | null>(null)
 
   // "Bạn là ai?" chosen while the form is open: an untouched default follows it
   const [seenDefault, setSeenDefault] = useState(defaultPayer)
@@ -214,8 +240,30 @@ function ExpenseForm({
     const field = focusField.current
     if (!field) return
     focusField.current = null
-    formElement.current?.querySelector<HTMLElement>(`[data-field="${field}"]`)?.focus()
+    focusTarget(field)
   })
+
+  /** Scrolls a field into view (instantly when the person asked for less motion) and focuses it. */
+  function focusTarget(field: string) {
+    const element = formElement.current?.querySelector<HTMLElement>(`[data-field="${field}"]`)
+    if (!element) return
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    element.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+    element.focus({ preventScroll: true })
+  }
+
+  // A new failure from the server: its field (opened if folded) gets the focus; a general failure
+  // only shows in the summary (FR-002, FR-003)
+  const [seenError, setSeenError] = useState<FormError | null>(null)
+  if (serverError !== seenError) {
+    setSeenError(serverError)
+    if (serverError?.field) {
+      if (serverError.field === 'date') setDateOpen(true)
+      if (serverError.field === 'split') setSplitOpen(true)
+      focusField.current = serverError.field
+    }
+  }
+  const shownError = serverError && serverError !== settledError ? serverError : null
 
   function edited(field: FillField) {
     // A field edited after a fill is the user's now: undo must not take it back
@@ -228,6 +276,11 @@ function ExpenseForm({
     // "Còn lại 200.000đ tính cho Tiến" was about the total the AI read; a new total makes it untrue
     // (the shares then stop adding up, so Lưu is refused by the usual check)
     if (field === 'amount' && restFrom) setSplitNote(null)
+    // A refusal about the split goes when anything the split depends on changes; any other one (a lost
+    // connection has no field) only when its own field does
+    if (serverError && (field === serverError.field || (serverError.field === 'split' && SPLIT_INPUTS.includes(field)))) {
+      setSettledError(serverError)
+    }
     setTouched((current) => new Set(current).add(field))
     setJustFilled((current) => {
       const next = new Set(current)
@@ -244,6 +297,18 @@ function ExpenseForm({
       delete next[field]
       return next
     })
+  }
+
+  /**
+   * Every way the split type changes goes through here: a new expense that becomes Tự chia cannot
+   * repeat monthly, so the repeat options are switched off with it (specs/011, FR-010).
+   */
+  function chooseSplit(next: SplitType) {
+    setSplitType(next)
+    if (next === 'custom' && offerRepeat) {
+      setRepeat(false)
+      setVarying(false)
+    }
   }
 
   useImperativeHandle(ref, () => ({
@@ -316,6 +381,9 @@ function ExpenseForm({
           selected,
           customText,
           splitBlock,
+          repeat,
+          varying,
+          prefill,
         },
       }
       if (fill.has('description')) setDescription((values.description as string).trim())
@@ -328,13 +396,15 @@ function ExpenseForm({
       if (fill.has('split')) {
         // The split is one group: type, who takes part and any custom amounts change together
         if (shares) {
-          setSplitType('custom')
+          chooseSplit('custom')
+          // Shares from quick add are used as they are: the equal prefill never runs over them
+          setPrefill('off')
           setSelected(new Set(shares.map((s) => s.member_id)))
           setCustomText(Object.fromEntries(shares.map((s) => [s.member_id, String(s.amount)])))
           // Folded, the split would be saved unseen: open it so the amounts are read before Lưu
           setSplitOpen(true)
         } else {
-          setSplitType('equal')
+          chooseSplit('equal')
           setSelected(new Set((values.member_ids ?? []).filter((id) => memberIds.has(id))))
           setCustomText({})
         }
@@ -367,9 +437,14 @@ function ExpenseForm({
       }
       if (fields.has('date')) setSpentAt(before.spentAt)
       if (fields.has('split')) {
-        setSplitType(before.splitType)
+        chooseSplit(before.splitType)
         setSelected(before.selected)
         setCustomText(before.customText)
+        setPrefill(before.prefill)
+        if (offerRepeat) {
+          setRepeat(before.repeat)
+          setVarying(before.varying)
+        }
         setSplitNote(null)
         setRestFrom(null)
       }
@@ -405,6 +480,7 @@ function ExpenseForm({
     // An empty field says what to do; the format examples are for something typed that is not money
     if (amountText.trim() === '') found.amount = t.form.amountEmpty
     else if (amount === null || amount <= 0) found.amount = t.form.amountProblem
+    else if (amount > MAX_AMOUNT) found.amount = t.form.amountTooLarge
     if (payerId === '') found.payer = t.form.payerProblem
     if (!spentAt) found.date = t.form.dateMissing
     // The API refuses other years (T-25); a typo like 0202 is caught here, under the field
@@ -423,6 +499,37 @@ function ExpenseForm({
       found.split = t.form.sharesMismatch
     }
     return found
+  }
+
+  /** Where the focus goes for a split problem (FR-002): the share or person to fix, else the mode. */
+  function splitTarget(): string {
+    if (splitBlock || (repeat && offerRepeat && splitType === 'custom')) return 'split'
+    if (splitType === 'equal') return selected.size === 0 ? 'split-person' : 'split'
+    const unreadable = customShares.find((s) => s.amount === null)
+    if (unreadable) return `split-share-${unreadable.member_id}`
+    return members.length > 0 ? `split-share-${members[0].id}` : 'split'
+  }
+
+  // After a failed save the shown problems follow every edit; before, they are what the last save found
+  const current: Problems = submittedOnce ? check() : problems
+  const firstProblem = ORDER.find((field) => current[field])
+  const reason = firstProblem ? current[firstProblem] : (shownError?.message ?? null)
+  const summary = reason ? t.form.notSaved(reason) : null
+  // The confirmation stands only for the amount it was asked about (FR-012)
+  const confirmShown = confirming !== null && confirming === amount
+
+  /**
+   * Prefills Tự chia once with the equal split (FR-014): when the person switches to it with a valid
+   * total, or, if the total was not there yet, when they leave the amount field with one. Not on each
+   * keystroke: "3" on the way to "300000" would split 3 đồng. A share already typed is never replaced.
+   */
+  function prefillShares(mode: SplitType) {
+    if (prefill !== 'pending' || mode !== 'custom') return
+    if (amount === null || amount <= 0 || amount > MAX_AMOUNT || selected.size === 0) return
+    setPrefill('done')
+    if (Object.values(customText).some((text) => text.trim() !== '')) return
+    const equal = equalSplit(amount, [...selected])
+    setCustomText(Object.fromEntries([...equal].map(([id, share]) => [id, String(share)])))
   }
 
   function toInput(): ExpenseInput {
@@ -451,18 +558,35 @@ function ExpenseForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    // While a large total waits for "Lưu thật", Enter in a field never saves (FR-011)
+    if (confirmShown) return
+    await save(false)
+  }
+
+  async function save(confirmed: boolean) {
     const found = check()
     setProblems(found)
+    // A new attempt: the last server message has been acted on
+    if (serverError) setSettledError(serverError)
     const first = ORDER.find((field) => found[field])
     if (first) {
-      // Each message is under its field; the first one gets focus, opening its fold if needed
+      setSubmittedOnce(true)
+      // Each message is under its field and in the save area; the first one gets focus, opening its fold
       if (first === 'date') setDateOpen(true)
       if (first === 'split') setSplitOpen(true)
-      focusField.current = first
+      focusField.current = first === 'split' ? splitTarget() : first
+      return
+    }
+    // An edit that keeps the amount already saved is not asked about again (review of #235)
+    const savedBefore = initial !== undefined && initial !== null && amount === initial.amount
+    if (!confirmed && amount !== null && amount > LARGE_AMOUNT && confirmedAmount !== amount && !savedBefore) {
+      setConfirming(amount)
       return
     }
     try {
       await onSubmit(toInput())
+      setSubmittedOnce(false)
+      setConfirmedAmount(null)
       if (!editing) {
         // Ready for the next expense: today, the default payer (you, or without an identity the payer
         // just saved, which the page now remembers) and an equal split between everyone again, as
@@ -486,11 +610,23 @@ function ExpenseForm({
         setSplitNote(null)
         setSplitBlock(null)
         setRestFrom(null)
+        setPrefill('pending')
         lastFill.current = null
       }
     } catch {
       // The page shows the server's message through `error`; keep what the user typed
     }
+  }
+
+  function confirmSave() {
+    setConfirmedAmount(confirming)
+    setConfirming(null)
+    void save(true)
+  }
+
+  function cancelConfirm() {
+    setConfirming(null)
+    focusTarget('amount')
   }
 
   function toggle(id: number) {
@@ -506,16 +642,16 @@ function ExpenseForm({
   // Error text under a field, and what the field needs to point at it
   const problemId = (field: FillField) => `expense-${field}-problem`
   const invalid = (field: FillField, ...describedBy: string[]) => {
-    const ids = [...describedBy, problems[field] ? problemId(field) : ''].filter(Boolean).join(' ')
+    const ids = [...describedBy, current[field] ? problemId(field) : ''].filter(Boolean).join(' ')
     return {
-      'aria-invalid': problems[field] ? true : undefined,
+      'aria-invalid': current[field] ? true : undefined,
       'aria-describedby': ids || undefined,
     }
   }
   const problemText = (field: FillField) =>
-    problems[field] && (
+    current[field] && (
       <p id={problemId(field)} className="field-problem">
-        {problems[field]}
+        {current[field]}
       </p>
     )
 
@@ -572,6 +708,7 @@ function ExpenseForm({
               edited('amount')
               setAmountText(e.target.value)
             }}
+            onBlur={() => prefillShares(splitType)}
           />
           <span id="expense-amount-preview" className="amount-preview">
             {amount !== null && amount > 0 ? `= ${formatVND(amount)}` : ''}
@@ -594,8 +731,8 @@ function ExpenseForm({
                   name="expense-payer"
                   data-field={(payerId === '' ? index === 0 : payerId === m.id) ? 'payer' : undefined}
                   checked={payerId === m.id}
-                  aria-invalid={problems.payer ? true : undefined}
-                  aria-describedby={problems.payer ? problemId('payer') : undefined}
+                  aria-invalid={current.payer ? true : undefined}
+                  aria-describedby={current.payer ? problemId('payer') : undefined}
                   onChange={() => {
                     edited('payer')
                     setPayerId(m.id)
@@ -684,7 +821,7 @@ function ExpenseForm({
             aria-expanded={splitOpen}
             aria-controls="expense-split-control"
             aria-describedby={
-              [splitNote ? 'expense-split-note' : '', splitBlock && problems.split !== splitBlock ? 'expense-split-block' : '']
+              [splitNote ? 'expense-split-note' : '', splitBlock && current.split !== splitBlock ? 'expense-split-block' : '']
                 .filter(Boolean)
                 .join(' ') || undefined
             }
@@ -699,7 +836,7 @@ function ExpenseForm({
           </p>
         )}
         {/* Said before Lưu is pressed; once pressed, the same words are the field's problem below */}
-        {splitBlock && problems.split !== splitBlock && (
+        {splitBlock && current.split !== splitBlock && (
           <p className="note attention field-note" id="expense-split-block">
             {splitBlock}
           </p>
@@ -712,11 +849,11 @@ function ExpenseForm({
                 <button
                   type="button"
                   data-field={splitType === 'equal' ? 'split' : undefined}
-                  aria-describedby={problems.split ? problemId('split') : undefined}
+                  aria-describedby={current.split ? problemId('split') : undefined}
                   aria-pressed={splitType === 'equal'}
                   onClick={() => {
                     edited('split')
-                    setSplitType('equal')
+                    chooseSplit('equal')
                   }}
                 >
                   {t.form.splitEqual}
@@ -724,11 +861,12 @@ function ExpenseForm({
                 <button
                   type="button"
                   data-field={splitType === 'custom' ? 'split' : undefined}
-                  aria-describedby={problems.split ? problemId('split') : undefined}
+                  aria-describedby={current.split ? problemId('split') : undefined}
                   aria-pressed={splitType === 'custom'}
                   onClick={() => {
                     edited('split')
-                    setSplitType('custom')
+                    chooseSplit('custom')
+                    prefillShares('custom')
                   }}
                 >
                   {t.form.splitCustom}
@@ -737,10 +875,15 @@ function ExpenseForm({
 
               {splitType === 'equal' ? (
                 <ul className="split-rows">
-                  {members.map((m) => (
+                  {members.map((m, index) => (
                     <li key={m.id}>
                       <label className="inline">
-                        <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
+                        <input
+                          type="checkbox"
+                          data-field={index === 0 ? 'split-person' : undefined}
+                          checked={selected.has(m.id)}
+                          onChange={() => toggle(m.id)}
+                        />
                         {shortName(m.id)}
                       </label>
                       <span className="share">
@@ -752,22 +895,42 @@ function ExpenseForm({
               ) : (
                 <>
                   <ul className="split-rows">
-                    {members.map((m) => (
-                      <li key={m.id}>
-                        <label htmlFor={`share-${m.id}`}>{t.form.shareOf(shortName(m.id))}</label>
-                        <input
-                          id={`share-${m.id}`}
-                          type="text"
-                          inputMode="numeric"
-                          value={customText[m.id] ?? ''}
-                          placeholder="0"
-                          onChange={(e) => {
-                            edited('split')
-                            setCustomText({ ...customText, [m.id]: e.target.value })
-                          }}
-                        />
-                      </li>
-                    ))}
+                    {members.map((m) => {
+                      const text = (customText[m.id] ?? '').trim()
+                      const share = text === '' ? null : parseAmount(text)
+                      const unreadable = text !== '' && share === null
+                      return (
+                        <li key={m.id}>
+                          <label htmlFor={`share-${m.id}`}>{t.form.shareOf(shortName(m.id))}</label>
+                          <span className="share-input">
+                            <input
+                              id={`share-${m.id}`}
+                              data-field={`split-share-${m.id}`}
+                              type="text"
+                              inputMode="numeric"
+                              value={customText[m.id] ?? ''}
+                              placeholder="0"
+                              aria-invalid={unreadable ? true : undefined}
+                              aria-describedby={unreadable ? `share-${m.id}-problem` : `share-${m.id}-preview`}
+                              onChange={(e) => {
+                                edited('split')
+                                // A share typed by the person is theirs: the equal prefill never runs over it
+                                if (prefill === 'pending') setPrefill('done')
+                                setCustomText({ ...customText, [m.id]: e.target.value })
+                              }}
+                            />
+                            <span id={`share-${m.id}-preview`} className="amount-preview share-preview">
+                              {share !== null && share > 0 ? `= ${formatVND(share)}` : ''}
+                            </span>
+                          </span>
+                          {unreadable && (
+                            <p id={`share-${m.id}-problem`} className="field-problem">
+                              {t.form.amountProblem}
+                            </p>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                   <p className="remainder" aria-live="polite">
                     {customInvalid
@@ -786,20 +949,26 @@ function ExpenseForm({
         {problemText('split')}
       </div>
 
-      {/* The server's answer stays above the button (DESIGN.md §6.3) */}
-      {error && <p role="alert">{error}</p>}
-
       {offerRepeat && (
         <div className="field recurring-field">
           <label className="inline">
             <input
               type="checkbox"
               checked={repeat}
-              aria-describedby={repeat ? 'expense-repeat-hint' : undefined}
+              // A repeating item is made as an equal split (FR-010): off and locked while Tự chia
+              disabled={splitType === 'custom'}
+              aria-describedby={
+                splitType === 'custom' ? 'expense-repeat-locked' : repeat ? 'expense-repeat-hint' : undefined
+              }
               onChange={(e) => setRepeat(e.target.checked)}
             />
             {t.recurring.tick}
           </label>
+          {splitType === 'custom' && (
+            <p id="expense-repeat-locked" className="hint">
+              {t.recurring.equalOnlyLocked}
+            </p>
+          )}
           {repeat && (
             <>
               <p id="expense-repeat-hint" className="hint">
@@ -815,13 +984,60 @@ function ExpenseForm({
       )}
 
       <div className="form-actions">
-        <button type="submit" disabled={submitting}>
-          {submitting ? t.common.saving : editing ? t.form.saveChanges : t.form.save}
-        </button>
-        {onCancel && (
-          <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>
-            {t.common.cancel}
-          </button>
+        {/* What stops the save, where it can be seen even with the keyboard open (FR-001, FR-003) */}
+        <p className="form-summary" role="status" aria-live="polite">
+          {summary}
+        </p>
+        {confirmShown ? (
+          <div
+            className="form-confirm"
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') return
+              event.preventDefault()
+              cancelConfirm()
+            }}
+          >
+            <p id="expense-confirm-question">{t.form.confirmLarge(formatVND(confirming as number))}</p>
+            <div className="form-confirm-buttons">
+              <button
+                type="button"
+                className="btn-secondary"
+                autoFocus
+                aria-describedby="expense-confirm-question"
+                onClick={cancelConfirm}
+              >
+                {t.form.confirmEdit}
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                aria-describedby="expense-confirm-question"
+                disabled={submitting}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') keyOnConfirm.current = true
+                }}
+                onClick={(event) => {
+                  // A keyboard activation counts only if the key went down on this button (FR-011)
+                  if (event.detail === 0 && !keyOnConfirm.current) return
+                  keyOnConfirm.current = false
+                  confirmSave()
+                }}
+              >
+                {t.form.confirmSave}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="form-buttons">
+            <button type="submit" disabled={submitting}>
+              {submitting ? t.common.saving : editing ? t.form.saveChanges : t.form.save}
+            </button>
+            {onCancel && (
+              <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>
+                {t.common.cancel}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </form>
