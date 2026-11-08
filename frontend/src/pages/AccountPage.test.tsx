@@ -87,7 +87,7 @@ test('an empty or too long name is refused next to the field, and what was typed
   await user.clear(field)
   await user.type(field, '   ')
   await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
-  expect(screen.getByText('Tên dài 1 đến 40 ký tự.')).toBeInTheDocument()
+  expect(screen.getByText('Nhập tên của bạn.')).toBeInTheDocument()
   expect(field).toHaveAttribute('aria-invalid', 'true')
   await user.type(field, 'x'.repeat(41))
   await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
@@ -282,7 +282,7 @@ test('gender starts as Không nêu, and the notice is shown before the choice', 
   renderApp('/account')
   const none = await screen.findByRole('radio', { name: 'Không nêu' })
   expect(none).toBeChecked()
-  const notice = screen.getByText(/^Không bắt buộc\. Dùng để cho bạn cùng nhà biết giới tính của bạn/)
+  const notice = screen.getByText(/^Không bắt buộc, để bạn cùng nhà biết giới tính của bạn/)
   expect(notice.compareDocumentPosition(none) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
 
@@ -305,8 +305,8 @@ test('a chosen gender is sent with the notice version, and Không nêu sends nul
     .filter(([url]) => url === '/api/me/gender')
     .map(([, init]) => JSON.parse(String(init?.body)))
   expect(sent).toEqual([
-    { gender: 'female', notice: '2026-11-v1' },
-    { gender: null, notice: '2026-11-v1' },
+    { gender: 'female', notice: '2026-11-v2' },
+    { gender: null, notice: '2026-11-v2' },
   ])
   expect(currentSession()?.user.gender).toBeNull()
 })

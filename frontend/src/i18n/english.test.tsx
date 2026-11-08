@@ -44,12 +44,28 @@ test('no Vietnamese is left in the English words, apart from example names', () 
   expect(left).toEqual([])
 })
 
-test('English is the default when nothing was chosen on this device', async () => {
+test('a browser in English opens in English when nothing was chosen on this device', async () => {
   localStorage.removeItem(LANGUAGE_KEY)
   vi.resetModules()
   const fresh = await import('./language')
   expect(fresh.language()).toBe('en')
   expect(document.documentElement.lang).toBe('en')
+})
+
+test('the profile talks about groups, and a notice is withdrawn', () => {
+  expect(en.verdict.cancelNotice).toBe('Withdraw notice')
+  expect(en.profile.nameHint).toBe('Changing it here changes your name in every group you are in.')
+  expect(en.profile.renamedEverywhere).toBe('Your name changed in every group.')
+  expect(en.profile.renamedNoHouse).toBe('Your name changed. You are not in a group yet.')
+  expect(en.profile.statusHint(10, 60)).toBe(
+    '10/60 characters. Shown under your name on Members in every group.',
+  )
+  expect(en.errors.notice_changed).toBe(
+    'This notice just changed or was answered. The figures are refreshing; have another look once they show.',
+  )
+  expect(en.errors.suggestion_changed).toBe(
+    'The suggested amount just changed. The figures are refreshing; check them and tell them again.',
+  )
 })
 
 test('VI switches the whole page, and the choice is remembered on this device', async () => {

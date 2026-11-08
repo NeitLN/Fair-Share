@@ -623,6 +623,9 @@ region.
 | Minh cần trả Lan (a suggestion) · Minh đã trả Lan (recorded) | Minh trả Lan (reads as already done) |
 | Lưu khoản chi · Lưu khoản trả (the save buttons) | Ghi nhận khoản này (no object; "ghi nhận" may still explain something) |
 | Chưa ghi khoản trả (nothing recorded) | Chưa trả (the app cannot know what happened outside it) |
+| Nhập tên nhà. / Nhập tên của bạn. (an empty field) | Tên nhà phải từ 1 đến 60 ký tự. (a length rule for an empty field) |
+| Hiện trên Tổng quan từ ngày {day} hằng tháng · không tự lưu khoản chi | Nhắc ngày {day}… (the app cannot remind anyone) |
+| Số liệu đang tải lại, bạn xem lại khi số mới hiện ra | Trang đã cập nhật (the page may not have finished loading) |
 | Đến ngày ghi · Ngừng lặp (recurring reminders) | Tới hạn (reads as a payment deadline) |
 | Chưa lưu được: … (a refused save) · Sửa lại · Lưu thật (the large-amount question) | Lỗi! · Xác nhận / OK |
 | Bỏ quyền vào nhà (keeps the name and its records) · Xoá (removes a name nobody uses) | using one for the other |
@@ -640,8 +643,9 @@ Numbers: `240.000đ` (dot thousands, no space, *đ*). Dates: "Hôm nay", "Hôm q
 
 ### 7.1 English and Vietnamese
 
-The app speaks **English by default**; **EN / VI** switches the whole page and is remembered on the
-device, like the theme. Both switches live in the account menu, so the header is one line on a phone
+The app speaks **Vietnamese by default**; **EN / VI** switches the whole page and is remembered on the
+device, like the theme. The default follows the browser: a first visit is English only when the browser's
+first language starts with `en`, and any saved choice wins. Both switches live in the account menu, so the header is one line on a phone
 (the wordmark and the account); signed out they sit under the sign-in form (UI review, 03/11). Every word lives in `frontend/src/i18n/` (`en.tsx`, `vi.tsx`,
 the same keys, checked by TypeScript); components take them from `useT()`, plain functions from
 `messages()`. The Vietnamese above is unchanged. The English terms were agreed in a translation review:

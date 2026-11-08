@@ -67,7 +67,11 @@ function NameForm({ current }: { current: string }) {
   function submit(event: FormEvent) {
     event.preventDefault()
     const trimmed = name.trim()
-    if (trimmed.length < 1 || trimmed.length > 40) {
+    if (trimmed.length === 0) {
+      setProblem(t.profile.nameEmpty)
+      return
+    }
+    if (trimmed.length > 40) {
       setProblem(t.profile.nameProblem)
       return
     }

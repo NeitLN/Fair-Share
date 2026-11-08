@@ -11,7 +11,7 @@ import type { TestAccount } from './accounts.js'
 test.use({ reducedMotion: 'reduce' })
 
 // The checks name screens by their Vietnamese words; the English pages are checked in
-// src/i18n/english.test.tsx. English is the default, so pick Vietnamese before each page loads.
+// src/i18n/english.test.tsx. The default follows the browser, so pick Vietnamese before each page loads.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
 })

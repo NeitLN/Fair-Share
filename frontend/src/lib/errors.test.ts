@@ -12,6 +12,14 @@ describe('errorMessage', () => {
     ['split_mismatch', 'Tổng các phần chưa bằng số tiền của khoản chi.'],
     ['member_in_use', 'Không xoá được: người này đã có trong một khoản chi hoặc khoản trả.'],
     ['same_member', 'Một người không thể tự trả cho chính mình.'],
+    [
+      'notice_changed',
+      'Thông báo này vừa thay đổi hoặc đã được trả lời. Số liệu đang tải lại, bạn xem lại khi số mới hiện ra nhé.',
+    ],
+    [
+      'suggestion_changed',
+      'Số tiền gợi ý vừa đổi. Số liệu đang tải lại, bạn xem lại rồi báo lại nhé.',
+    ],
     ['database_unavailable', 'Máy chủ tạm thời không kết nối được dữ liệu. Thử lại sau ít phút.'],
     ['ai_not_configured', 'Gõ nhanh chưa được bật. Bạn nhập thông tin bên dưới nhé.'],
     ['ai_unavailable', 'AI tạm thời không dùng được. Câu bạn gõ vẫn còn; bạn có thể nhập thông tin bên dưới rồi lưu.'],
