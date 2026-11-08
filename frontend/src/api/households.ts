@@ -54,7 +54,7 @@ export const setStatus = (status: string | null) => api.put<User>('/api/me/statu
  * The version of the notice shown next to the gender choice. The server refuses any other, so a page
  * left open with older words cannot record agreement to them (specs/010-profile-page, FR-029).
  */
-export const GENDER_NOTICE = '2026-11-v1'
+export const GENDER_NOTICE = '2026-11-v2'
 
 /** null is "Không nêu": it deletes the gender and the record of the notice together. */
 export const setGender = (gender: Gender | null) =>

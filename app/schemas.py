@@ -275,7 +275,7 @@ class HouseholdPhotos(BaseModel):
 
 # The notice shown next to the gender choice; the page sends the version it showed, so a stale page
 # cannot record agreement to words it did not show (specs/010-profile-page, FR-029)
-GENDER_NOTICE = "2026-11-v1"
+GENDER_NOTICE = "2026-11-v2"
 
 
 def current_notice(value: Any) -> Any:

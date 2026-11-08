@@ -7,7 +7,7 @@ const CHOICES: { value: Language; name: string }[] = [
   { value: 'vi', name: 'Tiếng Việt' },
 ]
 
-/** EN / VI in the header; English by default, the choice remembered on this device only. */
+/** EN / VI in the header; Vietnamese unless the browser's first language is English, remembered on this device only. */
 function LanguageSwitch() {
   const t = useT()
   const current = useLanguage()

@@ -66,6 +66,25 @@ test('the title says what the form does: sign in, or create an account', async (
   expect(screen.getByRole('heading', { level: 1, name: 'Tạo tài khoản mới' })).toBeInTheDocument()
 })
 
+// specs/012-overview-and-lists, FR-020: an empty name is named, and the hint steps aside while the
+// problem shows (only one line under the field, the problem)
+test('an empty sign-up name is named, and its hint steps aside', async () => {
+  const user = userEvent.setup()
+  renderApp('/', { signedOut: true })
+
+  await user.click(await screen.findByRole('button', { name: 'Tạo tài khoản' }))
+  await user.type(screen.getByLabelText('Email'), 'minh@example.com')
+  await user.type(screen.getByLabelText('Mật khẩu'), 'minh-password')
+  expect(screen.getByText(/Tên này hiện trong phần chia tiền/)).toBeInTheDocument()
+
+  const submits = screen.getAllByRole('button', { name: 'Tạo tài khoản' })
+  await user.click(submits[submits.length - 1])
+
+  expect(screen.getByRole('alert')).toHaveTextContent('Nhập tên của bạn.')
+  expect(screen.queryByText(/Tên này hiện trong phần chia tiền/)).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Tên của bạn')).toHaveAttribute('aria-describedby', 'auth-name-problem')
+})
+
 // specs/008-wider-desktop-signin: on a computer the page is one block, the brand on the left and the
 // form with its switches on the right; on a phone it is the form as before
 const INTRO = 'Ghi chi tiêu chung với bạn cùng phòng và thấy rõ ai cần trả ai, trên mọi thiết bị.'

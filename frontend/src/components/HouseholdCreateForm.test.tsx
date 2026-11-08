@@ -40,6 +40,6 @@ describe('HouseholdCreateForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tạo nhà' }))
 
     expect(onCreate).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent('Tên nhà phải từ 1 đến 60 ký tự.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Nhập tên nhà.')
   })
 })

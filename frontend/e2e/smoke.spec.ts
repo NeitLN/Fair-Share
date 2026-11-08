@@ -9,7 +9,8 @@ import type { TestAccount } from './accounts.js'
 // database, so the household has an obvious name and is always deleted at the end, even when a step
 // fails. It never uses AI Quick add (no Gemini quota spent).
 
-// The steps name buttons by their Vietnamese words; English is the default, so pick Vietnamese first
+// The steps name buttons by their Vietnamese words; this spec picks Vietnamese first, whatever the
+// browser's language
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
 })
@@ -77,8 +78,11 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     await page.goto(`/households/${householdId}`)
     await expect(page.locator('.verdict-sentence')).toContainText('Bạn cần trả Minh')
     // spec 012: the next step is under the block, one button naming the amount and the receiver
-    await expect(page.locator('.debtor-action p')).toHaveText('Chuyển xong thì báo để Minh xác nhận.')
-    await expect(page.getByRole('button', { name: 'Tôi đã chuyển 150.000đ cho Minh' })).toBeVisible()
+    const nextStep = page.locator('.debtor-action')
+    await expect(nextStep.getByRole('button', { name: 'Tôi đã chuyển 150.000đ cho Minh' })).toBeVisible()
+    // The suggestion row keeps its hint, without a second button
+    const suggestions = page.getByRole('list', { name: 'Các lần trả gợi ý' })
+    await expect(suggestions).toContainText('Chuyển xong thì báo để Minh xác nhận.')
     await expect(page.getByRole('button', { name: /^Xác nhận đã nhận/ })).toHaveCount(0)
 
     // 7. Minh confirms; Hoàn tác takes it back; he confirms again and the house is settled
