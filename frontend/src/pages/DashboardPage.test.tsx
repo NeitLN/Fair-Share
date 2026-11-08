@@ -331,24 +331,28 @@ test('someone who owes cannot mark their own debt as paid; they tell the receive
 
   const card = within(await transfers()).getAllByRole('listitem')[0]
   expect(card).toHaveTextContent('Bạn cần trả Tiến 100.000đ')
-  expect(within(card).queryByRole('button', { name: /^Đã (nhận|trả)$/ })).not.toBeInTheDocument()
-  await user.click(within(card).getByRole('button', { name: 'Tôi đã chuyển' }))
+  // The list keeps the row as a status; the action is the one under the block (spec 012, US2)
+  expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+  expect(card).toHaveTextContent('Chuyển xong thì báo để Tiến xác nhận.')
+  await user.click(await screen.findByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' }))
 
   expect(await screen.findByText('Đã báo Tiến.')).toBeInTheDocument()
   expect(await within(card).findByText('Đã báo, chờ Tiến xác nhận.')).toBeInTheDocument()
   // The amount told sits under the verdict's own amount, which does not change until Tiến confirms
-  expect(screen.getByText(/^Đã báo chuyển/)).toHaveTextContent('Đã báo chuyển 100.000đ · chờ Tiến xác nhận')
+  expect(await screen.findByText(/^Đã báo chuyển/)).toHaveTextContent('Đã báo chuyển 100.000đ, chờ Tiến xác nhận.')
   const told = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
   expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000 })
   // Telling changes no balance: the debt is still there until Tiến confirms
   expect(screen.getByRole('heading', { name: 'Bạn cần trả Tiến' })).toBeInTheDocument()
 
   // The pressed button is gone: the keyboard is on the next step, not lost at the top of the page
-  await waitFor(() => expect(within(card).getByRole('button', { name: 'Huỷ thông báo' })).toHaveFocus())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Huỷ thông báo' })).toHaveFocus())
 
   // Pressed by mistake: taken back
-  await user.click(within(card).getByRole('button', { name: 'Huỷ thông báo' }))
-  await waitFor(() => expect(within(card).getByRole('button', { name: 'Tôi đã chuyển' })).toHaveFocus())
+  await user.click(screen.getByRole('button', { name: 'Huỷ thông báo' }))
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })).toHaveFocus(),
+  )
 })
 
 test(`the receiver's button says what it does and how much: "Xác nhận đã nhận 100.000đ"`, async () => {
@@ -402,9 +406,10 @@ test('the payer sees "chưa nhận được" on their card', async () => {
 
   const card = within(await transfers()).getAllByRole('listitem')[0]
   expect(await within(card).findByText(/Tiến báo chưa nhận được tiền/)).toBeInTheDocument()
-  expect(within(card).getByRole('button', { name: 'Tôi đã chuyển' })).toBeInTheDocument()
-  // Or let it go: nothing was sent after all
-  expect(within(card).getByRole('button', { name: 'Huỷ thông báo' })).toBeInTheDocument()
+  // The row is the state only; the way to try again is the one under the block (spec 012, US2)
+  expect(within(card).queryByRole('button')).not.toBeInTheDocument()
+  expect(await screen.findByText('Tiến báo chưa nhận được.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })).toBeInTheDocument()
 })
 
 test('a notice whose transfer is not suggested any more keeps its own card, for both of them', async () => {
@@ -1121,5 +1126,165 @@ describe('Đến ngày ghi', () => {
     renderApp('/households/7')
     await screen.findByText(/cả nhà chi/)
     expect(screen.queryByRole('region', { name: 'Đến ngày ghi' })).not.toBeInTheDocument()
+  })
+})
+
+// "Tôi đã chuyển" under the block (spec 012, US2): telling the receiver is the first thing a debtor does
+describe('the debtor’s next step', () => {
+  test('under the total, a primary button per transfer tells the receiver, and the state replaces it', async () => {
+    iAm(2)
+    const fetchFn = api()
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    const total = (await screen.findByRole('heading', { name: 'Bạn cần trả Tiến' })).nextElementSibling as HTMLElement
+    const send = await screen.findByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })
+    expect(total.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await user.click(send)
+
+    // The amount is inside <Money>, so the line is read from its own element
+    await waitFor(() =>
+      expect(document.querySelector('.debtor-action p')).toHaveTextContent(
+        'Đã báo chuyển 100.000đ, chờ Tiến xác nhận.',
+      ),
+    )
+    expect(screen.queryByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Huỷ thông báo' })).toBeInTheDocument()
+    const told = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
+    expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000 })
+  })
+
+  test('a notice already sent shows the state and the way to take it back, with no button', async () => {
+    iAm(2)
+    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }])
+    renderApp('/households/7')
+
+    await waitFor(() =>
+      expect(document.querySelector('.debtor-action p')).toHaveTextContent(
+        'Đã báo chuyển 100.000đ, chờ Tiến xác nhận.',
+      ),
+    )
+    expect(screen.queryByRole('button', { name: /^Tôi đã chuyển / })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Huỷ thông báo' })).toBeInTheDocument()
+  })
+
+  test('a declined notice says so and offers the button again', async () => {
+    iAm(2)
+    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'declined', created_at: '' }])
+    renderApp('/households/7')
+
+    expect(await screen.findByText('Tiến báo chưa nhận được.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })).toBeInTheDocument()
+  })
+
+  test('owing two people shows one button each, in the order of the suggestions', async () => {
+    iAm(2)
+    api({
+      'GET /api/households/7/balances': [
+        200,
+        {
+          balances: members.map((m) => ({
+            member_id: m.id,
+            name: m.name,
+            paid: 0,
+            owed: 0,
+            sent: 0,
+            received: 0,
+            net: m.id === 1 ? 100_000 : m.id === 2 ? -150_000 : 50_000,
+          })),
+          suggested: [
+            { from_member_id: 2, to_member_id: 1, amount: 100_000 },
+            { from_member_id: 2, to_member_id: 3, amount: 50_000 },
+          ],
+        },
+      ],
+    })
+    renderApp('/households/7')
+
+    const buttons = await screen.findAllByRole('button', { name: /^Tôi đã chuyển / })
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      'Tôi đã chuyển 100.000đ cho Tiến',
+      'Tôi đã chuyển 50.000đ cho An',
+    ])
+  })
+
+  test('a creditor or a settled person sees no button under the block', async () => {
+    iAm(1)
+    api()
+    const first = renderApp('/households/7')
+    await screen.findByRole('heading', { name: 'Bạn được nhận từ Minh và An' })
+    expect(screen.queryByRole('button', { name: /^Tôi đã chuyển / })).not.toBeInTheDocument()
+    first.unmount()
+
+    api({
+      'GET /api/households/7/balances': [
+        200,
+        {
+          balances: members.map((m) => ({
+            member_id: m.id,
+            name: m.name,
+            paid: 0,
+            owed: 0,
+            sent: 0,
+            received: 0,
+            net: 0,
+          })),
+          suggested: [],
+        },
+      ],
+    })
+    renderApp('/households/7')
+    expect(await screen.findByRole('heading', { name: /^Chưa có khoản chi nào/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Tôi đã chuyển / })).not.toBeInTheDocument()
+  })
+})
+
+// A house with one person points at the next real step: inviting someone (spec 012, US3)
+describe('a house with one person', () => {
+  const owner = [members[0]]
+  const invite = { code: 'ABCDEFGH', expires_at: '2099-01-01T00:00:00Z' }
+  const soloHouse = (requests: unknown[] = [], role: 'owner' | 'member' = 'owner') =>
+    api(
+      {
+        'GET /api/households/7': [200, { ...household, role, member_id: 1 }],
+        'GET /api/households/7/members': [200, owner],
+        'GET /api/households/7/invite': [200, invite],
+        'GET /api/households/7/requests': [200, requests],
+      },
+      owner,
+    )
+
+  test('shows the invite card instead of the empty money sections, and keeps "+ Ghi khoản chi"', async () => {
+    soloHouse()
+    renderApp('/households/7')
+
+    const card = await screen.findByRole('region', { name: 'Mời bạn cùng phòng' })
+    expect(within(card).getByText('ABCD-EFGH')).toBeInTheDocument()
+    expect(screen.getByText('Fair-Share có ích khi bạn cùng phòng vào nhà.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '+ Ghi khoản chi' })).toHaveAttribute(
+      'href',
+      '/households/7/expenses',
+    )
+    expect(screen.queryByRole('heading', { name: /^Tháng \d+:/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Số dư từng người' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Lịch sử trả tiền' })).not.toBeInTheDocument()
+  })
+
+  test('one person waiting for approval is said, with a way to the Members tab', async () => {
+    soloHouse([{ household_id: 7, user_id: 9, display_name: 'Lan', requested_at: '' }])
+    renderApp('/households/7')
+
+    expect(await screen.findByRole('link', { name: 'Có 1 người đang chờ duyệt' })).toHaveAttribute(
+      'href',
+      '/households/7/members',
+    )
+  })
+
+  test('with a second member the page is as today', async () => {
+    api()
+    renderApp('/households/7')
+
+    expect(await screen.findByRole('region', { name: 'Số dư từng người' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Mời bạn cùng phòng' })).not.toBeInTheDocument()
   })
 })

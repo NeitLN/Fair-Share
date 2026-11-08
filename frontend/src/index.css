@@ -1410,6 +1410,20 @@ button.ai:active:focus-visible {
 
 /* ---------------------------------------------------------------- Tổng quan (DESIGN.md §6.2) */
 
+/* A house with one person: the invite card is the page (spec 012, US3) */
+.alone-house {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  /* One readable column on a computer: the code and the buttons next to it, not a card across the page */
+  .alone-house {
+    max-width: 640px;
+  }
+}
+
 /* The verdict block: the one taro surface, answering who pays whom before anything else */
 .verdict {
   position: relative;
@@ -1612,14 +1626,6 @@ button.ai:active:focus-visible {
   font-size: var(--text-small);
 }
 
-/* What you told someone you sent, under the amount: it still counts until they confirm */
-.verdict-pending {
-  margin-top: 6px;
-  color: var(--on-block-muted);
-  font-size: 14px;
-  font-weight: 500;
-}
-
 .verdict-sentence {
   font-family: var(--font-display);
   font-size: 22px;
@@ -1635,6 +1641,97 @@ button.ai:active:focus-visible {
   font-size: 44px;
   font-weight: 800;
   line-height: 1;
+}
+
+/* The person who owes: their next step under the block (spec 012, US2). A white primary reads on the
+   taro where the filled purple would vanish; every control is at least 44 px tall. */
+.debtor-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.debtor-action {
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+}
+
+.debtor-action p {
+  color: var(--on-block);
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.debtor-action .btn-primary {
+  width: 100%;
+  background: var(--on-block);
+  border-color: var(--on-block);
+  color: var(--block);
+}
+
+.debtor-action .btn-ghost {
+  justify-self: start;
+  color: var(--on-block);
+}
+
+@media (min-width: 720px) {
+  .debtor-action .btn-primary {
+    width: auto;
+  }
+}
+
+/* Below 480 px the stickers sit on their own row above the sentence, so the sentence keeps the full
+   width, and the amount may wrap: the currency sign stays with the last digits (spec 012, US1;
+   DESIGN.md §6.2) */
+@media (max-width: 479px) {
+  .verdict-people {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .verdict.has-people .verdict-sentence {
+    padding-right: 0;
+  }
+
+  .verdict-total {
+    font-size: 36px;
+  }
+
+  .verdict-total .money {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* From 480 px the stickers are back in the corner, beside the sentence rather than over it: the two
+   share a row, so a sentence long enough to wrap does it in the room that is left */
+@media (min-width: 480px) {
+  .verdict.has-people {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: start;
+  }
+
+  .verdict.has-people .verdict-sentence {
+    grid-column: 1;
+    grid-row: 1;
+    padding-right: 0;
+  }
+
+  .verdict.has-people .verdict-people {
+    position: static;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .verdict.has-people > *:not(.verdict-sentence):not(.verdict-people) {
+    grid-column: 1 / -1;
+  }
 }
 
 .verdict .note {
