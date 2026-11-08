@@ -151,7 +151,24 @@ def list_my_households(user: CurrentUser, conn: ConnDep):
     there is no list of every household."""
     rows = fetch_all(
         conn,
-        "SELECT h.id, h.name, h.created_at, hu.role, hu.member_id, hu.requested_at"
+        "SELECT h.id, h.name, h.created_at, hu.role, hu.member_id, hu.requested_at,"
+        # What the house owes the caller (or the caller it): the same numbers
+        # app/routers/balances.py computes for that member, so a card always matches Tổng quan
+        " coalesce((SELECT sum(amount) FROM expenses WHERE payer_id = hu.member_id), 0)::bigint"
+        " - coalesce((SELECT sum(share_amount) FROM expense_shares"
+        "             WHERE member_id = hu.member_id), 0)::bigint"
+        " + coalesce((SELECT sum(amount) FROM settlements"
+        "             WHERE from_member_id = hu.member_id), 0)::bigint"
+        " - coalesce((SELECT sum(amount) FROM settlements"
+        "             WHERE to_member_id = hu.member_id), 0)::bigint AS my_net,"
+        # Things waiting for the caller here: join requests if they own the house, and "Tôi đã
+        # chuyển" notices sent to them
+        " (CASE WHEN hu.role = 'owner' THEN"
+        "   (SELECT count(*) FROM household_users"
+        "    WHERE household_id = h.id AND role = 'pending') ELSE 0 END)"
+        " + (SELECT count(*) FROM payment_notices"
+        "    WHERE household_id = h.id AND to_member_id = hu.member_id"
+        "      AND status = 'sent') AS waiting"
         " FROM household_users hu JOIN households h ON h.id = hu.household_id"
         " WHERE hu.user_id = %s ORDER BY lower(h.name), h.id",
         (user["id"],),

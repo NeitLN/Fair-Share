@@ -79,9 +79,28 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 21, 12))
 })
 
+// jsdom has no layout: this says the text is cut when it is long enough, as the clamp would
+let restoreClamp: (() => void) | null = null
+function clampLongText() {
+  const height = 40
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => height })
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return (this.textContent?.length ?? 0) > 40 ? height * 3 : height
+    },
+  })
+  restoreClamp = () => {
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight
+  }
+}
+
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
+  restoreClamp?.()
+  restoreClamp = null
 })
 
 const open = (description: string) => userEvent.click(screen.getByText(description))
@@ -234,6 +253,46 @@ describe('ExpenseList', () => {
     )
     expect(screen.getByRole('button', { name: 'Đang thử lại…' })).toBeDisabled()
     expect(screen.queryByText(/Chưa có khoản chi nào/)).not.toBeInTheDocument()
+  })
+})
+
+describe('a description longer than two lines (spec 012, US5)', () => {
+  const long: Expense = {
+    ...electricity,
+    id: 30,
+    description: 'Tiền điện tháng 10 của cả nhà ở quận 7 và tiền nước tháng 10 nữa',
+  }
+
+  test('keeps the whole text in the title and in the DOM, and offers Xem đủ', () => {
+    clampLongText()
+    renderList([long])
+
+    const row = screen.getByText(long.description).closest('li') as HTMLElement
+    const description = within(row).getByTitle(long.description)
+    expect(description).toHaveTextContent(long.description)
+    expect(within(row).getByRole('button', { name: 'Xem đủ' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  test('Xem đủ removes the clamp for that row only and does not open the row', async () => {
+    clampLongText()
+    renderList([long, tea])
+    const row = screen.getByText(long.description).closest('li') as HTMLElement
+
+    await userEvent.click(within(row).getByRole('button', { name: 'Xem đủ' }))
+
+    expect(row.querySelector('.expense-description')).toHaveClass('expanded')
+    expect(within(row).getByRole('button', { name: 'Thu gọn' })).toHaveAttribute('aria-expanded', 'true')
+    // The row's own fold stayed closed
+    expect((row.querySelector('details') as HTMLDetailsElement).open).toBe(false)
+    expect(screen.getByText('Trà sữa').closest('li')?.querySelector('.expense-description')).not.toHaveClass(
+      'expanded',
+    )
+  })
+
+  test('a short description offers no Xem đủ', () => {
+    clampLongText()
+    renderList([tea])
+    expect(screen.queryByRole('button', { name: 'Xem đủ' })).not.toBeInTheDocument()
   })
 })
 

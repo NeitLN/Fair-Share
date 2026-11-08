@@ -499,7 +499,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(list().getByText('Tiền nước')).toBeInTheDocument()
   })
 
-  test('deleting the last expense of the chosen month drops the month filter', async () => {
+  test('deleting the last expense of the chosen month keeps it, and Bỏ lọc clears it', async () => {
     api()
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
@@ -509,8 +509,13 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     await user.click(list().getByText('Tiền điện'))
     await user.click(list().getByRole('button', { name: 'Xoá Tiền điện' }))
 
-    expect(await list().findByText(/Chưa có khoản chi nào/)).toBeInTheDocument()
-    expect(list().queryByLabelText('Tháng')).not.toBeInTheDocument()
+    const empty = await list().findByText('Tháng 10/2026 chưa có khoản chi nào.')
+    expect(list().getByLabelText('Tháng')).toHaveValue('2026-10')
+    await user.click(within(empty).getByRole('button', { name: 'Bỏ lọc' }))
+
+    // No filter left, and the house really has nothing to show
+    expect(list().queryByText('Tháng 10/2026 chưa có khoản chi nào.')).not.toBeInTheDocument()
+    expect(list().getByText('Chưa có khoản chi nào. Ghi khoản đầu tiên ở trên.')).toBeInTheDocument()
   })
 
   test('no filters before the first expense', async () => {
@@ -614,11 +619,16 @@ test('arriving from a monthly report starts the list on that month', async () =>
   expect(screen.getByRole('combobox', { name: 'Tháng' })).toHaveValue('2026-10')
 })
 
-test('a month with no expense in the hand-off is ignored', async () => {
+test('a month with no expense in the hand-off keeps the filter and says it is empty', async () => {
   api()
   renderApp({ pathname: '/households/7/expenses', state: { month: '2026-03' } })
-  expect(await screen.findByText('Tiền điện')).toBeInTheDocument()
-  expect(screen.queryByRole('heading', { level: 3, name: /cả nhà chi/ })).not.toBeInTheDocument()
+
+  const empty = await screen.findByText('Tháng 3/2026 chưa có khoản chi nào.')
+  expect(screen.getByRole('combobox', { name: 'Tháng' })).toHaveValue('2026-03')
+  expect(list().queryByText('Tiền điện')).not.toBeInTheDocument()
+  // What is left is a way out, not a dead end
+  await userEvent.click(within(empty).getByRole('button', { name: 'Bỏ lọc' }))
+  expect(list().getByText('Tiền điện')).toBeInTheDocument()
 })
 
 // Khoản chi định kỳ (specs/007-recurring-expenses)

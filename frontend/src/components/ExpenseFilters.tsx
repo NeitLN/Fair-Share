@@ -19,6 +19,9 @@ interface ExpenseFiltersProps {
  */
 function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersProps) {
   const t = useT()
+  // A chosen month stays in the list even after its last expense goes (FR-014)
+  const monthOptions =
+    filter.month !== null && !months.includes(filter.month) ? [filter.month, ...months] : months
   return (
     <div className="expense-filters" role="group" aria-label={t.filters.label}>
       <div className="filter-field">
@@ -29,7 +32,7 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
           onChange={(e) => onChange({ ...filter, month: e.target.value || null })}
         >
           <option value="">{t.filters.all}</option>
-          {months.map((month) => (
+          {monthOptions.map((month) => (
             <option key={month} value={month}>
               {monthNumber(month)}
             </option>
@@ -66,7 +69,8 @@ function ExpenseFilters({ months, members, filter, onChange }: ExpenseFiltersPro
           ))}
         </select>
       </div>
-      {isFiltered(filter) && (
+      {/* A month with nothing in it says so below, with its own Bỏ lọc: not two of them */}
+      {isFiltered(filter) && (filter.month === null || months.includes(filter.month)) && (
         <button type="button" className="ghost" onClick={() => onChange(NO_FILTER)}>
           {t.filters.clear}
         </button>

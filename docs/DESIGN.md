@@ -145,16 +145,26 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 ```
 Fair·Share
 Nhà của bạn                          ← page title, Bricolage 28
-┌──────────────────────────────────┐
-│ Nhà trọ Q7               (T)(M)(A)+1 │  ← whole row is the link
-│ Bạn cần trả 120.000đ · 4 người   │
-└──────────────────────────────────┘
-[ + Tạo nhà mới ]                    ← secondary; opens the name field + "Tạo nhà" in place
+┌────────────────────────────────┐ ┌────────────────────────────────┐
+│ Nhà Thảo Điền    [Trưởng nhóm] │ │ Nhà trọ Q7       [Trưởng nhóm] (2) │
+│ Bạn cần trả 350.000đ           │ │ Bạn được nhận 5.858.500đ       │
+└────────────────────────────────┘ └────────────────────────────────┘
+[ Nhập mã mới ] [ + Tạo nhà mới ]     ← secondary; opens its form in place
 ```
-List first, create second (returning users far outnumber new ones). The list holds only the households
-**this browser** created or opened (#132; `lib/knownHouseholds.ts`), most recent first, each with
-*Bỏ khỏi danh sách* (forgets it here and its key, deletes nothing; a toast offers *Hoàn tác*). Empty
-state: "Máy này chưa có nhà nào. Tạo nhà đầu tiên, hoặc mở link mời mà bạn cùng phòng gửi."
+List first, create second (returning users far outnumber new ones). The list holds every household the
+signed-in account is approved into, by name, and the requests to join still waiting below it
+(docs/ACCOUNTS.md). Each card is one link, filled by `GET /api/households` in one answer (spec 012, US4):
+the name, which wraps, and for an owner the chip **Trưởng nhóm** 8 px after it (it keeps its size and
+never pushes the name off the card); a second line with your balance there in the app's words and
+colours, "Bạn được nhận …" (credit), "Bạn cần trả …" (debt) or "Đã xong" (muted), from `my_net` in the
+same answer, so it always matches the house's own Tổng quan; and a pill on the right when something
+waits for you, `waiting` join requests (owner only) plus "Tôi đã chuyển" notices to answer, its
+accessible name "n việc đang chờ bạn". If the figures are missing (an older API), the card is the name
+alone and still opens the house.
+
+From 1024 px the cards are a grid, `repeat(auto-fill, minmax(280px, 1fr))` 12 px apart: two or three a
+row on a laptop, one on a phone. From 1280 px the two ways in sit in a column on the right; below that
+they come under the cards, so the cards get the page's width.
 
 **A new account** (no house, no request; design review 05/11) gets one place to start instead of an
 empty list and a lone code field: "Chào Lan, bắt đầu thôi", the how-it-works line, then two panels side
@@ -172,15 +182,12 @@ Ghi khoản chi lúc vừa trả. Cuối tháng app tự tính ai trả ai…
 └─────────────────────────┘ └──────────────────────────┘
 ```
 
-**Invite link** (#132). A household opens only with its key, which this browser gets by creating it or
-by opening its invite link `/households/{id}#k={key}` once (the key is then removed from the address
-bar). Opening `/households/{id}` without a key shows *Cần đường dẫn mời*: one sentence on asking a
-housemate for the link from Thành viên, and a link back to the list. A wrong key looks like a deleted
-household ("Nhà này không tồn tại hoặc bạn chưa có quyền vào. Nếu được mời, hãy nhập mã mời ở trang Nhà của bạn.").
-
-**Shipped in T-42: the name only.** Each row is one `GET /api/households/{id}`; the second line and the
-avatar stack would need one more request per house. If it is added later, one
-`GET /households/{id}/balances` per row already has the names, the count and your net.
+**Joining.** A signed-in account sees only the houses it was approved into. A code (or the invite link
+`/join/CODE`, which fills the code in) asks to join; the owner approves, under a name of their choosing
+(docs/ACCOUNTS.md). Until then neither side shows the other's content: the person asking sees the wait,
+and the owner sees one more thing in the card's badge. An address of a house you are not in shows the
+same sentence as a missing one ("Nhà này không tồn tại hoặc bạn chưa có quyền vào. Nếu được mời, hãy
+nhập mã mời ở trang Nhà của bạn.").
 
 ### 6.2 Khung một nhà + Tổng quan `/households/:id`
 
@@ -393,6 +400,15 @@ Hôm qua, 20/10
   to who shares it and how much each (a share of 0đ is not listed), then *Sửa* / *Xoá* for the rows you
   may change; "chia riêng 2 người" did not say whether you were in it. The hint says "chạm để xem phần
   từng người, sửa hoặc xoá".
+* **Two lines at most** (spec 012, US5): in the phone rows and the laptop table a description longer
+  than two lines is cut with an ellipsis, and the line under it ("Tiến trả · …") to two lines too. The
+  whole description stays in its `title` and in the DOM for screen readers. A cut one offers *Xem đủ*
+  under it (44 px); pressing it shows that row's whole text and the button reads *Thu gọn*. A short one
+  offers nothing.
+* **The month filter stays honest** (spec 012, FR-014): a month with no expenses stays chosen, from a
+  monthly report, from the select, or after its last expense is deleted. It stays an option in the
+  select, and the list area says "Tháng {m}/{yyyy} chưa có khoản chi nào." with *Bỏ lọc*; the filters
+  above show a single clear action for that state.
 * **Composer states (T-19, owner Duy Anh):**
 
   | State | What shows |
@@ -490,8 +506,10 @@ keyboard goes through the page in the order it is seen.
   one line (06/11: kept on one line, the split line pushed the payer column wide and broke descriptions).
 * **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)
   a request to approve comes before the invite.
-* **Nhà của bạn:** a new account sees the start of §6.1 (two panels, at most 960 px). Otherwise one column up to 880 px: the groups, the wait, then *Nhập mã mời* and *+ Tạo nhà mới*
-  as two buttons side by side that open their form under them.
+* **Nhà của bạn:** a new account sees the start of §6.1 (two panels, at most 960 px). Otherwise the
+  cards take the page's width from 1024 px, as a grid of two or three (one on a phone), with the wait
+  below them; from 1280 px the ways in (*Nhập mã mới*, *+ Tạo nhà mới*) move to a column on the right
+  (3 : 2). Below 1280 px they come under the cards as two buttons that open their forms in place.
 * **Sign in:** one block of at most 980 px in the middle of the screen, both ways, and no header (the
   owner on 06/11: a small card under a lone corner logo looked unfinished). On the left, holding no
   control: the wordmark at 300 px, the tagline (*Rõ ai trả ai.*), the intro that the form shows on a phone,

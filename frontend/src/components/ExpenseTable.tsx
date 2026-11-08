@@ -4,6 +4,7 @@ import type { Expense, Member } from '../api/types'
 import { dayLabel } from '../lib/date'
 import { byDay, splitAndCategory } from '../lib/expenseRows'
 import { useWideTable } from '../lib/useWide'
+import { useClampedDescriptions } from '../lib/useClamped'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { Avatar } from './Avatar'
@@ -69,6 +70,17 @@ function ExpenseTable({
       return next
     })
   }
+  // A description cut by the two lines gets Xem đủ, for that row only (spec 012, US5)
+  const { clamped, ref: descriptionRef } = useClampedDescriptions(expenses)
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set())
+  function toggleExpanded(id: number) {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (loading) {
     return <Skeleton label={t.expenses.loadingList} />
@@ -117,7 +129,11 @@ function ExpenseTable({
                     <tr
                       data-expense={expense.id}
                       className={
-                        [editingId === expense.id && 'editing', highlightId === expense.id && 'just-saved']
+                        [
+                          editingId === expense.id && 'editing',
+                          highlightId === expense.id && 'just-saved',
+                          expanded.has(expense.id) && 'expanded',
+                        ]
                           .filter(Boolean)
                           .join(' ') || undefined
                       }
@@ -126,28 +142,45 @@ function ExpenseTable({
                       <td className="col-description">
                         {/* Opens the row of shares, like tapping a row on a phone; the description and not the
                             split under the payer, because 1024–1407 px folds the payer column away */}
-                        <button
-                          type="button"
-                          className="expense-open"
-                          aria-expanded={sharesOpen}
-                          aria-controls={`shares-${expense.id}`}
-                          onClick={() => toggle(expense.id)}
-                        >
-                          <span className="expense-description">
-                            {expense.description}
-                            {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
-                          </span>
-                          <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                            <path
-                              d="M6 3.5 10.5 8 6 12.5"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
+                        <span className="expense-description-cell">
+                          <button
+                            type="button"
+                            className="expense-open"
+                            aria-expanded={sharesOpen}
+                            aria-controls={`shares-${expense.id}`}
+                            onClick={() => toggle(expense.id)}
+                          >
+                            <span
+                              className={`expense-description${expanded.has(expense.id) ? ' expanded' : ''}`}
+                              title={expense.description}
+                            >
+                              <span className="expense-description-text" ref={descriptionRef(expense.id)}>
+                                {expense.description}
+                              </span>
+                              {expense.source === 'ai' && <Chip kind="ai">✦ AI</Chip>}
+                            </span>
+                            <svg className="row-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                              <path
+                                d="M6 3.5 10.5 8 6 12.5"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                          {clamped.has(expense.id) && (
+                            <button
+                              type="button"
+                              className="expense-show-full"
+                              aria-expanded={expanded.has(expense.id)}
+                              onClick={() => toggleExpanded(expense.id)}
+                            >
+                              {expanded.has(expense.id) ? t.expenses.showLess : t.expenses.showFull}
+                            </button>
+                          )}
+                        </span>
                         {/* 1024–1407 px: the columns below fold into this line */}
                         <small className="expense-meta">
                           {dayLabel(day)} · {t.expenses.paidBy(payer.short, split)}
