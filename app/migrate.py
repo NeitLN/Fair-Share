@@ -62,8 +62,11 @@ def _lock_holders(conn: psycopg.Connection) -> str:
         rows = conn.execute(
             "SELECT a.pid, a.state, a.backend_start, a.application_name"
             " FROM pg_locks l JOIN pg_stat_activity a USING (pid)"
-            " WHERE l.locktype = 'advisory' AND l.objid = %s AND l.granted",
-            (LOCK_ID,),
+            # A bigint key is split: high 32 bits in classid, low in objid, objsubid 1 (the
+            # two-int form of pg_advisory_lock uses objsubid 2, so it never matches)
+            " WHERE l.locktype = 'advisory' AND l.classid = %s AND l.objid = %s"
+            " AND l.objsubid = 1 AND l.granted",
+            (LOCK_ID >> 32, LOCK_ID & 0xFFFFFFFF),
         ).fetchall()
     except psycopg.Error:
         return "unknown"
