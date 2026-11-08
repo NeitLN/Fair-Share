@@ -229,6 +229,38 @@ def test_outcomes_older_than_30_days_are_gone(client, house, db_url):
             (lan_id,),
         )
     assert requests_of(client, lan)["outcomes"] == []
+    with psycopg.connect(db_url) as conn:
+        left = conn.execute(
+            "SELECT count(*) FROM join_outcomes WHERE user_id = %s", (lan_id,)
+        ).fetchone()
+    assert left == (0,)
+
+
+def test_the_checks_while_waiting_only_read(client, house, db_url):
+    """Review of #257: with a request waiting, the 10-second check hides an old outcome and
+    deletes nothing; the next check with nothing waiting deletes it."""
+    lan, lan_id = lan_waiting(client, house)
+    client.post(f"/api/households/{house['id']}/requests/{lan_id}/reject")
+    with psycopg.connect(db_url) as conn:
+        conn.execute(
+            "UPDATE join_outcomes SET happened_at = now() - interval '31 days' WHERE user_id = %s",
+            (lan_id,),
+        )
+    other = household(client, "Nhà B")
+    code = client.get(f"/api/households/{other['id']}/invite").json()["code"]
+    assert join(client, code, lan).status_code == 200
+
+    def stored():
+        with psycopg.connect(db_url) as conn:
+            return conn.execute(
+                "SELECT count(*) FROM join_outcomes WHERE user_id = %s", (lan_id,)
+            ).fetchone()[0]
+
+    assert requests_of(client, lan)["outcomes"] == []
+    assert stored() == 1
+    client.anonymous().delete(f"/api/me/requests/{other['id']}", headers=bearer(lan))
+    assert requests_of(client, lan)["outcomes"] == []
+    assert stored() == 0
 
 
 def test_a_cancelled_request_leaves_nothing(client, house):

@@ -184,7 +184,8 @@ def me(user: CurrentUser):
 @router.post("/join", response_model=JoinResult)
 def join(body: JoinIn, request: Request, authorization: Authorization = None):
     """Asks to join the household of a valid code. The owner then approves (or not); until then
-    the household shows nothing of itself, not even its name."""
+    the person asking sees only the house's name and its owner's display name (D4, specs/015),
+    nothing else of it."""
     result = None
     with connection(request) as conn:
         user = user_for_token(conn, bearer_token(authorization))
