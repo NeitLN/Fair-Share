@@ -224,6 +224,10 @@ settlement must be members of the **same household** (composite foreign keys on
   `schema_migrations` table, so a fresh Supabase project and a fresh Compose volume reach the same schema
   with no manual step. Each file runs **in its own transaction** (a failure rolls back completely) while
   holding a PostgreSQL **advisory lock**, so two instances starting together cannot apply it twice.
+  The lock is only taken when a file is waiting, and waited for at most 30 s (`LOCK_WAIT`, logged as
+  "waiting for migration lock"): waiting without a limit, a session left holding it would keep the API
+  from ever opening its port. Past that the API refuses to start and logs who holds the lock, rather
+  than run on a schema older than its code.
   Schema changes are new files, never edits to applied ones. CI applies them to a fresh database
   (`python -m app.migrate`), and the tests check a repeated run, a failing file and two concurrent runs.
   If the database is unreachable at start-up, the API logs it and starts anyway (so `/health` stays
