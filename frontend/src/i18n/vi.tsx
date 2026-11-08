@@ -328,6 +328,8 @@ const vi = {
     seeAll: 'Xem tất cả',
     otherPayment: 'Ghi khoản trả khác',
     otherPaymentHint: 'Ghi tiền bạn đã nhận khi số tiền hoặc ngày khác với gợi ý, kể cả tiền mặt.',
+    inviteLead: 'Fair-Share có ích khi bạn cùng phòng vào nhà.',
+    waitingToJoin: (n: number) => `Có ${n} người đang chờ duyệt`,
   },
   balances: {
     loading: 'Đang tải số dư',
@@ -459,6 +461,10 @@ const vi = {
     notify: 'Tôi đã chuyển',
     notifying: 'Đang báo…',
     notifyHint: (to: string) => `Chuyển cho ${to} xong thì bấm để báo, ${to} sẽ xác nhận.`,
+    debtorRowHint: (to: string) => `Chuyển xong thì báo để ${to} xác nhận.`,
+    debtorSend: (amount: ReactNode, to: string) => <>Tôi đã chuyển {amount} cho {to}</>,
+    debtorSent: (amount: ReactNode, to: string) => <>Đã báo chuyển {amount}, chờ {to} xác nhận.</>,
+    debtorDeclined: (to: string) => `${to} báo chưa nhận được.`,
     toldWaiting: (to: string) => `Đã báo, chờ ${to} xác nhận.`,
     amountDiffers: 'Khác số gợi ý hiện tại: xác nhận sẽ ghi đúng số đã báo.',
     outdated: 'Số dư đã đổi sau lần báo này.',
@@ -472,11 +478,6 @@ const vi = {
     notified: (to: string) => `Đã báo ${to}.`,
     declined: (from: string) => `Đã báo ${from} là chưa nhận được.`,
     youDeclined: (from: string) => `Bạn đã báo ${from} là chưa nhận được.`,
-    ownPending: (to: string, amount: ReactNode) => (
-      <>
-        Đã báo chuyển {amount} · chờ {to} xác nhận
-      </>
-    ),
     copyReminder: 'Sao chép tin nhắn nhắc nợ',
     allSquare: 'Cả nhà sạch nợ. Nhà trọ bình yên.',
     nothingYet: 'Chưa có khoản chi nào. Ghi khoản đầu tiên để xem ai trả ai.',

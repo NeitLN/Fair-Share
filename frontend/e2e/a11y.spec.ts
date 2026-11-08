@@ -265,6 +265,104 @@ test('the household screens meet the accessibility checklist', async ({ page, re
   }
 })
 
+// specs/012-overview-and-lists (US1): the sentence, the amount and the avatars never meet on a phone,
+// and a 13-digit amount is fully inside the coloured block at 320 px.
+test('Tổng quan reads whole at every phone width', async ({ page, request }) => {
+  const name = `E2E verdict ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+  const tien = await signUp(request, 'Tiến')
+  const household = await (
+    await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })
+  ).json()
+  const ids: number[] = [household.member_id as number]
+  for (const who of ['Minh', 'Duy Anh', 'An']) {
+    ids.push(await addMember(request, household.id, tien, await signUp(request, who)))
+  }
+  const day = new Date().toISOString().slice(0, 10)
+  // Tiến paid for the four: three people owe him, so three avatars and a "+0" never come
+  await request.post(`${API}/api/households/${household.id}/expenses`, {
+    data: { description: 'Lẩu', amount: 400_000, payer_id: ids[0], spent_at: day, split: { type: 'equal', member_ids: ids } },
+    headers: bearer(tien),
+  })
+  try {
+    await signInPage(page, tien)
+    await page.goto(`/households/${household.id}`)
+    await expect(page.getByRole('heading', { name: /^Bạn được nhận từ/ })).toBeVisible()
+
+    for (const width of [320, 360, 375, 390]) {
+      await page.setViewportSize({ width, height: 800 })
+      const boxes = await page.evaluate(() => {
+        const of = (selector: string) => {
+          const el = document.querySelector(selector)
+          if (!el) throw new Error(`missing ${selector}`)
+          const r = el.getBoundingClientRect()
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+        }
+        return {
+          sentence: of('.verdict-sentence'),
+          people: of('.verdict-people'),
+          total: of('.verdict-total'),
+          block: of('.verdict'),
+        }
+      })
+      const { sentence, people, total, block } = boxes
+      const overlap =
+        sentence.left < people.right &&
+        people.left < sentence.right &&
+        sentence.top < people.bottom &&
+        people.top < sentence.bottom
+      expect(overlap, `sentence and avatars overlap at ${width} px`).toBe(false)
+      expect(total.right, `the amount leaves the block at ${width} px`).toBeLessThanOrEqual(block.right + 0.5)
+      const sideways = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+      expect(sideways, `sideways scroll on Tổng quan at ${width} px`).toBe(false)
+    }
+
+    await page.setViewportSize({ width: 360, height: 800 })
+    await page.screenshot({ path: 'test-results/spec-012a-360.png', fullPage: true })
+    await page.setViewportSize({ width: 320, height: 800 })
+    await page.screenshot({ path: 'test-results/spec-012a-320.png', fullPage: true })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.screenshot({ path: 'test-results/spec-012a-1440.png', fullPage: true })
+
+    // A 13-digit balance: Tiến paid, one housemate carries the whole share
+    await request.post(`${API}/api/households/${household.id}/expenses`, {
+      data: {
+        description: 'Tiền nhà',
+        amount: 999_999_999_999,
+        payer_id: ids[0],
+        spent_at: day,
+        split: {
+          type: 'custom',
+          shares: ids.map((id) => ({ member_id: id, amount: id === ids[3] ? 999_999_999_999 : 0 })),
+        },
+      },
+      headers: bearer(tien),
+    })
+    await page.setViewportSize({ width: 320, height: 800 })
+    await page.reload()
+    await expect(page.getByRole('heading', { name: /^Bạn được nhận từ/ })).toBeVisible()
+    const big = await page.evaluate(() => {
+      const block = document.querySelector('.verdict')!.getBoundingClientRect()
+      const total = document.querySelector('.verdict-total')!.getBoundingClientRect()
+      const money = document.querySelector('.verdict-total .money') as HTMLElement
+      return {
+        blockRight: block.right,
+        totalRight: total.right,
+        fits: money.scrollWidth <= money.clientWidth,
+        text: document.querySelector('.verdict-total')?.textContent ?? '',
+      }
+    })
+    expect(big.text).toContain('1.000.000.299.999đ')
+    expect(big.totalRight, 'a 13-digit amount leaves the block at 320 px').toBeLessThanOrEqual(big.blockRight + 0.5)
+    expect(big.fits, 'a 13-digit amount is cut off at 320 px').toBe(true)
+    const sideways = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    expect(sideways, 'sideways scroll with a 13-digit amount at 320 px').toBe(false)
+    await page.screenshot({ path: 'test-results/spec-012a-320-big.png', fullPage: true })
+  } finally {
+    const response = await deleteHousehold(request, household.id, tien)
+    expect(response.status(), 'test household deleted').toBe(204)
+  }
+})
+
 // specs/008-wider-desktop-signin: signed out on a laptop, one centred block (brand, then the form and its
 // switches); every control 44 px, no sideways scroll, the keyboard in the order seen. A phone is unchanged.
 test('the sign-in page on a laptop and on a phone', async ({ page }) => {

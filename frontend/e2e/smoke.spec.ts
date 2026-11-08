@@ -76,8 +76,9 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     //    (docs/ACCOUNTS.md S2, S3)
     await page.goto(`/households/${householdId}`)
     await expect(page.locator('.verdict-sentence')).toContainText('Bạn cần trả Minh')
-    await expect(page.getByText('Chuyển cho Minh xong thì bấm để báo, Minh sẽ xác nhận.')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Tôi đã chuyển' })).toBeVisible()
+    // spec 012: the next step is under the block, one button naming the amount and the receiver
+    await expect(page.locator('.debtor-action p')).toHaveText('Chuyển xong thì báo để Minh xác nhận.')
+    await expect(page.getByRole('button', { name: 'Tôi đã chuyển 150.000đ cho Minh' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Xác nhận đã nhận/ })).toHaveCount(0)
 
     // 7. Minh confirms; Hoàn tác takes it back; he confirms again and the house is settled

@@ -5,7 +5,7 @@ import { ApiError } from '../api/client'
 import { Link, useParams } from 'react-router'
 
 import { expenseKeys, listExpenses } from '../api/expenses'
-import { getHousehold, keys, listMembers } from '../api/households'
+import { getHousehold, keys, listMembers, listRequests } from '../api/households'
 import {
   cancelNotice,
   createSettlement,
@@ -30,6 +30,7 @@ import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
 import Skeleton from '../components/Skeleton'
 import VerdictBlock from '../components/VerdictBlock'
+import InviteCard from '../components/InviteCard'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
@@ -100,6 +101,15 @@ function Dashboard({ householdId }: { householdId: number }) {
   const notices = useQuery({
     queryKey: settlementKeys.notices(householdId),
     queryFn: () => listNotices(householdId),
+  })
+
+  // A house with one person points at the next real step: inviting someone (spec 012, US3). Only its
+  // owner can have join requests waiting, and only they may read them.
+  const alone = members.data?.length === 1
+  const requests = useQuery({
+    queryKey: keys.requests(householdId),
+    queryFn: () => listRequests(householdId),
+    enabled: alone && household.data?.role === 'owner',
   })
 
   // A settlement changes the balances: refetch everything cached under this household
@@ -211,6 +221,28 @@ function Dashboard({ householdId }: { householdId: number }) {
         <p className="empty">
           {t.dashboard.noMembers(<Link to="members">{t.dashboard.addMembers}</Link>)}
         </p>
+      </>
+    )
+  }
+
+  // One person: the money sections would all be zeros, and the next real step is to invite someone
+  if (alone) {
+    const waiting = requests.data?.length ?? 0
+    return (
+      <>
+        <h2 className="visually-hidden">{t.household.overview}</h2>
+        <div className="alone-house">
+          <Link to="expenses" state={{ focus: 'description' }} className="btn-primary cta cta-add">
+            {t.dashboard.addExpense}
+          </Link>
+          <p className="hint">{t.dashboard.inviteLead}</p>
+          <InviteCard householdId={householdId} isOwner={household.data?.role === 'owner'} />
+          {waiting > 0 && (
+            <p>
+              <Link to="members">{t.dashboard.waitingToJoin(waiting)}</Link>
+            </p>
+          )}
+        </div>
       </>
     )
   }

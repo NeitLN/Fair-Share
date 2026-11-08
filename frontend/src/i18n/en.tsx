@@ -333,6 +333,8 @@ const en: Messages = {
     seeAll: 'See all',
     otherPayment: 'Add repayment',
     otherPaymentHint: 'Record a different amount or date, including cash repayments.',
+    inviteLead: 'Fair-Share is useful once your housemates join.',
+    waitingToJoin: (n: number) => `${n} waiting for approval`,
   },
   balances: {
     loading: 'Loading balances',
@@ -462,6 +464,10 @@ const en: Messages = {
     notify: "I've sent it",
     notifying: 'Telling them…',
     notifyHint: (to: string) => `Once you've sent it, tap to tell ${to}; they confirm.`,
+    debtorRowHint: (to: string) => `Once it's sent, tell ${to} so they can confirm.`,
+    debtorSend: (amount: ReactNode, to: string) => <>I've sent {amount} to {to}</>,
+    debtorSent: (amount: ReactNode, to: string) => <>Told {to} you sent {amount}; waiting for them to confirm.</>,
+    debtorDeclined: (to: string) => `${to} says it hasn't arrived.`,
     toldWaiting: (to: string) => `Reported. Waiting for ${to} to confirm.`,
     amountDiffers: "Not today's suggestion: marking it received records the amount they told you.",
     outdated: 'The balances changed after this was told.',
@@ -475,11 +481,6 @@ const en: Messages = {
     notified: (to: string) => `Told ${to}.`,
     declined: (from: string) => `Told ${from} it hasn't arrived.`,
     youDeclined: (from: string) => `You told ${from} it hasn't arrived.`,
-    ownPending: (to: string, amount: ReactNode) => (
-      <>
-        Reported sending {amount} · waiting for {to} to confirm
-      </>
-    ),
     copyReminder: 'Copy reminder message',
     allSquare: "Everyone's settled up. Peace at home.",
     nothingYet: 'No expenses yet. Add the first one to see who owes who.',

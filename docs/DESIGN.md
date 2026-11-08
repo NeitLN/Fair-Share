@@ -193,12 +193,12 @@ Nhà trọ Q7                     (T)(M)(A)+1      ← 22 px on a phone
 ║ Bạn cần trả Minh           (M)   ║   ← verdict C (07/11): who it is about, top right
 ║ 120.000đ                         ║   ← 44 px
 ║ Vì sao ra số này?                ║   ← when your balance is not 0
-║ Đã báo chuyển 120.000đ · chờ Minh xác nhận ║ ← only your own sent notice
+║ [ Tôi đã chuyển 120.000đ cho Minh ] ║ ← verdict D (08/11): the debtor's next step
+║ Đã báo chuyển 120.000đ, chờ Minh xác nhận. ║ ← once told; then Huỷ thông báo below it
 ╚═════════════════════════════════╝
 ┌─────────── transfers panel ─────┐   ← white, 1 px --card-edge, right under the block
 │ (T) Bạn cần trả Minh 120.000đ    │   ← yours first
-│     Đã báo, chờ Minh xác nhận.   │   ← where it stands
-│     Huỷ thông báo                │   ← then what you can do (flat buttons)
+│     Đã báo, chờ Minh xác nhận.   │   ← where it stands (the action is in the block above)
 │ ─────────────────────────────── │   ← --line between the rows
 │ (A) Duy Anh cần trả Minh 80.000đ │
 │ [ Sao chép tin nhắn nhắc nợ ]    │   ← secondary button, last
@@ -226,6 +226,25 @@ Lịch sử trả tiền                 Ghi khoản trả khác
   (`aria-hidden`), since the sentence already names them, and the sentence keeps 120 px clear of them.
   *+ Ghi khoản chi* is filled with `--ink` and carries a 3 px taro shadow, so it reads as the one action
   without a second purple block next to the verdict.
+* **Verdict D** ([spec 012](../specs/012-overview-and-lists/spec.md), 08/11). At 479 px and below the
+  stickers take a row of their own above the sentence (still right-aligned, still `aria-hidden`), so the
+  sentence has the full width; the total drops from 44 to 36 px and may wrap, the currency sign staying
+  with the last digits. From 480 px the stickers are back in the corner, beside the sentence in a second
+  grid column rather than over it, so a sentence long enough to wrap does it in the room that is left.
+  At 1440 px the block looks as it did on 07/11. A 13-digit balance (999.999.999.999đ) then shows every
+  digit at 320 px, with no sideways scroll and no word hidden.
+* **The debtor's next step** ([spec 012](../specs/012-overview-and-lists/spec.md) US2). The person who owes
+  gets the primary action under the total, inside the taro block: **Tôi đã chuyển 120.000đ cho Minh**, one
+  per transfer they must make, in the order of the suggestions. White on the taro, since a filled purple
+  button would vanish into the block; full width under 720 px, 44 px tall. Once told it becomes "Đã báo
+  chuyển 120.000đ, chờ Minh xác nhận." and *Huỷ thông báo*; declined, "Minh báo chưa nhận được." and the
+  button again. The cards in the panel keep their row and status but no button of their own, since the
+  action is above, where the eye lands first; focus follows the next step after each press. Creditors and
+  settled people see none.
+* **A house with one person** ([spec 012](../specs/012-overview-and-lists/spec.md) US3). *+ Ghi khoản chi*,
+  "Fair-Share có ích khi bạn cùng phòng vào nhà." and the invite card (code, link, copy) replace the month
+  totals, the balances and the history, which would all be zeros. One join request waiting adds "Có 1
+  người đang chờ duyệt", a link to Thành viên. With a second member the page is as above.
 * **Identity.** Since accounts ([ACCOUNTS.md](ACCOUNTS.md)) "bạn" is the name the signed-in account
   has in the household, given by the API (`member_id`); there is nothing to choose. It powers "Bạn…"
   sentences, the default payer, and who sees **Đã nhận** on a transfer (only its receiver). Before
@@ -248,7 +267,8 @@ Lịch sử trả tiền                 Ghi khoản trả khác
   "Đã ghi: Bạn trả Minh 120.000đ · Hoàn tác" (*Hoàn tác* deletes that settlement).
 * **Since accounts** the button is **Đã nhận**, on the receiver's card only (ACCOUNTS.md S2). The person
   who owes gets **Tôi đã chuyển** (S3), which tells the receiver and changes no balance; their card then
-  says "Đã báo Minh là đã chuyển 120.000đ, chờ xác nhận" with *Huỷ báo*. The receiver sees "Tiến báo đã
+  says "Đã báo Minh là đã chuyển 120.000đ, chờ xác nhận" with *Huỷ báo* — since spec 012 both the action
+  and that state sit under the block, and the card keeps the line alone. The receiver sees "Tiến báo đã
   chuyển 120.000đ" and *Chưa nhận được* under the text; *Đã nhận* records that told amount, and the line
   says so when it is not today's suggestion. Anyone else sees "Chưa trả" or who is waiting for whom. A
   card never says a payment is waiting for confirmation before anyone said it was sent (UI review, 03/11).
@@ -444,9 +464,10 @@ keyboard goes through the page in the order it is seen.
   đây) is at most 640 px wide and centred, so a name and its amount are never more than 640 px apart
   (variant A, chosen by the owner on 06/11 from before/after captures over lines that span the panel).
   *Báo cáo tháng* sits on the month title's line, under it when the line is too short. The repeated
-  action on each transfer card (*Xác nhận đã nhận …đ*, the payer's *Tôi đã chuyển*) is the outlined
-  secondary button at every width: four filled purple buttons under the verdict competed with it, so
-  only *+ Ghi khoản chi* and the verdict block stay filled.
+  action on each transfer card (*Xác nhận đã nhận …đ*) is the outlined secondary button at every width:
+  four filled purple buttons under the verdict competed with it, so only *+ Ghi khoản chi* and the
+  verdict block stay filled. Since spec 012 the payer's *Tôi đã chuyển* is not one of them: it is the
+  one white primary inside the block, where the person who owes needs it.
 * **Chi tiêu:** the AI box and the form on the left (360 px; 380–420 px from 1280, the table taking the rest), the list on the right as
   a **table**: Ngày, Nội dung, Người trả (with the split under the name), Số tiền right-aligned, and
   *Sửa* / *Xoá* on each row the user may change. The row being edited is tinted. Between 1024 and 1407 px
@@ -486,8 +507,8 @@ yellow coin, sticker avatars, stamps) and the three tabs stayed.
   still the one loud place; buttons repeated on every transfer card are flat too.
 * **Your business first, in the order you read it.** Transfers involving you come before the rest (a
   stable split, so a card never moves while you press it). Each card reads amount → where it stands →
-  what you can do, in both languages. Your own *Tôi đã chuyển* shows under the big amount, which does not
-  change until the receiver confirms.
+  what you can do, in both languages. A payer's next step, *Tôi đã chuyển … cho …*, is the button under
+  the big amount (spec 012), whose figure does not change until the receiver confirms.
 * **Two time scopes, said apart.** "Tháng 11 · cả nhà đã chi" left the verdict for the balances section,
   whose note says the balances run from the start. The design review of 05/11 found it still read as one
   number with the balances ("cả nhà đã chi 790.000đ" right above "Minh đã chi 4.740.000đ"), so this month

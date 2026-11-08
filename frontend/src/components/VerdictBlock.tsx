@@ -114,6 +114,7 @@ function VerdictBlock({
   const [showText, setShowText] = useState(false)
   const fallback = useRef<HTMLTextAreaElement>(null)
   const list = useRef<HTMLUListElement>(null)
+  const debtorActions = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const noticeFocus = useRef<NoticeFocus | null>(null)
   const lookOf = (memberId: number) => looks.get(memberId) ?? REMOVED_MEMBER
@@ -149,18 +150,27 @@ function VerdictBlock({
   })
 
   // The same for "Tôi đã chuyển", "Huỷ báo" and "Chưa nhận được": each is replaced by the next step
-  // once answered (Huỷ báo, Tôi đã chuyển, Đã nhận). A failed press leaves its own button: back to it
+  // once answered (Huỷ báo, Tôi đã chuyển, Đã nhận). A failed press leaves its own button: back to it.
+  // The debtor's action is under the block, so both places are searched.
   useEffect(() => {
     const wanted = noticeFocus.current
     if (!wanted || noticeBusy.includes(wanted.pair)) return
     noticeFocus.current = null
     const lost = !document.activeElement || document.activeElement === document.body
-    const card = list.current?.querySelector(`[data-pair="${wanted.pair}"]`)
-    if (!lost || !card) return
-    const next =
-      card.querySelector<HTMLButtonElement>(`button[data-action="${wanted.then}"]:not(:disabled)`) ??
-      card.querySelector<HTMLButtonElement>('button:not(:disabled)')
-    next?.focus()
+    const scopes = [
+      list.current?.querySelector(`[data-pair="${wanted.pair}"]`),
+      debtorActions.current?.querySelector(`[data-pair="${wanted.pair}"]`),
+    ].filter((scope): scope is Element => scope !== null && scope !== undefined)
+    if (!lost || scopes.length === 0) return
+    for (const scope of scopes) {
+      const next =
+        scope.querySelector<HTMLButtonElement>(`button[data-action="${wanted.then}"]:not(:disabled)`) ??
+        scope.querySelector<HTMLButtonElement>('button:not(:disabled)')
+      if (next) {
+        next.focus()
+        return
+      }
+    }
   })
   const pressed = (pair: string, then: NoticeFocus['then'], act?: (transfer: Transfer) => void) =>
     act &&
@@ -218,12 +228,12 @@ function VerdictBlock({
     }))
   // Yours first, the household's after: the sentence above talks to you. A stable split, so a card does
   // not move while you press it
-  const mine = (card: TransferCard) =>
+  const aboutMe = (card: TransferCard) =>
     me !== null && (card.transfer.from_member_id === me || card.transfer.to_member_id === me)
   const all = [...cards, ...leftOver]
-  const shown = [...all.filter(mine), ...all.filter((card) => !mine(card))]
-  // What you told someone you sent, under the amount: it still counts until they confirm (S3)
-  const ownTold = onlyReceiver ? (notices ?? []).filter((n) => n.status === 'sent' && n.from_member_id === me) : []
+  const shown = [...all.filter(aboutMe), ...all.filter((card) => !aboutMe(card))]
+  // The transfers you must make: their action is under the block, where the eye lands first (US2)
+  const toTell = onlyReceiver && me !== null ? suggested.filter((t) => t.from_member_id === me) : []
   // Nothing to list and nothing to copy: no empty panel under the answer
   const hasPanel = Boolean((onlyReceiver && noticesError) || shown.length > 0 || error || suggested.length > 0)
 
@@ -254,11 +264,25 @@ function VerdictBlock({
             {explanation}
           </details>
         )}
-        {ownTold.map((n) => (
-          <p key={pairOf(n)} className="verdict-pending">
-            {t.verdict.ownPending(nameOf(n.to_member_id), <Money amount={n.amount} />)}
-          </p>
-        ))}
+        {toTell.length > 0 && (
+          <div className="debtor-actions" ref={debtorActions}>
+            {toTell.map((transfer) => {
+              const pair = pairOf(transfer)
+              return (
+                <DebtorAction
+                  key={pair}
+                  transfer={transfer}
+                  notice={notices?.find((n) => pairOf(n) === pair)}
+                  nameOf={nameOf}
+                  known={notices !== undefined}
+                  busy={noticeBusy.includes(pair)}
+                  onNotify={pressed(pair, 'cancel-notice', onNotify)}
+                  onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
+                />
+              )
+            })}
+          </div>
+        )}
         {refreshError && (
           <div className="note" role="alert">
             {t.verdict.stale} {refreshError}
@@ -328,6 +352,7 @@ function VerdictBlock({
                         known={notices !== undefined}
                         notice={notices?.find((n) => pairOf(n) === pair)}
                         outdated={card.key.startsWith('told-')}
+                        actionless={transfer.from_member_id === me && !card.key.startsWith('told-')}
                         busy={noticeBusy.includes(pair)}
                         onPaid={onPaid}
                         onNotify={pressed(pair, 'cancel-notice', onNotify)}
@@ -378,6 +403,61 @@ function VerdictBlock({
   )
 }
 
+interface DebtorActionProps {
+  transfer: Transfer
+  notice: Notice | undefined
+  nameOf: (memberId: number) => string
+  /** The notices have loaded: until then nothing that depends on them can be pressed. */
+  known: boolean
+  busy: boolean
+  onNotify?: (transfer: Transfer) => void
+  onCancelNotice?: (transfer: Transfer) => void
+}
+
+/**
+ * The next step for someone who owes money (DESIGN.md §6.2, spec 012 US2): one line under the block,
+ * per transfer they must make. No notice: the primary "Tôi đã chuyển … cho …". Sent: the state and the
+ * way to take it back. Declined: what the receiver said, and the button again.
+ */
+function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onCancelNotice }: DebtorActionProps) {
+  const t = useT()
+  const to = nameOf(transfer.to_member_id)
+  const sent = notice?.status === 'sent'
+  const declined = notice?.status === 'declined'
+  const amount = sent ? notice.amount : transfer.amount
+  return (
+    <div className="debtor-action" data-pair={pairOf(transfer)}>
+      {sent ? (
+        <>
+          <p>{t.verdict.debtorSent(<Money amount={amount} />, to)}</p>
+          <button
+            type="button"
+            className="btn-ghost"
+            data-action="cancel-notice"
+            disabled={busy}
+            onClick={() => onCancelNotice?.(transfer)}
+          >
+            {t.verdict.cancelNotice}
+          </button>
+        </>
+      ) : (
+        <>
+          {declined && <p>{t.verdict.debtorDeclined(to)}</p>}
+          <button
+            type="button"
+            className="btn-primary"
+            data-action="notify"
+            disabled={busy || !known}
+            onClick={() => onNotify?.(transfer)}
+          >
+            {busy ? t.verdict.notifying : t.verdict.debtorSend(<Money amount={amount} />, to)}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
 interface ReceiverOnlyProps {
   transfer: Transfer
   card: TransferCard
@@ -389,6 +469,8 @@ interface ReceiverOnlyProps {
   notice: Notice | undefined
   /** The card is the notice alone: its pair is not suggested any more. */
   outdated: boolean
+  /** The debtor's own suggested row: the status stays, the action is the one under the block. */
+  actionless: boolean
   busy: boolean
   onPaid: (transfer: Transfer, told?: boolean) => void
   onNotify?: (transfer: Transfer) => void
@@ -413,6 +495,7 @@ function ReceiverOnly({
   known,
   notice,
   outdated,
+  actionless,
   busy,
   onPaid,
   onNotify,
@@ -491,6 +574,25 @@ function ReceiverOnly({
   }
 
   if (transfer.from_member_id === me) {
+    // The action is under the block (DebtorAction): the row keeps where it stands, no second button
+    if (actionless) {
+      return (
+        <span className="transfer-status">
+          <small>
+            {told ? (
+              <>
+                {t.verdict.toldWaiting(to)}
+                {outdated && <> {t.verdict.outdated}</>}
+              </>
+            ) : declined ? (
+              t.verdict.declinedBy(to)
+            ) : (
+              t.verdict.debtorRowHint(to)
+            )}
+          </small>
+        </span>
+      )
+    }
     if (told) {
       return (
         <>
