@@ -368,3 +368,33 @@ describe('one save at a time', () => {
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 })
+
+// Accessibility pass of specs/011: a disabled button drops the keyboard focus to the page
+describe('the save button keeps the focus', () => {
+  test('while saving it is aria-disabled, not disabled, and a failed save leaves the focus on it', async () => {
+    let fail: () => void = () => {}
+    const onSubmit = vi.fn(() => new Promise<void>((_resolve, reject) => (fail = () => reject(new Error('network')))))
+    const { user, rerender } = setup({ onSubmit })
+    await basics(user)
+    await save(user)
+    rerender({ onSubmit, submitting: true })
+    const button = screen.getByRole('button', { name: 'Đang lưu…' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toBeEnabled()
+    expect(button).toHaveFocus()
+    // Pressed again while it waits: nothing more is sent
+    await user.click(button)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    await act(async () => fail())
+    rerender({ onSubmit, submitting: false })
+    expect(screen.getByRole('button', { name: 'Lưu khoản chi' })).toHaveFocus()
+  })
+
+  test('after Lưu thật the focus is on the save button that takes its place', async () => {
+    const { user } = setup({ onSubmit: vi.fn().mockRejectedValue(new Error('network')) })
+    await basics(user, '60tr')
+    await save(user)
+    await user.click(screen.getByRole('button', { name: 'Lưu thật' }))
+    expect(screen.getByRole('button', { name: 'Lưu khoản chi' })).toHaveFocus()
+  })
+})

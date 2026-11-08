@@ -560,7 +560,7 @@ function ExpenseForm({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     // While a large total waits for "Lưu thật", Enter in a field never saves (FR-011)
-    if (confirmShown) return
+    if (confirmShown || submitting) return
     await save(false)
   }
 
@@ -628,6 +628,8 @@ function ExpenseForm({
   function confirmSave() {
     setConfirmedAmount(confirming)
     setConfirming(null)
+    // Lưu thật goes away with the question: the focus moves to the save button that takes its place
+    focusField.current = 'save'
     void save(true)
   }
 
@@ -1036,7 +1038,10 @@ function ExpenseForm({
           </div>
         ) : (
           <div className="form-buttons">
-            <button type="submit" disabled={submitting}>
+            {/* aria-disabled, not disabled: a disabled button drops the keyboard focus to the page, so after a
+                failed save the person had to Tab from the top again. save() ignores a press while one is on
+                its way (accessibility pass of specs/011) */}
+            <button type="submit" data-field="save" aria-disabled={submitting || undefined}>
               {submitting ? t.common.saving : editing ? t.form.saveChanges : t.form.save}
             </button>
             {onCancel && (

@@ -27,7 +27,9 @@ export const keys = {
    * The versions are in the key, so a new or removed photo asks again and nothing else does. Not under
    * ['households', id]: saving an expense invalidates that, and must not fetch every photo again (#228).
    */
-  photos: (householdId: number, versions: string) => ['photos', householdId, versions] as const,
+  photos: (householdId: number, versions: string) => [...keys.housePhotos(householdId), versions] as const,
+  /** Every photo batch of one house, whatever its versions: dropped when you leave it (#231). */
+  housePhotos: (householdId: number) => ['photos', householdId] as const,
   myPhoto: ['me', 'photo'] as const,
 }
 

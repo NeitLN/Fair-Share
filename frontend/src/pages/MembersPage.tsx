@@ -66,11 +66,15 @@ function MembersPage() {
   const leave = useMutation({
     mutationFn: () => leaveHousehold(householdId),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: keys.household(householdId) })
-      // The photos live under their own key (#228 review): a house you left keeps none of them (#230 review)
-      queryClient.removeQueries({ queryKey: ['photos', householdId] })
-      void queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
       navigate('/')
+      // Once the house's pages are gone: removed while they were still on screen, their queries came back
+      // at once and could fetch the photos again, so the house you left kept them (a test failing now
+      // and then, 08/11). The photos live under their own key (#228 review) and none may stay (#230 review)
+      setTimeout(() => {
+        queryClient.removeQueries({ queryKey: keys.household(householdId) })
+        queryClient.removeQueries({ queryKey: keys.housePhotos(householdId) })
+      }, 0)
+      void queryClient.invalidateQueries({ queryKey: keys.households, exact: true })
     },
   })
 
