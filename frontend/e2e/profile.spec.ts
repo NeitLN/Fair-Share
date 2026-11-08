@@ -116,7 +116,7 @@ test('a gender chosen after reading the notice is seen by a housemate, and Khôn
     await mine.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
     await signInPage(mine, lan)
     await mine.goto('/account')
-    await expect(mine.getByText(/^Không bắt buộc\. Dùng để cho bạn cùng nhà biết giới tính/)).toBeVisible()
+    await expect(mine.getByText(/^Không bắt buộc, để bạn cùng nhà biết giới tính/)).toBeVisible()
     await mine.getByRole('radio', { name: 'Nữ' }).check()
     await mine.getByRole('button', { name: 'Lưu' }).last().click()
     await expect(mine.getByText('Đã lưu giới tính.')).toBeVisible()
