@@ -7,6 +7,12 @@ A fresh Supabase project and a fresh Compose volume reach the same schema with n
   not recorded, and the API refuses to start (so a broken migration fails the deploy, not the data).
 * A PostgreSQL advisory lock is held throughout, so two API instances starting at the same moment
   cannot apply the same file twice: the second waits, then finds it already recorded.
+* The lock is only taken when a file is waiting, and waited for at most LOCK_WAIT. Waiting without a
+  limit, a session left holding it (through the pooler, an instance stopped half way) would keep the
+  API from ever opening its port, which looks like the two deploys that hung for 10 minutes (08/11,
+  09/11). Up to date, a start never waits; with a file waiting and the lock still taken after
+  LOCK_WAIT, the API refuses to start, saying who holds it, rather than run on a schema older than
+  its code.
 
 Also runnable by hand, e.g. against a restored database:  python -m app.migrate
 """
@@ -30,13 +36,68 @@ DEMO_OWNER = "tien@demo.local"
 
 # Any fixed number works, as long as every API instance uses the same one.
 LOCK_ID = 72_261_001
+# How long a start waits for another session's migration lock (a PostgreSQL lock_timeout value):
+# far more than a migration takes, far less than Render's wait for the port
+LOCK_WAIT = "30s"
 
 
-def migrate(database_url: str, directory: Path = MIGRATIONS_DIR) -> list[str]:
+class MigrationLockTimeout(RuntimeError):
+    """A migration is waiting but another session held the lock for longer than LOCK_WAIT.
+
+    Not an OperationalError on purpose: prepare_database() lets the API start without migrating only
+    when the database cannot be reached, and here it can, so the start stops instead."""
+
+
+def _pending(conn: psycopg.Connection, files: list[Path]) -> list[Path]:
+    """The files not recorded yet, read without the lock (all of them on a fresh database)."""
+    if conn.execute("SELECT to_regclass('schema_migrations')").fetchone()[0] is None:
+        return files
+    applied = {row[0] for row in conn.execute("SELECT version FROM schema_migrations")}
+    return [path for path in files if path.stem not in applied]
+
+
+def _lock_holders(conn: psycopg.Connection) -> str:
+    """Who holds the migration lock, for the log line (best effort: the role may not see them)."""
+    try:
+        rows = conn.execute(
+            "SELECT a.pid, a.state, a.backend_start, a.application_name"
+            " FROM pg_locks l JOIN pg_stat_activity a USING (pid)"
+            " WHERE l.locktype = 'advisory' AND l.objid = %s AND l.granted",
+            (LOCK_ID,),
+        ).fetchall()
+    except psycopg.Error:
+        return "unknown"
+    return "; ".join(
+        f"pid {pid} ({state}, since {start}, {app or 'no application_name'})"
+        for pid, state, start, app in rows
+    ) or "nobody any more"
+
+
+def migrate(
+    database_url: str, directory: Path = MIGRATIONS_DIR, lock_wait: str = LOCK_WAIT
+) -> list[str]:
     """Apply the pending migrations; return the versions applied now (empty if up to date)."""
     files = sorted(directory.glob("*.sql"))
     with psycopg.connect(database_url, autocommit=True, connect_timeout=3) as conn:
-        conn.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
+        # Up to date: nothing to apply, so no lock to wait for
+        if not _pending(conn, files):
+            return []
+        logger.info("waiting for migration lock %s (at most %s)", LOCK_ID, lock_wait)
+        conn.execute("SELECT set_config('lock_timeout', %s, false)", (lock_wait,))
+        try:
+            conn.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
+        except psycopg.errors.LockNotAvailable:
+            holders = _lock_holders(conn)
+            logger.error(
+                "migration lock %s still held after %s by %s; not starting on an old schema",
+                LOCK_ID, lock_wait, holders,
+            )
+            raise MigrationLockTimeout(
+                f"migration lock {LOCK_ID} held for more than {lock_wait} by {holders}"
+            ) from None
+        # The migrations themselves keep the default (no lock timeout), as before
+        conn.execute("SET lock_timeout = 0")
+        logger.info("migration lock %s taken", LOCK_ID)
         try:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations ("

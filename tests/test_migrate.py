@@ -5,13 +5,26 @@ versions starting "9xx_test" and removed again after each test.
 """
 import logging
 import threading
+import time
 
 import psycopg
 import pytest
 from psycopg import errors
 
+from app import migrate as app_migrate
 from app.auth import password_matches
-from app.migrate import DEMO_HOUSEHOLD, DEMO_OWNER, MIGRATIONS_DIR, SEED_FILE, migrate, seed
+from app.config import Settings
+from app.migrate import (
+    DEMO_HOUSEHOLD,
+    DEMO_OWNER,
+    LOCK_ID,
+    MIGRATIONS_DIR,
+    SEED_FILE,
+    MigrationLockTimeout,
+    migrate,
+    prepare_database,
+    seed,
+)
 
 pytestmark = pytest.mark.db
 
@@ -93,6 +106,64 @@ def test_two_instances_starting_together_apply_a_file_once(db_url, scratch):
         thread.join()
     assert failures == []
     assert sorted(results) == [[], ["901_test_slow"]]
+
+
+@pytest.fixture
+def lock_held(db_url):
+    """Another session holding the migration lock, like one left behind by an earlier start."""
+    with psycopg.connect(db_url, autocommit=True) as holder:
+        holder.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
+        yield holder.info.backend_pid
+        holder.execute("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
+
+
+def test_an_up_to_date_database_starts_without_waiting_for_the_lock(db_url):
+    migrate(db_url)  # up to date first, before anyone holds the lock
+    with psycopg.connect(db_url, autocommit=True) as holder:
+        holder.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
+        started = time.monotonic()
+        assert migrate(db_url, lock_wait="5s") == []
+        assert time.monotonic() - started < 2  # never waited for the held lock
+        holder.execute("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
+
+
+def test_a_waiting_file_and_a_held_lock_stop_the_start(db_url, scratch, lock_held, caplog):
+    caplog.set_level(logging.INFO, logger="uvicorn.error")
+    (scratch / "902_test_ok.sql").write_text("CREATE TABLE migrate_test_ok (id int);")
+    started = time.monotonic()
+    with pytest.raises(MigrationLockTimeout, match=f"pid {lock_held}"):
+        migrate(db_url, scratch, lock_wait="1s")
+    assert time.monotonic() - started < 5  # waited about lock_wait, not without end
+    assert "waiting for migration lock" in caplog.text
+    assert f"pid {lock_held}" in caplog.text  # the log says who holds it
+    with psycopg.connect(db_url) as conn:
+        recorded = conn.execute(
+            "SELECT count(*) FROM schema_migrations WHERE version = '902_test_ok'"
+        ).fetchone()[0]
+    assert recorded == 0
+
+
+def test_the_lock_freed_in_time_lets_the_file_apply(db_url, scratch):
+    (scratch / "903_test_ok.sql").write_text("CREATE TABLE migrate_test_ok (id int);")
+    with psycopg.connect(db_url, autocommit=True) as holder:
+        holder.execute("SELECT pg_advisory_lock(%s)", (LOCK_ID,))
+        unlock = ("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
+        timer = threading.Timer(0.5, holder.execute, unlock)
+        timer.start()
+        try:
+            assert migrate(db_url, scratch, lock_wait="5s") == ["903_test_ok"]
+        finally:
+            timer.join()
+
+
+def test_a_lock_timeout_stops_the_api_start(monkeypatch):
+    """Not skipped like an unreachable database: the API must not run on an old schema."""
+    def held(*args, **kwargs):
+        raise MigrationLockTimeout("held")
+
+    monkeypatch.setattr(app_migrate, "migrate", held)
+    with pytest.raises(MigrationLockTimeout):
+        prepare_database(Settings(database_url="postgresql://unused"))
 
 
 # --- Rules the schema enforces, whatever the API does ---------------------------------------
