@@ -259,8 +259,8 @@ def update_expense(expense_id: Id, body: ExpenseIn, access: AccessDep, conn: Con
 
 @router.delete("/expenses/{expense_id}", status_code=204)
 def delete_expense(expense_id: Id, access: AccessDep, conn: ConnDep):
-    lock_household(conn, access.household_id, shared=True)
     """Its shares go with it (ON DELETE CASCADE)."""
+    lock_household(conn, access.household_id, shared=True)
     row = fetch_one(conn, "SELECT created_by FROM expenses WHERE id = %s FOR UPDATE", (expense_id,))
     if row is None:
         raise expense_not_found()

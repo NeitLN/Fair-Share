@@ -426,10 +426,19 @@ def test_telling_twice_from_two_tabs_with_no_notice_on_screen_tells_once(make_cl
     assert len(notices(client, house["id"])) == 1
 
 
-def test_undoing_a_confirmation_gives_the_amount_back(client, house):
+def test_undoing_a_confirmation_gives_the_amount_back(client, house, db_url):
     tell(client, house, house["tien"])
     paid = accept(client, house, house["minh"]).json()
     assert client.delete(f"/api/settlements/{paid['id']}").status_code == 204
+    # Told by Minh, not by Tiến who deleted the repayment (review of #255)
+    with psycopg.connect(db_url) as conn:
+        told_by_payer = conn.execute(
+            "SELECT n.created_by = hu.user_id FROM payment_notices n"
+            " JOIN household_users hu ON hu.household_id = n.household_id"
+            "  AND hu.member_id = n.from_member_id WHERE n.household_id = %s",
+            (house["id"],),
+        ).fetchone()[0]
+    assert told_by_payer
     [back] = notices(client, house["id"])
     assert (back["from_member_id"], back["amount"], back["status"]) == (
         house["minh"], 100000, "sent"

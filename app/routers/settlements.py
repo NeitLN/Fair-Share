@@ -285,12 +285,14 @@ def delete_settlement(settlement_id: Id, access: AccessDep, conn: ConnDep):
         conn.execute(
             "INSERT INTO payment_notices"
             " (household_id, from_member_id, to_member_id, amount, created_by)"
-            " SELECT %s, %s, %s, %s, %s"
+            # Told by the payer, not by whoever deleted the repayment (their account, if any)
+            " SELECT %s, %s, %s, %s,"
+            "   (SELECT user_id FROM household_users WHERE household_id = %s AND member_id = %s)"
             " WHERE EXISTS (SELECT 1 FROM members WHERE household_id = %s AND id = %s)"
             "   AND EXISTS (SELECT 1 FROM members WHERE household_id = %s AND id = %s)"
             " ON CONFLICT (household_id, from_member_id, to_member_id) DO NOTHING",
             (row["household_id"], row["from_member_id"], row["to_member_id"],
-             row["notice_amount"], access.user_id,
+             row["notice_amount"], row["household_id"], row["from_member_id"],
              row["household_id"], row["from_member_id"], row["household_id"],
              row["to_member_id"]),
         )
