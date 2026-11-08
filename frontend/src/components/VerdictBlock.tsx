@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import type { Notice, Transfer } from '../api/types'
 import { closeFoldOnEscape } from '../lib/fold'
+import { formatVND } from '../lib/money'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
@@ -10,6 +11,7 @@ import { transferText, verdict, verdictPeople } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import { Stamp } from './Chip'
 import { Money } from './Money'
+import NoticeAmountStep from './NoticeAmountStep'
 import { useT } from '../i18n'
 
 interface VerdictBlockProps {
@@ -33,8 +35,11 @@ interface VerdictBlockProps {
   /** Refreshing failed: what is shown is the last known state, with a retry. */
   refreshError?: string | null
   onRetry?: () => void
-  /** `told`: the receiver's "Đã nhận" on a "Tôi đã chuyển" for exactly `transfer.amount`. */
-  onPaid: (transfer: Transfer, told?: boolean) => void
+  /**
+   * `told`: the receiver's "Đã nhận" on the "Tôi đã chuyển" notice of that version, for `transfer.amount`
+   * (all of it, or less with "Nhận số khác", specs/014).
+   */
+  onPaid: (transfer: Transfer, told?: { version: number }) => void
   onUndo: (paymentId: number) => void
   /** A focus move asked for by the last Đã trả or Hoàn tác, and how to say it is done. */
   focusIntent?: () => FocusIntent | null
@@ -472,7 +477,7 @@ interface ReceiverOnlyProps {
   /** The debtor's own suggested row: the status stays, the action is the one under the block. */
   actionless: boolean
   busy: boolean
-  onPaid: (transfer: Transfer, told?: boolean) => void
+  onPaid: (transfer: Transfer, told?: { version: number }) => void
   onNotify?: (transfer: Transfer) => void
   onCancelNotice?: (transfer: Transfer) => void
   onDecline?: (transfer: Transfer) => void
@@ -508,6 +513,9 @@ function ReceiverOnly({
   const told = notice?.status === 'sent' ? notice : undefined
   const declined = notice?.status === 'declined'
   const statusId = `${textId}-status`
+  // "Nhận số khác": the receiver records less than was told; the rest keeps waiting (specs/014)
+  const [partOpen, setPartOpen] = useState(false)
+  const partOpener = useRef<HTMLButtonElement>(null)
   const cancel = (
     <button
       type="button"
@@ -547,7 +555,7 @@ function ReceiverOnly({
             aria-describedby={told ? `${textId} ${statusId}` : textId}
             data-action="pay"
             disabled={card.state === 'paying' || busy || !known}
-            onClick={() => (asTold ? onPaid(asTold, true) : onPaid(transfer))}
+            onClick={() => (asTold && told ? onPaid(asTold, { version: told.version }) : onPaid(transfer))}
           >
             {card.state === 'paying' ? (
               t.verdict.paying
@@ -556,6 +564,20 @@ function ReceiverOnly({
               <span>{t.verdict.received(<Money amount={(asTold ?? transfer).amount} />)}</span>
             )}
           </button>
+          {asTold && (
+            <button
+              ref={partOpener}
+              type="button"
+              className="btn-ghost"
+              aria-describedby={`${textId} ${statusId}`}
+              aria-expanded={partOpen}
+              data-action="receive-other"
+              disabled={busy || card.state === 'paying'}
+              onClick={() => setPartOpen((open) => !open)}
+            >
+              {t.verdict.receiveOther}
+            </button>
+          )}
           {asTold && (
             <button
               type="button"
@@ -569,6 +591,25 @@ function ReceiverOnly({
             </button>
           )}
         </span>
+        {asTold && told && partOpen && (
+          <NoticeAmountStep
+            label={t.verdict.receivedLabel}
+            initial={asTold.amount}
+            max={asTold.amount}
+            maxMessage={t.verdict.overTold}
+            hint={t.verdict.atMost(formatVND(asTold.amount))}
+            submitLabel={t.verdict.recordThis}
+            busy={card.state === 'paying' || busy}
+            onSubmit={(amount) => {
+              setPartOpen(false)
+              onPaid({ ...asTold, amount }, { version: told.version })
+            }}
+            onCancel={() => {
+              setPartOpen(false)
+              partOpener.current?.focus()
+            }}
+          />
+        )}
       </>
     )
   }

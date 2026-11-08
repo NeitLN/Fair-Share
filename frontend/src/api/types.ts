@@ -202,10 +202,14 @@ export interface ExpenseInput {
 export interface Notice {
   from_member_id: number
   to_member_id: number
-  /** The suggested amount when it was sent; "Đã nhận" records this. */
+  /** Told and not yet recorded (specs/014): what "Đã nhận" records, all of it or part. */
   amount: number
   /** declined: the receiver answered "Chưa nhận được". */
   status: 'sent' | 'declined'
+  /** What the payer wrote with it, seen by the whole household. */
+  note?: string | null
+  /** Changes with every change: every action names the one its screen showed (409 notice_changed). */
+  version: number
   created_at: string
 }
 
@@ -222,6 +226,8 @@ export interface Settlement {
   created_at: string
   /** The account that recorded it (the person who received it); null before accounts. */
   created_by?: number | null
+  /** How much of a "Tôi đã chuyển" notice this repayment recorded (specs/014). */
+  notice_amount?: number | null
 }
 
 /** Body of POST /api/households/{id}/settlements. */
@@ -232,6 +238,8 @@ export interface SettlementInput {
   /** Plain date, "YYYY-MM-DD". */
   settled_at: string
   note?: string
+  /** The money the payer told about: taken out of that notice, the version the screen showed. */
+  notice?: { version: number }
 }
 
 /** One member's totals in đồng, plus their net position. */

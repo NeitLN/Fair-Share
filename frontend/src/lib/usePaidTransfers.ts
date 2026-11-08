@@ -115,10 +115,11 @@ export function usePaidTransfers(
 
   /**
    * Records `transfer`; returns the new card's payment id (null when this pair is already being recorded).
-   * `told`: the receiver's "Đã nhận" on a "Tôi đã chuyển" for exactly this amount, which records it and
-   * answers the notice in one go, once however many times it is pressed (docs/ACCOUNTS.md, S3).
+   * `told`: the receiver's "Đã nhận" on a "Tôi đã chuyển" notice of that version, for `transfer.amount`
+   * (all of it, or part with "Nhận số khác"), which records it and takes it out of the notice in one go,
+   * once however many times it is pressed (docs/ACCOUNTS.md, S3; specs/014).
    */
-  function pay(transfer: Transfer, told = false): number | null {
+  function pay(transfer: Transfer, told?: { version: number }): number | null {
     const pair = pairKey(transfer)
     if (recording.current.has(pair)) return null
     recording.current.add(pair)
@@ -144,10 +145,14 @@ export function usePaidTransfers(
     return id
   }
 
-  async function record(id: number, transfer: Transfer, pair: string, told: boolean) {
+  async function record(id: number, transfer: Transfer, pair: string, told?: { version: number }) {
     try {
       const settlement = told
-        ? await acceptNotice(householdId, transfer.from_member_id, transfer.amount, today())
+        ? await acceptNotice(householdId, transfer.from_member_id, {
+            version: told.version,
+            received: transfer.amount,
+            settledAt: today(),
+          })
         : await createSettlement(householdId, { ...transfer, settled_at: today() })
       if (deletedSettlements.current.has(settlement.id)) {
         // Deleted from Lịch sử trả before this answer arrived: nothing to stamp or undo
@@ -164,8 +169,9 @@ export function usePaidTransfers(
     } catch (failure) {
       change(id, null)
       if (alive.current) setError(errorMessage(failure))
-      // Taken back or told again since: what is on screen is old
-      if (failure instanceof ApiError && failure.code === 'notice_changed') void refresh()
+      // Refused (the notice changed since), or no answer at all (it may have been recorded): what is on
+      // screen may be old, so the notices and balances are read again before anything else is pressed
+      void refresh()
     } finally {
       recording.current.delete(pair)
     }
@@ -212,12 +218,10 @@ export function usePaidTransfers(
       .map((p) => pairKey(p.transfer)),
   )
   const outstanding = (balances?.suggested ?? []).filter((t) => !consumed.has(pairKey(t)))
-  // What the verdict sentence counts: a transfer still being recorded is still owed, so the block never
-  // says "Cả nhà sạch nợ" before the server has the payment (its card says "Đang ghi…" meanwhile)
-  const recorded = new Set(
-    payments.filter((p) => p.state !== 'paying' && fetched <= p.recordedAtFetch).map((p) => pairKey(p.transfer)),
-  )
-  const owed = (balances?.suggested ?? []).filter((t) => !recorded.has(pairKey(t)))
+  // What the verdict sentence counts: the suggestions as the server last gave them. A payment only moves
+  // it once balances asked for after it arrive, so the block never says "Cả nhà sạch nợ" for a pair paid
+  // in part, nor before the server has the payment (specs/014, FR-011)
+  const owed = balances?.suggested ?? []
 
   // Every card on screen: the open suggestions and each press, built from what was pressed
   const byKey = new Map<string, TransferCard>()

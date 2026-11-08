@@ -115,17 +115,25 @@ function Dashboard({ householdId }: { householdId: number }) {
   // A settlement changes the balances: refetch everything cached under this household
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
   const refreshNotices = () => queryClient.invalidateQueries({ queryKey: settlementKeys.notices(householdId) })
-  // Declining carries the told amount: one told again since is left alone (409 notice_changed)
+  // Every notice action names the version of the pair's notice as this screen shows it (none: null); a
+  // notice that changed since is left alone (409 notice_changed, specs/014)
   type NoticeAction = { kind: 'send' | 'cancel' | 'decline'; transfer: Transfer }
   const noticeKey = ['notice', householdId]
+  const shownVersion = (transfer: Transfer) =>
+    notices.data?.find(
+      (n) => n.from_member_id === transfer.from_member_id && n.to_member_id === transfer.to_member_id,
+    )?.version ?? null
   const notice = useMutation({
     mutationKey: noticeKey,
-    mutationFn: ({ kind, transfer }: NoticeAction): Promise<unknown> =>
-      kind === 'send'
-        ? sendNotice(householdId, transfer.to_member_id, transfer.amount)
-        : kind === 'cancel'
-          ? cancelNotice(householdId, transfer.to_member_id)
-          : declineNotice(householdId, transfer.from_member_id, transfer.amount),
+    mutationFn: ({ kind, transfer }: NoticeAction): Promise<unknown> => {
+      const version = shownVersion(transfer)
+      if (kind === 'send') return sendNotice(householdId, transfer.to_member_id, transfer.amount, version)
+      // Nothing on screen to take back or decline: the screen is old
+      if (version === null) return Promise.reject(new ApiError(409, 'notice_changed', t.verdict.noticeGone))
+      return kind === 'cancel'
+        ? cancelNotice(householdId, transfer.to_member_id, version)
+        : declineNotice(householdId, transfer.from_member_id, version)
+    },
     onSuccess: (_result, { kind, transfer }) => {
       if (kind === 'send') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
       if (kind === 'decline') toast({ text: t.verdict.declined(nameOf(transfer.from_member_id)) })
@@ -147,6 +155,10 @@ function Dashboard({ householdId }: { householdId: number }) {
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
     onSuccess: refresh,
+    // The notice it pays changed since (409): the form keeps what was typed, the page shows what is true
+    onError: (failure) => {
+      if (failure instanceof ApiError && failure.status === 409) void refresh()
+    },
   })
   const remove = useMutation({
     mutationFn: (settlement: Settlement) => deleteSettlement(settlement.id, householdId),
@@ -278,6 +290,7 @@ function Dashboard({ householdId }: { householdId: number }) {
             submitting={record.isPending}
             error={errorMessage(record.error)}
             receiver={me}
+            notices={notices.data}
           />
         </details>
       )}
@@ -289,6 +302,7 @@ function Dashboard({ householdId }: { householdId: number }) {
         onRetry={settlements.error ? () => settlements.refetch() : undefined}
         retrying={settlements.isFetching}
         onDelete={(settlement) => remove.mutate(settlement)}
+        notices={notices.data}
         deletingId={remove.isPending ? remove.variables?.id : null}
         canDelete={(settlement) =>
           household.data?.role === 'owner' || settlement.created_by === session?.user.id

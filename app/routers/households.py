@@ -101,8 +101,16 @@ def add_name(conn: Connection, household_id: int, name: str) -> int:
         raise member_name_taken() from None
 
 
-def lock_household(conn: Connection, household_id: int) -> None:
-    sql = "SELECT 1 FROM households WHERE id = %s FOR UPDATE"
+def lock_household(conn: Connection, household_id: int, shared: bool = False) -> None:
+    """Locks the household's row until the transaction ends.
+
+    shared=False (FOR UPDATE) for changes that must see the house still: membership, and telling
+    a transfer, which checks the amount against the balances (specs/014, research R2). shared=True
+    (FOR SHARE) for every other change of money (expenses, repayments, answering a notice): they
+    run side by side, but never while a telling is checking the balances, nor it while they run.
+    Taken first, before any other row, so two transactions never wait on each other in a circle."""
+    mode = "FOR SHARE" if shared else "FOR UPDATE"
+    sql = f"SELECT 1 FROM households WHERE id = %s {mode}"
     if fetch_one(conn, sql, (household_id,)) is None:
         raise household_not_found()
 
@@ -219,6 +227,9 @@ def delete_household(household_id: Id, access: AccessDep, conn: ConnDep):
     see the comment at the top of db/migrations/001_init.sql.
     """
     require_owner(access)
+    # The household row first, like every other change of money (lock_household): deleting the
+    # expenses before it could wait in a circle with an expense being edited at the same moment
+    lock_household(conn, household_id)
     conn.execute("DELETE FROM expenses WHERE household_id = %s", (household_id,))
     deleted = conn.execute("DELETE FROM households WHERE id = %s", (household_id,)).rowcount
     if not deleted:

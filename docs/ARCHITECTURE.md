@@ -264,8 +264,11 @@ settlement must be members of the **same household** (composite foreign keys on
 | `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
 | `GET/POST /api/households/{id}/expenses` | List (newest first by `spent_at`) / create | Body below; `422 split_mismatch`, `unknown_member`, `duplicate_member` |
 | `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | `PUT` replaces it, same body as create; `404 expense_not_found` |
-| `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?}`; `422 same_member`, `unknown_member` |
-| `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found` |
+| `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?, notice?: {version}}`: with `notice` it is the money the payer told about and is taken out of that notice (`notice_amount` in the answer); `422 same_member`, `unknown_member`; `409 notice_changed` |
+| `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found`. A repayment recorded from a notice gives its amount back as a waiting notice when the pair has none |
+| `GET/PUT /api/households/{id}/notices` | "Tôi đã chuyển": list / tell (rule S3) | Notices carry `note` and `version`; telling sends `{to_member_id, amount, note?, version}` (`version` null when the screen showed no notice); `409 notice_changed`, `409 suggestion_changed` |
+| `DELETE /api/households/{id}/notices/{to}?version=` | The payer takes a notice back | `204`; `409 notice_changed` |
+| `POST /api/households/{id}/notices/{from}/accept`, `/decline` | The receiver's "Đã nhận" (all, or `received` for less) / "Chưa nhận được" | Bodies `{version, received?, settled_at}` / `{version}`; `409 notice_changed`; `422 more_than_told` ([spec 014](../specs/014-partial-transfer-notices/spec.md)) |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
 | `GET /api/households/{id}/recurring` | The active recurring items, oldest first | Spec 007; making and recording go through the expense body below |
 | `POST /api/recurring/{id}/stop` | Stop a recurring item (its creator or the owner) | `204`; `403 forbidden`; `404 recurring_not_found` |

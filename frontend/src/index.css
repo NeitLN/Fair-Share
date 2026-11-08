@@ -1959,6 +1959,38 @@ button.ai:active:focus-visible {
   padding-right: 0;
 }
 
+/* "Nhận số khác" (specs/014): the amount field under the card's actions, in its column */
+.notice-step {
+  grid-column: 2;
+  display: grid;
+  gap: 4px;
+  max-width: 22rem;
+}
+
+.notice-step input {
+  min-height: 44px;
+}
+
+.notice-step-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+/* "Khoản này là": the money the payer told about, or another payment */
+.settlement-which {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settlement-which legend {
+  padding: 0;
+  font-weight: 700;
+}
+
 /* Each card's action (Xác nhận đã nhận, Tôi đã chuyển) is outlined (btn-secondary): repeated on every
    card, four filled purple buttons under the verdict competed with it (owner review 06/11) */
 

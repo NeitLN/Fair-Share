@@ -41,6 +41,16 @@ const expense = {
 }
 
 /** A fake API whose balances follow the settlements, like the real one. */
+// Notices change version with every change, from one counter, like the server's sequence (specs/014)
+let versions = 100
+const nextVersion = () => ++versions
+/** `amount` of `told` was recorded: what is left keeps waiting, with a new version. */
+function takeFrom(list: Notice[], told: Notice, amount: number): Notice[] {
+  return amount >= told.amount
+    ? list.filter((n) => n !== told)
+    : list.map((n) => (n === told ? { ...n, amount: n.amount - amount, version: nextVersion() } : n))
+}
+
 function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members, startNotices: Notice[] = []) {
   let settlements: Settlement[] = []
   // "Tôi đã chuyển" (docs/ACCOUNTS.md, S3): sent by `me`, answered by the receiver, like the real API
@@ -81,7 +91,11 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members, st
     },
     'GET /api/households/7/settlements': () => [200, settlements],
     'POST /api/households/7/settlements': (body) => {
-      const input = body as SettlementInput
+      const { notice: paysNotice, ...input } = body as SettlementInput
+      // As told money it is taken out of that notice (specs/014); another payment leaves notices alone
+      const told = paysNotice && notices.find((n) => n.version === paysNotice.version)
+      if (paysNotice && !told) return [409, { error: { code: 'notice_changed', message: 'changed' } }]
+      const taken = told ? Math.min(input.amount, told.amount) : null
       const settlement: Settlement = {
         id: 30 + settlements.length,
         household_id: 7,
@@ -89,16 +103,22 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members, st
         created_at: '',
         // Recorded by the signed-in account (testUser), so it may delete it
         created_by: 9,
+        notice_amount: taken,
         ...input,
       }
       settlements = [settlement, ...settlements]
-      notices = notices.filter((n) => !pair(n, input.from_member_id, input.to_member_id))
+      if (told && taken !== null) notices = takeFrom(notices, told, taken)
       return [201, settlement]
     },
     'GET /api/households/7/notices': () => [200, notices],
+    // Every action names the version of the notice its screen showed (specs/014)
     'PUT /api/households/7/notices': (body) => {
-      const { to_member_id, amount } = body as { to_member_id: number; amount: number }
-      const notice: Notice = { from_member_id: me as number, to_member_id, amount, status: 'sent', created_at: '' }
+      const { to_member_id, amount, version } = body as { to_member_id: number; amount: number; version: number | null }
+      const current = notices.find((n) => pair(n, me as number, to_member_id))
+      if ((current?.version ?? null) !== version) return [409, { error: { code: 'notice_changed', message: 'changed' } }]
+      const notice: Notice = {
+        from_member_id: me as number, to_member_id, amount, status: 'sent', created_at: '', version: nextVersion(),
+      }
       notices = [...notices.filter((n) => !pair(n, me as number, to_member_id)), notice]
       return [200, notice]
     },
@@ -106,11 +126,11 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members, st
       notices = notices.filter((n) => !pair(n, me as number, 1))
       return [204]
     },
-    // The receiver's answers name the amount they saw (409 notice_changed for another one)
     'POST /api/households/7/notices/2/accept': (body) => {
-      const { amount, settled_at } = body as { amount: number; settled_at: string }
-      const told = notices.find((n) => pair(n, 2, me as number) && n.status === 'sent' && n.amount === amount)
+      const { version, received, settled_at } = body as { version: number; received: number; settled_at: string }
+      const told = notices.find((n) => pair(n, 2, me as number) && n.status === 'sent' && n.version === version)
       if (!told) return [409, { error: { code: 'notice_changed', message: 'changed' } }]
+      const amount = received ?? told.amount
       const settlement: Settlement = {
         id: 30 + settlements.length,
         household_id: 7,
@@ -121,13 +141,17 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members, st
         note: null,
         created_at: '',
         created_by: 9,
+        notice_amount: amount,
       }
       settlements = [settlement, ...settlements]
-      notices = notices.filter((n) => n !== told)
+      notices = takeFrom(notices, told, amount)
       return [201, settlement]
     },
-    'POST /api/households/7/notices/2/decline': () => {
-      notices = notices.map((n) => (pair(n, 2, me as number) ? { ...n, status: 'declined' as const } : n))
+    'POST /api/households/7/notices/2/decline': (body) => {
+      const { version } = body as { version: number }
+      const told = notices.find((n) => pair(n, 2, me as number) && n.status === 'sent' && n.version === version)
+      if (!told) return [409, { error: { code: 'notice_changed', message: 'changed' } }]
+      notices = notices.map((n) => (n === told ? { ...n, status: 'declined' as const, version: nextVersion() } : n))
       return [200, notices[0]]
     },
     'DELETE /api/settlements/30': () => {
@@ -284,7 +308,7 @@ describe('why this number', () => {
   })
 
   test('a "Tôi đã chuyển" waiting for you is said apart and changes no number', async () => {
-    const startNotices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }]
+    const startNotices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 1 }]
     api({}, members, startNotices)
     const user = userEvent.setup()
     renderApp('/households/7')
@@ -341,7 +365,7 @@ test('someone who owes cannot mark their own debt as paid; they tell the receive
   // The amount told sits under the verdict's own amount, which does not change until Tiến confirms
   expect(await screen.findByText(/^Đã báo chuyển/)).toHaveTextContent('Đã báo chuyển 100.000đ, chờ Tiến xác nhận.')
   const told = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
-  expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000 })
+  expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000, version: null })
   // Telling changes no balance: the debt is still there until Tiến confirms
   expect(screen.getByRole('heading', { name: 'Bạn cần trả Tiến' })).toBeInTheDocument()
 
@@ -367,7 +391,7 @@ test(`the receiver's button says what it does and how much: "Xác nhận đã nh
 
 test('the receiver sees who said they sent it; the button names and records the amount they told', async () => {
   const fetchFn = api({}, members, [
-    { from_member_id: 2, to_member_id: 1, amount: 90_000, status: 'sent', created_at: '' },
+    { from_member_id: 2, to_member_id: 1, amount: 90_000, status: 'sent', created_at: '', version: 1 },
   ])
   const user = userEvent.setup()
   renderApp('/households/7')
@@ -383,12 +407,80 @@ test('the receiver sees who said they sent it; the button names and records the 
   await screen.findByText(/^Đã ghi:/)
   // Answered as that notice, once: not as a repayment typed in
   const accepted = fetchFn.mock.calls.find(([url]) => url === '/api/households/7/notices/2/accept')
-  expect(JSON.parse(accepted?.[1]?.body as string)).toEqual({ amount: 90_000, settled_at: today() })
+  expect(JSON.parse(accepted?.[1]?.body as string)).toEqual({ version: 1, received: 90_000, settled_at: today() })
   expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/households/7/settlements' && init?.method === 'POST')).toBe(false)
 })
 
+// specs/014-partial-transfer-notices, PR-1
+describe('the receiver got only part of it', () => {
+  test('"Nhận số khác" records exactly that amount, with the notice version; the rest keeps waiting', async () => {
+    const fetchFn = api({}, members, [
+      { from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 7 },
+    ])
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    const card = within(await transfers()).getAllByRole('listitem')[0]
+    await within(card).findByText(/Minh báo đã chuyển/)
+    const other = within(card).getByRole('button', { name: 'Nhận số khác' })
+    await user.click(other)
+    const field = within(card).getByLabelText('Số tiền đã nhận')
+    expect(field).toHaveFocus()
+    expect(field).toHaveValue('100000')
+    // More than told is refused under the field, nothing is sent
+    await user.clear(field)
+    await user.type(field, '120k{Enter}')
+    expect(within(card).getByText('Không ghi được quá số đã báo (100.000đ).')).toBeInTheDocument()
+    await user.clear(field)
+    await user.type(field, '60k')
+    expect(within(card).getByText('= 60.000đ')).toBeInTheDocument()
+    await user.click(within(card).getByRole('button', { name: 'Ghi số này' }))
+
+    await screen.findByText(/^Đã ghi:/)
+    const accepted = fetchFn.mock.calls.find(([url]) => url === '/api/households/7/notices/2/accept')
+    expect(JSON.parse(accepted?.[1]?.body as string)).toEqual({ version: 7, received: 60_000, settled_at: today() })
+    // Minh still owes 40.000đ: the verdict never said the house was settled
+    expect(screen.queryByText(/sạch nợ/)).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getAllByText(/Minh báo đã chuyển/).some((e) => /40\.000đ/.test(e.textContent ?? ''))).toBe(true),
+    )
+  })
+
+  test('Escape closes "Nhận số khác" and gives the focus back to its button', async () => {
+    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 7 }])
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const card = within(await transfers()).getAllByRole('listitem')[0]
+    const other = await within(card).findByRole('button', { name: 'Nhận số khác' })
+    await user.click(other)
+    await user.keyboard('{Escape}')
+    expect(within(card).queryByLabelText('Số tiền đã nhận')).not.toBeInTheDocument()
+    expect(other).toHaveFocus()
+  })
+
+  test('a repayment typed in while Minh\'s notice waits asks whether it is that money', async () => {
+    const fetchFn = api({}, members, [
+      { from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 7 },
+    ])
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const history = screen.getByRole('region', { name: 'Lịch sử trả tiền' })
+    await user.click(await within(history).findByText('Ghi khoản trả khác'))
+    await user.selectOptions(within(history).getByLabelText('Người trả'), 'Minh')
+    const told = await screen.findByRole('radio', { name: 'Tiền Minh đã báo (100.000đ)' })
+    expect(told).toBeChecked()
+    await user.type(within(history).getByLabelText('Số tiền (đồng)'), '30000')
+    await user.click(within(history).getByRole('button', { name: 'Lưu khoản trả' }))
+    await waitFor(() =>
+      expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/households/7/settlements' && init?.method === 'POST')).toBe(true),
+    )
+    const sent = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/settlements' && init?.method === 'POST')
+    expect(JSON.parse(sent?.[1]?.body as string)).toMatchObject({ amount: 30_000, notice: { version: 7 } })
+  })
+})
+
 test('"Chưa nhận được" goes back to the payer, who can tell again', async () => {
-  const startNotices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }]
+  const startNotices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 1 }]
   api({}, members, startNotices)
   const user = userEvent.setup()
   renderApp('/households/7')
@@ -401,7 +493,7 @@ test('"Chưa nhận được" goes back to the payer, who can tell again', async
 
 test('the payer sees "chưa nhận được" on their card', async () => {
   iAm(2)
-  api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'declined', created_at: '' }])
+  api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'declined', created_at: '', version: 1 }])
   renderApp('/households/7')
 
   const card = within(await transfers()).getAllByRole('listitem')[0]
@@ -414,7 +506,7 @@ test('the payer sees "chưa nhận được" on their card', async () => {
 
 test('a notice whose transfer is not suggested any more keeps its own card, for both of them', async () => {
   // An told Minh, then the balances changed: An → Minh is not a suggestion, but money may have moved
-  const leftOver: Notice[] = [{ from_member_id: 3, to_member_id: 2, amount: 50_000, status: 'sent', created_at: '' }]
+  const leftOver: Notice[] = [{ from_member_id: 3, to_member_id: 2, amount: 50_000, status: 'sent', created_at: '', version: 1 }]
   iAm(2)
   api({}, members, leftOver)
   const { unmount } = renderApp('/households/7')
@@ -958,7 +1050,7 @@ test('undoing from the card takes its "Đã ghi … Hoàn tác" toast away', asy
 })
 
 test('a "Tôi đã chuyển" waiting for you shows as a count on Tổng quan', async () => {
-  api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }])
+  api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 1 }])
   renderApp('/households/7')
 
   expect(
@@ -1151,12 +1243,12 @@ describe('the debtor’s next step', () => {
     expect(screen.queryByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Huỷ thông báo' })).toBeInTheDocument()
     const told = fetchFn.mock.calls.find(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
-    expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000 })
+    expect(JSON.parse(told?.[1]?.body as string)).toEqual({ to_member_id: 1, amount: 100_000, version: null })
   })
 
   test('a notice already sent shows the state and the way to take it back, with no button', async () => {
     iAm(2)
-    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '' }])
+    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 1 }])
     renderApp('/households/7')
 
     await waitFor(() =>
@@ -1170,7 +1262,7 @@ describe('the debtor’s next step', () => {
 
   test('a declined notice says so and offers the button again', async () => {
     iAm(2)
-    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'declined', created_at: '' }])
+    api({}, members, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'declined', created_at: '', version: 1 }])
     renderApp('/households/7')
 
     expect(await screen.findByText('Tiến báo chưa nhận được.')).toBeInTheDocument()
