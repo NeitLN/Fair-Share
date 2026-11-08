@@ -46,6 +46,8 @@ test('a refused save is seen on a phone, and a large amount asks first', async (
     await expect(summary).toBeHidden()
     await page.getByRole('button', { name: 'Lưu khoản chi' }).click()
     await expect(page.locator('.expense-days').getByText('Lẩu')).toBeVisible()
+    // On the live site the list can show the row a moment before the form empties itself
+    await expect(page.getByLabel('Nội dung')).toHaveValue('')
 
     // 60.000.000đ asks first, Sửa lại focused; Lưu thật saves it
     await page.getByLabel('Nội dung').fill('Máy lạnh')
