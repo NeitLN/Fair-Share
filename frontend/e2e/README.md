@@ -20,7 +20,7 @@ every merge. So each run signs up four shared accounts once, before any spec (`g
 Tiến, Minh, Duy Anh, An, kept in the git-ignored `.auth/`), and specs take them with `shared(name)`.
 Each test still builds its own household through the API and deletes it at the end, so tests running
 side by side never touch the same household. A test that changes an account (its name, password,
-status, gender or photo) or signs up in the page makes its own with `signUp()`; never change a shared
-one. Tests do not sign in to get a session: the one that signing up returns is put in the page
-(`signInPage()`). Measured on the local stack on 08/11: a run uses 12 sign-ups (it used 27 before)
+status, gender or photo), signs up in the page, or needs an account with no house yet (english.spec's
+first visit in Vietnamese) makes its own with `signUp()`; never change a shared one. Tests do not sign in to get a session: the one that signing up returns is put in the page
+(`signInPage()`). Measured on the local stack on 08/11: a run uses 13 sign-ups (it used 27 before)
 and 2 sign-ins (the password test checks the old and new passwords), so two runs in an hour still fit.
