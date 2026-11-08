@@ -87,14 +87,25 @@ export function reminderMessage(
   suggested: Transfer[],
   nameOf: NameOf,
   link: string,
-  /** The pairs ("from-to") already told "Tôi đã chuyển": their line says it waits for the receiver. */
-  told: ReadonlySet<string> = new Set(),
+  /**
+   * The waiting "Tôi đã chuyển" notices: a suggested line says how much was told and that it waits for the
+   * receiver; a notice whose pair is not suggested any more gets a line of its own (specs/014).
+   */
+  told: readonly Transfer[] = [],
 ): string {
   const t = messages().verdict
-  const lines = suggested.map(
-    (p) =>
+  const pair = (p: Transfer) => `${p.from_member_id}-${p.to_member_id}`
+  const toldBy = new Map(told.map((n) => [pair(n), n.amount]))
+  const lines = suggested.map((p) => {
+    const amount = toldBy.get(pair(p))
+    return (
       t.reminderLine(nameOf(p.from_member_id), nameOf(p.to_member_id), formatVND(p.amount)) +
-      (told.has(`${p.from_member_id}-${p.to_member_id}`) ? t.reminderTold(nameOf(p.to_member_id)) : ''),
-  )
-  return [t.reminderHead(householdName, month), ...lines, t.reminderLink(link)].join('\n')
+      (amount !== undefined ? t.reminderTold(nameOf(p.to_member_id), formatVND(amount)) : '')
+    )
+  })
+  const onList = new Set(suggested.map(pair))
+  const others = told
+    .filter((n) => !onList.has(pair(n)))
+    .map((n) => t.reminderToldOnly(nameOf(n.from_member_id), nameOf(n.to_member_id), formatVND(n.amount)))
+  return [t.reminderHead(householdName, month), ...lines, ...others, t.reminderLink(link)].join('\n')
 }

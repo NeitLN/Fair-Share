@@ -1820,6 +1820,66 @@ button.ai:active:focus-visible {
   }
 }
 
+/* specs/014 PR-2: "Chuyển số khác" / "Báo thêm" and "Huỷ thông báo" side by side, wrapping on a phone */
+.debtor-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+/* The told note, in quotes under its line; on a card it sits under the status */
+.notice-note {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.debtor-action .notice-note {
+  color: var(--on-block);
+  font-size: 14px;
+}
+
+.transfer-status .notice-note {
+  display: block;
+}
+
+/* The steps open on the taro: labels and the "= …đ" echo in its text colour, the fields stay white */
+.debtor-action .notice-step {
+  grid-column: auto;
+  color: var(--on-block);
+}
+
+.debtor-action .notice-step label {
+  font-weight: 700;
+}
+
+.debtor-action .notice-step .amount-preview,
+.debtor-action .notice-step .hint {
+  color: var(--on-block);
+  opacity: 1;
+}
+
+.debtor-action .notice-step .field-problem {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.notice-sum {
+  font-weight: 700;
+}
+
+/* Why one transfer to one person (US4): once, under the actions */
+.debtor-hint {
+  color: var(--on-block);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.debtor-hint .btn-ghost {
+  color: var(--on-block);
+  text-decoration: underline;
+}
+
 /* Below 480 px the stickers sit on their own row above the sentence, so the sentence keeps the full
    width, and the amount may wrap: the currency sign stays with the last digits (spec 012, US1;
    DESIGN.md §6.2) */

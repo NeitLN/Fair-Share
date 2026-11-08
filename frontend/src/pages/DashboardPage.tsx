@@ -15,6 +15,7 @@ import {
   listNotices,
   listSettlements,
   sendNotice,
+  addToNotice,
   settlementKeys,
 } from '../api/settlements'
 import type { Settlement, SettlementInput, Transfer } from '../api/types'
@@ -30,6 +31,7 @@ import SettlementForm from '../components/SettlementForm'
 import SettlementList from '../components/SettlementList'
 import Skeleton from '../components/Skeleton'
 import VerdictBlock from '../components/VerdictBlock'
+import type { NoticePart } from '../components/VerdictBlock'
 import InviteCard from '../components/InviteCard'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
@@ -117,7 +119,9 @@ function Dashboard({ householdId }: { householdId: number }) {
   const refreshNotices = () => queryClient.invalidateQueries({ queryKey: settlementKeys.notices(householdId) })
   // Every notice action names the version of the pair's notice as this screen shows it (none: null); a
   // notice that changed since is left alone (409 notice_changed, specs/014)
-  type NoticeAction = { kind: 'send' | 'cancel' | 'decline'; transfer: Transfer }
+  // `part`: an amount from a step ("Chuyển số khác", "Báo thêm"), with its note; a blank note is sent as
+  // none when telling, and left out (the old note stays) when adding
+  type NoticeAction = { kind: 'send' | 'add' | 'cancel' | 'decline'; transfer: Transfer; part?: NoticePart }
   const noticeKey = ['notice', householdId]
   const shownVersion = (transfer: Transfer) =>
     notices.data?.find(
@@ -125,17 +129,20 @@ function Dashboard({ householdId }: { householdId: number }) {
     )?.version ?? null
   const notice = useMutation({
     mutationKey: noticeKey,
-    mutationFn: ({ kind, transfer }: NoticeAction): Promise<unknown> => {
+    mutationFn: ({ kind, transfer, part }: NoticeAction): Promise<unknown> => {
       const version = shownVersion(transfer)
-      if (kind === 'send') return sendNotice(householdId, transfer.to_member_id, transfer.amount, version)
+      const note = part?.note?.trim() ? part.note : undefined
+      if (kind === 'send')
+        return sendNotice(householdId, transfer.to_member_id, part?.amount ?? transfer.amount, version, note)
       // Nothing on screen to take back or decline: the screen is old
       if (version === null) return Promise.reject(new ApiError(409, 'notice_changed', t.verdict.noticeGone))
+      if (kind === 'add') return addToNotice(householdId, transfer.to_member_id, { amount: part?.amount ?? 0, version, note })
       return kind === 'cancel'
         ? cancelNotice(householdId, transfer.to_member_id, version)
         : declineNotice(householdId, transfer.from_member_id, version)
     },
     onSuccess: (_result, { kind, transfer }) => {
-      if (kind === 'send') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
+      if (kind === 'send' || kind === 'add') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
       if (kind === 'decline') toast({ text: t.verdict.declined(nameOf(transfer.from_member_id)) })
       return refreshNotices()
     },
@@ -152,6 +159,12 @@ function Dashboard({ householdId }: { householdId: number }) {
       return `${transfer.from_member_id}-${transfer.to_member_id}`
     },
   })
+  // From a step: the refusal is said there, with what was typed (null once told)
+  const tellPart = (kind: 'send' | 'add', transfer: Transfer, part: NoticePart) =>
+    notice.mutateAsync({ kind, transfer, part }).then(
+      () => null,
+      (failure: unknown) => errorMessage(failure) ?? t.common.tryAgain,
+    )
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
     onSuccess: refresh,
@@ -269,11 +282,7 @@ function Dashboard({ householdId }: { householdId: number }) {
     nameOf,
     // The household's page: everyone in the group chat is a member and opens it signed in
     `${window.location.origin}/households/${householdId}`,
-    new Set(
-      (notices.data ?? [])
-        .filter((n) => n.status === 'sent')
-        .map((n) => `${n.from_member_id}-${n.to_member_id}`),
-    ),
+    (notices.data ?? []).filter((n) => n.status === 'sent'),
   )
 
   // Lịch sử trả: under the balances on a phone, under the verdict on a computer (DESIGN.md §6.6)
@@ -352,14 +361,16 @@ function Dashboard({ householdId }: { householdId: number }) {
             onUndo={paid.undo}
             focusIntent={paid.focusIntent}
             onFocusDone={paid.clearFocusIntent}
-            error={paid.error ?? errorMessage(notice.error)}
+            // A refusal from a step is said in the step
+            error={paid.error ?? (notice.variables?.part ? null : errorMessage(notice.error))}
             reminder={reminder}
             onCopied={() => toast({ text: t.dashboard.reminderCopied })}
             onlyReceiver
             notices={notices.data}
             noticesError={notices.data ? null : errorMessage(notices.error)}
             onRetryNotices={() => notices.refetch()}
-            onNotify={(transfer) => notice.mutate({ kind: 'send', transfer })}
+            onNotify={(transfer, part) => (part ? tellPart('send', transfer, part) : notice.mutate({ kind: 'send', transfer }))}
+            onAddToNotice={(transfer, part) => tellPart('add', transfer, part)}
             onCancelNotice={(transfer) => notice.mutate({ kind: 'cancel', transfer })}
             onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
             noticeBusy={noticeBusy}

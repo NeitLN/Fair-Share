@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import type { Notice, Transfer } from '../api/types'
 import { closeFoldOnEscape } from '../lib/fold'
 import { formatVND } from '../lib/money'
+import { MAX_AMOUNT } from '../lib/split'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
@@ -63,16 +64,25 @@ interface VerdictBlockProps {
   noticesError?: string | null
   onRetryNotices?: () => void
   /**
-   * The person who owes tells the receiver; takes it back; the receiver says it has not arrived (the
-   * transfer then carries the told amount).
+   * The person who owes tells the receiver (the whole suggestion, or `part`: "Chuyển số khác"); takes it
+   * back; the receiver says it has not arrived (the transfer then carries the told amount). A call with
+   * `part` resolves to the server's refusal, said in the step, or null once told.
    */
-  onNotify?: (transfer: Transfer) => void
+  onNotify?: (transfer: Transfer, part?: NoticePart) => Promise<string | null> | void
+  /** "Báo thêm": `part` more on the waiting notice; resolves like onNotify with a part. */
+  onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null>
   onCancelNotice?: (transfer: Transfer) => void
   onDecline?: (transfer: Transfer) => void
   /** The pairs ("from-to") whose notice is being sent, taken back or declined. */
   noticeBusy?: string[]
   /** "Vì sao ra số này?" under the amount: your own balance explained (specs/002-balance-explanation). */
   explanation?: ReactNode
+}
+
+/** An amount told from a step, with its note ("" or left out: none). */
+export interface NoticePart {
+  amount: number
+  note?: string
 }
 
 /** Where focus goes once a notice press is answered and the pressed button has gone. */
@@ -109,6 +119,7 @@ function VerdictBlock({
   noticesError = null,
   onRetryNotices,
   onNotify,
+  onAddToNotice,
   onCancelNotice,
   onDecline,
   noticeBusy = [],
@@ -122,6 +133,7 @@ function VerdictBlock({
   const debtorActions = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const noticeFocus = useRef<NoticeFocus | null>(null)
+  const explainFold = useRef<HTMLDetailsElement>(null)
   const lookOf = (memberId: number) => looks.get(memberId) ?? REMOVED_MEMBER
   const nameOf = (memberId: number) => lookOf(memberId).short
 
@@ -177,12 +189,25 @@ function VerdictBlock({
       }
     }
   })
-  const pressed = (pair: string, then: NoticeFocus['then'], act?: (transfer: Transfer) => void) =>
+  const pressed = <A extends unknown[], R>(
+    pair: string,
+    then: NoticeFocus['then'],
+    act?: (transfer: Transfer, ...rest: A) => R,
+  ) =>
     act &&
-    ((transfer: Transfer) => {
+    ((transfer: Transfer, ...rest: A) => {
       noticeFocus.current = { pair, then }
-      act(transfer)
+      return act(transfer, ...rest)
     })
+
+  // "Vì sao ra số này?" from the line under the debtor's action: the same fold, opened and focused
+  function openExplanation() {
+    const fold = explainFold.current
+    if (!fold) return
+    fold.open = true
+    fold.querySelector('summary')?.focus()
+    fold.scrollIntoView?.({ block: 'nearest' })
+  }
 
   async function copy() {
     try {
@@ -264,7 +289,7 @@ function VerdictBlock({
           </p>
         )}
         {explanation && (
-          <details className="explain-fold" onKeyDown={closeFoldOnEscape}>
+          <details ref={explainFold} className="explain-fold" onKeyDown={closeFoldOnEscape}>
             <summary>{t.explain.open}</summary>
             {explanation}
           </details>
@@ -282,10 +307,20 @@ function VerdictBlock({
                   known={notices !== undefined}
                   busy={noticeBusy.includes(pair)}
                   onNotify={pressed(pair, 'cancel-notice', onNotify)}
+                  onAddToNotice={pressed(pair, 'cancel-notice', onAddToNotice)}
                   onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
                 />
               )
             })}
+            {/* Why one transfer to one person (specs/014 US4): said once, under every action */}
+            <p className="debtor-hint">
+              {t.verdict.combinedHint}{' '}
+              {explanation && (
+                <button type="button" className="btn-ghost" onClick={openExplanation}>
+                  {t.explain.open}
+                </button>
+              )}
+            </p>
           </div>
         )}
         {refreshError && (
@@ -415,49 +450,155 @@ interface DebtorActionProps {
   /** The notices have loaded: until then nothing that depends on them can be pressed. */
   known: boolean
   busy: boolean
-  onNotify?: (transfer: Transfer) => void
+  onNotify?: (transfer: Transfer, part?: NoticePart) => Promise<string | null> | void
+  onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null>
   onCancelNotice?: (transfer: Transfer) => void
 }
 
 /**
- * The next step for someone who owes money (DESIGN.md §6.2, spec 012 US2): one line under the block,
- * per transfer they must make. No notice: the primary "Tôi đã chuyển … cho …". Sent: the state and the
- * way to take it back. Declined: what the receiver said, and the button again.
+ * The next step for someone who owes money (DESIGN.md §6.2, spec 012 US2, specs/014): one line under the
+ * block, per transfer they must make. No notice: the primary "Tôi đã chuyển … cho …" for the whole amount
+ * in one press, and "Chuyển số khác" for another amount with a note. Told: how it compares with what is
+ * owed now ("còn thiếu" with "Báo thêm", or "nhiều hơn"), and the way to take it back. Declined: what the
+ * receiver said, and the buttons again.
  */
-function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onCancelNotice }: DebtorActionProps) {
+function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddToNotice, onCancelNotice }: DebtorActionProps) {
   const t = useT()
   const to = nameOf(transfer.to_member_id)
-  const sent = notice?.status === 'sent'
-  const declined = notice?.status === 'declined'
-  const amount = sent ? notice.amount : transfer.amount
+  const current = transfer.amount
+  const sent = notice?.status === 'sent' ? notice : undefined
+  const declined = notice?.status === 'declined' ? notice : undefined
+  // One step open at a time: "Chuyển số khác" (nothing waiting) or "Báo thêm" (told less than owed)
+  const [step, setStep] = useState<'other' | 'more' | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const opener = useRef<HTMLButtonElement>(null)
+  // More than one notice can hold: the button cannot tell it all at once
+  const tooLarge = current > MAX_AMOUNT
+  const ceiling = Math.min(current, MAX_AMOUNT)
+
+  const toggle = (which: 'other' | 'more') => {
+    setProblem(null)
+    setStep((open) => (open === which ? null : which))
+  }
+  const close = () => {
+    setStep(null)
+    setProblem(null)
+    opener.current?.focus()
+  }
+  // A refusal stays in the step with what was typed and the page's new numbers; success closes it
+  async function told(answer: Promise<string | null> | void) {
+    const refused = (await answer) ?? null
+    setProblem(refused)
+    if (!refused) setStep(null)
+  }
+  const cancel = (
+    <button
+      type="button"
+      className="btn-ghost"
+      data-action="cancel-notice"
+      disabled={busy}
+      onClick={() => onCancelNotice?.(transfer)}
+    >
+      {t.verdict.cancelNotice}
+    </button>
+  )
+  const note = (n: Notice | undefined) => n?.note && <p className="notice-note">“{n.note}”</p>
+
+  if (sent) {
+    const rest = current - sent.amount
+    return (
+      <div className="debtor-action" data-pair={pairOf(transfer)}>
+        <p>
+          {rest > 0
+            ? t.verdict.toldShort(<Money amount={sent.amount} />, <Money amount={rest} />)
+            : rest < 0
+              ? t.verdict.toldMore(<Money amount={sent.amount} />, <Money amount={current} />)
+              : t.verdict.debtorSent(<Money amount={sent.amount} />, to)}
+        </p>
+        {note(sent)}
+        <span className="debtor-buttons">
+          {rest > 0 && sent.amount < MAX_AMOUNT && (
+            <button
+              ref={opener}
+              type="button"
+              className="btn-ghost"
+              data-action="add-more"
+              aria-expanded={step === 'more'}
+              disabled={busy}
+              onClick={() => toggle('more')}
+            >
+              {t.verdict.addMore}
+            </button>
+          )}
+          {cancel}
+        </span>
+        {step === 'more' && rest > 0 && (
+          <NoticeAmountStep
+            label={t.verdict.addLabel}
+            initial={Math.min(rest, MAX_AMOUNT - sent.amount)}
+            max={Math.min(rest, MAX_AMOUNT - sent.amount)}
+            maxMessage={() => t.verdict.overOwed(formatVND(current))}
+            hint={t.verdict.upTo(formatVND(current))}
+            sumLine={(more) => t.verdict.sumLine(formatVND(sent.amount), formatVND(more), formatVND(sent.amount + more))}
+            withNote
+            submitLabel={t.verdict.send}
+            busy={busy}
+            serverProblem={problem}
+            onSubmit={(amount, typed) => void told(onAddToNotice?.(transfer, { amount, note: typed }))}
+            onCancel={close}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="debtor-action" data-pair={pairOf(transfer)}>
-      {sent ? (
-        <>
-          <p>{t.verdict.debtorSent(<Money amount={amount} />, to)}</p>
-          <button
-            type="button"
-            className="btn-ghost"
-            data-action="cancel-notice"
-            disabled={busy}
-            onClick={() => onCancelNotice?.(transfer)}
-          >
-            {t.verdict.cancelNotice}
-          </button>
-        </>
-      ) : (
-        <>
-          {declined && <p>{t.verdict.debtorDeclined(to)}</p>}
-          <button
-            type="button"
-            className="btn-primary"
-            data-action="notify"
-            disabled={busy || !known}
-            onClick={() => onNotify?.(transfer)}
-          >
-            {busy ? t.verdict.notifying : <span>{t.verdict.debtorSend(<Money amount={amount} />, to)}</span>}
-          </button>
-        </>
+      {declined && <p>{t.verdict.debtorDeclined(to, <Money amount={declined.amount} />)}</p>}
+      {note(declined)}
+      <button
+        type="button"
+        className="btn-primary"
+        data-action="notify"
+        disabled={busy || !known}
+        onClick={() => (tooLarge ? toggle('other') : onNotify?.(transfer))}
+      >
+        {busy ? (
+          t.verdict.notifying
+        ) : tooLarge ? (
+          t.verdict.amountTooLarge
+        ) : (
+          <span>{t.verdict.debtorSend(<Money amount={current} />, to)}</span>
+        )}
+      </button>
+      <span className="debtor-buttons">
+        <button
+          ref={opener}
+          type="button"
+          className="btn-ghost"
+          data-action="tell-other"
+          aria-expanded={step === 'other'}
+          disabled={busy || !known}
+          onClick={() => toggle('other')}
+        >
+          {t.verdict.tellOther}
+        </button>
+        {declined && cancel}
+      </span>
+      {step === 'other' && (
+        <NoticeAmountStep
+          label={t.verdict.tellLabel}
+          initial={ceiling}
+          max={ceiling}
+          maxMessage={() => t.verdict.overOwed(formatVND(current))}
+          hint={t.verdict.upTo(formatVND(current))}
+          withNote
+          submitLabel={t.verdict.send}
+          busy={busy}
+          serverProblem={problem}
+          onSubmit={(amount, typed) => void told(onNotify?.(transfer, { amount, note: typed }))}
+          onCancel={close}
+        />
       )}
     </div>
   )
@@ -536,9 +677,12 @@ function ReceiverOnly({
         {asTold ? (
           <span className="transfer-status">
             <small id={statusId}>
-              {t.verdict.toldMe(from)} <Money amount={asTold.amount} />.{' '}
-              {outdated ? t.verdict.outdated : asTold.amount !== transfer.amount && t.verdict.amountDiffers}
+              {t.verdict.toldMe(from)} <Money amount={asTold.amount} />
+              {outdated
+                ? t.verdict.receiverNotSuggested
+                : asTold.amount !== transfer.amount && t.verdict.receiverCurrent(from, <Money amount={transfer.amount} />)}
             </small>
+            {told.note && <small className="notice-note">“{told.note}”</small>}
           </span>
         ) : (
           declined && (
@@ -639,9 +783,9 @@ function ReceiverOnly({
         <>
           <span className="transfer-status">
             <small>
-              {t.verdict.toldWaiting(to)}
-              {outdated && <> {t.verdict.outdated}</>}
+              {outdated ? t.verdict.toldNotSuggested(<Money amount={told.amount} />, to) : t.verdict.toldWaiting(to)}
             </small>
+            {told.note && <small className="notice-note">“{told.note}”</small>}
           </span>
           <span className="transfer-actions">{cancel}</span>
         </>

@@ -15,8 +15,32 @@ export const listNotices = (householdId: number) =>
 
 // Every action names the version of the notice its screen showed (null: it showed none); a notice
 // that changed since is not touched (409 notice_changed). specs/014-partial-transfer-notices.
-export const sendNotice = (householdId: number, toMemberId: number, amount: number, version: number | null) =>
-  api.put<Notice>(`/api/households/${householdId}/notices`, { to_member_id: toMemberId, amount, version })
+// Any amount up to the suggestion, with an optional note (specs/014 PR-2); a blank note is no note
+export const sendNotice = (
+  householdId: number,
+  toMemberId: number,
+  amount: number,
+  version: number | null,
+  note?: string,
+) =>
+  api.put<Notice>(`/api/households/${householdId}/notices`, {
+    to_member_id: toMemberId,
+    amount,
+    version,
+    ...(note !== undefined && { note }),
+  })
+
+/** "Báo thêm": `amount` more on the waiting notice of `version`; `note`, when given, replaces its note. */
+export const addToNotice = (
+  householdId: number,
+  toMemberId: number,
+  more: { amount: number; version: number; note?: string },
+) =>
+  api.post<Notice>(`/api/households/${householdId}/notices/${toMemberId}/add`, {
+    amount: more.amount,
+    version: more.version,
+    ...(more.note !== undefined && { note: more.note }),
+  })
 
 export const cancelNotice = (householdId: number, toMemberId: number, version: number) =>
   api.delete(`/api/households/${householdId}/notices/${toMemberId}?version=${version}`)

@@ -250,9 +250,15 @@ Lịch sử trả tiền                 Ghi khoản trả khác
 * **The debtor's next step** ([spec 012](../specs/012-overview-and-lists/spec.md) US2). The person who owes
   gets the primary action under the total, inside the taro block: **Tôi đã chuyển 120.000đ cho Minh**, one
   per transfer they must make, in the order of the suggestions. White on the taro, since a filled purple
-  button would vanish into the block; full width under 720 px, 44 px tall. Once told it becomes "Đã báo
-  chuyển 120.000đ, chờ Minh xác nhận." and *Huỷ thông báo*; declined, "Minh báo chưa nhận được." and the
-  button again. The cards in the panel keep their row and status but no button of their own, since the
+  button would vanish into the block; full width under 720 px, 44 px tall. Under it, *Chuyển số khác*
+  opens a step (amount read like the expense form, "= …đ", at most the amount owed, a note) for money
+  sent in parts ([spec 014](../specs/014-partial-transfer-notices/spec.md)). Once told it becomes "Đã báo
+  chuyển 120.000đ, chờ Minh xác nhận." and *Huỷ thông báo*; told less, "Đã báo 60.000đ, còn thiếu
+  60.000đ." with *Báo thêm*, whose step shows "60.000đ + 60.000đ = 120.000đ" as it is typed; told more
+  than owed now, "Đã báo 150.000đ, nhiều hơn số cần trả lúc này 120.000đ."; declined, "Minh báo chưa nhận
+  được 120.000đ." and the buttons again. The note shows in quotes under the line. One line under all the
+  actions says why there is one transfer to one person ("Số này đã gộp nợ của cả nhà…") and opens *Vì
+  sao ra số này?*. A refusal (the numbers changed) stays in the step with what was typed. The cards in the panel keep their row and status but no button of their own, since the
   action is above, where the eye lands first; focus follows the next step after each press. Creditors and
   settled people see none.
 * **A house with one person** ([spec 012](../specs/012-overview-and-lists/spec.md) US3). *+ Ghi khoản chi*,
@@ -284,10 +290,12 @@ Lịch sử trả tiền                 Ghi khoản trả khác
   says "Đã báo Minh là đã chuyển 120.000đ, chờ xác nhận" with *Huỷ báo* — since spec 012 both the action
   and that state sit under the block, and the card keeps the line alone. The receiver sees "Tiến báo đã
   chuyển 120.000đ" and *Chưa nhận được* under the text; *Đã nhận* records that told amount, and the line
-  says so when it is not today's suggestion. Anyone else sees "Chưa trả" or who is waiting for whom. A
+  adds "· lúc này Tiến cần trả bạn 150.000đ" when it is not today's suggestion, then the note. Anyone else sees "Chưa trả" or who is waiting for whom. A
   card never says a payment is waiting for confirmation before anyone said it was sent (UI review, 03/11).
-  A notice whose transfer is no longer suggested keeps a card of its own ("Số dư đã đổi sau lần báo
-  này"), and the reminder adds "(đã báo chuyển, chờ Minh xác nhận)" to a told line. Until the notices
+  A notice whose transfer is no longer suggested keeps a card of its own ("· hiện không còn gợi ý" for
+  the receiver, "Đã báo 50.000đ · Hiện không còn gợi ý chuyển cho Minh." for the payer), and the reminder
+  adds "(đã báo chuyển 120.000đ, chờ Minh xác nhận)" to a told line, or gives such a notice a line of its
+  own without asking for money. Until the notices
   load, Đã nhận and Tôi đã chuyển cannot be pressed. In English the card's button takes its own row
   under 480 px. Since the design review of 05/11 the button says what it does and how much, **Xác nhận
   đã nhận 120.000đ** ("Mark 120,000 ₫ as received"): "Đã nhận" alone read like a status, not something to
@@ -655,6 +663,7 @@ region.
 | Đăng xuất (in the account menu) | Không phải bạn? (before accounts) |
 | Trưởng nhóm | Chủ nhà (means the landlord in a nhà trọ) |
 | Tôi đã chuyển · Chưa nhận được | Đã chuyển khoản (as if it were already recorded) |
+| Đã báo {told}, còn thiếu {rest} · Báo thêm · Chuyển số khác · Nhận số khác | Thanh toán một phần · Đã trả một phần (nothing is recorded until the receiver confirms) |
 | đã chi (what someone paid for the house's expenses) · đã trả / đã nhận lại (money paid back between housemates) | đã trả for an expense |
 | Minh cần trả Lan (a suggestion) · Minh đã trả Lan (recorded) | Minh trả Lan (reads as already done) |
 | Lưu khoản chi · Lưu khoản trả (the save buttons) | Ghi nhận khoản này (no object; "ghi nhận" may still explain something) |

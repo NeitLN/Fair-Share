@@ -17,7 +17,13 @@ interface NoticeAmountStepProps {
   hint?: string
   submitLabel: string
   busy: boolean
-  onSubmit: (amount: number) => void
+  /** Also a note (one line, 120 characters), sent with the amount: the payer's steps. */
+  withNote?: boolean
+  /** A line that follows what is typed, e.g. "60.000đ + 40.000đ = 100.000đ" ("Báo thêm"). */
+  sumLine?: (amount: number) => string
+  /** The server refused the last send (409): said under the field, what was typed stays. */
+  serverProblem?: string | null
+  onSubmit: (amount: number, note?: string) => void
   /** Closes the step; the opener gets the focus back. */
   onCancel: () => void
 }
@@ -26,13 +32,28 @@ interface NoticeAmountStepProps {
  * An amount, typed like the expense form ("1tr", "500k"), with "= …đ" under it (specs/014). Enter sends,
  * Escape closes. What was typed stays when the server refuses it.
  */
-function NoticeAmountStep({ label, initial, max, maxMessage, hint, submitLabel, busy, onSubmit, onCancel }: NoticeAmountStepProps) {
+function NoticeAmountStep({
+  label,
+  initial,
+  max,
+  maxMessage,
+  hint,
+  submitLabel,
+  busy,
+  withNote = false,
+  sumLine,
+  serverProblem = null,
+  onSubmit,
+  onCancel,
+}: NoticeAmountStepProps) {
   const t = useT()
   const id = useId()
   const field = useRef<HTMLInputElement>(null)
   const [text, setText] = useState(String(initial))
+  const [note, setNote] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
   const amount = parseAmount(text)
+  const shownProblem = problem ?? serverProblem
 
   useEffect(() => {
     field.current?.focus()
@@ -54,7 +75,7 @@ function NoticeAmountStep({ label, initial, max, maxMessage, hint, submitLabel, 
       field.current?.focus()
       return
     }
-    onSubmit(amount as number)
+    onSubmit(amount as number, withNote ? note : undefined)
   }
 
   return (
@@ -75,8 +96,10 @@ function NoticeAmountStep({ label, initial, max, maxMessage, hint, submitLabel, 
         type="text"
         inputMode="numeric"
         value={text}
-        aria-invalid={problem ? true : undefined}
-        aria-describedby={[`${id}-echo`, hint && `${id}-hint`, problem && `${id}-problem`].filter(Boolean).join(' ')}
+        aria-invalid={shownProblem ? true : undefined}
+        aria-describedby={[`${id}-echo`, sumLine && `${id}-sum`, hint && `${id}-hint`, shownProblem && `${id}-problem`]
+          .filter(Boolean)
+          .join(' ')}
         onChange={(e) => {
           setText(e.target.value)
           setProblem(null)
@@ -85,15 +108,32 @@ function NoticeAmountStep({ label, initial, max, maxMessage, hint, submitLabel, 
       <span id={`${id}-echo`} className="amount-preview">
         {amount !== null && amount > 0 ? `= ${formatVND(amount)}` : ''}
       </span>
+      {sumLine && (
+        <span id={`${id}-sum`} className="notice-sum">
+          {amount !== null && amount > 0 ? sumLine(amount) : ''}
+        </span>
+      )}
       {hint && (
         <span id={`${id}-hint`} className="hint">
           {hint}
         </span>
       )}
-      {problem && (
+      {shownProblem && (
         <p id={`${id}-problem`} className="field-problem">
-          {problem}
+          {shownProblem}
         </p>
+      )}
+      {withNote && (
+        <>
+          <label htmlFor={`${id}-note`}>{t.verdict.noteLabel}</label>
+          <input
+            id={`${id}-note`}
+            type="text"
+            maxLength={120}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </>
       )}
       <span className="notice-step-buttons">
         <button type="submit" className="btn-secondary" disabled={busy}>
