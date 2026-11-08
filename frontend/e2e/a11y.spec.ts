@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 import type { TestAccount } from './accounts.js'
 
 // DESIGN.md §8, checked in a real browser: headings, live regions, reduced motion, the keyboard
@@ -19,14 +19,14 @@ test.beforeEach(async ({ page }) => {
 /** Tiến owns it; Minh and Duy Anh joined; Tiến paid 300.000đ for the three: both owe him. */
 async function makeHousehold(request: APIRequestContext) {
   const name = `E2E a11y ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
+  const tien = shared('Tiến')
   const household = await (
     await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })
   ).json()
   const ids = [household.member_id as number]
-  const minh = await signUp(request, 'Minh')
+  const minh = shared('Minh')
   ids.push(await addMember(request, household.id, tien, minh))
-  ids.push(await addMember(request, household.id, tien, await signUp(request, 'Duy Anh')))
+  ids.push(await addMember(request, household.id, tien, shared('Duy Anh')))
   const today = new Date().toISOString().slice(0, 10)
   await request.post(`${API}/api/households/${household.id}/expenses`, {
     data: { description: 'Lẩu', amount: 300_000, payer_id: ids[0], spent_at: today, split: { type: 'equal', member_ids: ids } },
@@ -269,13 +269,13 @@ test('the household screens meet the accessibility checklist', async ({ page, re
 // and a 13-digit amount is fully inside the coloured block at 320 px.
 test('Tổng quan reads whole at every phone width', async ({ page, request }) => {
   const name = `E2E verdict ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
+  const tien = shared('Tiến')
   const household = await (
     await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })
   ).json()
   const ids: number[] = [household.member_id as number]
-  for (const who of ['Minh', 'Duy Anh', 'An']) {
-    ids.push(await addMember(request, household.id, tien, await signUp(request, who)))
+  for (const who of ['Minh', 'Duy Anh', 'An'] as const) {
+    ids.push(await addMember(request, household.id, tien, shared(who)))
   }
   const day = new Date().toISOString().slice(0, 10)
   // Tiến paid for the four: three people owe him, so three avatars and a "+0" never come

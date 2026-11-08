@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 
 // The English UI, the default since #161 (#185): the other specs switch to Vietnamese first, so this
 // one never sets a language. Like them it builds its own group through the API and always deletes it;
 // it never calls AI Quick add.
 
 test('a first visit is in English, and VI switches the page for good', async ({ page, request }) => {
-  const tien = await signUp(request, 'Tiến')
-  const minh = await signUp(request, 'Minh')
+  const tien = shared('Tiến')
+  const minh = shared('Minh')
   const name = `E2E english ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
   const created = await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })
   const householdId: number = (await created.json()).id

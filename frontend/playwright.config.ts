@@ -7,6 +7,8 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  // The run's shared accounts, signed up once (e2e/global-setup.ts)
+  globalSetup: './e2e/global-setup.ts',
   timeout: 90_000,
   // Each check may wait on the live API (a few seconds per call on the free tier)
   expect: { timeout: 15_000 },

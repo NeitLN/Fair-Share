@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
 
-import { API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 
 // specs/011-first-impressions, PR-D, in a real browser: the notice for a slow answer, and quick add on a
-// server with or without an AI key (the local stack has none, the live one has). Own household and
-// account through the API, always deleted at the end.
+// server with or without an AI key (the local stack has none, the live one has). Own household through
+// the API, always deleted at the end.
 
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
@@ -12,7 +12,7 @@ test.beforeEach(async ({ context }) => {
 
 const NOTICE = 'Phản hồi đang lâu hơn bình thường. Máy chủ có thể đang khởi động, thường mất khoảng 1 phút. Bạn không cần tải lại trang.'
 
-// On the sign-in page, so no account is made (sign-ups are limited per address per hour)
+// On the sign-in page, signed out
 test('a slow answer shows the notice above the page, and it goes by itself', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 })
   // Signing in answers after 7 s, as a sleeping server would
@@ -36,7 +36,7 @@ test('a slow answer shows the notice above the page, and it goes by itself', asy
 test('quick add follows what the server says about its AI key', async ({ page, request }) => {
   const version = await (await request.get(`${API}/api/version`)).json()
   expect(typeof version.ai).toBe('boolean')
-  const tien = await signUp(request, 'Tiến')
+  const tien = shared('Tiến')
   const name = `E2E shell ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
   const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
   try {

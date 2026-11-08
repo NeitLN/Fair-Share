@@ -27,3 +27,5 @@ dist-ssr
 test-results/
 playwright-report/
 blob-report/
+# The run's shared test accounts and their sessions (e2e/global-setup.ts)
+e2e/.auth/

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 
 // Danh mục (specs/005-expense-categories) in a real browser: the form guesses a category from the
 // description with no extra press, the list shows it, the monthly report's chart adds up to the month
@@ -18,11 +18,11 @@ const vnd = (amount: number) => `${amount.toLocaleString('vi-VN')}đ`
 
 test('a guessed category, saved, listed and charted in the monthly report', async ({ page, request }) => {
   const name = `E2E categories ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
+  const tien = shared('Tiến')
   const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
   const id = household.id as number
   try {
-    const ids = [household.member_id as number, await addMember(request, id, tien, await signUp(request, 'Minh'))]
+    const ids = [household.member_id as number, await addMember(request, id, tien, shared('Minh'))]
     // Rent through the API, with its category
     const rent = await request.post(`${API}/api/households/${id}/expenses`, {
       data: { description: 'Tiền phòng', amount: 3_000_000, payer_id: ids[1], spent_at: today, category: 'rent', split: { type: 'equal', member_ids: ids } },
