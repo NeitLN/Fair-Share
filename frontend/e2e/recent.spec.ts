@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 import type { TestAccount } from './accounts.js'
 
 // "Mới ghi" (specs/006-recently-added) in a real browser, with two accounts: what Minh records shows on
@@ -16,8 +16,8 @@ const today = new Date().toISOString().slice(0, 10)
 
 async function makeHousehold(request: APIRequestContext) {
   const name = `E2E recent ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
-  const minh = await signUp(request, 'Minh')
+  const tien = shared('Tiến')
+  const minh = shared('Minh')
   const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
   const tienId = household.member_id as number
   const minhId = await addMember(request, household.id, tien, minh)

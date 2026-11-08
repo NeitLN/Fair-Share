@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage, signUp } from './accounts.js'
 
 // The browser's own language decides a first visit (spec 012, US6): Vietnamese unless its first
 // language is English. The other specs pick a language explicitly, so this one is about the default.
@@ -11,8 +11,8 @@ test.describe('an English browser', () => {
   test.use({ locale: 'en-US' })
 
   test('a first visit is in English, and VI switches the page for good', async ({ page, request }) => {
-    const tien = await signUp(request, 'Tiến')
-    const minh = await signUp(request, 'Minh')
+    const tien = shared('Tiến')
+    const minh = shared('Minh')
     const name = `E2E english ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
     const created = await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })
     const householdId: number = (await created.json()).id
@@ -61,6 +61,8 @@ test.describe('a Vietnamese browser', () => {
   test.use({ locale: 'vi-VN' })
 
   test('a first visit is in Vietnamese', async ({ page, request }) => {
+    // Its own account: the start page greets someone with no house yet, and a shared account has the
+    // houses of the tests running beside this one
     const tien = await signUp(request, 'Tiến')
     await signInPage(page, tien)
     await page.goto('/')

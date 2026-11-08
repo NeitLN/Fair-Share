@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 import type { TestAccount } from './accounts.js'
 
 // "Báo cáo tháng" (specs/004-monthly-report) in a real browser: opened from Tổng quan, it ends on the
@@ -30,11 +30,11 @@ const signed = (amount: number) =>
  */
 async function makeHousehold(request: APIRequestContext) {
   const name = `E2E report ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
+  const tien = shared('Tiến')
   const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
   const ids = [household.member_id as number]
-  for (const member of ['Minh', 'Duy Anh']) {
-    ids.push(await addMember(request, household.id, tien, await signUp(request, member)))
+  for (const member of ['Minh', 'Duy Anh'] as const) {
+    ids.push(await addMember(request, household.id, tien, shared(member)))
   }
   const [tienId, minhId, duyAnhId] = ids
   const expense = (amount: number, payer: number, day: string) =>
@@ -94,7 +94,8 @@ test('the report opens from Tổng quan, ends on the balances and steps back a m
 test('someone who is not in the house gets the not-found page', async ({ page, request }) => {
   const { id, owner } = await makeHousehold(request)
   try {
-    await signInPage(page, await signUp(request, 'Người lạ'))
+    // An is in none of this house's people: a stranger to it
+    await signInPage(page, shared('An'))
     await page.goto(`/households/${id}/report/${thisMonth}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeVisible()
     await expect(page.getByRole('table')).toHaveCount(0)

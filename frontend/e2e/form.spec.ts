@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 
 // The expense form on a phone (specs/011-first-impressions, PR-B): a refused save says why in the sticky
 // save area and focuses the field, Tự chia starts at the equal split, and a very large amount asks once
@@ -12,8 +12,8 @@ test.beforeEach(async ({ context }) => {
 
 test('a refused save is seen on a phone, and a large amount asks first', async ({ page, request }) => {
   const name = `E2E form ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
-  const minh = await signUp(request, 'Minh')
+  const tien = shared('Tiến')
+  const minh = shared('Minh')
   const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
   try {
     await addMember(request, household.id, tien, minh)

@@ -2,11 +2,12 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage, signUp } from './accounts.js'
 
 // The profile page (specs/010-profile-page): rename everywhere with a household kept back, and a
 // password change that signs the other browser out. Builds its own households through the API and
-// always deletes them.
+// always deletes them. The account whose profile changes is the test's own; the housemate who only
+// looks is a shared one (e2e/global-setup.ts).
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
@@ -15,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 test('a new name reaches every household, and one where it is taken keeps the old one', async ({ page, request }) => {
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
   const lan = await signUp(request, 'Lan')
-  const owner = await signUp(request, 'Chủ B')
+  const owner = shared('Duy Anh')
   const taken = await signUp(request, 'Ngọc Lan')
   const a = await (await request.post(`${API}/api/households`, { data: { name: `E2E A ${stamp}` }, headers: bearer(lan) })).json()
   const b = await (await request.post(`${API}/api/households`, { data: { name: `E2E B ${stamp}` }, headers: bearer(owner) })).json()
@@ -39,7 +40,7 @@ test('a new name reaches every household, and one where it is taken keeps the ol
         (m: { name: string }) => m.name,
       )
     expect(await names(a.id, lan)).toEqual(['Ngọc Lan'])
-    expect((await names(b.id, owner)).sort()).toEqual(['Chủ B', 'Lan', 'Ngọc Lan'])
+    expect((await names(b.id, owner)).sort()).toEqual(['Duy Anh', 'Lan', 'Ngọc Lan'])
   } finally {
     await deleteHousehold(request, a.id, lan)
     await deleteHousehold(request, b.id, owner)
@@ -81,7 +82,7 @@ test('a new password keeps this browser signed in and signs the other one out', 
 
 test('a status is seen by a housemate on Thành viên, and gone once cleared', async ({ page, request }) => {
   const lan = await signUp(request, 'Lan')
-  const minh = await signUp(request, 'Minh')
+  const minh = shared('Minh')
   const house = await (
     await request.post(`${API}/api/households`, { data: { name: `E2E status ${Date.now()}` }, headers: bearer(lan) })
   ).json()
@@ -106,7 +107,7 @@ test('a gender chosen after reading the notice is seen by a housemate, and Khôn
   request,
 }) => {
   const lan = await signUp(request, 'Lan')
-  const minh = await signUp(request, 'Minh')
+  const minh = shared('Minh')
   const house = await (
     await request.post(`${API}/api/households`, { data: { name: `E2E gender ${Date.now()}` }, headers: bearer(lan) })
   ).json()
@@ -145,7 +146,7 @@ test('a photo uploaded on the profile page shows to a housemate, and the initial
   request,
 }) => {
   const lan = await signUp(request, 'Lan')
-  const minh = await signUp(request, 'Minh')
+  const minh = shared('Minh')
   const house = await (
     await request.post(`${API}/api/households`, { data: { name: `E2E photo ${Date.now()}` }, headers: bearer(lan) })
   ).json()

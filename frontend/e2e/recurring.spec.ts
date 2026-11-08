@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-import { addMember, API, bearer, deleteHousehold, signInPage, signUp } from './accounts.js'
+import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 import type { TestAccount } from './accounts.js'
 
 // Recurring expenses (specs/007-recurring-expenses) in a real browser. An item due today is made
@@ -19,8 +19,8 @@ const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate
 
 async function dueItem(request: APIRequestContext) {
   const name = `E2E recurring ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-  const tien = await signUp(request, 'Tiến')
-  const minh = await signUp(request, 'Minh')
+  const tien = shared('Tiến')
+  const minh = shared('Minh')
   const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
   const ids = [household.member_id as number, await addMember(request, household.id, tien, minh)]
   // Minh makes "Internet" recur from an expense, then deletes that expense: this month is due again
