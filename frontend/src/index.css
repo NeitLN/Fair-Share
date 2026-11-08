@@ -1209,6 +1209,53 @@ button.ai:active:focus-visible {
   gap: 8px;
 }
 
+/* "Phản hồi đang lâu hơn bình thường…" above the page (specs/011, US2): in the flow, never over a control */
+.slow-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+}
+
+.slow-notice {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 8px 0;
+  padding: 10px 14px;
+  border: 1.5px solid var(--control-line);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+/* Quick add on a server without an AI key: one line, and what was typed, to copy (FR-019) */
+.ai-kept {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.ai-kept-sentence {
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+/* Under a repeating item whose stop did not go through (FR-020) */
+.recurring-error {
+  flex-basis: 100%;
+  color: var(--debt-text);
+  font-size: var(--text-small);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /* Lưu 120.000.000 ₫ thật chứ? in place of the buttons, never a pop-up (FR-011) */
 .form-confirm {
   display: grid;
@@ -3118,6 +3165,7 @@ button.ai:active:focus-visible {
      1320 px (design review 05/11) left 300 px of bare page on each side at 1920 (owner review 06/11);
      the rows that made 05/11 widen it carefully stay within 640 px instead (the 1280 px block) */
   .app-header,
+  .slow-wrap,
   main {
     max-width: calc(1520px + 2 * clamp(32px, 2.8vw, 40px));
     margin-inline: auto;
@@ -3129,6 +3177,7 @@ button.ai:active:focus-visible {
      07/11, from 100 % / 110 % captures). The sign-in block keeps its own size. Zooming the header with
      the page keeps the wordmark and the account the same size on every signed-in screen */
   .app-header,
+  .slow-wrap,
   main:not(.signed-out) {
     zoom: 1.1;
   }

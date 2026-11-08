@@ -17,7 +17,12 @@ const item = (id: number, overrides: Partial<RecurringItem> = {}): RecurringItem
   amount: 4_500_000, day: 1, created_by: 10, created_at: '', ...overrides,
 })
 
-function renderList(items: RecurringItem[], expenses: Expense[] = [], onStop = vi.fn()) {
+function renderList(
+  items: RecurringItem[],
+  expenses: Expense[] = [],
+  onStop = vi.fn(),
+  stops: { stoppingIds?: number[]; errors?: Record<number, string> } = {},
+) {
   render(
     <RecurringList
       items={items}
@@ -26,7 +31,8 @@ function renderList(items: RecurringItem[], expenses: Expense[] = [], onStop = v
       looks={looks}
       canStop={(i) => i.created_by === 10}
       onStop={onStop}
-      stoppingId={null}
+      stoppingIds={stops.stoppingIds ?? []}
+      errors={stops.errors ?? {}}
     />,
   )
   return onStop
@@ -64,4 +70,21 @@ test('empty: how to make one', async () => {
   renderList([])
   await userEvent.click(screen.getByText('Khoản định kỳ (0)'))
   expect(screen.getByText('Chưa có khoản định kỳ. Tích Lặp lại hằng tháng khi ghi khoản chi.')).toBeInTheDocument()
+})
+
+// specs/011-first-impressions, FR-020: each item its own wait and its own message
+test('a stop that failed says so under that item only, and is read out with the fold closed', async () => {
+  renderList([item(1, { description: 'Internet' }), item(2, { description: 'Tiền nhà' })], [], vi.fn(), {
+    stoppingIds: [2],
+    errors: { 1: 'Chưa xác nhận được là đã ngừng lặp. Không kết nối được.' },
+  })
+  // Closed fold: the alert outside it carries the item and the reason
+  expect(screen.getByRole('alert')).toHaveTextContent('Internet: Chưa xác nhận được là đã ngừng lặp. Không kết nối được.')
+  await userEvent.click(screen.getByText('Khoản định kỳ (2)'))
+  const [internet, rent] = within(screen.getByRole('list')).getAllByRole('listitem')
+  expect(internet).toHaveTextContent('Chưa xác nhận được là đã ngừng lặp.')
+  expect(rent).not.toHaveTextContent('Chưa xác nhận')
+  // Only the item still waiting is disabled
+  expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).toBeDisabled()
 })

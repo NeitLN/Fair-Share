@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 
 import { ApiError } from '../api/client'
 import type { AiDraft, DraftWarning, Member } from '../api/types'
+import { useAiAvailability } from '../lib/aiAvailability'
 import { warningMessage } from '../lib/aiWarnings'
 import { draftSummary } from '../lib/draftSummary'
 import { errorMessage } from '../lib/errors'
@@ -47,6 +48,11 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
   const seconds = useElapsedSeconds(state.step === 'reading')
   // No Gemini key on this server: Quick add stays off until the page is reloaded
   const [notConfigured, setNotConfigured] = useState(false)
+  // One request at a time, whatever starts it (Enter, the button, Thử lại), and still after "Nhập tay"
+  // until the earlier call ends: each one spends the house's shared daily AI quota (specs/011, FR-016)
+  const inFlight = useRef(false)
+  // The server said up front that it has no AI key (FR-019); until it answers, quick add is as before
+  const availability = useAiAvailability()
 
   // Removed from the page (expense saved, another household): any pending answer is stale
   useEffect(() => {
@@ -58,11 +64,18 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
 
   async function read() {
     const sentence = text.trim()
-    if (!sentence || notConfigured) return
+    if (!sentence || notConfigured || inFlight.current) return
+    inFlight.current = true
     const request = ++latest.current
     setState({ step: 'reading' })
     try {
-      const { draft, warnings } = await onParse(sentence)
+      let answer: AiDraft
+      try {
+        answer = await onParse(sentence)
+      } finally {
+        inFlight.current = false
+      }
+      const { draft, warnings } = answer
       if (request !== latest.current) return
       const result = onDraft(draft, warnings)
       // Describe what was applied, not the raw draft: kept fields keep the user's values
@@ -113,6 +126,26 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
   }
 
   const reading = state.step === 'reading'
+
+  if (availability === 'off') {
+    // The box gives way to one line; a sentence typed before the answer stays, to copy into the form
+    return (
+      <section className="ai-composer ai-off" aria-labelledby="ai-composer-title">
+        <h2 id="ai-composer-title">
+          <span aria-hidden="true">✦ </span>
+          {t.ai.title}
+        </h2>
+        <p className="hint">{t.ai.unavailable}</p>
+        {text.trim() !== '' && (
+          <div className="ai-kept">
+            <p>{t.ai.typedSentence}</p>
+            <p className="ai-kept-sentence">{text}</p>
+            <p className="hint">{t.ai.typeIntoForm}</p>
+          </div>
+        )}
+      </section>
+    )
+  }
   const canRetry =
     state.step === 'failed' &&
     !NO_RETRY.has(state.code) &&

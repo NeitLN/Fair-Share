@@ -7,7 +7,7 @@ import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense 
 import { getHousehold, keys, listMembers } from '../api/households'
 import { ApiError } from '../api/client'
 import { listRecurring, recurringKeys, stopRecurring } from '../api/recurring'
-import type { Category, Expense, ExpenseInput } from '../api/types'
+import type { Category, Expense, ExpenseInput, RecurringItem } from '../api/types'
 import { CATEGORIES } from '../lib/categories'
 import AiComposer from '../components/AiComposer'
 import ExpenseForm from '../components/ExpenseForm'
@@ -130,10 +130,39 @@ function ExpensesPage() {
       return refresh()
     },
   })
-  const stop = useMutation({
-    mutationFn: stopRecurring,
-    onSuccess: () => refresh(),
-  })
+  // Ngừng lặp, item by item (specs/011, FR-020): each has its own wait and its own message, kept for the
+  // house they belong to, so an answer that arrives after moving to another house shows nothing there
+  const [stops, setStops] = useState<Stops>(() => noStops(householdId))
+  const stopsHere = stops.householdId === householdId ? stops : noStops(householdId)
+  const houseNow = useRef(householdId)
+  useEffect(() => {
+    houseNow.current = householdId
+    // Left for another page: an answer that comes later says nothing, wherever the person is now
+    return () => {
+      houseNow.current = Number.NaN
+    }
+  }, [householdId])
+  async function stopItem(item: RecurringItem) {
+    const house = householdId
+    const change = (next: (current: Stops) => Stops) =>
+      setStops((current) => next(current.householdId === house ? current : noStops(house)))
+    change((current) => ({ ...current, stopping: [...current.stopping, item.id], errors: without(current.errors, item.id) }))
+    try {
+      await stopRecurring(item.id)
+      void refresh()
+      if (houseNow.current === house) toast({ text: t.recurring.stopped(item.description) })
+    } catch (error) {
+      if (houseNow.current !== house) return
+      change((current) => ({
+        ...current,
+        errors: { ...current.errors, [item.id]: `${t.recurring.stopUnclear} ${errorMessage(error) ?? ''}`.trim() },
+      }))
+    } finally {
+      setStops((current) =>
+        current.householdId === house ? { ...current, stopping: current.stopping.filter((id) => id !== item.id) } : current,
+      )
+    }
+  }
   const remove = useMutation({
     mutationFn: (expense: Expense) => deleteExpense(expense.id, householdId),
     onSuccess: (_result, expense) => {
@@ -300,10 +329,9 @@ function ExpensesPage() {
               today={today()}
               looks={looks}
               canStop={(item) => household.data?.role === 'owner' || item.created_by === session?.user.id}
-              onStop={(item) =>
-                stop.mutate(item.id, { onSuccess: () => toast({ text: t.recurring.stopped(item.description) }) })
-              }
-              stoppingId={stop.isPending ? (stop.variables ?? null) : null}
+              onStop={(item) => void stopItem(item)}
+              stoppingIds={stopsHere.stopping}
+              errors={stopsHere.errors}
             />
           )}
         </div>
@@ -381,6 +409,21 @@ function ExpensesPage() {
       </div>
     </>
   )
+}
+
+/** The stops waiting, and the messages of those that failed, in one house (specs/011, FR-020). */
+interface Stops {
+  householdId: number
+  stopping: number[]
+  errors: Record<number, string>
+}
+
+const noStops = (householdId: number): Stops => ({ householdId, stopping: [], errors: {} })
+
+function without(errors: Record<number, string>, id: number) {
+  const next = { ...errors }
+  delete next[id]
+  return next
 }
 
 export default ExpensesPage

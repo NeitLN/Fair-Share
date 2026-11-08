@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { ApiError } from '../api/client'
 import type { AiDraft, Member } from '../api/types'
+import { resetAiAvailability } from '../lib/aiAvailability'
 import AiComposer from './AiComposer'
 
 const members: Member[] = [
@@ -312,5 +313,97 @@ describe('AiComposer, named amounts (specs/009-ai-custom-split)', () => {
     await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
     const note = await screen.findByText(/^Đã điền:/)
     expect(plain(note.textContent)).toBe('Đã điền: Lẩu · 240.000đ · Minh trả · tự chia 2 người.')
+  })
+})
+
+// specs/011-first-impressions, US5
+describe('one request at a time (FR-016)', () => {
+  test('Enter three times, the button and Thử lại during one reading send one request', async () => {
+    let finish: (draft: AiDraft) => void = () => {}
+    const props = setup(() => new Promise((resolve) => (finish = resolve)))
+    const user = userEvent.setup()
+    const box = screen.getByLabelText('Câu mô tả khoản chi')
+    await user.type(box, 'lẩu 240k Minh trả')
+    await user.keyboard('{Enter}{Enter}{Enter}')
+    fireEvent.submit(box.closest('form') as HTMLFormElement)
+    expect(props.onParse).toHaveBeenCalledTimes(1)
+    await act(async () => finish(answer))
+    // Once it has answered, the next sentence goes out
+    await user.clear(box)
+    await user.type(box, 'trà sữa 60k{Enter}')
+    expect(props.onParse).toHaveBeenCalledTimes(2)
+  })
+
+  test('after Nhập tay, Enter waits until the earlier call has ended', async () => {
+    let finish: (draft: AiDraft) => void = () => {}
+    const props = setup(() => new Promise((resolve) => (finish = resolve)))
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k{Enter}')
+    await user.click(screen.getByRole('button', { name: 'Nhập tay' }))
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), '{Enter}')
+    expect(props.onParse).toHaveBeenCalledTimes(1)
+    await act(async () => finish(answer))
+    // Its answer is dropped (the person chose the form), and quick add is free again
+    expect(props.onDraft).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), '{Enter}')
+    expect(props.onParse).toHaveBeenCalledTimes(2)
+  })
+
+  test('a failed call frees it too, so Thử lại sends again', async () => {
+    const props = setup(() => Promise.reject(new ApiError(503, 'ai_unavailable', 'AI đang bận.')))
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k{Enter}')
+    await user.click(await screen.findByRole('button', { name: 'Thử lại' }))
+    expect(props.onParse).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('a server without an AI key says so up front (FR-017 to FR-019)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const version = (body: unknown) =>
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))))
+
+  test('"ai": false: one line instead of the box', async () => {
+    version({ ai: false })
+    setup(() => Promise.resolve(answer))
+    expect(await screen.findByText('Gõ nhanh bằng AI chưa được bật trên máy chủ này.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Câu mô tả khoản chi')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Điền giúp' })).toBeNull()
+  })
+
+  test('a sentence typed before the answer stays, to copy into the form', async () => {
+    let reply: (response: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => (reply = resolve))))
+    setup(() => Promise.resolve(answer))
+    await userEvent.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
+    await act(async () => reply(new Response(JSON.stringify({ ai: false }), { status: 200 })))
+    expect(screen.getByText('Câu bạn đã gõ:')).toBeInTheDocument()
+    expect(screen.getByText('lẩu 240k Minh trả')).toBeInTheDocument()
+    expect(screen.getByText('Nhập các thông tin trong câu vào biểu mẫu bên dưới.')).toBeInTheDocument()
+  })
+
+  test('/api/version failing, or not answered yet, keeps the box and it still reads', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{"error":{"code":"x","message":"x"}}', { status: 503 }))))
+    const props = setup(() => Promise.resolve(answer))
+    await act(async () => {})
+    expect(screen.queryByText('Gõ nhanh bằng AI chưa được bật trên máy chủ này.')).toBeNull()
+    await userEvent.type(screen.getByLabelText('Câu mô tả khoản chi'), 'lẩu 240k{Enter}')
+    expect(props.onParse).toHaveBeenCalledTimes(1)
+
+    // A question that never answers: the same
+    resetAiAvailability()
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    cleanup()
+    setup(() => Promise.resolve(answer))
+    await act(async () => {})
+    expect(screen.getByLabelText('Câu mô tả khoản chi')).toBeInTheDocument()
+  })
+
+  test('"ai": true, or no answer, keeps the box as it was', async () => {
+    version({ ai: true })
+    setup(() => Promise.resolve(answer))
+    await act(async () => {})
+    expect(screen.getByLabelText('Câu mô tả khoản chi')).toBeInTheDocument()
+    expect(screen.queryByText('Gõ nhanh bằng AI chưa được bật trên máy chủ này.')).toBeNull()
   })
 })

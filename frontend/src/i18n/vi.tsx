@@ -8,6 +8,11 @@ import type { ReactNode } from 'react'
 const vi = {
   tagline: 'Rõ ai trả ai.',
   pageTitle: 'Fair-Share · Rõ ai trả ai.',
+  app: {
+    // Above every page while a request has waited more than 5 s (specs/011, FR-007): the free server sleeps
+    slowNotice:
+      'Phản hồi đang lâu hơn bình thường. Máy chủ có thể đang khởi động, thường mất khoảng 1 phút. Bạn không cần tải lại trang.',
+  },
   common: {
     tryAgain: 'Thử lại',
     retrying: 'Đang thử lại…',
@@ -439,6 +444,8 @@ const vi = {
     stopConfirm: (description: string) =>
       `Ngừng lặp ${description}? Các khoản đã ghi vẫn giữ nguyên, chỉ không nhắc nữa.`,
     stopped: (description: string) => `Đã ngừng lặp ${description}.`,
+    // Under the item whose stop failed (specs/011, FR-020), followed by the reason
+    stopUnclear: 'Chưa xác nhận được là đã ngừng lặp.',
     empty: 'Chưa có khoản định kỳ. Tích Lặp lại hằng tháng khi ghi khoản chi.',
     taken: (month: string, description: string) => `Kỳ ${month} của ${description} đã có người ghi.`,
     seeTaken: 'Xem khoản đã ghi',
@@ -623,6 +630,10 @@ const vi = {
   },
   ai: {
     title: 'Gõ nhanh bằng AI',
+    // The server said it has no AI key (specs/011, FR-019): the box gives way to these
+    unavailable: 'Gõ nhanh bằng AI chưa được bật trên máy chủ này.',
+    typedSentence: 'Câu bạn đã gõ:',
+    typeIntoForm: 'Nhập các thông tin trong câu vào biểu mẫu bên dưới.',
     sentenceLabel: 'Câu mô tả khoản chi',
     placeholder: 'lẩu 240k Minh trả chia đều cả nhà',
     fill: 'Điền giúp',

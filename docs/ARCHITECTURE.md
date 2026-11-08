@@ -257,7 +257,7 @@ settlement must be members of the **same household** (composite foreign keys on
 |---|---|---|
 | `GET /health` | Liveness for Render and the pipeline | Never touches the DB |
 | `GET /health/db` | Readiness: one query against PostgreSQL | 503 with a safe message on failure |
-| `GET /api/version` | App name, version, environment, `commit` (Render's `RENDER_GIT_COMMIT`) | The smoke test waits until `commit` equals the merged SHA |
+| `GET /api/version` | App name, version, environment, `commit` (Render's `RENDER_GIT_COMMIT`), `ai` (whether a Gemini key is configured), sent with `Cache-Control: no-store` | The smoke test waits until `commit` equals the merged SHA; the web app asks once per page load and, on `"ai": false`, shows one line instead of the quick add box ([spec 011](../specs/011-first-impressions/spec.md)). `ai` is only a yes or no, the same check the AI route makes; the key never leaves the server and Gemini is not called |
 | `POST /api/households` | Create a household (no `GET`: no list of every household, #132; the SPA remembers the ones a browser created or opened) | `201` on create, with the household's `key`: the only answer that contains it |
 | `GET/PATCH/DELETE /api/households/{id}` | One household | `404 household_not_found`; delete removes everything in it, `204` |
 | `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive), `409 too_many_members` (50, the most one expense can be split between) |

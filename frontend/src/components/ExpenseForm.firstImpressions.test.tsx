@@ -342,3 +342,29 @@ describe('US4: Tự chia starts at the equal split, once', () => {
     expect(share('Minh')).toHaveAccessibleDescription(/^Số tiền chưa hợp lệ/)
   })
 })
+
+describe('one save at a time', () => {
+  test('a double click or Enter pressed again while saving sends one expense', async () => {
+    let finish: () => void = () => {}
+    const { user, onSubmit } = setup({ onSubmit: vi.fn(() => new Promise<void>((resolve) => (finish = resolve))) })
+    await basics(user)
+    await user.dblClick(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    await user.type(screen.getByLabelText('Nội dung'), '{Enter}')
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    await act(async () => finish())
+    // Saved: the next one goes out
+    await basics(user, '60000', 'Trà sữa')
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+  })
+
+  test('a failed save frees it: pressing Lưu again sends again', async () => {
+    const onSubmit = vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValue({})
+    const { user } = setup({ onSubmit })
+    await basics(user)
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    await save(user)
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+  })
+})
