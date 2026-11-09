@@ -17,17 +17,26 @@ interface FoldMoreProps {
  * The household's part of a section of Tổng quan in a busy house (plan G2-10): a native fold, closed
  * until opened, remembered per house on this device (lib/folds.ts). Escape closes it (DESIGN.md §8).
  * A link to something inside it (Mới ghi's "#settlement-…", an explanation's repayment) opens it first,
- * so the browser can scroll to it.
+ * so the browser can scroll to it; that opening is for this visit only, not remembered.
  */
 function FoldMore({ householdId, name, summary, children }: FoldMoreProps) {
   const fold = useRef<HTMLDetailsElement>(null)
   const [open, setOpen] = useState(() => foldOpen(householdId, name))
+  // Opened by a link, not by the person: not a choice to remember (review of #265)
+  const openedByLink = useRef(false)
 
   useEffect(() => {
     function reveal(hash: string) {
       if (!hash.startsWith('#') || hash.length < 2) return
-      const target = document.getElementById(decodeURIComponent(hash.slice(1)))
+      let id: string
+      try {
+        id = decodeURIComponent(hash.slice(1))
+      } catch {
+        return // a malformed address ("#%E0%A4"): nothing to open
+      }
+      const target = document.getElementById(id)
       if (target && fold.current && !fold.current.open && fold.current.contains(target)) {
+        openedByLink.current = true
         fold.current.open = true
       }
     }
@@ -49,7 +58,8 @@ function FoldMore({ householdId, name, summary, children }: FoldMoreProps) {
       onToggle={(event) => {
         const now = event.currentTarget.open
         setOpen(now)
-        rememberFold(householdId, name, now)
+        if (openedByLink.current) openedByLink.current = false
+        else rememberFold(householdId, name, now)
       }}
       onKeyDown={closeFoldOnEscape}
     >
