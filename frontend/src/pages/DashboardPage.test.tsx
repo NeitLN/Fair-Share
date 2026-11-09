@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -1701,6 +1701,30 @@ describe('paying by VietQR', () => {
     await waitFor(() => expect(cancel).toHaveFocus())
     expect(screen.queryByRole('img', { name: /^Mã VietQR/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Chuyển cho Tiến bằng mã QR' })).not.toBeInTheDocument()
+  })
+
+  test('closed by a refresh while the focus is inside, the focus goes back to "Mở mã QR"', async () => {
+    // Review of #271: Tiến answers "Chưa nhận được" while Minh is on a copy button in the panel
+    iAm(2)
+    let notices: Notice[] = [{ from_member_id: 2, to_member_id: 1, amount: 60_000, status: 'sent', created_at: '', version: 1 }]
+    api(
+      {
+        'GET /api/households/7/members/1/payment': [200, { ...payment, state: 'partly_told', told: 60_000, amount: 40_000 }],
+        'GET /api/households/7/notices': () => [200, notices],
+      },
+      withHint,
+    )
+    const user = userEvent.setup()
+    const { client } = renderApp('/households/7')
+
+    await user.click(await screen.findByRole('button', { name: 'Mở mã QR' }))
+    const copy = await screen.findByRole('button', { name: 'Sao chép Số tài khoản' })
+    copy.focus()
+    notices = [{ ...notices[0], status: 'declined', version: 2 }]
+    await act(() => client.refetchQueries({ queryKey: ['households', 7, 'notices'] }))
+
+    await waitFor(() => expect(screen.queryByRole('img', { name: /^Mã VietQR/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mở mã QR' })).toHaveFocus())
   })
 
   test('a receiver without an account: a quiet line, no button', async () => {
