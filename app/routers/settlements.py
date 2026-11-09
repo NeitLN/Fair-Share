@@ -5,12 +5,19 @@ them, so nobody can mark someone else's debt as paid (docs/ACCOUNTS.md). The own
 mistaken one; there is no edit: it is deleted and entered again.
 """
 
+import hashlib
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 from psycopg import Connection, errors
 
-from app.access import AccessDep, HouseholdAccess, require_owner_or_author, settlement_not_found
+from app.access import (
+    AccessDep,
+    HouseholdAccess,
+    member_not_found,
+    require_owner_or_author,
+    settlement_not_found,
+)
 from app.auth import forbidden
 from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
@@ -25,9 +32,11 @@ from app.schemas import (
     NoticeAdd,
     NoticeAnswer,
     NoticeIn,
+    PaymentDetails,
     Settlement,
     SettlementIn,
 )
+from app.services.vietqr import bank_for, payment_state, transfer_message
 
 # A session and an approved member are required, also for /settlements/{id} through its household
 # (app/access.py)
@@ -338,3 +347,86 @@ def delete_settlement(settlement_id: Id, access: AccessDep, conn: ConnDep):
              row["household_id"], row["from_member_id"], row["household_id"],
              row["to_member_id"]),
         )
+
+
+# --- Paying by VietQR (specs/016-vietqr, US2, US3) -
+#
+# Who sees a receiving account is decided here, per house (FR-007 to FR-011), in this order: the
+# house (the router's own dependency: the same 404 as a house that does not exist), the member (the
+# same 404 as an id that does not exist, unless a current owner or member there), then whether the
+# asker is suggested to pay that member right now. Nothing about the account is read before those.
+# The house is locked first, so the suggestion, the notice and the amount come from one state
+# (FR-013, research R4). Nothing is written; no account data is logged (FR-006).
+
+
+def payment_not_suggested() -> ApiError:
+    message = "No transfer to this person is suggested for you right now"
+    return ApiError(409, "payment_not_suggested", message)
+
+
+@router.get(
+    "/households/{household_id}/members/{member_id}/payment", response_model=PaymentDetails,
+    response_model_exclude_none=False,
+)
+def payment_details(household_id: Id, member_id: Id, access: AccessDep, conn: ConnDep,
+                    response: Response,
+                    acknowledge: Annotated[int | None, Query(ge=1, le=BIGINT_MAX)] = None):
+    """What a payer may see to pay `member_id` by VietQR (data-model.md, contracts/api.md)."""
+    response.headers["Cache-Control"] = "no-store"
+    lock_household(conn, household_id)
+    receiver = fetch_one(
+        conn,
+        "SELECT hu.user_id FROM members m JOIN household_users hu"
+        " ON hu.household_id = m.household_id AND hu.member_id = m.id"
+        " AND hu.role IN ('owner', 'member')"
+        " WHERE m.id = %s AND m.household_id = %s",
+        (member_id, household_id),
+    )
+    if receiver is None:
+        raise member_not_found()
+    if member_id == access.member_id:
+        raise payment_not_suggested()
+    _, transfers = compute(conn, household_id)
+    suggested = next((amount for debtor, creditor, amount in transfers
+                      if (debtor, creditor) == (access.member_id, member_id)), None)
+    if suggested is None:
+        raise payment_not_suggested()
+
+    notice = fetch_one(
+        conn,
+        "SELECT amount, status, version FROM payment_notices"
+        " WHERE household_id = %s AND from_member_id = %s AND to_member_id = %s",
+        (household_id, access.member_id, member_id),
+    )
+    account = fetch_one(
+        conn,
+        "SELECT bank_bin, account_number, holder_name, version FROM receiving_accounts"
+        " WHERE user_id = %s",
+        (receiver["user_id"],),
+    )
+    bank = bank_for(account["bank_bin"]) if account else None
+    snapshot = hashlib.sha256(
+        f"{access.member_id}:{member_id}:{suggested}:"
+        f"{notice['status'] + ':' + str(notice['version']) if notice else '-'}:"
+        f"{account['version'] if bank else '-'}".encode()
+    ).hexdigest()[:12]
+    if bank is None:
+        return {"state": "no_account", "snapshot": snapshot}
+
+    state, amount = payment_state(suggested, notice, acknowledge)
+    details = {
+        "state": state, "suggested": suggested, "amount": amount, "snapshot": snapshot,
+        "told": notice["amount"] if notice else None,
+        "notice_version": notice["version"] if notice else None,
+    }
+    if state in ("covered", "declined"):
+        return details
+    house = fetch_one(conn, "SELECT name FROM households WHERE id = %s", (household_id,))
+    payer = fetch_one(conn, "SELECT name FROM members WHERE id = %s", (access.member_id,))
+    return {
+        **details,
+        "account": {"bank_bin": account["bank_bin"], "bank_name": bank["name"],
+                    "account_number": account["account_number"],
+                    "holder_name": account["holder_name"]},
+        "message": transfer_message(house["name"], payer["name"]),
+    }

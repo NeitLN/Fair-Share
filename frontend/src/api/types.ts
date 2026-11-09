@@ -78,6 +78,29 @@ export interface Member {
   photo_version?: string | null
   /** That account's gender if they stated one, under the same rule. */
   gender?: Gender | null
+  /** Their receiving account as a hint only: the bank and the last four digits (specs/016-vietqr). */
+  receiving_hint?: ReceivingHint | null
+}
+
+export interface ReceivingHint {
+  bank_name: string
+  last4: string
+}
+
+/** The person's own receiving account, on their profile only (specs/016-vietqr, US1). */
+export interface ReceivingAccount {
+  bank_bin: string
+  /** null when the bank is no longer in the VietQR list. */
+  bank_name: string | null
+  account_number: string
+  holder_name: string
+  version: string
+  /** false when the bank no longer takes VietQR transfers: housemates do not see it. */
+  supported: boolean
+}
+
+export interface MyReceivingAccount {
+  account: ReceivingAccount | null
 }
 
 /** GET /api/me/photo: the caller's own photo as a data URL, or nulls. */

@@ -3978,6 +3978,19 @@ button.ai:active:focus-visible {
   min-height: var(--target);
 }
 
+/* A housemate's receiving account as a hint (specs/016-vietqr): the bank and the last four digits,
+   wrapping on a narrow phone rather than hiding the digits */
+.member-receiving {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Your own receiving account on the profile: the full line wraps, never scrolls sideways */
+.receiving-saved {
+  overflow-wrap: anywhere;
+}
+
 /* A housemate's status under their name on Thành viên: one line, the rest in the title */
 .member-status {
   max-width: 100%;

@@ -1,0 +1,18 @@
+{
+  "version": "2026-11-09",
+  "source": "https://api.vietqr.io/v2/banks (NAPAS BINs, checked on 2026-11-09)",
+  "banks": [
+    { "bin": "970436", "name": "Vietcombank", "transfer": true },
+    { "bin": "970415", "name": "VietinBank", "transfer": true },
+    { "bin": "970418", "name": "BIDV", "transfer": true },
+    { "bin": "970405", "name": "Agribank", "transfer": true },
+    { "bin": "970407", "name": "Techcombank", "transfer": true },
+    { "bin": "970422", "name": "MB Bank", "transfer": true },
+    { "bin": "970416", "name": "ACB", "transfer": true },
+    { "bin": "970432", "name": "VPBank", "transfer": true },
+    { "bin": "970423", "name": "TPBank", "transfer": true },
+    { "bin": "970403", "name": "Sacombank", "transfer": true },
+    { "bin": "970441", "name": "VIB", "transfer": true },
+    { "bin": "970437", "name": "HDBank", "transfer": true }
+  ]
+}

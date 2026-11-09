@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
@@ -310,3 +310,98 @@ test('a chosen gender is sent with the notice version, and Không nêu sends nul
   ])
   expect(currentSession()?.user.gender).toBeNull()
 })
+
+// --- The account I am paid on (specs/016-vietqr, US1) ---------------------------------------------
+
+const saved = {
+  bank_bin: '970436',
+  bank_name: 'Vietcombank',
+  account_number: '0123456789',
+  holder_name: 'NGUYEN VAN MINH',
+  version: 'a1b2c3d4e5f6',
+  supported: true,
+}
+const section = () => screen.getByRole('region', { name: 'Tài khoản nhận tiền' })
+
+test('a receiving account is added with a preview of the name and who will see it', async () => {
+  let account: typeof saved | null = null
+  const api = mockApi({
+    ...noHouses,
+    'GET /api/me/receiving-account': () => [200, { account }],
+    'PUT /api/me/receiving-account': () => {
+      account = saved
+      return [200, { account }]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  expect(await screen.findByText('Chưa có tài khoản nhận tiền.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Thêm tài khoản' }))
+  // Who will see it, before anything is saved
+  expect(screen.getByText(/^Chỉ bạn cùng nhà đang cần trả bạn mới thấy đầy đủ/)).toBeInTheDocument()
+  await user.selectOptions(screen.getByLabelText('Ngân hàng'), 'Vietcombank')
+  await user.type(screen.getByLabelText('Số tài khoản'), '0123 456.789')
+  await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Nguyễn Văn Minh')
+  expect(screen.getByText('Sẽ hiện: NGUYEN VAN MINH')).toBeInTheDocument()
+  await user.click(within(section()).getByRole('button', { name: 'Lưu' }))
+
+  expect(await screen.findByText('Vietcombank · 0123456789 · NGUYEN VAN MINH')).toBeInTheDocument()
+  const put = api.mock.calls.find(([url, init]) => url === '/api/me/receiving-account' && init?.method === 'PUT')
+  expect(JSON.parse(put?.[1]?.body as string)).toEqual({
+    bank_bin: '970436',
+    account_number: '0123 456.789',
+    holder_name: 'Nguyễn Văn Minh',
+  })
+})
+
+test("the server's refusals land under their fields", async () => {
+  mockApi({
+    ...noHouses,
+    'GET /api/me/receiving-account': [200, { account: null }],
+    'PUT /api/me/receiving-account': [
+      422,
+      { error: { code: 'bad_account_number', message: 'An account number is 6 to 19 digits' } },
+    ],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.click(await screen.findByRole('button', { name: 'Thêm tài khoản' }))
+  await user.selectOptions(screen.getByLabelText('Ngân hàng'), 'Vietcombank')
+  await user.type(screen.getByLabelText('Số tài khoản'), '12345')
+  await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Minh')
+  await user.click(within(section()).getByRole('button', { name: 'Lưu' }))
+  expect(await screen.findByText('Số tài khoản là 6 đến 19 chữ số.')).toBeInTheDocument()
+  expect(screen.getByLabelText('Số tài khoản')).toHaveAttribute('aria-invalid', 'true')
+})
+
+test('removing it asks first, then it is gone', async () => {
+  let account: typeof saved | null = saved
+  mockApi({
+    ...noHouses,
+    'GET /api/me/receiving-account': () => [200, { account }],
+    'DELETE /api/me/receiving-account': () => {
+      account = null
+      return [204]
+    },
+  })
+  const ask = vi.fn(() => true)
+  vi.stubGlobal('confirm', ask)
+  const user = userEvent.setup()
+  renderApp('/account')
+  expect(await screen.findByText('Vietcombank · 0123456789 · NGUYEN VAN MINH')).toBeInTheDocument()
+  expect(screen.getByText(/^Đã xoá thì không ai tải được nữa/)).toBeInTheDocument()
+  await user.click(within(section()).getByRole('button', { name: 'Xoá' }))
+  expect(ask).toHaveBeenCalledWith('Xoá tài khoản nhận tiền? Bạn cùng nhà sẽ không mở được mã QR của bạn nữa.')
+  expect(await screen.findByText('Chưa có tài khoản nhận tiền.')).toBeInTheDocument()
+})
+
+test('a bank no longer on the list says housemates will not see it', async () => {
+  mockApi({
+    ...noHouses,
+    'GET /api/me/receiving-account': [200, { account: { ...saved, bank_name: null, supported: false } }],
+  })
+  renderApp('/account')
+  expect(await screen.findByText(/^Ngân hàng này không còn trong danh sách VietQR/)).toBeInTheDocument()
+  expect(screen.getByText(/0123456789/)).toBeInTheDocument()
+})
+

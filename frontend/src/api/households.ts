@@ -13,6 +13,7 @@ import type {
   MyHousehold,
   MyHouseholds,
   MyPhoto,
+  MyReceivingAccount,
   RenameResult,
   Session,
   User,
@@ -33,6 +34,8 @@ export const keys = {
   /** Every photo batch of one house, whatever its versions: dropped when you leave it (#231). */
   housePhotos: (householdId: number) => ['photos', householdId] as const,
   myPhoto: ['me', 'photo'] as const,
+  /** Never kept once the profile page is gone (specs/016-vietqr, FR-021). */
+  receivingAccount: ['me', 'receiving-account'] as const,
   /** The caller's requests to join and their outcomes (specs/015). */
   myRequests: ['me', 'requests'] as const,
   invitePreview: (code: string) => ['invite-preview', code] as const,
@@ -78,6 +81,14 @@ export const uploadPhoto = (picture: Blob) =>
 export const removePhoto = () => api.delete('/api/me/photo')
 
 export const getMyPhoto = () => api.get<MyPhoto>('/api/me/photo')
+
+// The account I am paid on (specs/016-vietqr): the server cleans what was typed and names each problem
+export const getReceivingAccount = () => api.get<MyReceivingAccount>('/api/me/receiving-account')
+
+export const saveReceivingAccount = (account: { bank_bin: string; account_number: string; holder_name: string }) =>
+  api.put<MyReceivingAccount>('/api/me/receiving-account', account)
+
+export const deleteReceivingAccount = () => api.delete('/api/me/receiving-account')
 
 export const householdPhotos = (householdId: number) =>
   api.get<HouseholdPhotos>(`/api/households/${householdId}/photos`)

@@ -19,6 +19,7 @@ from pydantic import (
     BeforeValidator,
     Field,
     StrictInt,
+    StrictStr,
     StringConstraints,
     model_validator,
 )
@@ -150,6 +151,13 @@ class MemberIn(BaseModel):
     name: MemberName
 
 
+class ReceivingHint(BaseModel):
+    """Another member's receiving account, as housemates who owe them nothing see it (FR-011)."""
+
+    bank_name: str
+    last4: str
+
+
 class Member(BaseModel):
     id: int
     household_id: int
@@ -163,6 +171,9 @@ class Member(BaseModel):
     status: str | None = None
     photo_version: str | None = None
     gender: Literal["male", "female", "other"] | None = None
+    # That account's receiving account as a hint only, while it is an owner or member here and its
+    # bank takes VietQR transfers (specs/016-vietqr, FR-011); never the number or the name
+    receiving_hint: ReceivingHint | None = None
 
 
 # --- Accounts (docs/ACCOUNTS.md) ----------------------------------------------------------------
@@ -272,6 +283,58 @@ class MemberPhoto(BaseModel):
     member_id: int
     version: str
     data: str  # data:image/jpeg;base64,...
+
+
+# --- Receiving account and VietQR (specs/016-vietqr) --------------------------------------------
+
+# Raw text as typed: the route cleans it (app/services/vietqr.py) and names what is wrong with its
+# own error code; these limits only keep a request small
+RawText = Annotated[StrictStr, StringConstraints(max_length=200)]
+
+
+class ReceivingAccountIn(BaseModel):
+    bank_bin: RawText
+    account_number: RawText
+    holder_name: RawText
+
+
+class ReceivingAccount(BaseModel):
+    """The person's own account, for their profile only (FR-012)."""
+
+    bank_bin: str
+    bank_name: str | None  # None when the bank is no longer in the list
+    account_number: str
+    holder_name: str
+    version: str
+    supported: bool
+
+
+class MyReceivingAccount(BaseModel):
+    account: ReceivingAccount | None
+
+
+class PaymentAccount(BaseModel):
+    bank_bin: str
+    bank_name: str
+    account_number: str
+    holder_name: str
+
+
+class PaymentDetails(BaseModel):
+    """What a payer may see for one transfer at one moment (FR-013, data-model.md). `account` and
+    `message` only in the states that show a code or the details."""
+
+    state: Literal[
+        "ready", "partly_told", "covered", "declined", "declined_acknowledged", "too_large",
+        "no_account",
+    ]
+    suggested: int | None = None
+    told: int | None = None
+    amount: int | None = None
+    notice_version: int | None = None
+    account: PaymentAccount | None = None
+    message: str | None = None
+    snapshot: str
 
 
 class HouseholdPhotos(BaseModel):

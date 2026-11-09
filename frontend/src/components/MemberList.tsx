@@ -200,6 +200,12 @@ function MemberList({
                         {member.status}
                       </small>
                     )}
+                    {/* The bank and the last four digits only (specs/016-vietqr, FR-011) */}
+                    {member.receiving_hint && (
+                      <small className="member-receiving">
+                        {t.members.receivingHint(member.receiving_hint.bank_name, member.receiving_hint.last4)}
+                      </small>
+                    )}
                     <span className="standing">
                       <Standing balance={balances?.get(member.id)} />
                     </span>

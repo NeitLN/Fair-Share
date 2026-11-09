@@ -1,5 +1,5 @@
-"""The signed-in person's own account: their name everywhere and their password
-(specs/010-profile-page, docs/ACCOUNTS.md).
+"""The signed-in person's own account: their name everywhere, their password, and the bank account
+they are paid on (specs/010-profile-page, specs/016-vietqr, docs/ACCOUNTS.md).
 
 The password route opens its own connections, as login does (app/routers/accounts.py): a wrong
 current password must stay counted, so the count is committed before the answer, and no connection
@@ -7,6 +7,7 @@ is held while the slow hash runs.
 """
 
 import hashlib
+import secrets
 from datetime import timedelta
 from typing import Annotated
 
@@ -37,14 +38,17 @@ from app.schemas import (
     Id,
     MeIn,
     MyPhoto,
+    MyReceivingAccount,
     MyRequests,
     PasswordIn,
     PhotoVersion,
+    ReceivingAccountIn,
     RenameResult,
     StatusIn,
     User,
 )
 from app.services.images import PhotoBusy, PhotoRefused, clean_photo, data_url
+from app.services.vietqr import BANKS, bank_for, clean_account_number, clean_ascii
 
 router = APIRouter(prefix="/api", tags=["me"])
 
@@ -214,6 +218,63 @@ def my_photo(user: CurrentUser, conn: ConnDep, response: Response):
     if row is None:
         return {"version": None, "data": None}
     return {"version": row["version"], "data": data_url(row["image"])}
+
+
+# --- The account I am paid on (specs/016-vietqr, US1) -
+# The person's own data: no house is needed, and nobody else can read or change it (FR-004, FR-007,
+# FR-012). Answers never go into a cache (FR-021), and nothing here is logged (FR-006).
+
+RECEIVING_COLUMNS = "bank_bin, account_number, holder_name, version"
+MAX_HOLDER_NAME = 50
+
+
+def receiving_account(row: dict | None) -> dict:
+    if row is None:
+        return {"account": None}
+    listed = BANKS.get(row["bank_bin"])
+    return {"account": {**row, "bank_name": listed["name"] if listed else None,
+                        "supported": bank_for(row["bank_bin"]) is not None}}
+
+
+@router.get("/me/receiving-account", response_model=MyReceivingAccount)
+def my_receiving_account(user: CurrentUser, conn: ConnDep, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return receiving_account(fetch_one(
+        conn, f"SELECT {RECEIVING_COLUMNS} FROM receiving_accounts WHERE user_id = %s",
+        (user["id"],),
+    ))
+
+
+@router.put("/me/receiving-account", response_model=MyReceivingAccount)
+def save_receiving_account(body: ReceivingAccountIn, user: CurrentUser, conn: ConnDep,
+                           response: Response):
+    """Cleaned here (app/services/vietqr.py), so each problem has its own code under its field."""
+    response.headers["Cache-Control"] = "no-store"
+    if bank_for(body.bank_bin) is None:
+        raise ApiError(422, "unknown_bank", "This bank is not in the VietQR list")
+    number = clean_account_number(body.account_number)
+    if number is None:
+        raise ApiError(422, "bad_account_number", "An account number is 6 to 19 digits")
+    name = clean_ascii(body.holder_name)
+    if not name or len(name) > MAX_HOLDER_NAME:
+        raise ApiError(422, "bad_holder_name",
+                       f"The account holder's name is 1 to {MAX_HOLDER_NAME} letters or digits")
+    return receiving_account(fetch_one(
+        conn,
+        "INSERT INTO receiving_accounts (user_id, bank_bin, account_number, holder_name, version)"
+        " VALUES (%s, %s, %s, %s, %s)"
+        " ON CONFLICT (user_id) DO UPDATE SET bank_bin = excluded.bank_bin,"
+        " account_number = excluded.account_number, holder_name = excluded.holder_name,"
+        " version = excluded.version, updated_at = now()"
+        f" RETURNING {RECEIVING_COLUMNS}",
+        (user["id"], body.bank_bin, number, name, secrets.token_hex(6)),
+    ))
+
+
+@router.delete("/me/receiving-account", status_code=204)
+def remove_receiving_account(user: CurrentUser, conn: ConnDep):
+    """Gone from the live data at once (FR-005); nothing is kept."""
+    conn.execute("DELETE FROM receiving_accounts WHERE user_id = %s", (user["id"],))
 
 
 @router.post("/me/password", status_code=204)

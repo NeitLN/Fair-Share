@@ -231,4 +231,27 @@ describe('MemberList', () => {
     expect(screen.getByText('Nam')).toHaveClass('member-gender')
     expect(document.querySelectorAll('.member-gender')).toHaveLength(1)
   })
+
+  test("another person's receiving account shows only as the bank and the last four digits", () => {
+    render(
+      <MemberList
+        members={[
+          {
+            id: 1,
+            household_id: 7,
+            name: 'Minh',
+            created_at: '2026-10-01T00:00:00Z',
+            receiving_hint: { bank_name: 'Vietcombank', last4: '6789' },
+          },
+          { id: 2, household_id: 7, name: 'Tiến', created_at: '2026-10-02T00:00:00Z', receiving_hint: null },
+        ]}
+        loading={false}
+        error={null}
+        onRename={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Có tài khoản nhận tiền · Vietcombank •••• 6789')).toBeInTheDocument()
+    expect(screen.getAllByText(/Có tài khoản nhận tiền/)).toHaveLength(1)
+  })
 })
