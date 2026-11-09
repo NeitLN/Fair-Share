@@ -522,15 +522,27 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   const [qrOpenFor, setQrOpenFor] = useState<string | null>(null)
   const qrOpen = qrOpenFor === noticeKey
   const covered = sent !== undefined && sent.amount >= current
-  const closeQr = () => {
-    setQrOpenFor(null)
-    // Back to the opener; if a refresh took it away, the debtor's own action, then the verdict heading
+  // Back to the opener; if a refresh took it away, the debtor's own action, then the verdict heading
+  const focusAfterQr = () => {
     const target =
       (qrOpener.current?.isConnected ? qrOpener.current : null) ??
       root.current?.querySelector<HTMLButtonElement>('button:not(:disabled)') ??
       document.querySelector<HTMLElement>('.verdict-sentence')
     target?.focus()
   }
+  const closeQr = () => {
+    setQrOpenFor(null)
+    focusAfterQr()
+  }
+  // Closed because the notice changed elsewhere (the receiver's "Chưa nhận được" on a refresh) while
+  // the focus was inside the panel: it goes back to "Mở mã QR", not to the top of the page. When the
+  // payer tells it themselves the focus is already outside, and the next step keeps it (review of #271)
+  const qrHadFocus = useRef(false)
+  useEffect(() => {
+    if (qrOpenFor === null || qrOpenFor === noticeKey || !qrHadFocus.current) return
+    qrHadFocus.current = false
+    focusAfterQr()
+  })
   const qrButton = qr?.hint && !covered && (
     <button
       ref={qrOpener}
@@ -546,7 +558,15 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   const qrMore = qr && !covered && (
     qr.hint ? (
       qrOpen && (
-        <PaymentQrPanel householdId={qr.householdId} memberId={transfer.to_member_id} to={to} onClose={closeQr} />
+        <div
+          className="qr-wrap"
+          onFocusCapture={() => (qrHadFocus.current = true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) qrHadFocus.current = false
+          }}
+        >
+          <PaymentQrPanel householdId={qr.householdId} memberId={transfer.to_member_id} to={to} onClose={closeQr} />
+        </div>
       )
     ) : (
       <p className="debtor-qr-missing">{t.verdict.qrNoAccount(to)}</p>
