@@ -14,6 +14,7 @@ from psycopg import Connection, errors
 from app.access import (
     AccessDep,
     HouseholdAccess,
+    household_not_found,
     member_not_found,
     require_owner_or_author,
     settlement_not_found,
@@ -374,6 +375,16 @@ def payment_details(household_id: Id, member_id: Id, access: AccessDep, conn: Co
     """What a payer may see to pay `member_id` by VietQR (data-model.md, contracts/api.md)."""
     response.headers["Cache-Control"] = "no-store"
     lock_household(conn, household_id)
+    # Checked again under the lock: the asker may have lost their access while waiting for it
+    # (review of #269); no membership change can happen now until this transaction ends
+    still_here = fetch_one(
+        conn,
+        "SELECT 1 FROM household_users WHERE household_id = %s AND user_id = %s"
+        " AND member_id = %s AND role IN ('owner', 'member')",
+        (household_id, access.user_id, access.member_id),
+    )
+    if still_here is None:
+        raise household_not_found()
     receiver = fetch_one(
         conn,
         "SELECT hu.user_id FROM members m JOIN household_users hu"

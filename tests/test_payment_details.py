@@ -290,6 +290,33 @@ def test_a_repayment_being_written_is_waited_for(make_client, client, house, db_
     assert answers[0]["amount"] == 100_000
 
 
+def test_someone_removed_while_waiting_for_the_house_gets_nothing(make_client, client, house,
+                                                                 db_url):
+    """Review of #269: the asker passed the access check, then waited for the house lock while the
+    owner took their access away. Checked again under the lock: the house's own 404, no details."""
+    save_account(client, house["tokens"][house["Minh"]])
+    answers = []
+    other = make_client()
+    blocker = psycopg.connect(db_url)
+    try:
+        blocker.execute("SELECT 1 FROM households WHERE id = %s FOR UPDATE", (house["id"],))
+        worker = threading.Thread(target=lambda: answers.append(payment(
+            other, house["id"], house["Minh"], token=house["tokens"][house["Lan"]])))
+        worker.start()
+        time.sleep(0.8)
+        assert answers == []  # past the access check, waiting for the house
+        blocker.execute(
+            "DELETE FROM household_users WHERE household_id = %s AND member_id = %s",
+            (house["id"], house["Lan"]))
+        blocker.commit()
+        worker.join(timeout=10)
+    finally:
+        blocker.close()
+    assert answers[0].status_code == 404
+    assert error_code(answers[0]) == "household_not_found"
+    assert NUMBER not in answers[0].text
+
+
 def test_no_account_number_or_name_reaches_the_log(client, house, caplog):
     caplog.set_level(logging.DEBUG)
     save_account(client, house["tokens"][house["Minh"]])

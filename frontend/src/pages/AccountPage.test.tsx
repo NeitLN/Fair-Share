@@ -405,3 +405,23 @@ test('a bank no longer on the list says housemates will not see it', async () =>
   expect(screen.getByText(/0123456789/)).toBeInTheDocument()
 })
 
+test('leaving the page while the account is saving keeps no number in memory', async () => {
+  let answer: (value: [number, unknown]) => void = () => {}
+  mockApi({
+    ...noHouses,
+    'GET /api/me/receiving-account': [200, { account: null }],
+    'PUT /api/me/receiving-account': () => new Promise<[number, unknown]>((resolve) => (answer = resolve)),
+  })
+  const user = userEvent.setup()
+  const { client, unmount } = renderApp('/account')
+  await user.click(await screen.findByRole('button', { name: 'Thêm tài khoản' }))
+  await user.selectOptions(screen.getByLabelText('Ngân hàng'), 'Vietcombank')
+  await user.type(screen.getByLabelText('Số tài khoản'), '0123456789')
+  await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Minh')
+  await user.click(within(section()).getByRole('button', { name: 'Lưu' }))
+  unmount()
+  await act(async () => answer([200, { account: saved }]))
+  await waitFor(() => expect(client.getQueryData(['me', 'receiving-account'])).toBeUndefined())
+  expect(JSON.stringify(client.getQueryCache().getAll().map((q) => q.state.data))).not.toContain('0123456789')
+})
+

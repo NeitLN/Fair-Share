@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { ApiError } from '../api/client'
 import { deleteReceivingAccount, getReceivingAccount, keys, saveReceivingAccount } from '../api/households'
@@ -32,8 +32,16 @@ function ReceivingAccountForm() {
     gcTime: 0,
     staleTime: 0,
   })
-  // Leaving the page drops the number from memory at once
-  useEffect(() => () => queryClient.removeQueries({ queryKey: keys.receivingAccount }), [queryClient])
+  // Leaving the page drops the number from memory at once, and an answer arriving after that is not
+  // put back (review of #269: a save still on its way would otherwise refill the cache)
+  const onScreen = useRef(true)
+  useEffect(() => {
+    onScreen.current = true
+    return () => {
+      onScreen.current = false
+      queryClient.removeQueries({ queryKey: keys.receivingAccount })
+    }
+  }, [queryClient])
 
   const [editing, setEditing] = useState(false)
   const [bank, setBank] = useState('')
@@ -44,6 +52,7 @@ function ReceivingAccountForm() {
   const save = useMutation({
     mutationFn: () => saveReceivingAccount({ bank_bin: bank, account_number: number, holder_name: holder }),
     onSuccess: (result) => {
+      if (!onScreen.current) return
       queryClient.setQueryData(keys.receivingAccount, result)
       setEditing(false)
       setSaid('saved')
@@ -52,6 +61,7 @@ function ReceivingAccountForm() {
   const remove = useMutation({
     mutationFn: deleteReceivingAccount,
     onSuccess: () => {
+      if (!onScreen.current) return
       queryClient.setQueryData(keys.receivingAccount, { account: null })
       setSaid('deleted')
     },
