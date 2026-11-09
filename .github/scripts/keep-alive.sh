@@ -9,9 +9,12 @@
 #   1. GET /health. Down means two failed tries in a row, RETRY_WAIT seconds apart (one slow answer
 #      or a cold start is not a hang).
 #   2. Answering: if an `api-down` issue is open, close it with the time it came back. Done.
-#   3. Down: if a CI/CD run is deploying right now, leave it alone (a deploy restarts the API). Else
-#      call the deploy hook for the last commit that passed CI/CD, wait up to HEAL_DEADLINE seconds
-#      for /health, and open an `api-down` issue saying what happened, so the team sees it.
+#   3. Down: if a CI/CD run on main is queued, waiting or running, leave it alone (it is about to
+#      deploy). Else call the deploy hook for the commit of the last CI/CD run whose deploy job
+#      succeeded (what production should run: on 09/11 the run of #259 was red only because its smoke
+#      job timed out, and the last all-green run was an older commit, whose code predates the live
+#      schema), wait up to HEAL_DEADLINE seconds for /health, and open an `api-down` issue saying what
+#      happened, so the team sees it.
 #      While an `api-down` issue is open the hook is not called again: one restart per incident,
 #      then people look (docs/OUTAGES.md).
 #
@@ -52,19 +55,28 @@ if [ -n "$(open_incident)" ]; then
   exit 1
 fi
 
-deploying=$(gh run list --workflow ci-cd.yml --branch main --status in_progress --limit 1 \
-  --json databaseId --jq '.[0].databaseId // empty')
+# Queued, waiting, requested, pending or in progress: anything not completed may be about to deploy
+deploying=$(gh run list --workflow ci-cd.yml --branch main --limit 10 --json databaseId,status \
+  --jq '[.[] | select(.status != "completed")][0].databaseId // empty')
 if [ -n "$deploying" ]; then
-  echo "::warning::CI/CD run $deploying is in progress and may be deploying: not restarting now"
+  echo "::warning::CI/CD run $deploying is not finished and may be deploying: not restarting now"
   exit 1
 fi
 
-# The last commit that passed every check: never deploy a commit whose checks failed
-good=$(gh run list --workflow ci-cd.yml --branch main --status success --limit 1 \
-  --json headSha --jq '.[0].headSha // empty')
+# The commit of the last run whose deploy job succeeded (its latest attempt, so a rerun counts)
+good=""
+for run in $(gh run list --workflow ci-cd.yml --branch main --event push --limit 20 \
+  --json databaseId --jq '.[].databaseId'); do
+  good=$(gh run view "$run" --json headSha,jobs \
+    --jq 'if any(.jobs[]; .name == "deploy" and .conclusion == "success") then .headSha else empty end')
+  [ -n "$good" ] && break
+done
 
-result="The hook was not called: RENDER_DEPLOY_HOOK_API is not set."
-if [ -n "${HOOK:-}" ]; then
+if [ -z "${HOOK:-}" ]; then
+  result="The hook was not called: RENDER_DEPLOY_HOOK_API is not set."
+elif [ -z "$good" ]; then
+  result="The hook was not called: no CI/CD run among the last 20 has a successful deploy job."
+else
   if GITHUB_SHA="$good" "$here/render-deploy.sh" API; then
     restarted=$SECONDS
     result="Still not answering $(spent "$HEAL_DEADLINE") after the restart."
@@ -86,7 +98,7 @@ gh label create "$LABEL" --color B60205 --description "The live API stopped answ
 run_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}"
 gh issue create --label "$LABEL" --title "Live API stopped answering ($(vn_time))" --body "$(cat <<EOF
 Keep-alive found \`$API_URL/health\` not answering twice in a row, ${RETRY_WAIT} s apart, and restarted
-the API with the deploy hook (commit \`${good:0:7}\`, the last one that passed CI/CD).
+the API with the deploy hook (commit \`${good:0:7}\`, the last one CI/CD deployed).
 
 **Result:** $result
 

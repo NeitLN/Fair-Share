@@ -14,19 +14,20 @@ on:
   workflow_dispatch:            # or by hand: Actions → Keep-alive → Run workflow
 
 permissions:
-  actions: read                 # is a CI/CD run deploying right now? which commit passed last?
+  contents: read                # actions/checkout
+  actions: read                 # is a CI/CD run about to deploy? which commit did it deploy last?
   issues: write                 # open and close the api-down issue
-
-# One run at a time; a run waiting for a restart is never cancelled by the next one
-concurrency:
-  group: keep-alive
-  cancel-in-progress: false
 
 jobs:
   awake:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 0-15 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # One awake run at a time, never cancelled by the next. On this job only: a group on the whole
+    # workflow keeps one pending run, so a 10-minute run could replace the 08:00 database run.
+    concurrency:
+      group: keep-alive-awake
+      cancel-in-progress: false
     env:
       API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
       HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API || secrets.RENDER_DEPLOY_HOOK }}

@@ -31,8 +31,8 @@ otherwise. If it happens again, the Render log stops at `Waiting for application
 lock query in #260 says who holds the lock.
 
 **Since G3-06** the keep-alive workflow does the restart by itself: `/health` every 10 minutes from
-07:00 to 23:00; two failures in a row, 60 s apart, call the deploy hook for the last commit that passed
-CI/CD (never while a CI/CD run is in progress), then open an `api-down` issue with the result. While
+07:00 to 23:00; two failures in a row, 60 s apart, call the deploy hook for the commit CI/CD last deployed
+(never while a CI/CD run is queued or running), then open an `api-down` issue with the result. While
 that issue is open there is no second restart: someone reads the Render log first. The next run that
 gets an answer closes the issue, so each incident leaves an open-then-closed issue as its record.
 
