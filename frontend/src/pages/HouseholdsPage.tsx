@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { cancelRequest, createHousehold, dismissOutcome, keys, listMyHouseholds } from '../api/households'
 import type { InvitePreview } from '../api/types'
@@ -25,6 +25,14 @@ function HouseholdsPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
+  // Just left a house (MembersPage): its pages have unmounted by now, so nothing can fetch its data again.
+  // The photos live under their own key (#228 review) and none may stay (#230 review)
+  const left = (useLocation().state as { left?: unknown } | null)?.left
+  useEffect(() => {
+    if (typeof left !== 'number') return
+    queryClient.removeQueries({ queryKey: keys.household(left) })
+    queryClient.removeQueries({ queryKey: keys.housePhotos(left) })
+  }, [left, queryClient])
   const linkCode = useParams().code ?? ''
   const mine = useQuery({ queryKey: keys.households, queryFn: listMyHouseholds })
   // While a request waits, a light check every 10 s with the page in front (specs/015): approved, the
