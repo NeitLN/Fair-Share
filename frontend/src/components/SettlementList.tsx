@@ -5,6 +5,7 @@ import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { Money } from './Money'
 import ErrorNote from './ErrorNote'
+import FoldMore from './FoldMore'
 import Skeleton from './Skeleton'
 import { useT } from '../i18n'
 
@@ -24,6 +25,8 @@ interface SettlementListProps {
   canDelete?: (settlement: Settlement) => boolean
   /** The household's notices: deleting a repayment recorded from one says what happens to it (specs/014). */
   notices?: Notice[]
+  /** A busy house on Tổng quan (plan G2-10): its id; the list folds behind how many and the latest day. */
+  fold?: number
 }
 
 const always = () => true
@@ -40,6 +43,7 @@ function SettlementList({
   retrying = false,
   canDelete = always,
   notices = [],
+  fold,
 }: SettlementListProps) {
   const t = useT()
   if (loading) {
@@ -70,44 +74,56 @@ function SettlementList({
     if (window.confirm(question)) onDelete(settlement)
   }
 
+  const list = (
+    <ul className="settlement-list">
+      {settlements.map((settlement) => {
+        const deleting = deletingId === settlement.id
+        return (
+          <li key={settlement.id} id={`settlement-${settlement.id}`} className="settlement-row">
+            <span className="settlement-text">
+              {t.settlements.row(
+                <strong>{nameOf(settlement.from_member_id)}</strong>,
+                <strong>{nameOf(settlement.to_member_id)}</strong>,
+                <Money amount={settlement.amount} />,
+              )}
+              <small>
+                {dayLabel(settlement.settled_at)}
+                {settlement.note && ` · ${settlement.note}`}
+              </small>
+            </span>
+            {canDelete(settlement) && (
+              <button
+                type="button"
+                className="btn-danger"
+                aria-label={t.settlements.deleteLabel(describe(settlement))}
+                disabled={deleting}
+                onClick={() => confirmDelete(settlement)}
+              >
+                {deleting ? t.common.deleting : t.common.delete}
+              </button>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+
   return (
     <div>
       {error && <ErrorNote message={error} onRetry={onRetry} retrying={retrying} />}
       {/* An empty list after an error means "could not load", not "nothing was paid back" */}
       {settlements.length === 0 ? (
         !error && <p className="empty">{t.settlements.empty}</p>
+      ) : fold === undefined ? (
+        list
       ) : (
-        <ul className="settlement-list">
-          {settlements.map((settlement) => {
-            const deleting = deletingId === settlement.id
-            return (
-              <li key={settlement.id} id={`settlement-${settlement.id}`} className="settlement-row">
-                <span className="settlement-text">
-                  {t.settlements.row(
-                    <strong>{nameOf(settlement.from_member_id)}</strong>,
-                    <strong>{nameOf(settlement.to_member_id)}</strong>,
-                    <Money amount={settlement.amount} />,
-                  )}
-                  <small>
-                    {dayLabel(settlement.settled_at)}
-                    {settlement.note && ` · ${settlement.note}`}
-                  </small>
-                </span>
-                {canDelete(settlement) && (
-                  <button
-                    type="button"
-                    className="btn-danger"
-                    aria-label={t.settlements.deleteLabel(describe(settlement))}
-                    disabled={deleting}
-                    onClick={() => confirmDelete(settlement)}
-                  >
-                    {deleting ? t.common.deleting : t.common.delete}
-                  </button>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+        <FoldMore
+          householdId={fold}
+          name="history"
+          summary={t.dashboard.historyFold(settlements.length, dayLabel(settlements[0].settled_at))}
+        >
+          {list}
+        </FoldMore>
       )}
     </div>
   )

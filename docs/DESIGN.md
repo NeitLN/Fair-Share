@@ -265,6 +265,16 @@ Lịch sử trả tiền                 Ghi khoản trả khác
   "Fair-Share có ích khi bạn cùng phòng vào nhà." and the invite card (code, link, copy) replace the month
   totals, the balances and the history, which would all be zeros. One join request waiting adds "Có 1
   người đang chờ duyệt", a link to Thành viên. With a second member the page is as above.
+* **A busy house** (5 people or more, plan G2-10). In an 8-person house the page was 3.528 px long on a
+  phone: seven transfer cards when only one was yours, eight month rows with the same share, eight
+  balances, the history. Now what is about you stays in view and the rest of the house folds behind a
+  line that sums it up: "6 lần trả khác trong nhà" under your own transfer cards; your row of the month,
+  then "7 người còn lại"; your balance, then "7 người khác: 1 được nhận, 6 cần trả"; under *Ghi khoản trả
+  khác*, "2 khoản trả, gần nhất: Hôm nay, 09/11". Folds start closed, and one opened stays open on this
+  device for that house (localStorage, ignored when blocked). Someone in every transfer, like the owner
+  who paid the rent, sees them all. A link into a folded part (Mới ghi's repayment, an explanation) opens
+  it first. Native `<details>`, 44 px lines, Escape closes them. The page of a member who owes went from
+  3.528 to 2.132 px at 360 px, and from 2.366 to 1.521 px at 1440 px. Houses of 2 to 4 are unchanged.
 * **Identity.** Since accounts ([ACCOUNTS.md](ACCOUNTS.md)) "bạn" is the name the signed-in account
   has in the household, given by the API (`member_id`); there is nothing to choose. It powers "Bạn…"
   sentences, the default payer, and who sees **Đã nhận** on a transfer (only its receiver). Before

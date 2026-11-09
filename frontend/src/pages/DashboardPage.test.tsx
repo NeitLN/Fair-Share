@@ -1565,3 +1565,85 @@ describe('telling a different amount', () => {
     expect(fold.querySelector('summary')).toHaveFocus()
   })
 })
+
+// Plan G2-10: in a house of 5 or more, Tổng quan keeps what is about you and folds the rest of the house
+describe('a busy house', () => {
+  const six = [
+    ...members,
+    { id: 4, household_id: 7, name: 'Lan', created_at: '' },
+    { id: 5, household_id: 7, name: 'Hoa', created_at: '' },
+    { id: 6, household_id: 7, name: 'Khoa', created_at: '' },
+  ]
+  const nets: Record<number, number> = { 1: 400_000, 2: -100_000, 3: -100_000, 4: -100_000, 5: -50_000, 6: -50_000 }
+  const busyBalances: [number, unknown] = [
+    200,
+    {
+      balances: six.map((m) => ({
+        member_id: m.id, name: m.name, paid: m.id === 1 ? 400_000 : 0, owed: 0, sent: 0, received: 0, net: nets[m.id],
+      })),
+      suggested: [2, 3, 4, 5, 6].map((id) => ({ from_member_id: id, to_member_id: 1, amount: -nets[id] })),
+    },
+  ]
+  const settled = {
+    id: 30, household_id: 7, from_member_id: 3, to_member_id: 1, amount: 20_000, settled_at: today(), note: null,
+    created_at: '', created_by: 9, notice_amount: null,
+  }
+  const summary = (text: string | RegExp) => screen.getByText(text).closest('details') as HTMLDetailsElement
+
+  beforeEach(() => localStorage.clear())
+
+  test('your part stays in view; the rest of the house folds behind a line that sums it up', async () => {
+    iAm(2)
+    api(
+      { 'GET /api/households/7/balances': busyBalances, 'GET /api/households/7/settlements': [200, [settled]] },
+      six,
+    )
+    renderApp('/households/7')
+
+    const mine = await transfers()
+    expect(within(mine).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(mine).getByText(/^Bạn cần trả Tiến/)).toBeInTheDocument()
+    await screen.findByText('4 lần trả khác trong nhà')
+    expect(summary('4 lần trả khác trong nhà').open).toBe(false)
+
+    expect(summary('5 người còn lại').open).toBe(false)
+    expect(summary('5 người khác: 1 được nhận, 4 cần trả').open).toBe(false)
+    expect(summary(/^1 khoản trả, gần nhất: Hôm nay/).open).toBe(false)
+    // Your own rows are not inside the folds
+    const balances = region('Số dư từng người')
+    const myRow = balances.getByText('Minh').closest('li') as HTMLElement
+    expect(myRow.closest('details.fold-more')).toBeNull()
+  })
+
+  test('a fold opened stays open on the next visit to this house', async () => {
+    iAm(2)
+    api({ 'GET /api/households/7/balances': busyBalances }, six)
+    const user = userEvent.setup()
+    const { unmount } = renderApp('/households/7')
+    await user.click(await screen.findByText('5 người khác: 1 được nhận, 4 cần trả'))
+    expect(summary('5 người khác: 1 được nhận, 4 cần trả').open).toBe(true)
+    unmount()
+
+    api({ 'GET /api/households/7/balances': busyBalances }, six)
+    renderApp('/households/7')
+    await screen.findByText('5 người khác: 1 được nhận, 4 cần trả')
+    expect(summary('5 người khác: 1 được nhận, 4 cần trả').open).toBe(true)
+    expect(summary('4 lần trả khác trong nhà').open).toBe(false)
+  })
+
+  test('the owner, who is in every transfer, sees them all with nothing folded', async () => {
+    iAm(1)
+    api({ 'GET /api/households/7/balances': busyBalances }, six)
+    renderApp('/households/7')
+    expect(within(await transfers()).getAllByRole('listitem')).toHaveLength(5)
+    expect(screen.queryByText(/lần trả khác trong nhà/)).not.toBeInTheDocument()
+  })
+
+  test('a house of three folds nothing', async () => {
+    iAm(2)
+    api()
+    renderApp('/households/7')
+    await screen.findByRole('region', { name: 'Số dư từng người' })
+    expect(document.querySelector('.fold-more')).toBeNull()
+  })
+})
