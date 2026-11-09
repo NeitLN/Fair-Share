@@ -31,7 +31,7 @@ flowchart LR
 
     subgraph GH["GitHub Actions"]
         CI["checks on every PR:<br/>backend · frontend · images · secrets"]
-        POST["after each deploy: smoke + E2E<br/>daily: keep-alive"]
+        POST["after each deploy: smoke + E2E<br/>every 10 min by day: keep-alive + restart"]
     end
 
     U -- "HTTPS" --> EDGE

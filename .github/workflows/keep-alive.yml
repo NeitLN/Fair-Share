@@ -1,17 +1,45 @@
 name: Keep-alive
 
-# Supabase pauses a free project after a period without database activity, and a paused project must be
-# resumed by hand from the dashboard. One real query a day through the live API keeps it active, and the
-# run going red is an early warning that the API or the database is down.
+# Two jobs on one schedule:
+# - Every 10 minutes from 07:00 to 23:00 Vietnam time, /health on the live API keeps the free Render
+#   instance awake while people use the app, and restarts it with the deploy hook when it stops
+#   answering (.github/scripts/keep-alive.sh, plan G3-06). About 16 h a day, within Render's 750 free
+#   instance hours a month. GitHub may start a scheduled run a few minutes late.
+# - Once a day at 08:00, one real query through the API: Supabase pauses a free project after a
+#   period without database activity, and a paused project must be resumed by hand.
 on:
   schedule:
-    - cron: "0 1 * * *"      # every day 08:00 Vietnam time
-  workflow_dispatch:         # or by hand: Actions → Keep-alive → Run workflow
+    - cron: "*/10 0-15 * * *"   # 07:00-22:50 Vietnam time (UTC+7)
+    - cron: "0 1 * * *"         # 08:00 Vietnam time: the database query
+  workflow_dispatch:            # or by hand: Actions → Keep-alive → Run workflow
 
-permissions: {}
+permissions:
+  actions: read                 # is a CI/CD run deploying right now? which commit passed last?
+  issues: write                 # open and close the api-down issue
+
+# One run at a time; a run waiting for a restart is never cancelled by the next one
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
 
 jobs:
-  ping:
+  awake:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/10 0-15 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
+      HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_API || secrets.RENDER_DEPLOY_HOOK }}
+      SERVICE: ${{ vars.RENDER_SERVICE_API || 'srv-db3k8udg1s2s73aqcpug' }}   # fair-share-4bu9
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7         # for .github/scripts/
+      - name: The API answers, or is restarted
+        run: ./.github/scripts/keep-alive.sh
+
+  database:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 1 * * *'
     runs-on: ubuntu-latest
     env:
       API_URL: ${{ vars.API_URL || 'https://fair-share-4bu9.onrender.com' }}
