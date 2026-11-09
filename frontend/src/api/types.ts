@@ -103,6 +103,21 @@ export interface MyReceivingAccount {
   account: ReceivingAccount | null
 }
 
+/** What a payer may see for one transfer at one moment (specs/016-vietqr, data-model.md). */
+export interface PaymentDetails {
+  state: 'ready' | 'partly_told' | 'covered' | 'declined' | 'declined_acknowledged' | 'too_large' | 'no_account'
+  suggested: number | null
+  told: number | null
+  /** What goes in the code; null when no code is offered. */
+  amount: number | null
+  notice_version: number | null
+  account: { bank_bin: string; bank_name: string; account_number: string; holder_name: string } | null
+  /** At most 24 ASCII characters, built by the server. */
+  message: string | null
+  /** Changes when the pair, the amount, the notice or the account changes. */
+  snapshot: string
+}
+
 /** GET /api/me/photo: the caller's own photo as a data URL, or nulls. */
 export interface MyPhoto {
   version: string | null

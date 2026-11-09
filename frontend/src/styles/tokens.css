@@ -24,6 +24,10 @@
   /* The dark ring inside the yellow focus halo, in both themes: --ink is pale in the dark theme and
      would vanish against the yellow */
   --focus-outline: #17132b;
+  /* A VietQR code (specs/016-vietqr): black on white in both themes on purpose, since banking apps scan
+     dark modules on a light ground; not redefined for the dark theme */
+  --qr-light: #ffffff;
+  --qr-dark: #000000;
 
   --primary: #5a3cf0;
   --on-primary: #ffffff;

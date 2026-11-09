@@ -14,6 +14,7 @@ import type {
   MyHouseholds,
   MyPhoto,
   MyReceivingAccount,
+  PaymentDetails,
   RenameResult,
   Session,
   User,
@@ -36,6 +37,8 @@ export const keys = {
   myPhoto: ['me', 'photo'] as const,
   /** Never kept once the profile page is gone (specs/016-vietqr, FR-021). */
   receivingAccount: ['me', 'receiving-account'] as const,
+  /** Never kept once the panel closes (specs/016-vietqr, FR-021). */
+  payment: (householdId: number, memberId: number) => ['payment', householdId, memberId] as const,
   /** The caller's requests to join and their outcomes (specs/015). */
   myRequests: ['me', 'requests'] as const,
   invitePreview: (code: string) => ['invite-preview', code] as const,
@@ -89,6 +92,13 @@ export const saveReceivingAccount = (account: { bank_bin: string; account_number
   api.put<MyReceivingAccount>('/api/me/receiving-account', account)
 
 export const deleteReceivingAccount = () => api.delete('/api/me/receiving-account')
+
+/** The details to pay `memberId` by VietQR, asked again every time the panel opens or refreshes. */
+export const getPaymentDetails = (householdId: number, memberId: number, acknowledge?: number | null) =>
+  api.get<PaymentDetails>(
+    `/api/households/${householdId}/members/${memberId}/payment${acknowledge ? `?acknowledge=${acknowledge}` : ''}`,
+    householdId,
+  )
 
 export const householdPhotos = (householdId: number) =>
   api.get<HouseholdPhotos>(`/api/households/${householdId}/photos`)

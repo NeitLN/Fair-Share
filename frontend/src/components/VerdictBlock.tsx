@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { Notice, Transfer } from '../api/types'
+import type { Notice, ReceivingHint, Transfer } from '../api/types'
 import { closeFoldOnEscape } from '../lib/fold'
 import { formatVND } from '../lib/money'
 import { MAX_AMOUNT } from '../lib/split'
@@ -11,6 +11,7 @@ import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
 import { transferText, verdict, verdictPeople } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import FoldMore from './FoldMore'
+import PaymentQrPanel from './PaymentQrPanel'
 import { Stamp } from './Chip'
 import { Money } from './Money'
 import NoticeAmountStep from './NoticeAmountStep'
@@ -83,6 +84,12 @@ interface VerdictBlockProps {
    * "N lần trả khác trong nhà", remembered per house. Undefined: every card shows, as before.
    */
   foldOthers?: number
+  /**
+   * Paying by VietQR (specs/016-vietqr): the house, and each member's receiving-account hint from the
+   * members list. With both, the debtor's action offers "Mở mã QR" for a receiver with an account.
+   */
+  householdId?: number
+  receivingHints?: Map<number, ReceivingHint | null>
 }
 
 /** An amount told from a step, with its note ("" or left out: none). */
@@ -131,6 +138,8 @@ function VerdictBlock({
   noticeBusy = [],
   explanation,
   foldOthers,
+  householdId,
+  receivingHints,
 }: VerdictBlockProps) {
   const t = useT()
   const id = useId()
@@ -385,6 +394,11 @@ function VerdictBlock({
                   onNotify={pressed(pair, 'cancel-notice', onNotify)}
                   onAddToNotice={pressed(pair, 'cancel-notice', onAddToNotice)}
                   onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
+                  qr={
+                    householdId !== undefined && receivingHints
+                      ? { householdId, hint: receivingHints.get(transfer.to_member_id) ?? null }
+                      : undefined
+                  }
                 />
               )
             })}
@@ -475,6 +489,8 @@ interface DebtorActionProps {
   onNotify?: (transfer: Transfer, part?: NoticePart) => Promise<string | null> | void
   onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null>
   onCancelNotice?: (transfer: Transfer) => void
+  /** The house and the receiver's hint, for "Mở mã QR" (specs/016-vietqr); undefined: no QR at all. */
+  qr?: { householdId: number; hint: ReceivingHint | null }
 }
 
 /**
@@ -484,7 +500,7 @@ interface DebtorActionProps {
  * owed now ("còn thiếu" with "Báo thêm", or "nhiều hơn"), and the way to take it back. Declined: what the
  * receiver said, and the buttons again.
  */
-function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddToNotice, onCancelNotice }: DebtorActionProps) {
+function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddToNotice, onCancelNotice, qr }: DebtorActionProps) {
   const t = useT()
   const to = nameOf(transfer.to_member_id)
   const current = transfer.amount
@@ -497,6 +513,45 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   // More than one notice can hold: the button cannot tell it all at once
   const tooLarge = current > MAX_AMOUNT
   const ceiling = Math.min(current, MAX_AMOUNT)
+  // Paying by VietQR (specs/016-vietqr): not when a waiting notice already covers what is owed (FR-015)
+  const root = useRef<HTMLDivElement>(null)
+  const qrOpener = useRef<HTMLButtonElement>(null)
+  // Open for the notice it was opened with: telling, adding or taking back changes the notice and
+  // closes the panel, so it never comes back and takes the focus from the next step (review of #271)
+  const noticeKey = notice ? `${notice.status}:${notice.version}` : 'none'
+  const [qrOpenFor, setQrOpenFor] = useState<string | null>(null)
+  const qrOpen = qrOpenFor === noticeKey
+  const covered = sent !== undefined && sent.amount >= current
+  const closeQr = () => {
+    setQrOpenFor(null)
+    // Back to the opener; if a refresh took it away, the debtor's own action, then the verdict heading
+    const target =
+      (qrOpener.current?.isConnected ? qrOpener.current : null) ??
+      root.current?.querySelector<HTMLButtonElement>('button:not(:disabled)') ??
+      document.querySelector<HTMLElement>('.verdict-sentence')
+    target?.focus()
+  }
+  const qrButton = qr?.hint && !covered && (
+    <button
+      ref={qrOpener}
+      type="button"
+      className="btn-ghost"
+      data-action="open-qr"
+      aria-expanded={qrOpen}
+      onClick={() => setQrOpenFor(qrOpen ? null : noticeKey)}
+    >
+      {t.verdict.qrOpen}
+    </button>
+  )
+  const qrMore = qr && !covered && (
+    qr.hint ? (
+      qrOpen && (
+        <PaymentQrPanel householdId={qr.householdId} memberId={transfer.to_member_id} to={to} onClose={closeQr} />
+      )
+    ) : (
+      <p className="debtor-qr-missing">{t.verdict.qrNoAccount(to)}</p>
+    )
+  )
 
   const toggle = (which: 'other' | 'more') => {
     setProblem(null)
@@ -529,7 +584,7 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   if (sent) {
     const rest = current - sent.amount
     return (
-      <div className="debtor-action" data-pair={pairOf(transfer)}>
+      <div className="debtor-action" data-pair={pairOf(transfer)} ref={root}>
         <p>
           {rest > 0
             ? t.verdict.toldShort(<Money amount={sent.amount} />, <Money amount={rest} />)
@@ -552,8 +607,10 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
               {t.verdict.addMore}
             </button>
           )}
+          {qrButton}
           {cancel}
         </span>
+        {qrMore}
         {step === 'more' && rest > 0 && (
           <NoticeAmountStep
             label={t.verdict.addLabel}
@@ -575,7 +632,7 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   }
 
   return (
-    <div className="debtor-action" data-pair={pairOf(transfer)}>
+    <div className="debtor-action" data-pair={pairOf(transfer)} ref={root}>
       {declined && <p>{t.verdict.debtorDeclined(to, <Money amount={declined.amount} />)}</p>}
       {note(declined)}
       <button
@@ -605,8 +662,10 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
         >
           {t.verdict.tellOther}
         </button>
+        {qrButton}
         {declined && cancel}
       </span>
+      {qrMore}
       {step === 'other' && (
         <NoticeAmountStep
           label={t.verdict.tellLabel}

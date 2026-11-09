@@ -96,6 +96,14 @@ will not carry them and they add nothing to the assessed pipeline.
 > presses Lưu: the app records no money by itself, and there is no scheduler, notification or email.
 > The database keeps at most one expense per item and month.
 
+> **Since 09/11 (approved by the owner):** paying by VietQR ([specs/016](../specs/016-vietqr/spec.md)). A
+> person may save one bank account to receive money; a housemate who owes them right now can open a VietQR
+> code for the amount, made in the browser, and scan it in their own banking app. Fair-Share still moves,
+> holds and requests no money, talks to no bank or payment service, and records nothing when a code is
+> opened or scanned: "Tôi đã chuyển" and the receiver's confirmation stay the only way a repayment is
+> recorded. Other housemates see only the bank and the last four digits. The reminder message (UX-02)
+> still carries no bank data. Payments of any other kind stay out of scope.
+
 > **Since 07/11 (approved by the owner):** profile photos ([specs/010](../specs/010-profile-page/spec.md)).
 > A person may put a photo on their avatar; only their current housemates see it. The browser crops it to
 > a small square and the server only checks it and saves its own 256 × 256 JPEG without metadata (at most
