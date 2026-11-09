@@ -302,9 +302,12 @@ flowchart LR
 Before a demo: open the live URL a few minutes early to wake the instance, and check the Supabase
 dashboard, *resuming* the project if it was paused for inactivity.
 
-A [keep-alive workflow](.github/workflows/keep-alive.yml) queries the database through the live API
-every morning (08:00 UTC+7), so Supabase does not pause the project for inactivity; a red run means the
-API or the database needs a look.
+A [keep-alive workflow](.github/workflows/keep-alive.yml) calls the live API's `/health` every 10
+minutes from 07:00 to 23:00 (UTC+7), so the free instance does not fall asleep while people use the app.
+When it does not answer twice in a row, the workflow restarts it once with the deploy hook and opens an
+`api-down` issue, which the next run closes when the API answers again ([docs/OUTAGES.md](docs/OUTAGES.md)).
+Every morning at 08:00 it also queries the database, so Supabase does not pause the project for
+inactivity; a red run means the API or the database needs a look.
 
 **Backups:** `DATABASE_URL='…' sh scripts/db-backup.sh` takes our own `pg_dump` (never committed:
 `backups/` is git-ignored), and `sh scripts/db-restore.sh <file> --yes` restores it into the local Compose

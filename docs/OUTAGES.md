@@ -14,6 +14,28 @@ Both started at about the same time of day. None of our scheduled workflows runs
 incident between 20 and 23/10. Two days are too few to call it a pattern; if it happens again at the
 same hour, that is worth a support ticket to Supabase.
 
+## The API kept its port closed after a deploy (08/11, 09/11)
+
+A second kind of outage, not the database: twice the API did not open its port after a deploy and every
+request timed out, while Render and Supabase both said everything was fine.
+
+| Date | Down (approx.) | Fixed by |
+|---|---|---|
+| Sun 08/11/2026 | ~06:50 → ~14:30 | Running the CI/CD deploy job again |
+| Mon 09/11/2026 | 03:10 → 03:23 (after merging #259) | Running the CI/CD deploy job again |
+
+The likely cause, from reading the code (the Render log was not checked in time): at start-up the
+migration step waited without limit for a PostgreSQL advisory lock that another session may still have
+held through the pooler. #260 removed the wait when no migration is pending and limits it to 30 s
+otherwise. If it happens again, the Render log stops at `Waiting for application startup.`, and the
+lock query in #260 says who holds the lock.
+
+**Since G3-06** the keep-alive workflow does the restart by itself: `/health` every 10 minutes from
+07:00 to 23:00; two failures in a row, 60 s apart, call the deploy hook for the commit CI/CD last deployed
+(never while a CI/CD run is queued or running), then open an `api-down` issue with the result. While
+that issue is open there is no second restart: someone reads the Render log first. The next run that
+gets an answer closes the issue, so each incident leaves an open-then-closed issue as its record.
+
 ## 23/10: what the Render log shows
 
 Read on 23/10 from the API's application log (Render dashboard → `fair-share-4bu9` → Logs, custom
