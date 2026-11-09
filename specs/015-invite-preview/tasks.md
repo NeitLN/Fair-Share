@@ -60,7 +60,7 @@
 - [X] T020 [P] In `frontend/src/components/InviteCard.tsx` the hint "Ai có mã này sẽ thấy tên nhà và tên trưởng nhóm." (both languages); Vitest
 - [X] T021 Docs: `docs/ACCOUNTS.md` D4 (what a code holder and a waiting person see, the outcome line) and J2 (previews count; the 30-a-minute preview cap); `docs/DESIGN.md` §6.1 (preview, waiting card, outcomes, start page); `docs/ARCHITECTURE.md` API table
 - [X] T022 E2E `frontend/e2e/invite.spec.ts` (shared accounts for Tiến; the invited person is a fresh account only where the start page must have no house): the preview names the house; approve from Tiến's context and see the house appear without reload; refuse and see the line until "Đã hiểu"
-- [ ] T023 Accessibility at 320 px and 200% zoom; quickstart by hand; screenshots at 360 and 1440 px in the PR; after merge, the live E2E run green
+- [X] T023 Accessibility at 320 px and 200% zoom; quickstart by hand; screenshots at 360 and 1440 px in the PR; after merge, the live E2E run green
 
 ## Dependencies & Execution Order
 

@@ -95,8 +95,8 @@ exactly that amount.
 
 - [X] T033 Docs: `docs/ACCOUNTS.md` S3 (any amount up to the suggestion, note, Báo thêm); `docs/DESIGN.md` §6.2 (the payer and receiver lines, the steps) and §7 (Đã báo, còn thiếu, Báo thêm, Chuyển số khác, Nhận số khác)
 - [X] T034 E2E in `frontend/e2e/notices.spec.ts`: Lan "Chuyển số khác" 1tr with a note, Tiến sees it; an expense raises the debt; "còn thiếu" and "Báo thêm"; Tiến confirms the total once
-- [ ] T035 Accessibility pass at 320 px and 200% zoom on the steps (44 px, focus back to the opener, totals read once); `frontend/e2e/a11y.spec.ts` stays green
-- [ ] T036 Quickstart steps 6 to 10 by hand, screenshots at 360 and 1440 px in the PR; after merge, the live E2E run green
+- [X] T035 Accessibility pass at 320 px and 200% zoom on the steps (44 px, focus back to the opener, totals read once); `frontend/e2e/a11y.spec.ts` stays green
+- [X] T036 Quickstart steps 6 to 10 by hand, screenshots at 360 and 1440 px in the PR; after merge, the live E2E run green
 
 ---
 
