@@ -1682,6 +1682,27 @@ describe('paying by VietQR', () => {
     expect(open).toHaveFocus()
   })
 
+  test('telling the transfer while the code is open closes it, and focus goes to the next step', async () => {
+    // Review of #271: the panel must not take the focus back when the notice changes the debtor's line
+    iAm(2)
+    api({ 'GET /api/households/7/members/1/payment': [200, payment] }, withHint)
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    await user.click(await screen.findByRole('button', { name: 'Mở mã QR' }))
+    await screen.findByRole('img', { name: /^Mã VietQR/ })
+    await user.click(screen.getByRole('button', { name: 'Chuyển số khác' }))
+    const amount = screen.getByLabelText('Số tiền đã chuyển')
+    await user.clear(amount)
+    await user.type(amount, '60k')
+    await user.click(screen.getByRole('button', { name: 'Gửi' }))
+
+    const cancel = await screen.findByRole('button', { name: 'Huỷ thông báo' })
+    await waitFor(() => expect(cancel).toHaveFocus())
+    expect(screen.queryByRole('img', { name: /^Mã VietQR/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Chuyển cho Tiến bằng mã QR' })).not.toBeInTheDocument()
+  })
+
   test('a receiver without an account: a quiet line, no button', async () => {
     iAm(2)
     api({}, members.map((m) => ({ ...m, receiving_hint: null })))

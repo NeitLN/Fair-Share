@@ -516,10 +516,14 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   // Paying by VietQR (specs/016-vietqr): not when a waiting notice already covers what is owed (FR-015)
   const root = useRef<HTMLDivElement>(null)
   const qrOpener = useRef<HTMLButtonElement>(null)
-  const [qrOpen, setQrOpen] = useState(false)
+  // Open for the notice it was opened with: telling, adding or taking back changes the notice and
+  // closes the panel, so it never comes back and takes the focus from the next step (review of #271)
+  const noticeKey = notice ? `${notice.status}:${notice.version}` : 'none'
+  const [qrOpenFor, setQrOpenFor] = useState<string | null>(null)
+  const qrOpen = qrOpenFor === noticeKey
   const covered = sent !== undefined && sent.amount >= current
   const closeQr = () => {
-    setQrOpen(false)
+    setQrOpenFor(null)
     // Back to the opener; if a refresh took it away, the debtor's own action, then the verdict heading
     const target =
       (qrOpener.current?.isConnected ? qrOpener.current : null) ??
@@ -534,7 +538,7 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
       className="btn-ghost"
       data-action="open-qr"
       aria-expanded={qrOpen}
-      onClick={() => setQrOpen((open) => !open)}
+      onClick={() => setQrOpenFor(qrOpen ? null : noticeKey)}
     >
       {t.verdict.qrOpen}
     </button>
