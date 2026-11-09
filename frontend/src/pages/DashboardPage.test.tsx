@@ -1647,3 +1647,63 @@ describe('a busy house', () => {
     expect(document.querySelector('.fold-more')).toBeNull()
   })
 })
+
+// specs/016-vietqr: Minh owes Tiến; Tiến has (or has not) saved a receiving account
+describe('paying by VietQR', () => {
+  const withHint = members.map((m) =>
+    m.id === 1 ? { ...m, receiving_hint: { bank_name: 'Vietcombank', last4: '6789' } } : { ...m, receiving_hint: null },
+  )
+  const payment = {
+    state: 'ready',
+    suggested: 100_000,
+    told: null,
+    amount: 100_000,
+    notice_version: null,
+    account: { bank_bin: '970436', bank_name: 'Vietcombank', account_number: '0123456789', holder_name: 'NGUYEN VAN TIEN' },
+    message: 'FS NHATROQ7 MINH',
+    snapshot: 'aaaaaaaaaaaa',
+  }
+
+  test('"Mở mã QR" sits beside the debtor\'s action and opens the code, recording nothing', async () => {
+    iAm(2)
+    const fetchFn = api({ 'GET /api/households/7/members/1/payment': [200, payment] }, withHint)
+    const user = userEvent.setup()
+    renderApp('/households/7')
+
+    const open = await screen.findByRole('button', { name: 'Mở mã QR' })
+    expect(open.closest('.debtor-action')).not.toBeNull()
+    await user.click(open)
+    expect(await screen.findByRole('img', { name: 'Mã VietQR chuyển 100.000đ cho Tiến' })).toBeInTheDocument()
+    expect(open).toHaveAttribute('aria-expanded', 'true')
+    expect(fetchFn.mock.calls.some(([, init]) => ['POST', 'PUT', 'DELETE'].includes(init?.method ?? 'GET'))).toBe(false)
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('img', { name: /^Mã VietQR/ })).not.toBeInTheDocument()
+    expect(open).toHaveFocus()
+  })
+
+  test('a receiver without an account: a quiet line, no button', async () => {
+    iAm(2)
+    api({}, members.map((m) => ({ ...m, receiving_hint: null })))
+    renderApp('/households/7')
+    expect(await screen.findByText('Tiến chưa thêm tài khoản nhận tiền.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Mở mã QR' })).not.toBeInTheDocument()
+  })
+
+  test('a waiting notice that covers the debt: no button', async () => {
+    iAm(2)
+    api({}, withHint, [{ from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 1 }])
+    renderApp('/households/7')
+    await screen.findByRole('button', { name: 'Huỷ thông báo' })
+    expect(screen.queryByRole('button', { name: 'Mở mã QR' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/chưa thêm tài khoản nhận tiền/)).not.toBeInTheDocument()
+  })
+
+  test('told part of it: the button stays for the rest', async () => {
+    iAm(2)
+    api({}, withHint, [{ from_member_id: 2, to_member_id: 1, amount: 60_000, status: 'sent', created_at: '', version: 1 }])
+    renderApp('/households/7')
+    expect(await screen.findByRole('button', { name: 'Mở mã QR' })).toBeInTheDocument()
+  })
+})
+

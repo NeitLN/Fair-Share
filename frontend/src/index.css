@@ -1821,6 +1821,88 @@ button.ai:active:focus-visible {
 }
 
 /* specs/014 PR-2: "Chuyển số khác" / "Báo thêm" and "Huỷ thông báo" side by side, wrapping on a phone */
+/* Paying by VietQR (specs/016-vietqr): the panel opens under the debtor's action on the taro block, as
+   a light card so the code and the details read and scan in both themes */
+.qr-panel {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 14px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.qr-panel h3 {
+  font-size: 16px;
+}
+
+/* Inside the taro block every paragraph takes its light text: not in this card, which is light itself */
+.debtor-action .qr-panel p {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.debtor-action .qr-panel p.hint,
+.debtor-action .qr-panel .qr-detail dt {
+  color: var(--muted);
+}
+
+.qr-panel .btn-ghost {
+  color: var(--primary-text);
+}
+
+.qr-code {
+  width: min(100%, 260px);
+  min-width: 200px;
+  height: auto;
+}
+
+.qr-code .qr-light {
+  fill: var(--qr-light);
+}
+
+.qr-code .qr-dark {
+  fill: var(--qr-dark);
+}
+
+.qr-details {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+}
+
+.qr-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+}
+
+.qr-detail dt {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.qr-detail dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.qr-copy {
+  min-height: var(--target);
+}
+
+.debtor-qr-missing {
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .debtor-buttons {
   display: flex;
   flex-wrap: wrap;

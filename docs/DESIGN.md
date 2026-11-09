@@ -261,6 +261,17 @@ Lịch sử trả tiền                 Ghi khoản trả khác
   sao ra số này?*. A refusal (the numbers changed) stays in the step with what was typed. The cards in the panel keep their row and status but no button of their own, since the
   action is above, where the eye lands first; focus follows the next step after each press. Creditors and
   settled people see none.
+* **Paying by VietQR** ([spec 016](../specs/016-vietqr/spec.md)). When the receiver has saved an account,
+  *Mở mã QR* sits beside *Chuyển số khác*; without one, a quiet line "Minh chưa thêm tài khoản nhận tiền.";
+  when a waiting notice already covers the debt, neither. The panel opens under the action as a light card:
+  the code (black on white in both themes, at least 200 px), then the bank, the number, the holder's name
+  "(tên Minh tự nhập)", the amount and the message, each with *Sao chép*, and "So tên người nhận trong app
+  ngân hàng trước khi xác nhận.". *Mã không kèm số tiền* swaps the code for one without an amount and says
+  so. After "Đã báo 100.000đ" the code is for the 20.000đ not told yet; after "Chưa nhận được" the panel
+  warns first and shows the code only after *Vẫn chuyển 120.000đ*; from 500.000.000đ there is no code, only
+  the details as text. On a refresh that changes the amount or the account, the code and every detail go
+  and *Tải lại* brings them back. Escape and *Đóng* close it; nothing is recorded, and "Tôi đã chuyển" is
+  still how the receiver is told.
 * **A house with one person** ([spec 012](../specs/012-overview-and-lists/spec.md) US3). *+ Ghi khoản chi*,
   "Fair-Share có ích khi bạn cùng phòng vào nhà." and the invite card (code, link, copy) replace the month
   totals, the balances and the history, which would all be zeros. One join request waiting adds "Có 1
@@ -656,6 +667,12 @@ own form with its own button, so an error in one never loses what was typed in a
 Field problems sit under their field (`field-problem`, `aria-describedby`); answers are in a polite live
 region.
 
+* **Tài khoản nhận tiền** ([spec 016](../specs/016-vietqr/spec.md)), after *Trạng thái*: a bank from the
+  VietQR list, the account number (numeric keyboard), the holder's name with "Sẽ hiện: NGUYEN VAN MINH" as
+  typed, and before *Lưu* the line "Chỉ bạn cùng nhà đang cần trả bạn mới thấy đầy đủ số tài khoản và tên.
+  Những người khác trong nhà thấy ngân hàng và 4 số cuối.". Saved, it reads "Vietcombank · 0123456789 ·
+  NGUYEN VAN MINH" with *Sửa* and *Xoá* (asked first). On Thành viên, housemates see "Có tài khoản nhận tiền ·
+  Vietcombank •••• 6789" under the name, never more.
 * **Giới tính** (last): the notice first, "Không bắt buộc. Dùng để cho bạn cùng nhà biết giới tính của bạn;
   bạn cùng nhà hiện tại và sau này đều thấy. Giữ tới khi bạn đổi hoặc bỏ. Chọn Không nêu là xoá hẳn.", then
   four 44 px radio rows, *Không nêu* (checked by default), *Nam*, *Nữ*, *Khác*, and *Lưu*. Nobody is asked

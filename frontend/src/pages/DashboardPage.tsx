@@ -184,6 +184,11 @@ function Dashboard({ householdId }: { householdId: number }) {
   })
 
   const memberList = useMemo(() => members.data ?? [], [members.data])
+  // Each member's receiving-account hint, for "Mở mã QR" (specs/016-vietqr)
+  const receivingHints = useMemo(
+    () => new Map(memberList.map((m) => [m.id, m.receiving_hint ?? null])),
+    [memberList],
+  )
   // "Vì sao ra số này?": each balance explained from what the page already has (specs/002-balance-explanation)
   const explanations = useMemo(
     () =>
@@ -380,6 +385,8 @@ function Dashboard({ householdId }: { householdId: number }) {
             onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
             noticeBusy={noticeBusy}
             foldOthers={fold}
+            householdId={householdId}
+            receivingHints={receivingHints}
           />
           {/* Under the transfers: another money action, so the right column (and Báo cáo tháng) stays put */}
           <DueCard items={due} looks={looks} householdId={householdId} />
