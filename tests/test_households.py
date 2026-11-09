@@ -116,12 +116,43 @@ def test_list_members_in_order_with_their_role(client):
     assert minh["household_id"] == house["id"]
     assert set(minh) == {
         "id", "household_id", "name", "created_at", "role", "user_id", "status", "photo_version",
-        "gender",
+        "gender", "receiving_hint",
     }
 
     listed = client.get(f"/api/households/{house['id']}/members").json()
     assert [(m["name"], m["role"]) for m in listed] == [("Tiến", "owner"), ("Minh", "member")]
     assert listed[0] == tien
+
+
+def test_housemates_see_only_the_bank_and_the_last_four_digits(client, monkeypatch):
+    """specs/016-vietqr FR-011: the hint, never the number or the name; only while the person is
+    an owner or member here, and only for a bank that takes VietQR transfers."""
+    from app.services import vietqr
+
+    house = household(client)
+    member(client, house["id"], "Tiến")
+    minh = member(client, house["id"], "Minh")
+    an = member(client, house["id"], "An")
+    minh_token = client.member_tokens[minh["id"]]
+    saved = client.put("/api/me/receiving-account", headers=bearer(minh_token), json={
+        "bank_bin": "970436", "account_number": "0123456789", "holder_name": "Minh"})
+    assert saved.status_code == 200, saved.text
+
+    def hints(token=None):
+        response = client.get(f"/api/households/{house['id']}/members",
+                              headers=bearer(token) if token else {})
+        assert "0123456789" not in response.text and "MINH" not in response.text
+        return {m["name"]: m["receiving_hint"] for m in response.json()}
+
+    assert hints() == {"Tiến": None, "Minh": {"bank_name": "Vietcombank", "last4": "6789"},
+                       "An": None}
+    assert hints(client.member_tokens[an["id"]])["Minh"] == {"bank_name": "Vietcombank",
+                                                             "last4": "6789"}
+    monkeypatch.delitem(vietqr.BANKS, "970436")  # the bank left the list
+    assert hints()["Minh"] is None
+    monkeypatch.undo()
+    remove_access(client, house["id"], minh["id"])  # Minh's name stays, his account goes
+    assert hints()["Minh"] is None
 
 
 def test_a_new_household_has_only_its_owner(client):

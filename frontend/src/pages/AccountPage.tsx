@@ -14,6 +14,7 @@ import {
   uploadPhoto,
 } from '../api/households'
 import { Avatar } from '../components/Avatar'
+import ReceivingAccountForm from '../components/ReceivingAccountForm'
 import type { Gender, MyHouseholds, RenameResult } from '../api/types'
 import { useT } from '../i18n'
 import { errorMessage } from '../lib/errors'
@@ -41,6 +42,7 @@ function AccountPage() {
       <PhotoForm name={session.user.display_name} userId={session.user.id} />
       <NameForm current={session.user.display_name} />
       <StatusForm current={session.user.status ?? ''} />
+      <ReceivingAccountForm />
       <PasswordForm />
       <GenderForm current={session.user.gender ?? null} />
     </div>

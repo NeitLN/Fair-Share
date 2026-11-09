@@ -276,6 +276,8 @@ settlement must be members of the **same household** (composite foreign keys on
 | `POST /api/households/{id}/notices/{from}/accept`, `/decline` | The receiver's "Đã nhận" (all, or `received` for less) / "Chưa nhận được" | Bodies `{version, received?, settled_at}` / `{version}`; `409 notice_changed`; `422 more_than_told` ([spec 014](../specs/014-partial-transfer-notices/spec.md)) |
 | `POST /api/invites/preview` | The house a valid code leads to, before asking ([spec 015](../specs/015-invite-preview/spec.md)) | Body `{code}`; `{house_name, owner_name, member, household_id}` (`household_id` only for a member); a wrong, expired or replaced code is `/join`'s `404 invalid_code`; `429 too_many_attempts` (J2, shared with `/join`) or `too_many_previews` |
 | `GET /api/me/requests` | The caller's waiting requests, houses joined (ids) and outcomes; checked every 10 s while a request waits | `{pending, joined, outcomes}`, no amounts; outcomes older than 30 days are never shown, and deleted on a check with nothing waiting (the 10-second checks only read) |
+| `GET`, `PUT`, `DELETE /api/me/receiving-account` | The account the person is paid on ([spec 016](../specs/016-vietqr/spec.md), ACCOUNTS.md P6) | `{account: {bank_bin, bank_name, account_number, holder_name, version, supported} \| null}`, `no-store`; `422 unknown_bank`, `bad_account_number`, `bad_holder_name` |
+| `GET /api/households/{id}/members/{member_id}/payment` | What a payer may see to pay that member by VietQR (P6) | Under the house lock: house 404, member 404, `409 payment_not_suggested`, else `{state, suggested, told, amount, notice_version, account, message, snapshot}` (states in specs/016 data-model.md); `?acknowledge=<notice version>` after a declined notice; `no-store` |
 | `DELETE /api/me/outcomes/{id}` | "Đã hiểu" on a refusal or a deleted house | `204`; `404 outcome_not_found` for anyone but its owner |
 | `GET /api/households/{id}/balances` | Per-member paid / owed / net + suggested transfers | Computed on each request; response below |
 | `GET /api/households/{id}/recurring` | The active recurring items, oldest first | Spec 007; making and recording go through the expense body below |
@@ -305,6 +307,12 @@ send the Bearer token, so the members list carries each photo's version and the 
 `GET /api/households/{id}/photos` once for data URLs, again only when a version changes; nothing polls.
 Its cache key is `['photos', id, versions]`, outside `['households', id]`, so saving an expense does not
 fetch the photos again (#228 review).
+Receiving accounts (P6, specs/016): `app/services/vietqr.py` holds the bundled bank list (an identical copy
+lives in `frontend/src/data/`, checked by a test), the name cleaning, the transfer message and the rule for
+which code to show. The members list adds each current member's hint from a separate query, so no other
+answer built from `SELECT_MEMBERS` can carry account data. The payment route lives in `settlements.py`,
+next to the notices it reads, and takes the house lock `FOR UPDATE` so the suggestion, the notice and the
+amount come from one state.
 
 Errors use one shape: `{"error": {"code": "member_in_use", "message": "…human readable…"}}`.
 FastAPI's interactive docs at `/docs` are the living API reference.

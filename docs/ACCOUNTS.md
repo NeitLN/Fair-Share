@@ -70,6 +70,7 @@ to use.
 | P3 | A status (`PUT /api/me/status`) is 1 to 60 code points after cleaning like a name, direction controls removed; empty clears it. It belongs to the account and shows in a household only through a live owner or member link: someone waiting, someone who left or lost access, and a name from before accounts show none, and an account approved onto an old name shows only its own. Plain text, never a link (specs/010-profile-page, US3) | `test_status.py` |
 | P4 | A photo (`PUT /api/me/photo`, the raw picture as `image/jpeg`, `image/png` or `image/webp` within the 64 KiB body limit) is checked by `app/services/images.py`: the declared type must match the first bytes, the picture must be at most 512 × 512 (read from the header, before decoding) and one frame, and what is kept is the server's own 256 × 256 JPEG without metadata, at most 32 KiB, one per account, replaced in place. Uploads count before checking: 10 an hour per account, 30 per address (`429`); a refused one stays counted. All photos together stay under 50 MB, checked under an advisory lock (`507 photo_storage_full`); two decodings at a time (`503 busy`). A photo reaches only the person (`GET /api/me/photo`) and their current housemates (`GET /api/households/{id}/photos`, one batch, `no-store`), through signed-in requests, never at an address of its own; the same live-link rule as P3 | `test_photos.py`, `test_images.py` |
 | P5 | A gender is optional and never asked for: `null` ("Không nêu") for every account until its owner chooses `male`, `female` or `other` with `PUT /api/me/gender`. The request names the notice version the page showed (`2026-11-v2`); another version is a `422`, so a stale page cannot record agreement to words it did not show. The choice, the notice version and the time are kept together (a database check) and "Không nêu" deletes all three. Only the gender reaches housemates, under the same live-link rule as P3; the notice record never leaves the server | `test_gender.py` |
+| P6 | A receiving account (`PUT /api/me/receiving-account`, [spec 016](../specs/016-vietqr/spec.md)) is the person's own: a bank from the bundled VietQR list (`app/data/vietqr_banks.json`, only banks taking transfers), an account number of 6 to 19 digits, and the holder's name cleaned to capital ASCII as banking apps show it. Only its owner reads, changes or removes it, with no house needed; answers are `no-store`. In a house, a current owner or member with an account carries a hint in the members list (the bank and the last four digits, never the number or the name). The full details come only from `GET /api/households/{id}/members/{member}/payment`, checked in this order: the house's own 404 for anyone not an owner or member of it, the member's own 404 for someone not a current owner or member there (both identical whether an account exists), then `409 payment_not_suggested` unless the server's current suggested transfers, under the house lock, include one from the asker to that member. Being owner gives nothing more. Limit we accept: a member can make themselves owe someone with a small expense, read the details, and delete it; the gate stops casual viewing, not a determined housemate. Removing the account stops every later read; details already seen and backups cannot be recalled. Account numbers and names are never logged | `test_receiving_accounts.py`, `test_payment_details.py`, `test_housemates_see_only_the_bank_…` |
 | L1 | The old key shows an ownerless household to take over; with an owner it answers "ask for an invite code"; a wrong key is a 404 | `test_the_first_signed_in_person_…` |
 
 ## API
@@ -99,6 +100,8 @@ to use.
 | `PUT`, `DELETE`, `GET /api/me/photo` | upload (`{version}`), remove, or read your own photo (P4) |
 | `GET /api/households/{id}/photos` | `{photos: [{member_id, version, data}]}`; `Member` carries `photo_version` (P4) |
 | `PUT /api/me/gender` `{gender, notice}` | the account with its gender (P5); `Member` and `User` carry `gender` |
+| `GET`, `PUT`, `DELETE /api/me/receiving-account` | read, save or remove your own receiving account (P6); `Member` carries `receiving_hint` |
+| `GET /api/households/{id}/members/{member}/payment[?acknowledge=]` | the payment details for one suggested transfer (P6) |
 
 ## Data
 
@@ -106,7 +109,7 @@ to use.
 name), `invite_codes` and `rate_limits`, and `created_by` on expenses and settlements. 001 and 002
 are unchanged; `households.access_key` stays only for L1. `004_payment_notices.sql` adds
 `payment_notices` (S3): one row per pair, removed with either name, when it is answered "Đã nhận", or when
-the told amount is recorded by hand. `007_user_status.sql` adds `users.status` (P3), `008_user_photos.sql` the table `user_photos` (P4), `009_user_gender.sql` `users.gender` with its notice record (P5).
+the told amount is recorded by hand. `007_user_status.sql` adds `users.status` (P3), `008_user_photos.sql` the table `user_photos` (P4), `009_user_gender.sql` `users.gender` with its notice record (P5), `012_receiving_accounts.sql` the table `receiving_accounts` (P6).
 
 ## Limits we accept
 

@@ -233,6 +233,30 @@ const vi = {
     genders: { male: 'Nam', female: 'Nữ', other: 'Khác' } as Record<'male' | 'female' | 'other', string>,
     genderSaved: 'Đã lưu giới tính.',
     genderCleared: 'Đã xoá giới tính.',
+    // The account I am paid on (specs/016-vietqr)
+    receivingTitle: 'Tài khoản nhận tiền',
+    receivingNone: 'Chưa có tài khoản nhận tiền.',
+    receivingIntro: 'Bạn cùng nhà đang cần trả bạn sẽ quét mã QR để chuyển đúng số, khỏi gõ số tài khoản.',
+    receivingAdd: 'Thêm tài khoản',
+    receivingEdit: 'Sửa',
+    receivingDelete: 'Xoá',
+    receivingCancel: 'Huỷ',
+    receivingBank: 'Ngân hàng',
+    receivingBankPick: 'Chọn ngân hàng',
+    receivingNumber: 'Số tài khoản',
+    receivingNumberHint: '6 đến 19 chữ số, như trong app ngân hàng.',
+    receivingHolder: 'Tên chủ tài khoản',
+    receivingHolderPreview: (name: string) => `Sẽ hiện: ${name}`,
+    receivingPrivacy:
+      'Chỉ bạn cùng nhà đang cần trả bạn mới thấy đầy đủ số tài khoản và tên. Những người khác trong nhà thấy ngân hàng và 4 số cuối.',
+    receivingAfterDelete: 'Đã xoá thì không ai tải được nữa; người đã xem trước đó có thể vẫn còn lưu.',
+    receivingUnsupported: 'Ngân hàng này không còn trong danh sách VietQR. Bạn cùng nhà sẽ không thấy tài khoản này.',
+    receivingDeleteAsk: 'Xoá tài khoản nhận tiền? Bạn cùng nhà sẽ không mở được mã QR của bạn nữa.',
+    receivingSaved: 'Đã lưu tài khoản nhận tiền.',
+    receivingDeleted: 'Đã xoá tài khoản nhận tiền.',
+    receivingUnknownBank: 'Chọn một ngân hàng trong danh sách.',
+    receivingBadNumber: 'Số tài khoản là 6 đến 19 chữ số.',
+    receivingBadHolder: 'Nhập tên chủ tài khoản, tối đa 50 chữ cái hoặc chữ số.',
   },
   // A new account with no house and no request: one place to start (design review 05/11)
   start: {
@@ -315,6 +339,8 @@ const vi = {
     owned: 'Nhà này đã có trưởng nhóm. Nhờ trưởng nhóm gửi mã mời rồi nhập ở trang chủ.',
   },
   members: {
+    // Another person's receiving account, as a hint only (specs/016-vietqr, FR-011)
+    receivingHint: (bank: string, last4: string) => `Có tài khoản nhận tiền · ${bank} •••• ${last4}`,
     nameLabel: 'Tên thành viên',
     nameEmpty: 'Tên thành viên không được để trống.',
     add: 'Thêm thành viên',

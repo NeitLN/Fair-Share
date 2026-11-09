@@ -30,6 +30,7 @@ from app.schemas import (
     MyHouseholds,
 )
 from app.services.images import data_url
+from app.services.vietqr import bank_for
 
 # Every route here needs a session, and one with a household id in its path an approved member of
 # that household (app/access.py)
@@ -302,9 +303,26 @@ def household_photos(household_id: Id, conn: ConnDep, response: Response):
 
 @router.get("/households/{household_id}/members", response_model=list[Member])
 def list_members(household_id: Id, conn: ConnDep):
-    """Oldest first: the equal split gives remainder đồng to the lowest member ids."""
+    """Oldest first: the equal split gives remainder đồng to the lowest member ids.
+
+    Each current owner or member with a receiving account carries its hint: the bank and the last
+    four digits, never the number or the name (specs/016-vietqr, FR-011). Read apart from
+    SELECT_MEMBERS, so no other answer built from it can ever carry account data."""
     sql = f"{SELECT_MEMBERS} WHERE m.household_id = %s ORDER BY m.id"
-    return fetch_all(conn, sql, (household_id,))
+    members = fetch_all(conn, sql, (household_id,))
+    accounts = fetch_all(
+        conn,
+        "SELECT hu.member_id, ra.bank_bin, right(ra.account_number, 4) AS last4"
+        " FROM household_users hu JOIN receiving_accounts ra ON ra.user_id = hu.user_id"
+        " WHERE hu.household_id = %s AND hu.role IN ('owner', 'member')",
+        (household_id,),
+    )
+    hints = {}
+    for row in accounts:
+        bank = bank_for(row["bank_bin"])
+        if bank is not None:
+            hints[row["member_id"]] = {"bank_name": bank["name"], "last4": row["last4"]}
+    return [{**m, "receiving_hint": hints.get(m["id"])} for m in members]
 
 
 # --- Who is in it (owner) ---------------------------------------------------------------------
