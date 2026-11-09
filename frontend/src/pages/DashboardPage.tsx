@@ -36,6 +36,7 @@ import InviteCard from '../components/InviteCard'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
+import { BUSY_HOUSE } from '../lib/folds'
 import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
 import { useSession } from '../lib/session'
@@ -272,6 +273,9 @@ function Dashboard({ householdId }: { householdId: number }) {
     )
   }
 
+  // A busy house (plan G2-10): what is about you stays, the rest of the house folds
+  const fold = memberList.length >= BUSY_HOUSE ? householdId : undefined
+
   const now = today()
   const month = Number(now.slice(5, 7))
   const thisMonth = now.slice(0, 7)
@@ -313,6 +317,7 @@ function Dashboard({ householdId }: { householdId: number }) {
         onDelete={(settlement) => remove.mutate(settlement)}
         notices={notices.data}
         deletingId={remove.isPending ? remove.variables?.id : null}
+        fold={fold}
         canDelete={(settlement) =>
           household.data?.role === 'owner' || settlement.created_by === session?.user.id
         }
@@ -374,6 +379,7 @@ function Dashboard({ householdId }: { householdId: number }) {
             onCancelNotice={(transfer) => notice.mutate({ kind: 'cancel', transfer })}
             onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
             noticeBusy={noticeBusy}
+            foldOthers={fold}
           />
           {/* Under the transfers: another money action, so the right column (and Báo cáo tháng) stays put */}
           <DueCard items={due} looks={looks} householdId={householdId} />
@@ -399,6 +405,7 @@ function Dashboard({ householdId }: { householdId: number }) {
               me={me}
               level={2}
               reportTo={`/households/${householdId}/report/${thisMonth}`}
+              fold={fold}
             />
           )}
           {/* Holds the place while the expenses load, so the balances below do not jump (review of #172) */}
@@ -418,6 +425,7 @@ function Dashboard({ householdId }: { householdId: number }) {
               unavailable={balances.isError && !balances.data}
               explanations={explanations}
               householdId={householdId}
+              fold={fold !== undefined}
             />
           </section>
           {!wide && history}

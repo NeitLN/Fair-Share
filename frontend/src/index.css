@@ -2264,6 +2264,67 @@ button.ai:active:focus-visible {
   background: var(--surface-2);
 }
 
+/* A busy house (plan G2-10): the household's part of a section, folded under your own row behind a line
+   that sums it up. A quiet box like the list above it; open, the rows sit under a divider */
+.fold-more {
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.fold-more > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--target);
+  padding: 10px 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.fold-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold-more > summary::after {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.fold-more[open] > summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.fold-more > .balance-list,
+.fold-more > .settlement-list,
+.fold-more > .transfer-list {
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--card-edge);
+  border-radius: 0;
+  background: none;
+}
+
+/* Inside the transfers panel, which is already a white box */
+.transfers-panel .fold-more {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--card-edge);
+  border-radius: 0;
+}
+
 .balance-row:last-child,
 .settlement-row:last-child {
   border-bottom: 0;
@@ -3809,8 +3870,14 @@ button.ai:active:focus-visible {
     column-gap: 16px;
   }
 
-  .dashboard-split .month-totals > .balance-list {
+  .dashboard-split .month-totals > .balance-list,
+  .dashboard-split .month-totals > .fold-more {
     flex-basis: 100%;
+  }
+
+  /* The heading row is a wrapping flex row here: the fold keeps its 8 px from the row above */
+  .dashboard-split .month-totals > .fold-more {
+    margin-top: 0;
   }
 
   /* A little more room inside the verdict block on a wide screen; the amount stays 44 px */

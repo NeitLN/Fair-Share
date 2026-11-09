@@ -10,6 +10,7 @@ import { tookPart } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import BalanceExplanation from './BalanceExplanation'
 import { Chip, Stamp } from './Chip'
+import FoldMore from './FoldMore'
 import { Money } from './Money'
 import Skeleton from './Skeleton'
 import { useT } from '../i18n'
@@ -25,6 +26,8 @@ interface BalanceRowsProps {
   /** "Vì sao ra số này?" for each member: a row opens to its explanation (specs/002-balance-explanation). */
   explanations?: Map<number, Explanation>
   householdId?: number
+  /** A busy house (plan G2-10): your row stays, the others fold behind who gets and who owes. */
+  fold?: boolean
 }
 
 /**
@@ -39,6 +42,7 @@ function BalanceRows({
   unavailable = false,
   explanations,
   householdId,
+  fold = false,
 }: BalanceRowsProps) {
   const t = useT()
   // An explanation is only rendered while its row is open (the page has already worked it out); several
@@ -60,68 +64,88 @@ function BalanceRows({
     return <p className="hint">{t.balances.unavailable}</p>
   }
 
+  const folding = fold && householdId !== undefined && balances.some((b) => b.member_id === me)
+  const mine = balances.filter((b) => b.member_id === me)
+  const others = balances.filter((b) => b.member_id !== me)
+  const renderRow = (balance: MemberBalance) => {
+    const look = looks.get(balance.member_id) ?? {
+      full: balance.name,
+      short: balance.name,
+      initial: initialOf(balance.name),
+      tint: 1,
+    }
+    const explanation = explanations?.get(balance.member_id)
+    const row: ReactNode = (
+      <>
+        <Avatar look={look} decorative />
+        <span className="who">
+          <strong>
+            {look.short}
+            {me === balance.member_id && <Chip kind="me">{t.common.you}</Chip>}
+          </strong>
+          {balance.paid > 0 && (
+            <small>
+              {t.money.spentInTotal} <Money amount={balance.paid} />
+            </small>
+          )}
+        </span>
+        <span className="standing">
+          <Money amount={balance.net} kind="balance" />
+          {balance.net > 0 ? (
+            <small>{t.money.getsShort}</small>
+          ) : balance.net < 0 ? (
+            <small>{t.money.owesShort}</small>
+          ) : (
+            tookPart(balance) && <Stamp kind="settled" decorative={false} />
+          )}
+        </span>
+      </>
+    )
+    if (!explanation || householdId === undefined) {
+      return (
+        <li key={balance.member_id} className="balance-row">
+          {row}
+        </li>
+      )
+    }
+    return (
+      <li key={balance.member_id} className="balance-row openable">
+        <details
+          onToggle={(event) => toggle(balance.member_id, event.currentTarget.open)}
+          onKeyDown={closeFoldOnEscape}
+        >
+          <summary>{row}</summary>
+          {open.has(balance.member_id) && (
+            <BalanceExplanation explanation={explanation} looks={looks} me={me} householdId={householdId} />
+          )}
+        </details>
+      </li>
+    )
+  }
+
   return (
     <div>
       {balances.length === 0 ? (
         <p className="empty">{t.balances.empty}</p>
       ) : (
-        <ul className="balance-list">
-          {balances.map((balance) => {
-            const look = looks.get(balance.member_id) ?? {
-              full: balance.name,
-              short: balance.name,
-              initial: initialOf(balance.name),
-              tint: 1,
-            }
-            const explanation = explanations?.get(balance.member_id)
-            const row: ReactNode = (
-              <>
-                <Avatar look={look} decorative />
-                <span className="who">
-                  <strong>
-                    {look.short}
-                    {me === balance.member_id && <Chip kind="me">{t.common.you}</Chip>}
-                  </strong>
-                  {balance.paid > 0 && (
-                    <small>
-                      {t.money.spentInTotal} <Money amount={balance.paid} />
-                    </small>
-                  )}
-                </span>
-                <span className="standing">
-                  <Money amount={balance.net} kind="balance" />
-                  {balance.net > 0 ? (
-                    <small>{t.money.getsShort}</small>
-                  ) : balance.net < 0 ? (
-                    <small>{t.money.owesShort}</small>
-                  ) : (
-                    tookPart(balance) && <Stamp kind="settled" decorative={false} />
-                  )}
-                </span>
-              </>
-            )
-            if (!explanation || householdId === undefined) {
-              return (
-                <li key={balance.member_id} className="balance-row">
-                  {row}
-                </li>
-              )
-            }
-            return (
-              <li key={balance.member_id} className="balance-row openable">
-                <details
-                  onToggle={(event) => toggle(balance.member_id, event.currentTarget.open)}
-                  onKeyDown={closeFoldOnEscape}
-                >
-                  <summary>{row}</summary>
-                  {open.has(balance.member_id) && (
-                    <BalanceExplanation explanation={explanation} looks={looks} me={me} householdId={householdId} />
-                  )}
-                </details>
-              </li>
-            )
-          })}
-        </ul>
+        <>
+          <ul className="balance-list">{(folding ? mine : balances).map(renderRow)}</ul>
+          {folding && others.length > 0 && householdId !== undefined && (
+            <FoldMore
+              householdId={householdId}
+              name="balances"
+              summary={t.dashboard.balancesFold(
+                others.length,
+                others.filter((b) => b.net > 0).length,
+                others.filter((b) => b.net < 0).length,
+              )}
+            >
+              <ul className="balance-list" aria-label={t.dashboard.balancesOthers}>
+                {others.map(renderRow)}
+              </ul>
+            </FoldMore>
+          )}
+        </>
       )}
     </div>
   )

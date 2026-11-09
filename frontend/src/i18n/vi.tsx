@@ -352,6 +352,15 @@ const vi = {
     addExpense: '+ Ghi khoản chi',
     balancesTitle: 'Số dư từng người',
     balancesNote: 'tính từ tất cả khoản đã ghi',
+    // A busy house (plan G2-10): the household's part folds behind a line that sums it up
+    othersFold: (count: number) => `${count} người còn lại`,
+    othersList: (month: string) => `${month}: những người còn lại`,
+    balancesFold: (count: number, gets: number, owes: number) =>
+      [`${count} người khác`, [gets > 0 && `${gets} được nhận`, owes > 0 && `${owes} cần trả`].filter(Boolean).join(', ')]
+        .filter(Boolean)
+        .join(': '),
+    balancesOthers: 'Số dư của những người khác',
+    historyFold: (count: number, last: string) => `${count} khoản trả, gần nhất: ${last}`,
     monthLoading: 'Đang tải chi tiêu tháng này',
     historyTitle: 'Lịch sử trả tiền',
     recentTitle: 'Khoản chi gần đây',
@@ -545,6 +554,8 @@ const vi = {
     nPeople: (count: number) => `${count} người`,
     you: 'Bạn',
     youObject: 'bạn',
+    othersFold: (count: number) => `${count} lần trả khác trong nhà`,
+    othersList: 'Các lần trả khác trong nhà',
     pays: (from: string, to: string, _fromIsYou: boolean) => `${from} cần trả ${to}`,
     paidTo: (from: string, to: string, _fromIsYou: boolean) => `${from} đã trả ${to}`,
     // The lines are what is open now, from every record, not one month's

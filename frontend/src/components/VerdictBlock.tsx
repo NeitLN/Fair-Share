@@ -10,6 +10,7 @@ import type { MemberLook } from '../lib/names'
 import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
 import { transferText, verdict, verdictPeople } from '../lib/verdict'
 import { Avatar } from './Avatar'
+import FoldMore from './FoldMore'
 import { Stamp } from './Chip'
 import { Money } from './Money'
 import NoticeAmountStep from './NoticeAmountStep'
@@ -77,6 +78,11 @@ interface VerdictBlockProps {
   noticeBusy?: string[]
   /** "Vì sao ra số này?" under the amount: your own balance explained (specs/002-balance-explanation). */
   explanation?: ReactNode
+  /**
+   * A busy house (plan G2-10): the id of the house, and the transfers that are not about you fold behind
+   * "N lần trả khác trong nhà", remembered per house. Undefined: every card shows, as before.
+   */
+  foldOthers?: number
 }
 
 /** An amount told from a step, with its note ("" or left out: none). */
@@ -124,12 +130,13 @@ function VerdictBlock({
   onDecline,
   noticeBusy = [],
   explanation,
+  foldOthers,
 }: VerdictBlockProps) {
   const t = useT()
   const id = useId()
   const [showText, setShowText] = useState(false)
   const fallback = useRef<HTMLTextAreaElement>(null)
-  const list = useRef<HTMLUListElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   const debtorActions = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const noticeFocus = useRef<NoticeFocus | null>(null)
@@ -261,11 +268,80 @@ function VerdictBlock({
   const aboutMe = (card: TransferCard) =>
     me !== null && (card.transfer.from_member_id === me || card.transfer.to_member_id === me)
   const all = [...cards, ...leftOver]
-  const shown = [...all.filter(aboutMe), ...all.filter((card) => !aboutMe(card))]
+  const mine = all.filter(aboutMe)
+  const others = all.filter((card) => !aboutMe(card))
+  const shown = [...mine, ...others]
   // The transfers you must make: their action is under the block, where the eye lands first (US2)
   const toTell = onlyReceiver && me !== null ? suggested.filter((t) => t.from_member_id === me) : []
   // Nothing to list and nothing to copy: no empty panel under the answer
   const hasPanel = Boolean((onlyReceiver && noticesError) || shown.length > 0 || error || suggested.length > 0)
+
+  const renderCard = (card: TransferCard) => {
+    const { transfer } = card
+    const pair = pairOf(transfer)
+    const textId = `${id}-${card.key}`
+    const done = card.state === 'paid' || card.state === 'undoing'
+    return (
+      <li
+        key={card.key}
+        data-card={card.key}
+        data-pair={pair}
+        className={`transfer-card${done ? ' paid' : ''}`}
+      >
+        <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
+        <span id={textId} className="transfer-text">
+          {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
+        </span>
+        {done ? (
+          <span className="transfer-done">
+            <Stamp kind="paid" decorative={false} />
+            <button
+              type="button"
+              className="btn-ghost"
+              aria-describedby={textId}
+              data-action="undo"
+              disabled={card.state === 'undoing'}
+              onClick={() => {
+                if (card.paymentId !== undefined) onUndo(card.paymentId)
+              }}
+            >
+              {card.state === 'undoing' ? t.common.undoing : t.common.undo}
+            </button>
+          </span>
+        ) : onlyReceiver ? (
+          <ReceiverOnly
+            transfer={transfer}
+            card={card}
+            textId={textId}
+            me={me}
+            nameOf={nameOf}
+            known={notices !== undefined}
+            notice={notices?.find((n) => pairOf(n) === pair)}
+            outdated={card.key.startsWith('told-')}
+            actionless={transfer.from_member_id === me && !card.key.startsWith('told-')}
+            busy={noticeBusy.includes(pair)}
+            onPaid={onPaid}
+            onNotify={pressed(pair, 'cancel-notice', onNotify)}
+            onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
+            onDecline={pressed(pair, 'pay', onDecline)}
+          />
+        ) : (
+          <span className="transfer-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              aria-describedby={textId}
+              data-action="pay"
+              disabled={card.state === 'paying'}
+              onClick={() => onPaid(transfer)}
+            >
+              {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
+            </button>
+          </span>
+        )}
+      </li>
+    )
+  }
 
   return (
     <>
@@ -349,74 +425,20 @@ function VerdictBlock({
           )}
 
           {shown.length > 0 && (
-            <ul ref={list} className="transfer-list" aria-label={t.verdict.transfers}>
-              {shown.map((card) => {
-                const { transfer } = card
-                const pair = pairOf(transfer)
-                const textId = `${id}-${card.key}`
-                const done = card.state === 'paid' || card.state === 'undoing'
-                return (
-                  <li
-                    key={card.key}
-                    data-card={card.key}
-                    data-pair={pair}
-                    className={`transfer-card${done ? ' paid' : ''}`}
-                  >
-                    <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
-                    <span id={textId} className="transfer-text">
-                      {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
-                    </span>
-                    {done ? (
-                      <span className="transfer-done">
-                        <Stamp kind="paid" decorative={false} />
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          aria-describedby={textId}
-                          data-action="undo"
-                          disabled={card.state === 'undoing'}
-                          onClick={() => {
-                            if (card.paymentId !== undefined) onUndo(card.paymentId)
-                          }}
-                        >
-                          {card.state === 'undoing' ? t.common.undoing : t.common.undo}
-                        </button>
-                      </span>
-                    ) : onlyReceiver ? (
-                      <ReceiverOnly
-                        transfer={transfer}
-                        card={card}
-                        textId={textId}
-                        me={me}
-                        nameOf={nameOf}
-                        known={notices !== undefined}
-                        notice={notices?.find((n) => pairOf(n) === pair)}
-                        outdated={card.key.startsWith('told-')}
-                        actionless={transfer.from_member_id === me && !card.key.startsWith('told-')}
-                        busy={noticeBusy.includes(pair)}
-                        onPaid={onPaid}
-                        onNotify={pressed(pair, 'cancel-notice', onNotify)}
-                        onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
-                        onDecline={pressed(pair, 'pay', onDecline)}
-                      />
-                    ) : (
-                      <span className="transfer-actions">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          aria-describedby={textId}
-                          data-action="pay"
-                          disabled={card.state === 'paying'}
-                          onClick={() => onPaid(transfer)}
-                        >
-                          {card.state === 'paying' ? t.verdict.paying : t.verdict.paid}
-                        </button>
-                      </span>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
+            <div ref={list}>
+              {(foldOthers === undefined ? shown : mine).length > 0 && (
+                <ul className="transfer-list" aria-label={t.verdict.transfers}>
+                  {(foldOthers === undefined ? shown : mine).map(renderCard)}
+                </ul>
+              )}
+              {foldOthers !== undefined && others.length > 0 && (
+                <FoldMore householdId={foldOthers} name="transfers" summary={t.verdict.othersFold(others.length)}>
+                  <ul className="transfer-list" aria-label={t.verdict.othersList}>
+                    {others.map(renderCard)}
+                  </ul>
+                </FoldMore>
+              )}
+            </div>
           )}
           {error && (
             <p className="note" role="alert">

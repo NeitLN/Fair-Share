@@ -352,6 +352,15 @@ const en: Messages = {
     addExpense: '+ Add expense',
     balancesTitle: 'Balances',
     balancesNote: 'from everything recorded',
+    // A busy house (plan G2-10): the household's part folds behind a line that sums it up
+    othersFold: (count: number) => `${count} more ${count === 1 ? 'person' : 'people'}`,
+    othersList: (month: string) => `${month}: everyone else`,
+    balancesFold: (count: number, gets: number, owes: number) =>
+      [`${count} other ${count === 1 ? 'person' : 'people'}`, [gets > 0 && `${gets} owed money`, owes > 0 && `${owes} owing`].filter(Boolean).join(', ')]
+        .filter(Boolean)
+        .join(': '),
+    balancesOthers: 'Everyone else’s balance',
+    historyFold: (count: number, last: string) => `${count} ${count === 1 ? 'repayment' : 'repayments'}, latest: ${last}`,
     monthLoading: "Loading this month's spending",
     historyTitle: 'Repayment history',
     recentTitle: 'Recent expenses',
@@ -541,6 +550,8 @@ const en: Messages = {
     nPeople: (n: number) => count(n, 'person', 'people'),
     you: 'You',
     youObject: 'you',
+    othersFold: (count: number) => `${count} more ${count === 1 ? 'transfer' : 'transfers'} in the house`,
+    othersList: 'Other transfers in the house',
     pays: (from: string, to: string, fromIsYou: boolean) => `${from} ${fromIsYou ? 'owe' : 'owes'} ${to}`,
     paidTo: (from: string, to: string) => `${from} paid ${to}`,
     // The lines are what is open now, from every record, not one month's
