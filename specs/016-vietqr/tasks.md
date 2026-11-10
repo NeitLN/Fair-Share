@@ -93,7 +93,8 @@ API in `app/`, migrations in `db/migrations/`, backend tests in `tests/`, web ap
 
 - [X] T034 Documents: `docs/PROJECT_SPEC.md` §3.3 "Since 09/11 (approved by the owner)" note (narrow extension; UX-02 unchanged); `docs/DESIGN.md` §6.2 (*Mở mã QR*, the panel) and §6.10 (Tài khoản nhận tiền); local `.specify/memory/constitution.md` Scope gains the extension (not committed)
 - [X] T035 Accessibility pass at 320 px and 720 px (200% zoom of 1440), light and dark (20/20; the panel's text was white on white in light inside the taro block, fixed), on the form, the hint and the panel (44 px, no sideways scroll, focus on close); `frontend/e2e/a11y.spec.ts` stays green; the code scans in the dark theme
-- [X] T036 Compatibility record in the PR (SC-002): two banking apps with name and version; with amount, without, after a partial notice, long house name; real details hidden in screenshots (11/11, two comments on #271: MB Bank app, latest, with and without the amount and in the dark theme; Minh's phone; Timo account as receiver; 50.000đ told of 150.000đ gives a 100.000đ code; a long house name scans; ZaloPay and MoMo listed but not scanned)
+- [X] T036 Compatibility record in the PR (SC-002): two banking apps with name and version; with amount, without, after a partial notice, long house name; real details hidden in screenshots (11/11, on #271: MB Bank 28.6.6, Timo 26.26. MB Bank with and without the amount and in the dark theme, to an MB Bank and to a Timo account; Timo app scanning a code to an MB Bank account; 50.000đ told of 150.000đ gives a 100.000đ code; a long house name scans)
+  - MoMo and ZaloPay are on the bank list (#274) but were not scanned
 - [X] T037 Quickstart steps 3, 4, 5, 7 and 8 by hand; screenshots at 360 and 1440 px in the PR; full checks green; after merge, the live E2E run green (live 27/27 at 67fce95, deploy and smoke green again at 522d6fd)
 
 ## Phase 7: More banks and wallets (11/11, after the first scan test)
