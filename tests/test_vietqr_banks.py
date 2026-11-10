@@ -25,3 +25,14 @@ def test_every_bank_is_well_formed_and_listed_once():
         assert len(bank["bin"]) == 6 and bank["bin"].isdigit(), bank
         assert bank["name"].strip(), bank
         assert isinstance(bank["transfer"], bool), bank
+
+
+def test_the_digital_banks_and_wallets_housemates_use_are_listed():
+    # Added 11/11 after the first scan test: a housemate on Timo or MoMo could not save an account
+    data = json.loads(API_COPY.read_text(encoding="utf-8"))
+    listed = {bank["bin"]: bank["name"] for bank in data["banks"] if bank["transfer"]}
+    assert listed["963388"] == "Timo"
+    assert listed["971025"] == "MoMo"
+    assert listed["971101"] == "ZaloPay"
+    # Viettel Money and VNPT Money do not take account transfers by VietQR, so they stay out
+    assert "971005" not in listed and "971011" not in listed

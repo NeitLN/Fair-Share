@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-09",
-  "source": "https://api.vietqr.io/v2/banks (NAPAS BINs, checked on 2026-11-09)",
+  "version": "2026-11-11",
+  "source": "https://api.vietqr.io/v2/banks (NAPAS BINs, checked on 2026-11-11)",
   "banks": [
     { "bin": "970436", "name": "Vietcombank", "transfer": true },
     { "bin": "970415", "name": "VietinBank", "transfer": true },
@@ -13,6 +13,21 @@
     { "bin": "970423", "name": "TPBank", "transfer": true },
     { "bin": "970403", "name": "Sacombank", "transfer": true },
     { "bin": "970441", "name": "VIB", "transfer": true },
-    { "bin": "970437", "name": "HDBank", "transfer": true }
+    { "bin": "970437", "name": "HDBank", "transfer": true },
+    { "bin": "970443", "name": "SHB", "transfer": true },
+    { "bin": "970426", "name": "MSB", "transfer": true },
+    { "bin": "970448", "name": "OCB", "transfer": true },
+    { "bin": "970440", "name": "SeABank", "transfer": true },
+    { "bin": "970449", "name": "LPBank", "transfer": true },
+    { "bin": "970431", "name": "Eximbank", "transfer": true },
+    { "bin": "970424", "name": "Shinhan Bank", "transfer": true },
+    { "bin": "970428", "name": "Nam A Bank", "transfer": true },
+    { "bin": "970412", "name": "PVcomBank", "transfer": true },
+    { "bin": "970454", "name": "BVBank (Bản Việt)", "transfer": true },
+    { "bin": "963388", "name": "Timo", "transfer": true },
+    { "bin": "546034", "name": "Cake", "transfer": true },
+    { "bin": "546035", "name": "Ubank", "transfer": true },
+    { "bin": "971025", "name": "MoMo", "transfer": true },
+    { "bin": "971101", "name": "ZaloPay", "transfer": true }
   ]
 }
