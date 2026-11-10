@@ -93,14 +93,15 @@ API in `app/`, migrations in `db/migrations/`, backend tests in `tests/`, web ap
 
 - [X] T034 Documents: `docs/PROJECT_SPEC.md` §3.3 "Since 09/11 (approved by the owner)" note (narrow extension; UX-02 unchanged); `docs/DESIGN.md` §6.2 (*Mở mã QR*, the panel) and §6.10 (Tài khoản nhận tiền); local `.specify/memory/constitution.md` Scope gains the extension (not committed)
 - [X] T035 Accessibility pass at 320 px and 720 px (200% zoom of 1440), light and dark (20/20; the panel's text was white on white in light inside the taro block, fixed), on the form, the hint and the panel (44 px, no sideways scroll, focus on close); `frontend/e2e/a11y.spec.ts` stays green; the code scans in the dark theme
-- [ ] T036 Compatibility record in the PR (SC-002): two banking apps with name and version; with amount, without, after a partial notice, long house name; real details hidden in screenshots (11/11, on #271: MB Bank app, latest, with and without the amount and in the dark theme, by Tiến and Minh; left: a second app, after a partial notice, a long house name)
-- [ ] T037 Quickstart steps 3, 4, 5, 7 and 8 by hand; screenshots at 360 and 1440 px in the PR; full checks green; after merge, the live E2E run green
+- [X] T036 Compatibility record in the PR (SC-002): two banking apps with name and version; with amount, without, after a partial notice, long house name; real details hidden in screenshots (11/11, on #271: MB Bank 28.6.6, Timo 26.26. MB Bank with and without the amount and in the dark theme, to an MB Bank and to a Timo account; Timo app scanning a code to an MB Bank account; 50.000đ told of 150.000đ gives a 100.000đ code; a long house name scans)
+  - MoMo and ZaloPay are on the bank list (#274) but were not scanned
+- [X] T037 Quickstart steps 3, 4, 5, 7 and 8 by hand; screenshots at 360 and 1440 px in the PR; full checks green; after merge, the live E2E run green (live 27/27 at 67fce95, deploy and smoke green again at 522d6fd)
 
 ## Phase 7: More banks and wallets (11/11, after the first scan test)
 
 - [X] T038 Add 15 entries to both bank list copies (research R3 "Since 11/11"), each BIN checked on api.vietqr.io on 11/11; pytest that Timo, MoMo and ZaloPay are listed and Viettel Money, VNPT Money are not
 - [X] T039 Labels "Ngân hàng hoặc ví" / "Bank or wallet" on the form and the panel, the number hint and the unknown bank error in `frontend/src/i18n/vi.tsx` and `en.tsx`; `AccountPage.test.tsx` follows
-- [ ] T040 After deploy, Duy Anh saves a Timo or MoMo account in the test house and Tiến scans his code with a banking app (the second app of T036); a wallet that does not fill in right is taken out of the list
+- [X] T040 After deploy, Duy Anh saves a Timo or MoMo account in the test house and Tiến scans his code with a banking app (the second app of T036); a wallet that does not fill in right is taken out of the list (11/11: Timo with MB Bank works, on #274)
 
 ---
 
