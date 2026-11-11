@@ -120,7 +120,7 @@ function stickyBar(): DOMRect | null {
 type Placement = { at: 'bottom' } | { at: 'above'; top: number } | { at: 'hidden' }
 
 const GAP = 8
-/** The usual space under the toasts (index.css `.toasts` padding, without the safe area). */
+/** The usual space under the toasts before it has been read from the page (index.css `.toasts` padding). */
 const BOTTOM = 16
 
 /** Toasts at the bottom of the screen (DESIGN.md §5); show one with useToast() from lib/toast. */
@@ -135,6 +135,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const phone = useRef(matches(PHONE_TOAST_QUERY))
   const region = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
+  // The padding under the toasts in their usual place, safe area included (read in measure())
+  const bottomSpace = useRef(BOTTOM)
   const [placement, setPlacement] = useState<Placement>({ at: 'bottom' })
 
   // Pure updates only: what changes on screen and who left are decided together, and acted on below
@@ -222,11 +224,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
     const needed = list.current?.getBoundingClientRect().height ?? 0
     const top = (window.visualViewport?.offsetTop ?? 0) + GAP
+    // The space under the toasts in their usual place: index.css pads the region with 16px plus the safe
+    // area (a phone's home bar). Read while it is there; placed above the bar its padding is 0, so the last
+    // reading is kept (review of #295)
+    if (region.current && !region.current.style.paddingBottom) {
+      const padding = parseFloat(getComputedStyle(region.current).paddingBottom)
+      if (Number.isFinite(padding)) bottomSpace.current = padding
+    }
+    const bottom = bottomSpace.current
     // The usual place, at the bottom of the screen: kept whenever it does not reach the bar, e.g. once the
     // form is scrolled up and its bar moves with the page (review of #295)
     const screenBottom = top - GAP + (window.visualViewport?.height ?? window.innerHeight)
-    const usualTop = screenBottom - BOTTOM - needed
-    if (usualTop >= bar.bottom + GAP || screenBottom - BOTTOM <= bar.top - GAP) {
+    const usualTop = screenBottom - bottom - needed
+    if (usualTop >= bar.bottom + GAP || screenBottom - bottom <= bar.top - GAP) {
       setPlacement((current) => (current.at === 'bottom' ? current : { at: 'bottom' }))
       return
     }
