@@ -2094,6 +2094,28 @@ describe('pressing a repayment again', () => {
     expect(posts(fetchFn)).toHaveLength(1)
   })
 
+  test('the folded form keeps its draft when its fold is closed and opened again after no answer', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/settlements': (body) => (++calls === 1 ? lost() : recorded(32, body)),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const history = region('Lịch sử trả tiền')
+    const summary = await history.findByText('Ghi khoản trả khác')
+    await user.click(summary)
+    await user.selectOptions(history.getByLabelText('Người trả'), 'An')
+    await user.type(history.getByLabelText('Số tiền (đồng)'), '40k')
+    await user.click(history.getByRole('button', { name: 'Lưu khoản trả' }))
+    await history.findByText(/^Chưa nhận được kết quả/)
+    await user.click(summary)
+    await user.click(summary)
+    await user.click(history.getByRole('button', { name: 'Lưu khoản trả' }))
+    await waitFor(() => expect(posts(fetchFn)).toHaveLength(2))
+    const [first, again] = posts(fetchFn)
+    expect(again.draft_id).toBe(first.draft_id)
+  })
+
   test('the folded form: "đã được ghi rồi" keeps what was typed, and Ghi thành khoản mới sends a new draft', async () => {
     let calls = 0
     const fetchFn = api({
@@ -2112,6 +2134,8 @@ describe('pressing a repayment again', () => {
     expect(within(line).getByRole('button', { name: 'Xem' })).toBeInTheDocument()
     expect(history.getByLabelText('Số tiền (đồng)')).toHaveValue('40k')
     await user.click(within(line).getByRole('button', { name: 'Ghi thành khoản mới' }))
+    // The pressed button goes with its line: the focus waits on the save button (review of #297)
+    expect(history.getByRole('button', { name: /^(Lưu khoản trả|Đang lưu)/ })).toHaveFocus()
     await waitFor(() => expect(history.getByLabelText('Số tiền (đồng)')).toHaveValue(''))
     const [first, asNew] = posts(fetchFn)
     expect(first.draft_id).toMatch(UUID)

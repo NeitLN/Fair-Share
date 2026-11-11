@@ -408,8 +408,8 @@ account, `draft_id`) and looks the identity up before any other check:
   changed. The page offers "Xem" and "Ghi thành khoản mới" (a new draft).
 
 The fingerprint is the request as sent, normalized, never the row now: an edit by the owner does not
-turn an honest retry into a refusal. `source`, and the told notice with its version, are not part of
-it. A deleted record takes its identity with it. A request without `draft_id` behaves as before.
+turn an honest retry into a refusal. `source` and the told notice's version are not part of it;
+whether a repayment is the told money is. A deleted record takes its identity with it. A request without `draft_id` behaves as before.
 
 The response adds `id`, `household_id`, `created_at`, the stored `shares` (in member id order, always
 summing to `amount`; an equal split of 100 000 between members 1, 2, 3 is 33 334 / 33 333 / 33 333) and

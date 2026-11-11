@@ -50,8 +50,11 @@ function SettlementForm({
   onShowSaved,
 }: SettlementFormProps) {
   const t = useT()
-  // The draft's identity, made at its first press (draftId() below); '' until then
+  // The draft's identity, made at its first press (draftId() below); '' until then. It lives as long as
+  // the form: closing and opening its fold on Tổng quan keeps it (a closed <details> stays mounted), so
+  // the A2 "pressing again won't record it twice" line holds there; leaving the page starts a new one
   const draft = useRef('')
+  const saveButton = useRef<HTMLButtonElement>(null)
   // While the repayment is being recorded nothing in the form changes (specs/018, FR-007)
   const lock = useSaveLock(submitting)
 
@@ -123,6 +126,9 @@ function SettlementForm({
 
   function saveAsNew() {
     draft.current = ''
+    // The line and this button go once the save starts: the focus waits on the save button (specs/018,
+    // FR-011; review of #297)
+    saveButton.current?.focus()
     void submit()
   }
 
@@ -237,7 +243,7 @@ function SettlementForm({
         </p>
       )}
 
-      <button type="submit" aria-disabled={submitting || undefined}>
+      <button ref={saveButton} type="submit" aria-disabled={submitting || undefined}>
         {submitting ? t.common.saving : t.settlements.submit}
       </button>
     </form>

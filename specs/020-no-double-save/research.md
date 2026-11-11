@@ -30,9 +30,9 @@ The lock is released at commit or rollback.
   - `description.strip()`, `amount`, `payer_id`, `spent_at`, `category or "other"`;
   - the split, as `{"type": "equal", "members": sorted(ids)}` or `{"type": "custom", "shares": {id: amount}}` with sorted keys;
   - `recurring`, as `{"tick": varying}` or `{"item": recurring_item_id}` or `null`.
-- **Repayment (S2):** `from`, `to`, `amount`, `settled_at`, `note.strip() or None`.
+- **Repayment (S2):** `from`, `to`, `amount`, `settled_at`, `note.strip() or None`, and `told` (whether `notice` was sent; review of #297).
 - **Repayment (S3):** the same without `settled_at`. The page sends a flag `draft_kind: "card"`, so the server knows to leave the date out.
-- **Left out:** `source`, and `notice` with its version.
+- **Left out:** `source`, and the notice's version.
 
 **Rationale:** it is stable across a retry (FR-006), small to store, and not shown to anyone.
 

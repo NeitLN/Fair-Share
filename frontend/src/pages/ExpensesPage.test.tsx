@@ -905,6 +905,8 @@ describe('pressing Lưu again', () => {
     await user.click(within(line).getByRole('button', { name: 'Xem' }))
     await waitFor(() => expect(document.querySelector('[data-expense="10"]')).toHaveClass('just-saved'))
     await user.click(within(line).getByRole('button', { name: 'Ghi thành khoản mới' }))
+    // The pressed button goes with its line: the focus waits on Lưu (review of #297)
+    expect(screen.getByRole('button', { name: /^(Lưu khoản chi|Đang lưu)/ })).toHaveFocus()
     expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
     const [first, asNew] = posts(fetchFn)
     expect(asNew.draft_id).not.toBe(first.draft_id)

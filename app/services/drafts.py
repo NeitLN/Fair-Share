@@ -56,12 +56,12 @@ def expense_fingerprint(body: ExpenseIn) -> str:
 
 
 def settlement_fingerprint(body: SettlementIn) -> str:
-    """A repayment typed in by hand: who, to whom, how much, when and the note. Whether it is the
-    told money, and that notice's version, are left out: the notice changes when the first press
-    lands, and a retry must still match. A card leaves the day out too (`draft_kind` "card"), so a
-    retry across midnight is the same press."""
+    """A repayment typed in by hand: who, to whom, how much, when, the note, and whether it is the
+    told money (it changes what happens to the notice: review of #297). That notice's version is
+    left out: the notice changes when the first press lands, and a retry must still match. A card
+    leaves the day out too (`draft_kind` "card"), so a retry across midnight is the same press."""
     fields = {"from": body.from_member_id, "to": body.to_member_id, "amount": body.amount,
-              "note": (body.note or "").strip() or None}
+              "note": (body.note or "").strip() or None, "told": body.notice is not None}
     if body.draft_kind == "form":
         fields["settled_at"] = body.settled_at.isoformat()
     return _digest(fields)

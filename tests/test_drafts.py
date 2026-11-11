@@ -65,11 +65,14 @@ def test_custom_shares_compare_by_member_not_by_order():
     assert expense_fingerprint(one) == expense_fingerprint(two)
 
 
-def test_a_repayment_fingerprint_leaves_out_the_told_money_and_a_blank_note():
+def test_a_repayment_fingerprint_leaves_out_the_notice_version_and_a_blank_note():
     first = settlement_fingerprint(settlement_in())
     assert settlement_fingerprint(settlement_in(note="")) == first
     assert settlement_fingerprint(settlement_in(note="   ")) == first
-    assert settlement_fingerprint(settlement_in(notice={"version": 42})) == first
+    told = settlement_fingerprint(settlement_in(notice={"version": 42}))
+    assert settlement_fingerprint(settlement_in(notice={"version": 43})) == told
+    # Told money or another payment changes what happens to the notice (review of #297)
+    assert told != first
     assert settlement_fingerprint(settlement_in(note="tiền chợ")) != first
     assert settlement_fingerprint(settlement_in(amount=50001)) != first
     assert settlement_fingerprint(settlement_in(settled_at="2026-11-13")) != first
@@ -334,6 +337,20 @@ def test_a_repeat_of_told_money_takes_it_once_though_the_notice_changed(client, 
     assert again.status_code == 200, again.text
     assert again.json()["id"] == first.json()["id"]
     assert notices(client, debt) == left
+    assert len(settlements(client, debt)) == 1
+
+
+@pytest.mark.db
+def test_switching_from_told_money_to_another_payment_is_a_changed_draft(client, debt):
+    """Review of #297: no answer, then "Khoản khác" instead of the told money, pressed again. The
+    first press took from the notice; the second is told so instead of saving silently."""
+    told = tell(client, debt)
+    draft = new_draft()
+    first = record(client, debt, repayment(debt, draft, notice={"version": told["version"]}))
+    assert first.status_code == 201, first.text
+    switched = record(client, debt, repayment(debt, draft))
+    assert error_code(switched) == "draft_already_saved"
+    assert switched.json()["error"]["details"]["id"] == first.json()["id"]
     assert len(settlements(client, debt)) == 1
 
 

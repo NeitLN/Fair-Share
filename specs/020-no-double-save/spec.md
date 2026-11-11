@@ -146,9 +146,9 @@ Tiến presses "Xác nhận đã nhận 100.000đ" on a suggestion with no notic
 - **FR-005**: If no such record exists, the request runs every check as a first save, and the record stores the identity and the request's fingerprint. A record that was deleted takes its identity with it.
 - **FR-006**: The fingerprint is the normalized content of the request as sent:
   - **For S1:** description trimmed, amount, payer, date, split as a member set or a member→share map, category, and recurring as sent (the tick and its varying flag, or the recurring item id for "Ghi kỳ này").
-  - **For S2:** payer, receiver, amount, date, and note trimmed (a blank note counts as no note).
+  - **For S2:** payer, receiver, amount, date, note trimmed (a blank note counts as no note), and whether it is the told money (it changes what happens to the notice; review of #297).
   - **For S3:** payer, receiver and amount; the date is left out, so a retry across midnight still matches.
-  - **Not compared:** `source` (manual or AI), and the told-money choice with its notice version.
+  - **Not compared:** `source` (manual or AI), and the told notice's version.
 - **FR-007**: Concurrency: a unique-index collision on any other index, during a request with an identity, MUST first look the identity up again and apply FR-004, before answering any other refusal.
 
 **Page**

@@ -473,6 +473,9 @@ function ExpenseForm({
     saveAsNew() {
       // "Ghi thành khoản mới" (specs/020, FR-009): what is typed becomes another draft, then is saved
       draft.current = ''
+      // The button pressed goes with its line once the save starts: the focus waits on Lưu, which
+      // stays focusable while saving (specs/018, FR-011; review of #297)
+      focusTarget('save')
       void save(false)
     },
   }))
