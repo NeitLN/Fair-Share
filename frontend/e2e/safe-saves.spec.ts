@@ -120,9 +120,10 @@ test('toasts at 360 px: one at a time, never over the save bar, never "saved" ne
       const visible = []
       for (const toast of await toasts.all()) if (await toast.isVisible()) visible.push(toast)
       expect(visible.length).toBeLessThanOrEqual(1)
+      // Never over the bar (FR-014): above it when it is stuck at the bottom, or anywhere it is not
       for (const toast of visible) {
         const box = await toast.boundingBox()
-        if (box && bar) expect(box.y + box.height).toBeLessThanOrEqual(bar.y)
+        if (box && bar) expect(box.y + box.height <= bar.y || box.y >= bar.y + bar.height).toBe(true)
       }
       if (await page.locator('.form-summary').isVisible()) {
         expect(await page.locator('.toast', { hasText: 'Đã lưu' }).count()).toBe(0)

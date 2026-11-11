@@ -21,9 +21,9 @@ function Page({ barTop }: { barTop: number }) {
   )
 }
 
-function layout(barTop: number, toastHeight: number) {
+function layout(barTop: number, toastHeight: number, barHeight = 740 - barTop) {
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-    if (this.classList.contains('form-actions')) return new DOMRect(0, barTop, 360, 740 - barTop)
+    if (this.classList.contains('form-actions')) return new DOMRect(0, barTop, 360, barHeight)
     if (this.classList.contains('toast-list')) return new DOMRect(0, 0, 328, toastHeight)
     return new DOMRect(0, 0, 0, 0)
   })
@@ -69,4 +69,21 @@ test('no room above the bar: out of sight, its time stopped, until there is room
   expect(region.style.visibility).toBe('hidden')
   act(() => vi.advanceTimersByTime(TOAST_MS * 3))
   expect(region).toHaveTextContent('Đã lưu: Lẩu')
+})
+
+// Review of #295: once the form is scrolled up, its bar moves with the page; a toast whose usual place at
+// the bottom does not reach the bar stays there, in sight, and counts down as usual
+test.each([20, 300])('the bar scrolled up to %i px: the toast keeps its usual place and goes on time', (barTop) => {
+  layout(barTop, 52, 64)
+  render(
+    <ToastProvider>
+      <Page barTop={barTop} />
+    </ToastProvider>,
+  )
+  fireEvent.click(screen.getByText('show'))
+  const region = screen.getByRole('status')
+  expect(region.style.top).toBe('')
+  expect(region.style.visibility).toBe('')
+  act(() => vi.advanceTimersByTime(TOAST_MS))
+  expect(region).toBeEmptyDOMElement()
 })

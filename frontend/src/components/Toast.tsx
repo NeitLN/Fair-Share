@@ -24,8 +24,8 @@ interface Toasts {
   shown: Toast[]
   waiting: Toast[]
   left: Toast[]
-  /** Ids with the keyboard focus or the pointer on them. */
-  inUse: number[]
+  /** "<id>:focus" and "<id>:pointer": a toast is in use while it has either (FR-015). */
+  inUse: string[]
   /** Save errors on screen now: "saved" toasts are kept off while there is one (FR-012). */
   errors: number
 }
@@ -38,7 +38,8 @@ const EMPTY: Toasts = {
   errors: 0,
 }
 
-const used = (state: Toasts, toast: Toast) => toast.sticky === true || state.inUse.includes(toast.id)
+const used = (state: Toasts, toast: Toast) =>
+  toast.sticky === true || state.inUse.some((key) => key.startsWith(`${toast.id}:`))
 const isSuccess = (toast: Toast) => toast.kind === 'success'
 
 // `told`: the departures whose owners had been told when the change was asked for. They are dropped
@@ -48,7 +49,7 @@ function settle(state: Toasts, next: Partial<Toasts>, gone: Toast[], told: Set<n
   const live = new Set([...merged.shown, ...merged.waiting].map((toast) => toast.id))
   return {
     ...merged,
-    inUse: merged.inUse.filter((id) => live.has(id)),
+    inUse: merged.inUse.filter((key) => live.has(Number(key.split(':')[0]))),
     left: [...state.left.filter((toast) => !told.has(toast.id)), ...gone.filter((toast) => toast.onGone)],
   }
 }
@@ -119,6 +120,8 @@ function stickyBar(): DOMRect | null {
 type Placement = { at: 'bottom' } | { at: 'above'; top: number } | { at: 'hidden' }
 
 const GAP = 8
+/** The usual space under the toasts (index.css `.toasts` padding, without the safe area). */
+const BOTTOM = 16
 
 /** Toasts at the bottom of the screen (DESIGN.md §5); show one with useToast() from lib/toast. */
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -155,15 +158,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [update, dismiss],
   )
 
+  // Focus and pointer are told apart: tabbing out under the pointer keeps the toast in use (review of #295)
   const setInUse = useCallback(
-    (id: number, on: boolean) =>
+    (id: number, by: 'focus' | 'pointer', on: boolean) =>
       update((current, done) => {
-        const already = current.inUse.includes(id)
-        if (already === on) return current
-        const next = {
-          ...current,
-          inUse: on ? [...current.inUse, id] : current.inUse.filter((x) => x !== id),
-        }
+        const key = `${id}:${by}`
+        if (current.inUse.includes(key) === on) return current
+        const next = { ...current, inUse: on ? [...current.inUse, key] : current.inUse.filter((x) => x !== key) }
         return on ? next : promote(next, phone.current, done)
       }),
     [update],
@@ -221,6 +222,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
     const needed = list.current?.getBoundingClientRect().height ?? 0
     const top = (window.visualViewport?.offsetTop ?? 0) + GAP
+    // The usual place, at the bottom of the screen: kept whenever it does not reach the bar, e.g. once the
+    // form is scrolled up and its bar moves with the page (review of #295)
+    const screenBottom = top - GAP + (window.visualViewport?.height ?? window.innerHeight)
+    const usualTop = screenBottom - BOTTOM - needed
+    if (usualTop >= bar.bottom + GAP || screenBottom - BOTTOM <= bar.top - GAP) {
+      setPlacement((current) => (current.at === 'bottom' ? current : { at: 'bottom' }))
+      return
+    }
     const above = bar.top - GAP - needed
     const next: Placement = above >= top ? { at: 'above', top: Math.floor(above) } : { at: 'hidden' }
     setPlacement((current) =>
@@ -270,7 +279,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const running = timers.current
     const counting = new Set(
-      toasts.filter((toast) => !hidden && !toast.sticky && !state.inUse.includes(toast.id)).map((toast) => toast.id),
+      toasts.filter((toast) => !hidden && !used(state, toast)).map((toast) => toast.id),
     )
     for (const id of counting) {
       if (!running.has(id))
@@ -328,14 +337,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   className="toast"
                   // The full text, also when a phone shows two lines of it (FR-014)
                   title={toast.text}
-                  onFocus={() => setInUse(toast.id, true)}
+                  onFocus={() => setInUse(toast.id, 'focus', true)}
                   onBlur={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInUse(toast.id, false)
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setInUse(toast.id, 'focus', false)
                   }}
-                  onPointerEnter={() => setInUse(toast.id, true)}
-                  onPointerLeave={(event) => {
-                    if (!event.currentTarget.contains(document.activeElement)) setInUse(toast.id, false)
-                  }}
+                  onPointerEnter={() => setInUse(toast.id, 'pointer', true)}
+                  onPointerLeave={() => setInUse(toast.id, 'pointer', false)}
                 >
                   <span>{toast.text}</span>
                   {toast.action && (

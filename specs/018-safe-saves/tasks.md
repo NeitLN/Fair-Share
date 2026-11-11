@@ -360,9 +360,10 @@ One builder (Tiến), reviewer Minh. Package 5 (request keys) can start alongsid
 
 - **Late answers:** a write that is given up at 90 s is aborted, so no late answer reaches the page at all. FR-006's "no direct effect" holds by construction. The 0/10/30 s refreshes cover a commit the server makes afterwards.
 - **Toast placement (FR-014):**
-  - With a sticky bar on screen, a toast goes just above it, or waits out of sight when there is no room.
-  - "Top of the screen" is the same space as "above the bar", so it is not a separate place.
+  - A toast keeps its usual place at the bottom whenever that place does not reach the bar, for example once the form is scrolled up and its bar moves with the page (review of #295, tests with the bar at 20 and 300 px).
+  - Only when the bar is down there does the toast go just above it, or wait out of sight if there is no room. "Top of the screen" is then the same space as "above the bar", so it is not a separate place.
   - The entry slide is now 6 px, under the 8 px gap, so a toast never slides over the bar.
+  - Focus and pointer are tracked apart for "in use" (review of #295).
 - **"Nhận số khác" (R9):** the card is drawn again while it is sent, so what was typed is kept per pair in `VerdictBlock`. The step shows the amount as sent (`60000` for `60k`).
 - **Where the tests went:**
   - T012 (A5/A6 lines) is in `DashboardPage.test.tsx`, through the page.

@@ -87,7 +87,12 @@ export async function request<T>(path: string, init: RequestInit = {}, { countsA
   try {
     let response: Response
     try {
-      response = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal: controller?.signal ?? init.signal })
+      // A caller's own signal still counts next to the give-up (review of #295)
+      const signal =
+        controller && init.signal && typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([init.signal, controller.signal])
+          : (controller?.signal ?? init.signal)
+      response = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal })
     } catch {
       // fetch only throws when no response arrived at all (offline, DNS, CORS, given up)
       throw lost()

@@ -259,6 +259,20 @@ describe('Toast and saves', () => {
     expect(toast).not.toBeInTheDocument()
   })
 
+  test('focus and pointer are told apart: tabbing out under the pointer keeps it in use', () => {
+    setup([{ text: 'Đã ghi', action: { label: 'Hoàn tác', onAction: () => {} } }])
+    fireEvent.click(screen.getByText('show 0'))
+    const toast = document.querySelector('.toast') as HTMLElement
+    fireEvent.pointerEnter(toast)
+    fireEvent.focus(screen.getByRole('button', { name: 'Hoàn tác' }))
+    fireEvent.blur(screen.getByRole('button', { name: 'Hoàn tác' }))
+    act(() => vi.advanceTimersByTime(TOAST_MS * 2))
+    expect(status()).toHaveTextContent('Đã ghi')
+    fireEvent.pointerLeave(toast)
+    act(() => vi.advanceTimersByTime(TOAST_MS))
+    expect(toast).not.toBeInTheDocument()
+  })
+
   test('a sticky toast never times out and can be closed', () => {
     const gone = vi.fn()
     setup([{ text: 'Chưa nhận được kết quả.', sticky: true, onGone: gone }])
