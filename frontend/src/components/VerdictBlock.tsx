@@ -73,7 +73,7 @@ interface VerdictBlockProps {
    */
   onNotify?: (transfer: Transfer, part?: NoticePart) => Promise<string | null> | void
   /** "Báo thêm": `part` more on the waiting notice; resolves like onNotify with a part. */
-  onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null>
+  onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null> | void
   onCancelNotice?: (transfer: Transfer) => void
   onDecline?: (transfer: Transfer) => void
   /** The pairs ("from-to") whose notice is being sent, taken back or declined. */
@@ -527,7 +527,7 @@ interface DebtorActionProps {
   known: boolean
   busy: boolean
   onNotify?: (transfer: Transfer, part?: NoticePart) => Promise<string | null> | void
-  onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null>
+  onAddToNotice?: (transfer: Transfer, part: NoticePart) => Promise<string | null> | void
   onCancelNotice?: (transfer: Transfer) => void
   /** The house and the receiver's hint, for "Mở mã QR" (specs/016-vietqr); undefined: no QR at all. */
   qr?: { householdId: number; hint: ReceivingHint | null }
@@ -624,6 +624,8 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
   }
   // A refusal stays in the step with what was typed and the page's new numbers; success closes it
   async function told(answer: Promise<string | null> | void) {
+    // Ignored while this pair is busy (specs/019, FR-019): nothing was told, the step stays as it is
+    if (answer === undefined) return
     const refused = (await answer) ?? null
     setProblem(refused)
     if (!refused) setStep(null)

@@ -1971,3 +1971,28 @@ describe('presses and races on a notice', () => {
     }
   })
 })
+
+// Review of #296: a press the pair guard ignores tells nothing, so the step stays with what was typed
+test('after a "result unknown", pressing Gửi again keeps the step and its line, and sends nothing', async () => {
+  iAm(2)
+  let reads = 0
+  const fetchFn = api({
+    'PUT /api/households/7/notices': () => Promise.reject(new TypeError('Failed to fetch')),
+    'GET /api/households/7/notices': () => (++reads === 1 ? [200, []] : [500, { error: { code: 'internal_error', message: 'down' } }]),
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+  await user.click(await screen.findByRole('button', { name: 'Chuyển số khác' }))
+  const field = screen.getByLabelText('Số tiền đã chuyển')
+  await user.clear(field)
+  await user.type(field, '60000')
+  await user.click(screen.getByRole('button', { name: 'Gửi' }))
+  const unknown = 'Chưa nhận được kết quả. Có thể đã báo rồi, xem lại khối của bạn trước khi báo lại.'
+  expect(await screen.findByText(unknown)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Gửi' }))
+  expect(screen.getByLabelText('Số tiền đã chuyển')).toHaveValue('60000')
+  expect(screen.getByText(unknown)).toBeInTheDocument()
+  const puts = fetchFn.mock.calls.filter(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
+  expect(puts).toHaveLength(1)
+})

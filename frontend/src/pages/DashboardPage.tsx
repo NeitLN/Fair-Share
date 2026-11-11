@@ -250,14 +250,15 @@ function Dashboard({ householdId }: { householdId: number }) {
   }
   const act = (kind: NoticeAction['kind'], transfer: Transfer) =>
     void press(transfer, () => notice.mutateAsync({ kind, transfer }).catch(() => undefined))
-  // From a step: the refusal is said there, with what was typed (null once told)
-  const tellPart = (kind: 'send' | 'add', transfer: Transfer, part: NoticePart) =>
+  // From a step: the refusal is said there, with what was typed (null once told). A press the pair
+  // guard ignores answers undefined: the step stays as it is, nothing was told (review of #296)
+  const tellPart = (kind: 'send' | 'add', transfer: Transfer, part: NoticePart): Promise<string | null> | undefined =>
     press(transfer, () =>
       notice.mutateAsync({ kind, transfer, part }).then(
         () => null,
         (failure: unknown) => noticeLine(kind, failure) ?? errorMessage(failure) ?? t.common.tryAgain,
       ),
-    ) ?? Promise.resolve(null)
+    )
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
     meta: { householdId },
