@@ -99,6 +99,7 @@ const en: Messages = {
     unexpected: 'Something went wrong. Try again in a few minutes.',
     server: (status: number) => `The server answered with error ${status}`,
     network: "Can't reach the server. Try again.",
+    offline: "You're offline. Nothing was sent.",
   },
   dates: {
     weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
@@ -807,6 +808,38 @@ const en: Messages = {
     custom: 'custom',
   },
   notFound: { title: "Can't find this page" },
+  save: {
+    close: 'Close',
+    A1: {
+      offline: "Not saved: you're offline. This expense wasn't saved.",
+      unknown: 'No answer yet. The expense may already be saved; check the list before saving again.',
+    },
+    A2: {
+      offline: "Not recorded: you're offline. This repayment wasn't recorded.",
+      unknown: 'No answer yet. The repayment may already be recorded; check the history before recording again.',
+    },
+    A3: {
+      offline: "Not sent: you're offline.",
+      unknown: 'No answer yet. It may already be sent; check your block before sending again.',
+    },
+    A4: {
+      offline: "Not taken back: you're offline.",
+      unknown: 'No answer yet. It may already be taken back; check your block before trying again.',
+    },
+    A5: {
+      offline: "Not recorded: you're offline.",
+      unknown: 'No answer yet. It may already be recorded; check the card before trying again.',
+    },
+    A6: {
+      offline: "Couldn't undo: you're offline.",
+      unknown: 'No answer yet. It may already be undone; check the card before trying again.',
+    },
+    A7: {
+      offline: "Not deleted: you're offline.",
+      unknown: 'No answer yet. It may already be deleted; check the list before deleting again.',
+    },
+    quickAdd: { offline: "You're offline, so this sentence wasn't read." },
+  },
 }
 
 export default en

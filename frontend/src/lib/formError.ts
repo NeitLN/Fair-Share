@@ -1,6 +1,8 @@
 import { ApiError } from '../api/client'
 import type { FillField } from '../components/ExpenseForm'
+import { messages } from '../i18n'
 import { errorMessage } from './errors'
+import { outcomeLine } from './saveOutcome'
 
 /**
  * A failed save of the expense form, as the form shows it (specs/011-first-impressions, FR-002, FR-003):
@@ -11,6 +13,8 @@ import { errorMessage } from './errors'
 export interface FormError {
   message: string
   field: FillField | null
+  /** A whole sentence already (offline, or result unknown): shown without "Chưa lưu được:" (specs/018, FR-016a). */
+  alone?: boolean
 }
 
 // The body fields of POST/PUT expenses and the form field each one is typed in
@@ -28,6 +32,9 @@ const SPLIT_CODES = new Set(['unknown_member', 'member_without_account'])
 export function formError(error: unknown): FormError | null {
   if (!error) return null
   if (error instanceof ApiError && error.code === 'recurring_month_taken') return null
+  // Not sent, or sent with no answer: say only that (specs/018, contracts/ui-contract.md §2, A1)
+  const line = outcomeLine('A1', error, messages())
+  if (line) return { message: line, field: null, alone: true }
   const message = errorMessage(error) ?? ''
   if (error instanceof ApiError) {
     if (SPLIT_CODES.has(error.code)) return { message, field: 'split' }

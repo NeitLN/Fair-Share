@@ -812,6 +812,17 @@ main {
   border-radius: var(--radius-control);
 }
 
+/* A money form while its save is on its way (specs/018, FR-007): the fields are read-only and look it.
+   Text keeps its full colour, so contrast stays AA */
+form[data-locked] :where(input, select, textarea, label, button:not([type='submit']):not([aria-expanded])) {
+  cursor: progress;
+}
+
+form[data-locked] :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+  background: var(--surface-2);
+  border-style: dashed;
+}
+
 :where(input:not([type]), input[type='text'], input[type='email'], input[type='password'], input[type='date'], select, textarea):hover {
   border-color: var(--muted);
 }
@@ -2772,11 +2783,29 @@ button.ai:active:focus-visible {
   pointer-events: none;
 }
 
-/* On a phone the save bar of Chi tiêu sticks to the bottom of the screen: "Đã lưu: …" sits above it,
-   not over it (the bar is 64 px; from 1024 px it is not sticky) */
+.toast-list {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Below 1024 px the save bar of Chi tiêu sticks to the bottom: Toast.tsx measures it and puts the toasts
+   just above it, whatever its height (specs/018, FR-014). There, a toast keeps to two lines; the whole
+   text is still read out and is in its title */
 @media (max-width: 1023px) {
-  body:has(.form-actions) .toasts {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  .toast > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  /* The bar reads as a bar over what scrolls under it (D23) */
+  .form-actions {
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 14px -10px var(--toast-shadow);
   }
 }
 
@@ -2802,9 +2831,10 @@ button.ai:active:focus-visible {
   color: var(--toast-action);
 }
 
+/* Less than the 8 px kept above a save bar, so a toast never slides over it (specs/018) */
 @keyframes toast-in {
   from {
-    translate: 0 14px;
+    translate: 0 6px;
     opacity: 0;
   }
 }

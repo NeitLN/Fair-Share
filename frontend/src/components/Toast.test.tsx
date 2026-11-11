@@ -2,8 +2,8 @@ import { StrictMode, useEffect } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-import { MAX_TOASTS, TOAST_MS, useToast } from '../lib/toast'
-import type { ToastInput } from '../lib/toast'
+import { MAX_TOASTS, TOAST_MS, useSaveFeedback, useToast } from '../lib/toast'
+import type { SaveFeedback, ToastInput } from '../lib/toast'
 import { ToastProvider } from './Toast'
 
 // A button per toast to show, so a test can fire them in order
@@ -209,5 +209,140 @@ describe('Toast', () => {
       expect(actedGone).toHaveBeenCalledTimes(1)
       expect(dismissedGone).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+// specs/018-safe-saves, User Story 3: toasts never cover the save, never say "saved" next to an error,
+// and stay while someone is using them
+describe('Toast and saves', () => {
+  function phoneWidth(phone: boolean) {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query.includes('599.98') ? phone : query.includes('1023.98'),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      })),
+    )
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  function Saves({ feedbackRef }: { feedbackRef: { current: SaveFeedback | null } }) {
+    feedbackRef.current = useSaveFeedback()
+    return null
+  }
+  const setup = (toasts: ToastInput[]) => {
+    const feedback: { current: SaveFeedback | null } = { current: null }
+    render(
+      <ToastProvider>
+        <Trigger toasts={toasts} />
+        <Saves feedbackRef={feedback} />
+      </ToastProvider>,
+    )
+    return feedback
+  }
+  const status = () => screen.getByRole('status')
+  const shown = () => document.querySelectorAll('.toast').length
+
+  test('a toast in use is not counted down; leaving it starts the full 7 s again', () => {
+    setup([{ text: 'Đã ghi', action: { label: 'Hoàn tác', onAction: () => {} } }])
+    fireEvent.click(screen.getByText('show 0'))
+    const toast = document.querySelector('.toast') as HTMLElement
+    act(() => vi.advanceTimersByTime(5_000))
+    fireEvent.focus(screen.getByRole('button', { name: 'Hoàn tác' }))
+    act(() => vi.advanceTimersByTime(15_000))
+    expect(status()).toHaveTextContent('Đã ghi')
+    fireEvent.blur(screen.getByRole('button', { name: 'Hoàn tác' }))
+    act(() => vi.advanceTimersByTime(TOAST_MS - 1))
+    expect(status()).toHaveTextContent('Đã ghi')
+    act(() => vi.advanceTimersByTime(1))
+    expect(toast).not.toBeInTheDocument()
+  })
+
+  test('a sticky toast never times out and can be closed', () => {
+    const gone = vi.fn()
+    setup([{ text: 'Chưa nhận được kết quả.', sticky: true, onGone: gone }])
+    fireEvent.click(screen.getByText('show 0'))
+    act(() => vi.advanceTimersByTime(60_000))
+    expect(status()).toHaveTextContent('Chưa nhận được kết quả.')
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+    expect(status()).toBeEmptyDOMElement()
+    expect(gone).toHaveBeenCalledOnce()
+  })
+
+  test('on a phone one shows at a time: a new one replaces one nobody uses, and waits behind one in use', () => {
+    phoneWidth(true)
+    const gone = [vi.fn(), vi.fn(), vi.fn(), vi.fn()]
+    setup(['một', 'hai', 'ba', 'bốn'].map((text, i) => ({ text, onGone: gone[i], action: { label: `nút ${i}`, onAction: () => {} } })))
+    fireEvent.click(screen.getByText('show 0'))
+    fireEvent.click(screen.getByText('show 1'))
+    expect(shown()).toBe(1)
+    expect(status()).toHaveTextContent('hai')
+    expect(gone[0]).toHaveBeenCalledOnce()
+
+    fireEvent.focus(screen.getByRole('button', { name: 'nút 1' }))
+    fireEvent.click(screen.getByText('show 2'))
+    fireEvent.click(screen.getByText('show 3'))
+    expect(status()).toHaveTextContent('hai')
+    expect(gone[2]).toHaveBeenCalledOnce() // skipped while waiting: the newest wins
+    fireEvent.blur(screen.getByRole('button', { name: 'nút 1' }))
+    expect(status()).toHaveTextContent('bốn')
+    expect(shown()).toBe(1)
+    expect(gone[1]).toHaveBeenCalledOnce()
+    expect(gone[3]).not.toHaveBeenCalled()
+  })
+
+  test('from 600 px up to three stack, and one in use is never pushed out', () => {
+    phoneWidth(false)
+    setup(['một', 'hai', 'ba', 'bốn'].map((text, i) => ({ text, action: { label: `nút ${i}`, onAction: () => {} } })))
+    fireEvent.click(screen.getByText('show 0'))
+    fireEvent.focus(screen.getByRole('button', { name: 'nút 0' }))
+    for (let i = 1; i < 4; i++) fireEvent.click(screen.getByText(`show ${i}`))
+    expect(status()).toHaveTextContent('một')
+    expect(status()).not.toHaveTextContent('hai')
+    expect(shown()).toBe(3)
+  })
+
+  test('a new save takes away its own "saved" toast, unless someone is using it', () => {
+    const feedback = setup([
+      { text: 'Đã lưu: Lẩu', kind: 'success', source: 'expense-form' },
+      { text: 'Đã báo Tiến.', kind: 'success', source: 'transfer-2-1' },
+    ])
+    fireEvent.click(screen.getByText('show 0'))
+    fireEvent.click(screen.getByText('show 1'))
+    act(() => feedback.current?.started('expense-form'))
+    expect(status()).not.toHaveTextContent('Đã lưu: Lẩu')
+    expect(status()).toHaveTextContent('Đã báo Tiến.')
+  })
+
+  test('a save error takes every "saved" toast away, even in use, moves the focus, and keeps new ones off', () => {
+    const target = document.createElement('button')
+    document.body.append(target)
+    const feedback = setup([
+      { text: 'Đã lưu: Lẩu', kind: 'success', source: 'expense-form', action: { label: 'Xem', onAction: () => {} } },
+      { text: 'Đã lưu: Gas', kind: 'success', source: 'expense-form' },
+      { text: 'Đã hoàn tác.' },
+    ])
+    fireEvent.click(screen.getByText('show 0'))
+    const xem = screen.getByRole('button', { name: 'Xem' })
+    xem.focus()
+    fireEvent.focus(xem)
+    let end: () => void = () => {}
+    act(() => {
+      end = feedback.current?.errorShown(() => target) ?? (() => {})
+    })
+    act(() => vi.advanceTimersByTime(0))
+    expect(status()).toBeEmptyDOMElement()
+    expect(target).toHaveFocus()
+
+    fireEvent.click(screen.getByText('show 1'))
+    fireEvent.click(screen.getByText('show 2'))
+    expect(status()).not.toHaveTextContent('Đã lưu: Gas')
+    expect(status()).toHaveTextContent('Đã hoàn tác.')
+
+    act(() => end())
+    fireEvent.click(screen.getByText('show 1'))
+    expect(status()).toHaveTextContent('Đã lưu: Gas')
+    target.remove()
   })
 })

@@ -721,7 +721,9 @@ describe('recurring expenses in Chi tiêu', () => {
     await user.type(await screen.findByLabelText('Nội dung'), 'Lẩu')
     await user.type(screen.getByLabelText('Số tiền'), '300000')
     await user.dblClick(screen.getByRole('button', { name: 'Lưu khoản chi' }))
-    await screen.findByText(/^Đã lưu: Lẩu/)
+    // The list shows it once (with an instant answer the second click can meet the emptied form, whose
+    // field error then takes the "Đã lưu" toast away: specs/018, FR-012)
+    expect(await list().findByText('Lẩu')).toBeInTheDocument()
     expect(sentBodies(fetchFn, 'POST').filter((body) => body && 'description' in body)).toHaveLength(1)
   })
 
@@ -768,5 +770,103 @@ describe('recurring expenses in Chi tiêu', () => {
     await user.click(screen.getByRole('link', { name: 'Tổng quan' }))
     await act(async () => answer([204]))
     expect(screen.queryByText('Đã ngừng lặp Tiền nhà.')).toBeNull()
+  })
+})
+
+// specs/018-safe-saves, User Story 1: a failed save says only what is known, and the form keeps everything
+describe('saving with no connection, or with no answer', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  async function fillAndSave() {
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('Nội dung'), 'Đi chợ')
+    await user.type(screen.getByLabelText('Số tiền'), '347,5k')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+  }
+
+  test('offline: nothing is sent, the line says so, and every field stays', async () => {
+    const fetchFn = api()
+    renderApp('/households/7/expenses')
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    await fillAndSave()
+    expect(await screen.findByText('Chưa lưu được: bạn đang mất mạng. Khoản chi này chưa được lưu.')).toBeInTheDocument()
+    expect(fetchFn.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
+    expect(screen.getByLabelText('Số tiền')).toHaveValue('347,5k')
+  })
+
+  test('sent with no answer: the result is unknown, said alone, and the form keeps its values', async () => {
+    api({ 'POST /api/households/7/expenses': () => Promise.reject(new TypeError('Failed to fetch')) })
+    renderApp('/households/7/expenses')
+    await fillAndSave()
+    const line = 'Chưa nhận được kết quả. Có thể khoản chi đã được lưu, xem danh sách trước khi lưu lại.'
+    expect(await screen.findByText(line)).toBeInTheDocument()
+    expect(screen.queryByText(/Chưa lưu được: Chưa nhận được/)).toBeNull()
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
+  })
+
+  test('a save is done when the write is, even if the refresh after it hangs (FR-010)', async () => {
+    let lists = 0
+    api({
+      'GET /api/households/7/expenses': () => {
+        lists += 1
+        return lists === 1 ? [200, [electricity]] : new Promise(() => {})
+      },
+    })
+    renderApp('/households/7/expenses')
+    await fillAndSave()
+    expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
+    expect(screen.getByRole('button', { name: 'Lưu khoản chi' })).not.toHaveAttribute('aria-disabled', 'true')
+  })
+})
+
+// specs/018-safe-saves, User Story 2: from the moment it is sent until it ends, what is saved cannot change
+describe('a save on its way', () => {
+  test('nothing typed, picked or filled in changes the form, and a failure gives back exactly what was sent', async () => {
+    let answer: (reply: [number, unknown?]) => void = () => {}
+    let ai: (reply: [number, unknown?]) => void = () => {}
+    const fetchFn = api({
+      'POST /api/households/7/expenses': () => new Promise((resolve) => (answer = resolve)),
+      'POST /api/households/7/ai/parse-expense': () => new Promise((resolve) => (ai = resolve)),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+
+    // A sentence is being read when Lưu is pressed
+    await user.type(await screen.findByLabelText('Câu mô tả khoản chi'), 'lẩu 240k Minh trả')
+    await user.click(screen.getByRole('button', { name: 'Điền giúp' }))
+    await user.type(screen.getByLabelText('Nội dung'), 'Đi chợ')
+    await user.type(screen.getByLabelText('Số tiền'), '120k')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+
+    const description = screen.getByLabelText('Nội dung')
+    expect(description).toHaveAttribute('readonly')
+    expect(description.closest('form')).toHaveAttribute('aria-busy', 'true')
+    await user.type(description, ' nữa')
+    expect(description).toHaveValue('Đi chợ')
+    expect(description).toHaveFocus() // locking never throws the focus away
+    // The AI answers meanwhile: the form being saved is not filled in
+    ai([200, lau])
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
+    expect(screen.getByLabelText('Câu mô tả khoản chi')).toHaveValue('lẩu 240k Minh trả')
+
+    answer([500, { error: { code: 'error', message: 'x' } }])
+    await waitFor(() => expect(screen.getByLabelText('Nội dung')).not.toHaveAttribute('readonly'))
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
+    expect(screen.getByLabelText('Số tiền')).toHaveValue('120k')
+    const posts = fetchFn.mock.calls.filter(([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST')
+    expect(JSON.parse(posts[0]?.[1]?.body as string)).toMatchObject({ description: 'Đi chợ', amount: 120_000 })
+  })
+
+  test('a field error before sending locks nothing', async () => {
+    api()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await user.type(await screen.findByLabelText('Nội dung'), 'Đi chợ')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    expect(screen.getByLabelText('Số tiền')).not.toHaveAttribute('readonly')
+    expect(screen.getByLabelText('Nội dung').closest('form')).not.toHaveAttribute('aria-busy')
   })
 })

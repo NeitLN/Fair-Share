@@ -1752,3 +1752,84 @@ describe('paying by VietQR', () => {
   })
 })
 
+
+// specs/018-safe-saves, User Story 1: money actions on Tổng quan say only what is known
+describe('money actions with no connection, or with no answer', () => {
+  afterEach(() => vi.restoreAllMocks())
+  const lost = () => Promise.reject(new TypeError('Failed to fetch'))
+
+  test('"Tôi đã chuyển" offline: nothing is sent and the panel says so', async () => {
+    iAm(2)
+    const fetchFn = api()
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const button = await screen.findByRole('button', { name: 'Tôi đã chuyển 100.000đ cho Tiến' })
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    await user.click(button)
+    expect(await screen.findByText('Chưa báo được: bạn đang mất mạng.')).toBeInTheDocument()
+    expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')).toBe(false)
+  })
+
+  test('"Xác nhận đã nhận" with no answer: it may already be recorded', async () => {
+    api({ 'POST /api/households/7/settlements': lost })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const card = within(await transfers()).getAllByRole('listitem')[0]
+    await user.click(within(card).getByRole('button', { name: 'Xác nhận đã nhận 100.000đ' }))
+    expect(
+      await screen.findByText('Chưa nhận được kết quả. Có thể đã ghi rồi, xem lại thẻ trước khi bấm lại.'),
+    ).toBeInTheDocument()
+  })
+
+  test('"Hoàn tác" with no answer: its own line, never after "Chưa hoàn tác được"', async () => {
+    api({ 'DELETE /api/settlements/30': lost })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const card = within(await transfers()).getAllByRole('listitem')[0]
+    await user.click(within(card).getByRole('button', { name: 'Xác nhận đã nhận 100.000đ' }))
+    const toast = (await screen.findByText(/^Đã ghi:/)).closest('.toast') as HTMLElement
+    await user.click(within(toast).getByRole('button', { name: 'Hoàn tác' }))
+    expect(
+      await screen.findByText('Chưa nhận được kết quả. Có thể đã hoàn tác rồi, xem lại thẻ trước khi bấm lại.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Chưa hoàn tác được:.*Chưa nhận được/)).toBeNull()
+  })
+})
+
+// specs/018-safe-saves, User Story 2: "Nhận số khác" stays open with what was typed until it is recorded
+describe('"Nhận số khác" while it is sent, and when it fails', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  test('a failure keeps the step open with the amount, and says why inside it', async () => {
+    let answer: (reply: [number, unknown?]) => void = () => {}
+    api({ 'POST /api/households/7/notices/2/accept': () => new Promise((resolve) => (answer = resolve)) }, members, [
+      { from_member_id: 2, to_member_id: 1, amount: 100_000, status: 'sent', created_at: '', version: 7 },
+    ])
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const card = within(await transfers()).getAllByRole('listitem')[0]
+    await within(card).findByText(/Minh báo đã chuyển/)
+    await user.click(within(card).getByRole('button', { name: 'Nhận số khác' }))
+    const field = within(card).getByLabelText('Số tiền đã nhận')
+    await user.clear(field)
+    await user.type(field, '60k')
+    await user.click(within(card).getByRole('button', { name: 'Ghi số này' }))
+
+    // On its way: still open, and nothing in it changes or closes it
+    const sending = await screen.findByLabelText('Số tiền đã nhận')
+    // The amount that was sent, written out (the step is drawn again while it is sent)
+    expect(sending).toHaveValue('60000')
+    expect(sending).toHaveAttribute('readonly')
+    await user.keyboard('{Escape}')
+    expect(screen.getByLabelText('Số tiền đã nhận')).toBeInTheDocument()
+
+    answer([409, { error: { code: 'notice_changed', message: 'x' } }])
+    await waitFor(() => expect(screen.getByLabelText('Số tiền đã nhận')).not.toHaveAttribute('readonly'))
+    const again = screen.getByLabelText('Số tiền đã nhận')
+    expect(again).toHaveValue('60000')
+    expect(again).toHaveAccessibleDescription(/./)
+    // After a failure it can be closed again
+    await user.click(screen.getByRole('button', { name: 'Huỷ' }))
+    expect(screen.queryByLabelText('Số tiền đã nhận')).not.toBeInTheDocument()
+  })
+})

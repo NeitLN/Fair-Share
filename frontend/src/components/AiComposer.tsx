@@ -22,6 +22,8 @@ interface AiComposerProps {
   onUndo: () => void
   /** "Nhập tay": stop waiting and go to the form. */
   onManual: () => void
+  /** An expense is being saved: no new reading starts, and an answer that arrives is not put in the form (specs/018, FR-008). */
+  blocked?: boolean
 }
 
 type State =
@@ -39,7 +41,7 @@ const MAX_TEXT = 300
 
 // US-09, US-10: one sentence in, the form below filled for the user to check. The AI never saves;
 // when it fails the sentence stays and the manual form is right there.
-function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerProps) {
+function AiComposer({ members, onParse, onDraft, onUndo, onManual, blocked = false }: AiComposerProps) {
   const t = useT()
   const [text, setText] = useState('')
   const [state, setState] = useState<State>({ step: 'idle' })
@@ -62,9 +64,15 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
     }
   }, [])
 
+  // Read when the answer arrives, not when the request left
+  const blockedNow = useRef(blocked)
+  useEffect(() => {
+    blockedNow.current = blocked
+  }, [blocked])
+
   async function read() {
     const sentence = text.trim()
-    if (!sentence || notConfigured || inFlight.current) return
+    if (!sentence || notConfigured || inFlight.current || blockedNow.current) return
     inFlight.current = true
     const request = ++latest.current
     setState({ step: 'reading' })
@@ -77,6 +85,11 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
       }
       const { draft, warnings } = answer
       if (request !== latest.current) return
+      // A save started meanwhile: the form being saved is not changed; the sentence stays to read again
+      if (blockedNow.current) {
+        setState({ step: 'idle' })
+        return
+      }
       const result = onDraft(draft, warnings)
       // Describe what was applied, not the raw draft: kept fields keep the user's values
       const applied = new Set(result.filled)
@@ -105,7 +118,9 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
       if (request !== latest.current) return
       const code = error instanceof ApiError ? error.code : 'error'
       if (code === 'ai_not_configured') setNotConfigured(true)
-      setState({ step: 'failed', message: errorMessage(error) ?? '', code, sentence })
+      // Offline it was never sent: said at once in its own words (specs/018)
+      const message = code === 'offline' ? t.save.quickAdd.offline : (errorMessage(error) ?? '')
+      setState({ step: 'failed', message, code, sentence })
     }
   }
 
@@ -180,7 +195,12 @@ function AiComposer({ members, onParse, onDraft, onUndo, onManual }: AiComposerP
             }
           }}
         />
-        <button type="submit" className="ai" disabled={reading || notConfigured || !text.trim()}>
+        <button
+          type="submit"
+          className="ai"
+          disabled={reading || notConfigured || !text.trim()}
+          aria-disabled={blocked || undefined}
+        >
           {t.ai.fill}
         </button>
         <p id="ai-hint" className="hint">

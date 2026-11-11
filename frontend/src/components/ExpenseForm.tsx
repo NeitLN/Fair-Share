@@ -11,6 +11,8 @@ import { memberLooks, REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import type { FormError } from '../lib/formError'
 import { equalSplit, LARGE_AMOUNT, MAX_AMOUNT, parseAmount } from '../lib/split'
+import { useVisibleSaveError } from '../lib/toast'
+import { useSaveLock } from '../lib/useSaveLock'
 import { Avatar } from './Avatar'
 import { CategoryPicker } from './CategoryPicker'
 import { useT } from '../i18n'
@@ -174,6 +176,8 @@ function ExpenseForm({
   // since before it appeared
   const keyOnConfirm = useRef(false)
   const saving = useRef(false)
+  // While the save is on its way nothing in the form changes (specs/018, FR-007)
+  const lock = useSaveLock(submitting)
   const [prefill, setPrefill] = useState<Prefill>(initial?.split_type === 'custom' ? 'off' : 'pending')
   // The date and the split are folded: the 90% case is "today, everyone, equally"
   const [dateOpen, setDateOpen] = useState(false)
@@ -229,7 +233,8 @@ function ExpenseForm({
 
   // "Bạn là ai?" chosen while the form is open: an untouched default follows it
   const [seenDefault, setSeenDefault] = useState(defaultPayer)
-  if (defaultPayer !== seenDefault) {
+  // Not while a save is on its way: the payer being saved stays on screen (specs/018, FR-007)
+  if (defaultPayer !== seenDefault && !submitting) {
     setSeenDefault(defaultPayer)
     if (!editing && payerIsDefault) {
       setPayerId(validPayer(defaultPayer))
@@ -314,6 +319,8 @@ function ExpenseForm({
 
   useImperativeHandle(ref, () => ({
     fill(values: FormFill): FillResult {
+      // What is being saved cannot change underneath (specs/018, FR-007, FR-008)
+      if (submitting) return { filled: [], kept: [], cleared: [] }
       const memberIds = new Set(members.map((m) => m.id))
       const offered: [FillField, boolean][] = [
         ['description', Boolean(values.description?.trim())],
@@ -427,7 +434,7 @@ function ExpenseForm({
     undoFill() {
       // Only the latest fill, and only the fields nobody has edited since
       const last = lastFill.current
-      if (!last) return
+      if (!last || submitting) return
       const { fields, before } = last
       if (fields.has('description')) setDescription(before.description)
       if (fields.has('amount')) setAmountText(before.amountText)
@@ -515,7 +522,10 @@ function ExpenseForm({
   const current: Problems = submittedOnce ? check() : problems
   const firstProblem = ORDER.find((field) => current[field])
   const reason = firstProblem ? current[firstProblem] : (shownError?.message ?? null)
-  const summary = reason ? t.form.notSaved(reason) : null
+  // A line about the network is a whole sentence: never "Chưa lưu được: Chưa nhận được kết quả…" (specs/018)
+  const summary = reason ? (!firstProblem && shownError?.alone ? reason : t.form.notSaved(reason)) : null
+  // While it is on screen no "Đã lưu" toast stands next to it (specs/018, FR-012)
+  useVisibleSaveError(summary, () => formElement.current?.querySelector<HTMLElement>('button[type="submit"]') ?? null)
   // The confirmation stands only for the amount it was asked about (FR-012)
   const confirmShown = confirming !== null && confirming === amount
 
@@ -673,7 +683,7 @@ function ExpenseForm({
         : t.form.summaryEqual(selected.size, members.length)
 
   return (
-    <form ref={formElement} className="expense-form" onSubmit={handleSubmit} noValidate>
+    <form ref={formElement} className="expense-form" onSubmit={handleSubmit} noValidate {...lock.form}>
       {fromItem && (
         <p className="note field-note recurring-period" role="status">
           {t.recurring.period(monthNumber((spentAt || today()).slice(0, 7)))}
@@ -691,6 +701,7 @@ function ExpenseForm({
           maxLength={MAX_DESCRIPTION}
           placeholder={t.form.descriptionPlaceholder}
           {...invalid('description')}
+          {...lock.text}
           onChange={(e) => {
             edited('description')
             setDescription(e.target.value)
@@ -713,6 +724,7 @@ function ExpenseForm({
             value={amountText}
             placeholder={t.form.amountPlaceholder}
             {...invalid('amount', 'expense-amount-preview')}
+            {...lock.text}
             onChange={(e) => {
               edited('amount')
               setAmountText(e.target.value)
@@ -742,6 +754,7 @@ function ExpenseForm({
                   checked={payerId === m.id}
                   aria-invalid={current.payer ? true : undefined}
                   aria-describedby={current.payer ? problemId('payer') : undefined}
+                  {...lock.choice}
                   onChange={() => {
                     edited('payer')
                     setPayerId(m.id)
@@ -801,6 +814,7 @@ function ExpenseForm({
               value={spentAt}
               aria-labelledby="expense-date-label"
               {...invalid('date')}
+              {...lock.text}
               onChange={(e) => {
                 edited('date')
                 setSpentAt(e.target.value)
@@ -891,6 +905,7 @@ function ExpenseForm({
                           type="checkbox"
                           data-field={index === 0 ? 'split-person' : undefined}
                           checked={selected.has(m.id)}
+                          {...lock.choice}
                           onChange={() => toggle(m.id)}
                         />
                         {shortName(m.id)}
@@ -921,6 +936,7 @@ function ExpenseForm({
                               placeholder="0"
                               aria-invalid={unreadable ? true : undefined}
                               aria-describedby={unreadable ? `share-${m.id}-problem` : `share-${m.id}-preview`}
+                              {...lock.text}
                               onChange={(e) => {
                                 edited('split')
                                 // A share typed by the person is theirs: the equal prefill never runs over it
@@ -969,6 +985,7 @@ function ExpenseForm({
               aria-describedby={
                 splitType === 'custom' ? 'expense-repeat-locked' : repeat ? 'expense-repeat-hint' : undefined
               }
+              {...lock.choice}
               onChange={(e) => setRepeat(e.target.checked)}
             />
             {t.recurring.tick}
@@ -984,7 +1001,7 @@ function ExpenseForm({
                 {t.recurring.hint(Number((spentAt || today()).slice(8, 10)))}
               </p>
               <label className="inline">
-                <input type="checkbox" checked={varying} onChange={(e) => setVarying(e.target.checked)} />
+                <input type="checkbox" checked={varying} {...lock.choice} onChange={(e) => setVarying(e.target.checked)} />
                 {t.recurring.varying}
               </label>
             </>

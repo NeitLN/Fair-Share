@@ -1,5 +1,5 @@
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ApiError } from '../api/client'
 import { Link, useParams } from 'react-router'
@@ -36,6 +36,7 @@ import InviteCard from '../components/InviteCard'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
+import { outcomeLine } from '../lib/saveOutcome'
 import { BUSY_HOUSE } from '../lib/folds'
 import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
@@ -45,7 +46,7 @@ import { useMemberPhotos } from '../lib/useMemberPhotos'
 import { marksAfter, readMarks, recentItems, writeMarks } from '../lib/recent'
 import type { SeenMarks } from '../lib/recent'
 import { REFRESH_MS } from '../lib/refresh'
-import { useToast } from '../lib/toast'
+import { useSaveFeedback, useToast, useVisibleSaveError } from '../lib/toast'
 import { usePaidTransfers } from '../lib/usePaidTransfers'
 import { useWide } from '../lib/useWide'
 import { reminderMessage, tookPart, transferText } from '../lib/verdict'
@@ -124,6 +125,19 @@ function Dashboard({ householdId }: { householdId: number }) {
   // none when telling, and left out (the old note stays) when adding
   type NoticeAction = { kind: 'send' | 'add' | 'cancel' | 'decline'; transfer: Transfer; part?: NoticePart }
   const noticeKey = ['notice', householdId]
+  // Answered after this page left: no toast, but the household is still refreshed (specs/018, research R8)
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
+  // The words for a notice action that was not sent, or whose answer never came (specs/018, A3 to A5)
+  const feedback = useSaveFeedback()
+  const pairSource = (transfer: Transfer) => `transfer-${transfer.from_member_id}-${transfer.to_member_id}`
+  const noticeLine = (kind: NoticeAction['kind'], failure: unknown) =>
+    outcomeLine(kind === 'cancel' ? 'A4' : kind === 'decline' ? 'A5' : 'A3', failure, t)
   const shownVersion = (transfer: Transfer) =>
     notices.data?.find(
       (n) => n.from_member_id === transfer.from_member_id && n.to_member_id === transfer.to_member_id,
@@ -142,10 +156,15 @@ function Dashboard({ householdId }: { householdId: number }) {
         ? cancelNotice(householdId, transfer.to_member_id, version)
         : declineNotice(householdId, transfer.from_member_id, version)
     },
+    meta: { householdId },
+    // A new press on this pair takes away its last "Đã báo" nobody is using (specs/018, FR-012)
+    onMutate: ({ transfer }) => feedback.started(pairSource(transfer)),
     onSuccess: (_result, { kind, transfer }) => {
-      if (kind === 'send' || kind === 'add') toast({ text: t.verdict.notified(nameOf(transfer.to_member_id)) })
-      if (kind === 'decline') toast({ text: t.verdict.declined(nameOf(transfer.from_member_id)) })
-      return refreshNotices()
+      const tag = { kind: 'success', source: pairSource(transfer) } as const
+      if (alive.current && (kind === 'send' || kind === 'add')) toast({ ...tag, text: t.verdict.notified(nameOf(transfer.to_member_id)) })
+      if (alive.current && kind === 'decline') toast({ ...tag, text: t.verdict.declined(nameOf(transfer.from_member_id)) })
+      // Done when the write is: the refresh is not waited for (specs/018, FR-010)
+      void refreshNotices()
     },
     // The balances or the notice changed since the page loaded: show what is true now
     onError: (failure) => {
@@ -164,11 +183,12 @@ function Dashboard({ householdId }: { householdId: number }) {
   const tellPart = (kind: 'send' | 'add', transfer: Transfer, part: NoticePart) =>
     notice.mutateAsync({ kind, transfer, part }).then(
       () => null,
-      (failure: unknown) => errorMessage(failure) ?? t.common.tryAgain,
+      (failure: unknown) => noticeLine(kind, failure) ?? errorMessage(failure) ?? t.common.tryAgain,
     )
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
-    onSuccess: refresh,
+    meta: { householdId },
+    onSuccess: () => void refresh(),
     // The notice it pays changed since (409): the form keeps what was typed, the page shows what is true
     onError: (failure) => {
       if (failure instanceof ApiError && failure.status === 409) void refresh()
@@ -176,10 +196,11 @@ function Dashboard({ householdId }: { householdId: number }) {
   })
   const remove = useMutation({
     mutationFn: (settlement: Settlement) => deleteSettlement(settlement.id, householdId),
+    meta: { householdId },
     onSuccess: (_result, settlement) => {
       // Deleted from the history: a stamped card for it has nothing left to undo
       paid.forget(settlement.id)
-      return refresh()
+      void refresh()
     },
   })
 
@@ -245,6 +266,19 @@ function Dashboard({ householdId }: { householdId: number }) {
   // Without the transfers already marked paid, even before the refetched balances arrive
   const suggested = paid.outstanding
 
+  // Each money write says it in its own place; while one shows, no "saved" toast stands beside it
+  // (specs/018, FR-012, FR-016)
+  const recordError = record.error ? (outcomeLine('A2', record.error, t) ?? errorMessage(record.error)) : null
+  const removeError = remove.error ? (outcomeLine('A7', remove.error, t) ?? errorMessage(remove.error)) : null
+  const noticeError =
+    notice.error && notice.variables && !notice.variables.part
+      ? (noticeLine(notice.variables.kind, notice.error) ?? errorMessage(notice.error))
+      : null
+  const panelError = paid.error ?? noticeError
+  useVisibleSaveError(recordError)
+  useVisibleSaveError(removeError)
+  useVisibleSaveError(panelError)
+
   if (members.isSuccess && memberList.length === 0) {
     return (
       <>
@@ -306,7 +340,7 @@ function Dashboard({ householdId }: { householdId: number }) {
             members={memberList}
             onSubmit={record.mutateAsync}
             submitting={record.isPending}
-            error={errorMessage(record.error)}
+            error={recordError}
             receiver={me}
             notices={notices.data}
           />
@@ -316,7 +350,7 @@ function Dashboard({ householdId }: { householdId: number }) {
         settlements={settlements.data ?? []}
         looks={looks}
         loading={settlements.isPending}
-        error={errorMessage(settlements.error ?? remove.error)}
+        error={settlements.error ? errorMessage(settlements.error) : removeError}
         onRetry={settlements.error ? () => settlements.refetch() : undefined}
         retrying={settlements.isFetching}
         onDelete={(settlement) => remove.mutate(settlement)}
@@ -372,7 +406,7 @@ function Dashboard({ householdId }: { householdId: number }) {
             focusIntent={paid.focusIntent}
             onFocusDone={paid.clearFocusIntent}
             // A refusal from a step is said in the step
-            error={paid.error ?? (notice.variables?.part ? null : errorMessage(notice.error))}
+            error={panelError}
             reminder={reminder}
             onCopied={() => toast({ text: t.dashboard.reminderCopied })}
             onlyReceiver

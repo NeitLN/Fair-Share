@@ -42,7 +42,7 @@ interface VerdictBlockProps {
    * `told`: the receiver's "Đã nhận" on the "Tôi đã chuyển" notice of that version, for `transfer.amount`
    * (all of it, or less with "Nhận số khác", specs/014).
    */
-  onPaid: (transfer: Transfer, told?: { version: number }) => void
+  onPaid: (transfer: Transfer, told?: { version: number }, onDone?: (problem: string | null) => void) => void
   onUndo: (paymentId: number) => void
   /** A focus move asked for by the last Đã trả or Hoàn tác, and how to say it is done. */
   focusIntent?: () => FocusIntent | null
@@ -109,6 +109,13 @@ const pairOf = (transfer: { from_member_id: number; to_member_id: number }) =>
  * transfers that settle everyone, and the reminder for the household's group chat. Props only; the page
  * records the transfers.
  */
+/** What was typed in a receiver's "Nhận số khác" while it is sent or after it was refused. */
+interface PartDraft {
+  amount: number
+  problem: string | null
+  sending: boolean
+}
+
 function VerdictBlock({
   suggested,
   owed = suggested,
@@ -144,6 +151,16 @@ function VerdictBlock({
   const t = useT()
   const id = useId()
   const [showText, setShowText] = useState(false)
+  // "Nhận số khác" being recorded or refused, per pair: kept here because the card is drawn again while
+  // it is sent, so the step stays open with what was typed and its error (specs/018, FR-009, research R9)
+  const [partDrafts, setPartDrafts] = useState<Record<string, PartDraft>>({})
+  const partDraftFor = (pair: string) => (draft: PartDraft | null) =>
+    setPartDrafts((current) => {
+      const next = { ...current }
+      if (draft) next[pair] = draft
+      else delete next[pair]
+      return next
+    })
   const fallback = useRef<HTMLTextAreaElement>(null)
   const list = useRef<HTMLDivElement>(null)
   const debtorActions = useRef<HTMLDivElement>(null)
@@ -329,6 +346,8 @@ function VerdictBlock({
             outdated={card.key.startsWith('told-')}
             actionless={transfer.from_member_id === me && !card.key.startsWith('told-')}
             busy={noticeBusy.includes(pair)}
+            partDraft={partDrafts[pair]}
+            onPartDraft={partDraftFor(pair)}
             onPaid={onPaid}
             onNotify={pressed(pair, 'cancel-notice', onNotify)}
             onCancelNotice={pressed(pair, 'notify', onCancelNotice)}
@@ -719,7 +738,10 @@ interface ReceiverOnlyProps {
   /** The debtor's own suggested row: the status stays, the action is the one under the block. */
   actionless: boolean
   busy: boolean
-  onPaid: (transfer: Transfer, told?: { version: number }) => void
+  /** "Nhận số khác" on its way or refused: the step stays open with it (specs/018). */
+  partDraft?: PartDraft
+  onPartDraft: (draft: PartDraft | null) => void
+  onPaid: (transfer: Transfer, told?: { version: number }, onDone?: (problem: string | null) => void) => void
   onNotify?: (transfer: Transfer) => void
   onCancelNotice?: (transfer: Transfer) => void
   onDecline?: (transfer: Transfer) => void
@@ -744,6 +766,8 @@ function ReceiverOnly({
   outdated,
   actionless,
   busy,
+  partDraft,
+  onPartDraft,
   onPaid,
   onNotify,
   onCancelNotice,
@@ -756,7 +780,7 @@ function ReceiverOnly({
   const declined = notice?.status === 'declined'
   const statusId = `${textId}-status`
   // "Nhận số khác": the receiver records less than was told; the rest keeps waiting (specs/014)
-  const [partOpen, setPartOpen] = useState(false)
+  const [partOpen, setPartOpen] = useState(() => partDraft !== undefined)
   const partOpener = useRef<HTMLButtonElement>(null)
   const cancel = (
     <button
@@ -818,7 +842,10 @@ function ReceiverOnly({
               aria-expanded={partOpen}
               data-action="receive-other"
               disabled={busy || card.state === 'paying'}
-              onClick={() => setPartOpen((open) => !open)}
+              onClick={() => {
+                if (partOpen) onPartDraft(null)
+                setPartOpen(!partOpen)
+              }}
             >
               {t.verdict.receiveOther}
             </button>
@@ -839,17 +866,22 @@ function ReceiverOnly({
         {asTold && told && partOpen && (
           <NoticeAmountStep
             label={t.verdict.receivedLabel}
-            initial={asTold.amount}
+            initial={partDraft?.amount ?? asTold.amount}
             max={asTold.amount}
             maxMessage={t.verdict.overTold}
             hint={t.verdict.atMost(formatVND(asTold.amount))}
             submitLabel={t.verdict.recordThis}
-            busy={card.state === 'paying' || busy}
+            busy={card.state === 'paying' || busy || partDraft?.sending === true}
+            serverProblem={partDraft?.problem ?? null}
             onSubmit={(amount) => {
-              setPartOpen(false)
-              onPaid({ ...asTold, amount }, { version: told.version })
+              // Open until it is recorded; a refusal or no answer is said inside the step (FR-009, FR-016)
+              onPartDraft({ amount, problem: null, sending: true })
+              onPaid({ ...asTold, amount }, { version: told.version }, (problem) =>
+                onPartDraft(problem === null ? null : { amount, problem, sending: false }),
+              )
             }}
             onCancel={() => {
+              onPartDraft(null)
               setPartOpen(false)
               partOpener.current?.focus()
             }}

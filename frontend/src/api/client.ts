@@ -53,6 +53,9 @@ export const KEY_HEADER = 'X-Household-Key'
 // A wrong password is a 401 too, but it does not mean the session ended
 const SIGN_IN_ROUTES = /^\/api\/auth\/(login|register)$/
 
+/** A write with no full answer after this long is given up and reported as "result unknown" (specs/018, FR-005). */
+export const WRITE_GIVE_UP_MS = 90_000
+
 /**
  * `countsAsSlow: false` leaves a request out of the slow-server notice: one that is slow by nature, like
  * quick add, whose AI usually takes 7 to 9 s and has its own "AI đang đọc… n giây" (review of #240).
@@ -66,14 +69,28 @@ export async function request<T>(path: string, init: RequestInit = {}, { countsA
 
   // Counted until the answer has been read, whatever happens, so a sleeping server is explained on
   // screen after 5 s (specs/011, FR-007, FR-009)
+  // A write (anything but GET) says only what is known (specs/018, research R1, R2): offline, it is never
+  // sent; once sent, a lost or missing answer leaves its result unknown, and 90 s without a full answer
+  // gives it up. Reads keep the old behaviour.
+  const write = (init.method ?? 'GET').toUpperCase() !== 'GET'
+  if (write && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new ApiError(0, 'offline', messages().failure.offline)
+  }
+  const controller = write ? new AbortController() : null
+  const giveUp = controller ? setTimeout(() => controller.abort(), WRITE_GIVE_UP_MS) : null
+  const lost = () =>
+    write
+      ? new ApiError(0, 'outcome_unknown', messages().failure.network)
+      : new ApiError(0, 'network_error', messages().failure.network)
+
   const token = countsAsSlow ? beginRequest() : null
   try {
     let response: Response
     try {
-      response = await fetch(`${BASE_URL}${path}`, { ...init, headers })
+      response = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal: controller?.signal ?? init.signal })
     } catch {
-      // fetch only throws when no response arrived at all (offline, DNS, CORS)
-      throw new ApiError(0, 'network_error', messages().failure.network)
+      // fetch only throws when no response arrived at all (offline, DNS, CORS, given up)
+      throw lost()
     }
 
     // Someone else signed in on this tab while the request was on its way (review of #166): its
@@ -84,10 +101,17 @@ export async function request<T>(path: string, init: RequestInit = {}, { countsA
     // The session ended (logged out elsewhere, or expired): back to the sign-in page
     if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut()
     if (!response.ok) throw await toApiError(response)
-    const body = response.status === 204 ? undefined : await response.json()
+    let body: unknown
+    try {
+      body = response.status === 204 ? undefined : await response.json()
+    } catch {
+      // The answer was cut off, or given up while it was being read: a write may still have happened
+      throw lost()
+    }
     if (changed()) throw sessionChanged()
     return body as T
   } finally {
+    if (giveUp !== null) clearTimeout(giveUp)
     if (token !== null) endRequest(token)
   }
 }
