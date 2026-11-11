@@ -24,19 +24,9 @@
     <meta property="og:image:alt" content="Fair-Share: See who owes who." />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <script>
-      // Apply a forced light/dark choice before the first paint, so the page never flashes (lib/theme.ts)
-      try {
-        var theme = localStorage.getItem('fair-share:theme')
-        if (theme === 'light' || theme === 'dark') {
-          document.documentElement.setAttribute('data-theme', theme)
-          var bar = theme === 'dark' ? '#16130f' : '#f6f1e7'
-          document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
-            meta.content = bar
-          })
-        }
-      } catch (e) {}
-    </script>
+    <!-- A forced light/dark choice, before the first paint (public/theme-boot.js). A file, not inline, so
+         the Content-Security-Policy needs no 'unsafe-inline' and no hash (G3-05) -->
+    <script src="/theme-boot.js"></script>
   </head>
   <body>
     <div id="root"></div>
