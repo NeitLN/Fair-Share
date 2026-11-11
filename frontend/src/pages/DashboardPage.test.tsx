@@ -19,6 +19,8 @@ afterEach(() => {
   me = 1
 })
 
+// A draft's identity, a version-4 UUID (specs/020-no-double-save)
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const household = { id: 7, name: 'Nhà 7', created_at: '' }
 const members = [
   { id: 1, household_id: 7, name: 'Tiến', created_at: '' },
@@ -660,6 +662,9 @@ test('"Đã trả" records the suggested transfer, paid today', async () => {
     to_member_id: 1,
     amount: 100_000,
     settled_at: today(),
+    // The card's draft: a retry after a lost answer gets this repayment back (specs/020, S3)
+    draft_id: expect.stringMatching(UUID),
+    draft_kind: 'card',
   })
 })
 
@@ -1833,8 +1838,9 @@ describe('money actions with no connection, or with no answer', () => {
     renderApp('/households/7')
     const card = within(await transfers()).getAllByRole('listitem')[0]
     await user.click(within(card).getByRole('button', { name: 'Xác nhận đã nhận 100.000đ' }))
+    // Pressing again repeats the same draft (specs/020, US4)
     expect(
-      await screen.findByText('Chưa nhận được kết quả. Có thể đã ghi rồi, xem lại thẻ trước khi bấm lại.'),
+      await screen.findByText('Chưa nhận được kết quả. Có thể khoản trả đã được ghi; bấm lại cũng không ghi trùng.'),
     ).toBeInTheDocument()
   })
 
@@ -1995,4 +2001,146 @@ test('after a "result unknown", pressing Gửi again keeps the step and its line
   expect(screen.getByText(unknown)).toBeInTheDocument()
   const puts = fetchFn.mock.calls.filter(([url, init]) => url === '/api/households/7/notices' && init?.method === 'PUT')
   expect(puts).toHaveLength(1)
+})
+
+
+// specs/020-no-double-save, User Stories 2 and 3: a card or the folded form records once, however often pressed
+describe('pressing a repayment again', () => {
+  const lost = () => Promise.reject(new TypeError('Failed to fetch'))
+  const already = (id: number): [number, unknown] => [
+    409,
+    { error: { code: 'draft_already_saved', message: 'x', details: { kind: 'settlement', id } } },
+  ]
+  const recorded = (id: number, body: unknown): [number, Settlement] => [
+    201,
+    { id, household_id: 7, note: null, created_at: '', created_by: 9, notice_amount: null, ...(body as SettlementInput) },
+  ]
+  const posts = (fetchFn: ReturnType<typeof api>) =>
+    fetchFn.mock.calls
+      .filter(([url, init]) => init?.method === 'POST' && String(url).endsWith('/settlements'))
+      .map(([, init]) => JSON.parse(init?.body as string) as SettlementInput)
+  const pressCard = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(within(await transfers()).getAllByRole('button', { name: 'Xác nhận đã nhận 100.000đ' })[0])
+
+  test('a card pressed again after no answer sends the same draft', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/settlements': (body) => (++calls === 1 ? lost() : [200, recorded(30, body)[1]]),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    await pressCard(user)
+    await screen.findByText(/^Chưa nhận được kết quả/)
+    await pressCard(user)
+    await waitFor(() => expect(posts(fetchFn)).toHaveLength(2))
+    const [first, again] = posts(fetchFn)
+    expect(first).toMatchObject({ draft_id: expect.stringMatching(UUID), draft_kind: 'card' })
+    expect(again.draft_id).toBe(first.draft_id)
+    expect(await screen.findByText(/^Đã ghi:/)).toBeInTheDocument()
+  })
+
+  test('after no answer, once the history shows that press, the next press is a new draft', async () => {
+    let calls = 0
+    let landed: Settlement | null = null
+    const fetchFn = api({
+      'POST /api/households/7/settlements': (body) => {
+        calls += 1
+        if (calls === 1) {
+          // Recorded, but the answer is lost
+          landed = recorded(30, body)[1]
+          return lost()
+        }
+        return recorded(31, body)
+      },
+      'GET /api/households/7/settlements': () => [200, landed ? [landed] : []],
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    await pressCard(user)
+    await screen.findByText(/^Chưa nhận được kết quả/)
+    // The page reads the house again after no answer (specs/018): the history shows that repayment
+    expect(await region('Lịch sử trả tiền').findByRole('listitem')).toHaveTextContent(/Minh đã trả Tiến/)
+    await pressCard(user)
+    await waitFor(() => expect(posts(fetchFn)).toHaveLength(2))
+    const [first, next] = posts(fetchFn)
+    expect(next.draft_id).not.toBe(first.draft_id)
+  })
+
+  test('after an answered refusal, or a recorded press, the next press is a new draft', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/settlements': (body) =>
+        ++calls === 1 ? [422, { error: { code: 'validation_error', message: 'x' } }] : recorded(29 + calls, body),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    await pressCard(user)
+    await waitFor(() => expect(posts(fetchFn)).toHaveLength(1))
+    await pressCard(user)
+    await screen.findByText(/^Đã ghi:/)
+    const [refused, next] = posts(fetchFn)
+    expect(next.draft_id).not.toBe(refused.draft_id)
+  })
+
+  test('"đã được ghi rồi" on a card stamps it: the repayment exists', async () => {
+    const fetchFn = api({ 'POST /api/households/7/settlements': () => already(31) })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    await pressCard(user)
+    expect(await screen.findByText(/^Khoản trả này đã được ghi rồi/)).toBeInTheDocument()
+    // Stamped, with Hoàn tác for that repayment (the fake API's balances never learn of it)
+    const card = (await transfers()).querySelector('.transfer-card.paid') as HTMLElement
+    expect(within(card).getByRole('button', { name: 'Hoàn tác' })).toBeInTheDocument()
+    expect(posts(fetchFn)).toHaveLength(1)
+  })
+
+  test('the folded form keeps its draft when its fold is closed and opened again after no answer', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/settlements': (body) => (++calls === 1 ? lost() : recorded(32, body)),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const history = region('Lịch sử trả tiền')
+    const summary = await history.findByText('Ghi khoản trả khác')
+    await user.click(summary)
+    await user.selectOptions(history.getByLabelText('Người trả'), 'An')
+    await user.type(history.getByLabelText('Số tiền (đồng)'), '40k')
+    await user.click(history.getByRole('button', { name: 'Lưu khoản trả' }))
+    await history.findByText(/^Chưa nhận được kết quả/)
+    await user.click(summary)
+    await user.click(summary)
+    await user.click(history.getByRole('button', { name: 'Lưu khoản trả' }))
+    await waitFor(() => expect(posts(fetchFn)).toHaveLength(2))
+    const [first, again] = posts(fetchFn)
+    expect(again.draft_id).toBe(first.draft_id)
+  })
+
+  test('the folded form: "đã được ghi rồi" keeps what was typed, and Ghi thành khoản mới sends a new draft', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/settlements': (body) => (++calls === 1 ? already(31) : recorded(32, body)),
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7')
+    const history = region('Lịch sử trả tiền')
+    await user.click(await history.findByText('Ghi khoản trả khác'))
+    await user.selectOptions(history.getByLabelText('Người trả'), 'An')
+    await user.type(history.getByLabelText('Số tiền (đồng)'), '40k')
+    await user.click(history.getByRole('button', { name: 'Lưu khoản trả' }))
+    const line = await history.findByText(
+      'Khoản trả này đã được ghi rồi, có thể khác những gì đang nhập. Xem trong lịch sử rồi xoá nếu cần.',
+    )
+    expect(within(line).getByRole('button', { name: 'Xem' })).toBeInTheDocument()
+    expect(history.getByLabelText('Số tiền (đồng)')).toHaveValue('40k')
+    await user.click(within(line).getByRole('button', { name: 'Ghi thành khoản mới' }))
+    // The pressed button goes with its line: the focus waits on the save button (review of #297)
+    expect(history.getByRole('button', { name: /^(Lưu khoản trả|Đang lưu)/ })).toHaveFocus()
+    await waitFor(() => expect(history.getByLabelText('Số tiền (đồng)')).toHaveValue(''))
+    const [first, asNew] = posts(fetchFn)
+    expect(first.draft_id).toMatch(UUID)
+    expect(first).not.toHaveProperty('draft_kind')
+    expect(asNew.draft_id).not.toBe(first.draft_id)
+    expect(asNew.amount).toBe(40_000)
+  })
 })

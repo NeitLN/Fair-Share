@@ -37,7 +37,7 @@ import { today } from '../lib/date'
 import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
 import { formatVND } from '../lib/money'
-import { outcomeLine } from '../lib/saveOutcome'
+import { outcomeLine, savedDraft } from '../lib/saveOutcome'
 import { classify, raceOf, snapshot } from '../lib/notices'
 import type { RaceSnapshot } from '../lib/notices'
 import { BUSY_HOUSE } from '../lib/folds'
@@ -268,6 +268,18 @@ function Dashboard({ householdId }: { householdId: number }) {
       if (failure instanceof ApiError && failure.status === 409) void refresh()
     },
   })
+  /** "Xem" on a repayment already recorded (specs/020, FR-009): read the history, then scroll to its row. */
+  async function showSettlement(id: number) {
+    await settlements.refetch()
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`settlement-${id}`)
+      // A busy house folds the history: open it first
+      const fold = row?.closest('details')
+      if (fold && !fold.open) fold.open = true
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+      row?.scrollIntoView?.({ behavior: still ? 'auto' : 'smooth', block: 'center' })
+    })
+  }
   const remove = useMutation({
     mutationFn: (settlement: Settlement) => deleteSettlement(settlement.id, householdId),
     meta: { householdId },
@@ -342,7 +354,13 @@ function Dashboard({ householdId }: { householdId: number }) {
 
   // Each money write says it in its own place; while one shows, no "saved" toast stands beside it
   // (specs/018, FR-012, FR-016)
-  const recordError = record.error ? (outcomeLine('A2', record.error, t) ?? errorMessage(record.error)) : null
+  // The draft already recorded another repayment: said in the page's words, with Xem (specs/020, FR-009)
+  const recordSaved = savedDraft(record.error)
+  const recordError = recordSaved
+    ? t.save.draftSaved.settlement
+    : record.error
+      ? (outcomeLine('A2', record.error, t) ?? errorMessage(record.error))
+      : null
   const removeError = remove.error ? (outcomeLine('A7', remove.error, t) ?? errorMessage(remove.error)) : null
   const noticeError =
     notice.error && notice.variables && !notice.variables.part
@@ -417,6 +435,8 @@ function Dashboard({ householdId }: { householdId: number }) {
             error={recordError}
             receiver={me}
             notices={notices.data}
+            alreadySaved={recordSaved}
+            onShowSaved={(id) => void showSettlement(id)}
           />
         </details>
       )}

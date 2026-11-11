@@ -5,6 +5,7 @@ import type { Category, DraftShare, Expense, ExpenseInput, Member, RecurringItem
 import { guessCategory } from '../lib/categories'
 import { monthNumber } from '../lib/expenseFilters'
 import { keptPeople } from '../lib/recurring'
+import { newDraftId } from '../lib/draftId'
 import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
@@ -60,6 +61,8 @@ export interface ExpenseFormHandle {
   fill: (values: FormFill) => FillResult
   undoFill: () => void
   focusDescription: () => void
+  /** Saves what is typed as a new draft: after "this draft was already saved" (specs/020, FR-009). */
+  saveAsNew: () => void
 }
 
 interface ExpenseFormProps {
@@ -176,6 +179,8 @@ function ExpenseForm({
   // since before it appeared
   const keyOnConfirm = useRef(false)
   const saving = useRef(false)
+  // The draft's identity, made at its first press (draftId() below); '' until then
+  const draft = useRef('')
   // While the save is on its way nothing in the form changes (specs/018, FR-007)
   const lock = useSaveLock(submitting)
   const [prefill, setPrefill] = useState<Prefill>(initial?.split_type === 'custom' ? 'off' : 'pending')
@@ -465,6 +470,14 @@ function ExpenseForm({
     focusDescription() {
       descriptionInput.current?.focus()
     },
+    saveAsNew() {
+      // "Ghi thành khoản mới" (specs/020, FR-009): what is typed becomes another draft, then is saved
+      draft.current = ''
+      // The button pressed goes with its line once the save starts: the focus waits on Lưu, which
+      // stays focusable while saving (specs/018, FR-011; review of #297)
+      focusTarget('save')
+      void save(false)
+    },
   }))
 
   const flash = (field: FillField) => (justFilled.has(field) ? ' just-filled' : '')
@@ -543,6 +556,17 @@ function ExpenseForm({
     setCustomText(Object.fromEntries([...equal].map(([id, share]) => [id, String(share)])))
   }
 
+  /**
+   * This draft's identity (specs/020-no-double-save, FR-001): made at the first press and kept for every
+   * press until a save succeeds or "Ghi thành khoản mới". A refusal, a "result unknown", a quick-add fill
+   * or a changed field keeps it. Opening the form (a new key: another house, an edit, "Ghi kỳ này", Huỷ)
+   * starts with a fresh one.
+   */
+  function draftId(): string {
+    if (!draft.current) draft.current = newDraftId()
+    return draft.current
+  }
+
   function toInput(): ExpenseInput {
     const base = {
       description: description.trim(),
@@ -551,6 +575,8 @@ function ExpenseForm({
       spent_at: spentAt,
       source: initial?.source ?? (fromAi ? 'ai' : 'manual'),
       category,
+      // An edit has nothing to save twice: it writes the same values again
+      ...(editing ? {} : { draft_id: draftId() }),
       ...(fromItem
         ? { recurring_item_id: fromItem.id }
         : repeat && offerRepeat
@@ -602,6 +628,8 @@ function ExpenseForm({
       await onSubmit(toInput())
       setSubmittedOnce(false)
       setConfirmedAmount(null)
+      // Saved: the next press is another expense, even with the same values ("Đi chợ" twice a day)
+      draft.current = ''
       if (!editing) {
         // Ready for the next expense: today, the default payer (you, or without an identity the payer
         // just saved, which the page now remembers) and an equal split between everyone again, as

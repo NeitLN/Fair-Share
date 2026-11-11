@@ -860,11 +860,11 @@ const en: Messages = {
     close: 'Close',
     A1: {
       offline: "Not saved: you're offline. This expense wasn't saved.",
-      unknown: 'No answer yet. The expense may already be saved; check the list before saving again.',
+      unknown: "No answer yet. The expense may already be saved; pressing Save again won't save it twice.",
     },
     A2: {
       offline: "Not recorded: you're offline. This repayment wasn't recorded.",
-      unknown: 'No answer yet. The repayment may already be recorded; check the history before recording again.',
+      unknown: "No answer yet. The repayment may already be recorded; pressing again won't record it twice.",
     },
     A3: {
       offline: "Not sent: you're offline.",
@@ -876,7 +876,7 @@ const en: Messages = {
     },
     A5: {
       offline: "Not recorded: you're offline.",
-      unknown: 'No answer yet. It may already be recorded; check the card before trying again.',
+      unknown: "No answer yet. The repayment may already be recorded; pressing again won't record it twice.",
     },
     A6: {
       offline: "Couldn't undo: you're offline.",
@@ -887,6 +887,13 @@ const en: Messages = {
       unknown: 'No answer yet. It may already be deleted; check the list before deleting again.',
     },
     quickAdd: { offline: "You're offline, so this sentence wasn't read." },
+    draftSaved: {
+      expense: 'This expense was already saved, maybe not as typed now. Look at it in the list and edit it if needed.',
+      settlement:
+        'This repayment was already recorded, maybe not as typed now. Look at it in the history and delete it if needed.',
+      show: 'View',
+      saveNew: 'Save as a new one',
+    },
   },
 }
 

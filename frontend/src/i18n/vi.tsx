@@ -883,11 +883,12 @@ const vi = {
     close: 'Đóng',
     A1: {
       offline: 'Chưa lưu được: bạn đang mất mạng. Khoản chi này chưa được lưu.',
-      unknown: 'Chưa nhận được kết quả. Có thể khoản chi đã được lưu, xem danh sách trước khi lưu lại.',
+      // Pressing again is safe now: the same draft gets the saved expense back (specs/020, US4)
+      unknown: 'Chưa nhận được kết quả. Có thể khoản chi đã được lưu; bấm Lưu lại cũng không ghi trùng.',
     },
     A2: {
       offline: 'Chưa ghi được: bạn đang mất mạng. Khoản trả này chưa được ghi.',
-      unknown: 'Chưa nhận được kết quả. Có thể khoản trả đã được ghi, xem lịch sử trước khi ghi lại.',
+      unknown: 'Chưa nhận được kết quả. Có thể khoản trả đã được ghi; bấm lại cũng không ghi trùng.',
     },
     A3: {
       offline: 'Chưa báo được: bạn đang mất mạng.',
@@ -899,7 +900,8 @@ const vi = {
     },
     A5: {
       offline: 'Chưa ghi được: bạn đang mất mạng.',
-      unknown: 'Chưa nhận được kết quả. Có thể đã ghi rồi, xem lại thẻ trước khi bấm lại.',
+      // A card repeats its draft; a notice repeat is refused by its version: never twice (specs/020)
+      unknown: 'Chưa nhận được kết quả. Có thể khoản trả đã được ghi; bấm lại cũng không ghi trùng.',
     },
     A6: {
       offline: 'Chưa hoàn tác được: bạn đang mất mạng.',
@@ -910,6 +912,13 @@ const vi = {
       unknown: 'Chưa nhận được kết quả. Có thể đã xoá rồi, xem lại danh sách trước khi xoá lại.',
     },
     quickAdd: { offline: 'Đang mất mạng, chưa đọc được câu này.' },
+    // The draft already made a record and this press says something else (specs/020, FR-009)
+    draftSaved: {
+      expense: 'Khoản chi này đã được lưu rồi, có thể khác những gì đang nhập. Xem trong danh sách rồi sửa nếu cần.',
+      settlement: 'Khoản trả này đã được ghi rồi, có thể khác những gì đang nhập. Xem trong lịch sử rồi xoá nếu cần.',
+      show: 'Xem',
+      saveNew: 'Ghi thành khoản mới',
+    },
   },
 }
 

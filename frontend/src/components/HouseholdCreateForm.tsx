@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useT } from '../i18n'
 
@@ -16,9 +16,13 @@ function HouseholdCreateForm({ onCreate, submitting, error, hint }: HouseholdCre
   const t = useT()
   const [name, setName] = useState('')
   const [validation, setValidation] = useState<string | null>(null)
+  // A second tap before the first answer does nothing (specs/020, FR-011). A ref, not `submitting`: the
+  // page has not re-rendered yet when a double tap's second click arrives
+  const creating = useRef(false)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    if (creating.current) return
     const trimmed = name.trim()
     if (trimmed.length === 0) {
       setValidation(t.households.nameEmpty)
@@ -29,11 +33,14 @@ function HouseholdCreateForm({ onCreate, submitting, error, hint }: HouseholdCre
       return
     }
     setValidation(null)
+    creating.current = true
     try {
       await onCreate(trimmed)
       setName('')
     } catch {
       // The page shows the server's message through `error`; keep what the user typed
+    } finally {
+      creating.current = false
     }
   }
 

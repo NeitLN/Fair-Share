@@ -28,3 +28,20 @@ export function outcomeLine(action: SaveAction, error: unknown, t: Messages): st
 
 /** True when the line from outcomeLine() is the unknown one, which callers show without their prefix. */
 export const isUnknown = (error: unknown) => outcomeOf(error) === 'unknown'
+
+/** The record a draft already made, when the server refused a press that says something else. */
+export interface SavedDraft {
+  kind: 'expense' | 'settlement'
+  id: number
+}
+
+/**
+ * specs/020-no-double-save, FR-009: this draft was already saved, as the record named, and this press
+ * differs from its first one. Nothing was changed; the page offers "Xem" and "Ghi thành khoản mới".
+ */
+export function savedDraft(error: unknown): SavedDraft | null {
+  if (!(error instanceof ApiError) || error.code !== 'draft_already_saved') return null
+  const details = error.details as Partial<SavedDraft> | undefined
+  if (typeof details?.id !== 'number' || (details.kind !== 'expense' && details.kind !== 'settlement')) return null
+  return { kind: details.kind, id: details.id }
+}
