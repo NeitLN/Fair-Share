@@ -33,7 +33,11 @@ const chevron = (
 function focusFirstField(event: SyntheticEvent<HTMLDetailsElement>) {
   const fold = event.currentTarget
   if (!fold.open) return
-  requestAnimationFrame(() => fold.querySelector<HTMLElement>('input, select, textarea')?.focus())
+  // Only if it is still open: Escape in the same frame closes it and gives the focus to its title,
+  // which must win (a flaky CI run of #279)
+  requestAnimationFrame(() => {
+    if (fold.open) fold.querySelector<HTMLElement>('input, select, textarea')?.focus()
+  })
 }
 
 function HouseholdsPage() {
