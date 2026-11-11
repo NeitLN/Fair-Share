@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 
 import { logout } from '../api/households'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -21,6 +21,7 @@ function AccountMenu() {
   const session = useSession()
   const queryClient = useQueryClient()
   const [leaving, setLeaving] = useState(false)
+  const onProfile = useLocation().pathname === '/account'
   const menu = useRef<HTMLDetailsElement>(null)
   // It covers part of the page, so it closes like a menu: a tap outside, or the keyboard leaving it
   const [open, setOpen] = useState(false)
@@ -69,9 +70,12 @@ function AccountMenu() {
           <br />
           <small>{email}</small>
         </p>
-        {/* Closes the menu on the way, so it does not stay open over the profile page */}
+        {/* Closes the menu on the way, so it does not stay open over the profile page; the page then puts
+            the keyboard on its title (specs/017, FR-025) */}
         <Link
           to="/account"
+          state={{ focus: 'title' }}
+          aria-current={onProfile ? 'page' : undefined}
           className="account-profile-link"
           onClick={() => {
             if (menu.current) menu.current.open = false
