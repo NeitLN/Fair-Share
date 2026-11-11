@@ -98,8 +98,11 @@ function InlineConfirm({
       className={className}
       aria-label={ariaLabel}
       aria-describedby={describedBy}
-      disabled={disabled || busy}
+      // Not `disabled`: the button keeps the focus it got back after the question while the action runs
+      // ("Đổi mã mới" stays in place; review of #300). A press meanwhile does nothing
+      aria-disabled={disabled || busy || undefined}
       onClick={() => {
+        if (disabled || busy) return
         focusNext.current = 'action'
         setAsking(true)
       }}

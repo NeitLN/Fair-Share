@@ -751,12 +751,12 @@ describe('recurring expenses in Chi tiêu', () => {
     await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Internet' }))
     await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
     // Each its own wait: Internet still waits, Tiền nhà has answered
-    expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).toHaveAttribute('aria-disabled', 'true')
     const fold = screen.getByText('Khoản định kỳ (2)').closest('details') as HTMLElement
     const [rentRow, internetRow] = within(fold).getAllByRole('listitem')
     await waitFor(() => expect(rentRow).toHaveTextContent('Chưa xác nhận được là đã ngừng lặp. Máy chủ đang bận.'))
     expect(internetRow).not.toHaveTextContent('Chưa xác nhận')
-    expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).not.toHaveAttribute('aria-disabled')
     await act(async () => answerInternet([204]))
 
     await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
@@ -854,6 +854,30 @@ describe('Hoàn tác after Xoá', () => {
       split: { type: 'equal', member_ids: [1, 2] },
       draft_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     })
+  })
+
+  test('no answer: the toast stays with Thử lại, which sends the same draft (review of #300)', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/expenses': (body) =>
+        ++calls === 1 ? Promise.reject(new TypeError('Failed to fetch')) : [200, saved(12, body as ExpenseInput)],
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await confirmed(user, await screen.findByRole('button', { name: 'Xoá Tiền điện' }))
+    const deleted = (await screen.findByText('Đã xoá "Tiền điện".')).closest('.toast') as HTMLElement
+    await user.click(within(deleted).getByRole('button', { name: 'Hoàn tác' }))
+    const line = 'Chưa nhận được kết quả. Có thể khoản chi đã được ghi lại; bấm Thử lại cũng không ghi trùng.'
+    const unknown = (await screen.findByText(line)).closest('.toast') as HTMLElement
+    // Sticky: it has Đóng, and never times out on its own
+    expect(within(unknown).getByRole('button', { name: 'Đóng' })).toBeInTheDocument()
+    await user.click(within(unknown).getByRole('button', { name: 'Thử lại' }))
+    expect(await screen.findByText('Đã ghi lại "Tiền điện".')).toBeInTheDocument()
+    const posts = fetchFn.mock.calls
+      .filter(([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST')
+      .map(([, init]) => JSON.parse(init?.body as string) as ExpenseInput)
+    expect(posts).toHaveLength(2)
+    expect(posts[1].draft_id).toBe(posts[0].draft_id)
   })
 
   test('a refusal says why', async () => {

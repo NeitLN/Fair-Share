@@ -85,6 +85,6 @@ test('a stop that failed says so under that item only, and is read out with the 
   expect(internet).toHaveTextContent('Chưa xác nhận được là đã ngừng lặp.')
   expect(rent).not.toHaveTextContent('Chưa xác nhận')
   // Only the item still waiting is disabled
-  expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).toBeEnabled()
-  expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).not.toHaveAttribute('aria-disabled')
+  expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).toHaveAttribute('aria-disabled', 'true')
 })

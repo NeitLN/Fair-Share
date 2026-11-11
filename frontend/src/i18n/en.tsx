@@ -699,6 +699,8 @@ const en: Messages = {
     deleted: (description: string) => `Deleted "${description}".`,
     restored: (description: string) => `Recorded "${description}" again.`,
     restoreFailed: (reason: string) => `Couldn't record it again: ${reason}`.trim(),
+    restoreOffline: "Couldn't record it again: you're offline.",
+    restoreUnknown: "No answer yet. It may already be recorded again; pressing Try again won't record it twice.",
     paidBy: (payer: string, split: string) => `${payer} paid · ${split}`,
     splitCustom: (n: number) => `custom split, ${count(n, 'person', 'people')}`,
     splitEqualOf: (n: number, all: number) => `split equally, ${n} of ${all}`,

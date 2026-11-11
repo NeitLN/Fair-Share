@@ -717,6 +717,8 @@ const vi = {
     deleted: (description: string) => `Đã xoá "${description}".`,
     restored: (description: string) => `Đã ghi lại "${description}".`,
     restoreFailed: (reason: string) => `Chưa ghi lại được: ${reason}`.trim(),
+    restoreOffline: 'Chưa ghi lại được: bạn đang mất mạng.',
+    restoreUnknown: 'Chưa nhận được kết quả. Có thể khoản chi đã được ghi lại; bấm Thử lại cũng không ghi trùng.',
     paidBy: (payer: string, split: string) => `${payer} trả · ${split}`,
     splitCustom: (people: number) => `tự chia ${people} người`,
     splitEqualOf: (people: number, all: number) => `chia đều ${people}/${all} người`,

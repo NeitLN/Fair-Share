@@ -6,6 +6,7 @@ import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
 import { getHousehold, keys, listMembers } from '../api/households'
 import { ApiError } from '../api/client'
+import { refreshIfUnknown } from '../api/queryClient'
 import { listRecurring, recurringKeys, stopRecurring } from '../api/recurring'
 import type { Category, Expense, ExpenseInput, RecurringItem } from '../api/types'
 import { CATEGORIES } from '../lib/categories'
@@ -22,7 +23,7 @@ import { draftToFill } from '../lib/draftFill'
 import { newDraftId } from '../lib/draftId'
 import { errorMessage } from '../lib/errors'
 import { formError } from '../lib/formError'
-import { outcomeLine, savedDraft } from '../lib/saveOutcome'
+import { outcomeLine, outcomeOf, savedDraft } from '../lib/saveOutcome'
 import { today } from '../lib/date'
 import {
   filterExpenses,
@@ -227,9 +228,22 @@ function ExpensesPage() {
       if (houseNow.current === householdId)
         toast({ kind: 'success', text: t.expenses.restored(expense.description), action: { label: t.expenses.show, onAction: () => reveal(expense.id) } })
     },
-    onError: (failure) => {
-      if (houseNow.current === householdId)
-        toast({ text: outcomeLine('A1', failure, t) ?? t.expenses.restoreFailed(errorMessage(failure) ?? '') })
+    onError: (failure, variables) => {
+      if (houseNow.current !== householdId) return
+      // Not sent, or no answer: Thử lại with the same draft, which gets the expense back if the first
+      // press landed (specs/020), so the undo is never lost. Sticky while the result is unknown, as an
+      // unknown undo on a card (specs/018, A6). Review of #300
+      const outcome = outcomeOf(failure)
+      if (outcome !== 'other') {
+        toast({
+          text: outcome === 'offline' ? t.expenses.restoreOffline : t.expenses.restoreUnknown,
+          action: { label: t.common.tryAgain, onAction: () => restore.mutate(variables) },
+          sticky: outcome === 'unknown',
+        })
+        refreshIfUnknown(failure, householdId)
+        return
+      }
+      toast({ text: t.expenses.restoreFailed(errorMessage(failure) ?? '') })
     },
   })
   // A delete that was not sent, or whose answer never came, says so (specs/018, A7)

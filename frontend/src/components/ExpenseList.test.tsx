@@ -223,9 +223,9 @@ describe('ExpenseList', () => {
   test('the expense being deleted has both buttons disabled', () => {
     renderList([electricity, dinner], { deletingId: 11 })
 
-    expect(screen.getByRole('button', { name: 'Xoá Tiền điện' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Xoá Tiền điện' })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByRole('button', { name: 'Sửa Tiền điện' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Xoá Ăn tối' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Xoá Ăn tối' })).not.toHaveAttribute('aria-disabled')
     expect(screen.getByRole('button', { name: 'Sửa Ăn tối' })).toBeEnabled()
   })
 
