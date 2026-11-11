@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
@@ -68,13 +70,25 @@ test('the policy blocks nothing on the main screens, signed out and signed in', 
       `/households/${house.id}/expenses`,
       `/households/${house.id}/members`,
       `/households/${house.id}/report`,
-      '/account',
     ]) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       blocked.push(...(await violations(page)))
     }
+
+    // Hồ sơ, with a photo picked and its preview shown: the preview is an object URL, which img-src
+    // must allow as blob:. Huỷ afterwards, so the shared account's photo never changes
+    await page.goto('/account')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.locator('#profile-photo-file').setInputFiles(fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url)))
+    const card = page.getByRole('region', { name: 'Bạn cùng nhà thấy bạn thế này' })
+    const preview = card.locator('.profile-photo img')
+    await expect(preview).toHaveAttribute('src', /^blob:/)
+    await expect.poll(() => preview.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
+    await card.getByRole('button', { name: 'Huỷ', exact: true }).click()
+    await expect(card.getByRole('button', { name: /^Chọn ảnh|^Đổi ảnh/ })).toBeVisible()
+    blocked.push(...(await violations(page)))
     // The fonts are the app's own, and they did load
     const loaded = await page.evaluate(async () => {
       await document.fonts.ready
