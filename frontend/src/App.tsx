@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
 
 import AccountMenu from './components/AccountMenu'
@@ -23,8 +23,9 @@ function App() {
   const t = useT()
   const session = useSession()
   const wide = useWide()
-  // The tab's title follows the language too
-  useEffect(() => {
+  // The tab's title follows the language too. A layout effect, so it runs before a page's own title
+  // (usePageTitle, specs/017) and never covers it
+  useLayoutEffect(() => {
     document.title = t.pageTitle
   }, [t])
 

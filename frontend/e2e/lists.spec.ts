@@ -96,12 +96,25 @@ test('each house card says what it has for you, in a grid on a laptop', async ({
     const debtCard = page.getByRole('link', { name: new RegExp(debtName) })
     await expect(debtCard).toContainText('Bạn cần trả 100.000đ')
 
-    // From 1024 px the cards share the row; at 1440 they are a grid, not one column
-    await page.setViewportSize({ width: 1024, height: 800 })
-    const columns = await page
-      .locator('.household-list')
-      .evaluate((list) => getComputedStyle(list).gridTemplateColumns.trim().split(/\s+/).length)
-    expect(columns).toBeGreaterThanOrEqual(2)
+    // Houses are rows in one panel (specs/017): from 1024 px every amount ends on the same right edge,
+    // and at 1440 Thêm nhà stands beside the list, not far across the screen
+    for (const width of [1024, 1440]) {
+      await page.setViewportSize({ width, height: 800 })
+      // At least these two: the shared account may be in the houses of tests running beside this one
+      await expect(page.locator('.house-rows .household-money').nth(1)).toBeVisible()
+      const edges = await page
+        .locator('.house-rows .household-money')
+        .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().right)))
+      expect(edges.length).toBeGreaterThanOrEqual(2)
+      expect(Math.max(...edges) - Math.min(...edges), `amount edges at ${width} px`).toBeLessThanOrEqual(1)
+    }
+    const gap = await page.evaluate(() => {
+      const list = document.querySelector('.house-rows')!.getBoundingClientRect()
+      const add = document.querySelector('.ways-in')!.getBoundingClientRect()
+      return add.left - list.right
+    })
+    expect(gap).toBeGreaterThanOrEqual(0)
+    expect(gap).toBeLessThanOrEqual(48)
 
     // At 320 px nothing scrolls sideways and each card still opens its house
     await page.setViewportSize({ width: 320, height: 800 })

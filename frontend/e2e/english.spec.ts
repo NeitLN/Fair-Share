@@ -67,7 +67,8 @@ test.describe('a Vietnamese browser', () => {
     await signInPage(page, tien)
     await page.goto('/')
     await expect(page.locator('html')).toHaveAttribute('lang', 'vi')
-    await expect(page).toHaveTitle(/Rõ ai trả ai/)
+    // The tab names the page, in Vietnamese (specs/017, FR-024)
+    await expect(page).toHaveTitle('Nhà của bạn · Fair-Share')
     await expect(page.getByRole('heading', { level: 1, name: 'Nhà của bạn' })).toBeVisible({
       timeout: 60_000,
     })

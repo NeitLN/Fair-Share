@@ -144,27 +144,41 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 
 ```
 Fair·Share
-Nhà của bạn                          ← page title, Bricolage 28
-┌────────────────────────────────┐ ┌────────────────────────────────┐
-│ Nhà Thảo Điền    [Trưởng nhóm] │ │ Nhà trọ Q7       [Trưởng nhóm] (2) │
-│ Bạn cần trả 350.000đ           │ │ Bạn được nhận 5.858.500đ       │
-└────────────────────────────────┘ └────────────────────────────────┘
-[ Nhập mã mới ] [ + Tạo nhà mới ]     ← secondary; opens its form in place
+Nhà của bạn                                         ← page title, Bricolage 28
+┌───────────────────────────────────────────────┐  ┌ Thêm nhà ───────────────┐
+│ [⌂] Nhà Thảo Điền [Trưởng nhóm]  Bạn cần trả 350.000đ │  │ Nhập mã mời           › │
+│───────────────────────────────────────────────│  │─────────────────────────│
+│ [⌂] Nhà trọ Q7 [Trưởng nhóm] (2)  Bạn được nhận 5.858.500đ │  │ + Tạo nhà mới         › │
+└───────────────────────────────────────────────┘  └── ~360 px, from 1280 ───┘
 ```
 List first, create second (returning users far outnumber new ones). The list holds every household the
 signed-in account is approved into, by name, and the requests to join still waiting below it
-(docs/ACCOUNTS.md). Each card is one link, filled by `GET /api/households` in one answer (spec 012, US4):
-the name, which wraps, and for an owner the chip **Trưởng nhóm** 8 px after it (it keeps its size and
-never pushes the name off the card); a second line with your balance there in the app's words and
-colours, "Bạn được nhận …" (credit), "Bạn cần trả …" (debt) or "Đã xong" (muted), from `my_net` in the
-same answer, so it always matches the house's own Tổng quan; and a pill on the right when something
-waits for you, `waiting` join requests (owner only) plus "Tôi đã chuyển" notices to answer, its
-accessible name "n việc đang chờ bạn". If the figures are missing (an older API), the card is the name
-alone and still opens the house.
+(docs/ACCOUNTS.md). Since [spec 017](../specs/017-houses-profile-redesign/spec.md) the houses are **rows in
+one panel**, split by `--line` (Astryx's "records as rows in one section"; a card each read as a grid of
+boxes far from everything else). Each row is one link, filled by `GET /api/households` in one answer
+(spec 012, US4):
 
-From 1024 px the cards are a grid, `repeat(auto-fill, minmax(280px, 1fr))` 12 px apart: two or three a
-row on a laptop, one on a phone. From 1280 px the two ways in sit in a column on the right; below that
-they come under the cards, so the cards get the page's width.
+* a 40 px sticker in the house's colour (`--tint-(id % 8 + 1)`, a roof in `--on-fill`, the avatar ring and
+  hard shadow), decoration only;
+* the name, which wraps, the chip **Trưởng nhóm** for an owner, and the pill when something waits for you
+  (`waiting` join requests for an owner plus "Tôi đã chuyển" notices to answer), its accessible name
+  "n việc đang chờ bạn";
+* on the right your balance there from `my_net`, so it always matches the house's Tổng quan: the words
+  ("Bạn cần trả", "Bạn được nhận") quiet in `--muted`, the amount bold, tabular, in the debt or credit
+  colour, or "Đã xong" (muted). Every amount ends on one right edge; below 480 px the words and the amount
+  move to their own line under the name.
+
+If the figures are missing (an older API), the row is the name alone and still opens the house. No line
+adds the amounts of different houses together. With a house the page shows no help paragraph: the
+how-it-works line stays on the new-account start, and the invite line sits inside *+ Tạo nhà mới*,
+under its name field.
+
+**Thêm nhà.** The two ways in are one quiet panel (h2 *Thêm nhà*) with two folds, *Nhập mã mời* and
+*+ Tạo nhà mới*. A fold's title is a 44 px row with a chevron that turns; it stays in view when open, so
+it says it is open and closes again (or Escape), and opening takes the keyboard to the first field. From
+1280 px the panel is a column of about 360 px beside the list; below that it comes after the list and the
+wait. Arriving by an invite link with a house already, the code fold is open, scrolled to and focused.
+The browser tab reads "Nhà của bạn · Fair-Share".
 
 **A new account** (no house, no request; design review 05/11) gets one place to start instead of an
 empty list and a lone code field: "Chào Lan, bắt đầu thôi", the how-it-works line, then two panels side
@@ -543,9 +557,9 @@ keyboard goes through the page in the order it is seen.
 * **Thành viên:** the people get the wide column on the left; on the right (320 px; `2fr minmax(360px, 1fr)` from 1280)
   a request to approve comes before the invite.
 * **Nhà của bạn:** a new account sees the start of §6.1 (two panels, at most 960 px). Otherwise the
-  cards take the page's width from 1024 px, as a grid of two or three (one on a phone), with the wait
-  below them; from 1280 px the ways in (*Nhập mã mới*, *+ Tạo nhà mới*) move to a column on the right
-  (3 : 2). Below 1280 px they come under the cards as two buttons that open their forms in place.
+  house rows take the page's width, with the wait below them; from 1280 px the *Thêm nhà* panel moves to
+  a column on the right, `minmax(0, 1fr) minmax(320px, 360px)` (it was 3 : 2 until spec 017), so the list
+  and the ways in are never far apart. Below 1280 px the panel comes under the list and the wait.
 * **Sign in:** one block of at most 980 px in the middle of the screen, both ways, and no header (the
   owner on 06/11: a small card under a lone corner logo looked unfinished). On the left, holding no
   control: the wordmark at 300 px, the tagline (*Rõ ai trả ai.*), the intro that the form shows on a phone,
@@ -612,7 +626,7 @@ approve, expenses, Tôi đã chuyển, Đã nhận, undo, sign out, errors). Wha
   it filled.
 * **Wide screens (from 1280 px).** Balances read across (who, đã chi, số dư); a member row has its name,
   its money and its actions in three regions; the expense filters keep a sensible width; Nhà của bạn has
-  the groups on the left and the ways in on the right; the verdict block gets a little more padding (the
+  the house rows on the left and the *Thêm nhà* panel (about 360 px since spec 017) on the right; the verdict block gets a little more padding (the
   amount stays 44 px).
 
 ### 6.9 Báo cáo tháng `/households/:id/report/:month`

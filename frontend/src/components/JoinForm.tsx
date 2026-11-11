@@ -69,6 +69,18 @@ function JoinForm({
     },
   })
 
+  // The field names everything said about it, so a screen reader reads the problem with the field
+  // (specs/017, FR-011)
+  const sendProblem = send.error ? errorMessage(send.error) : null
+  const describedBy = [
+    shown ? 'join-code-preview' : null,
+    'join-code-hint',
+    problem ? 'join-code-problem' : null,
+    sendProblem ? 'join-code-send-problem' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   function submit(event: FormEvent) {
     event.preventDefault()
     if (code.replace(CODE_CHARS, '').length !== 8) {
@@ -93,7 +105,7 @@ function JoinForm({
         maxLength={20}
         disabled={send.isPending}
         aria-invalid={problem ? true : undefined}
-        aria-describedby={shown ? 'join-code-preview join-code-hint' : 'join-code-hint'}
+        aria-describedby={describedBy}
         onChange={(event) => setCode(event.target.value)}
       />
       {/* Read once per code by screen readers; empty while there is nothing to say */}
@@ -108,8 +120,16 @@ function JoinForm({
       <p id="join-code-hint" className="hint">
         {t.join.codeHint}
       </p>
-      {problem && <p role="alert">{problem}</p>}
-      {send.error && <p role="alert">{errorMessage(send.error)}</p>}
+      {problem && (
+        <p id="join-code-problem" role="alert">
+          {problem}
+        </p>
+      )}
+      {sendProblem && (
+        <p id="join-code-send-problem" role="alert">
+          {sendProblem}
+        </p>
+      )}
       <button type="submit" className="btn-primary" disabled={send.isPending}>
         {send.isPending ? t.join.submitting : t.join.submit}
       </button>

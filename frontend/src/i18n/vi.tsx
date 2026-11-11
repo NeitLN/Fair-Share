@@ -98,7 +98,10 @@ const vi = {
   households: {
     title: 'Nhà của bạn',
     newHousehold: '+ Tạo nhà mới',
-    inviteHint: 'Mời bạn cùng phòng bằng mã mời trong mục Thành viên. Họ nhập mã, trưởng nhóm duyệt.',
+    // Under the name field of + Tạo nhà mới, where it becomes true (specs/017)
+    inviteHint: 'Tạo xong, mời bạn cùng nhà bằng mã mời ở trang Thành viên. Họ nhập mã, bạn duyệt.',
+    // The panel that holds the two ways in, beside or under the list (specs/017, FR-006)
+    addTitle: 'Thêm nhà',
     owner: 'Trưởng nhóm',
     howItWorks: 'Ghi khoản chi khi vừa trả tiền. App tự tính ai cần trả ai và gợi ý cách trả cho gọn.',
     empty: 'Bạn chưa ở nhà nào. Nhập mã mời bạn cùng phòng gửi, hoặc tạo nhà đầu tiên.',
@@ -112,8 +115,9 @@ const vi = {
     renamed: 'Đã đổi tên nhà.',
     renameSave: 'Lưu tên nhà',
     creating: 'Đang tạo…',
-    youGet: (amount: ReactNode) => <>Bạn được nhận {amount}</>,
-    youOwe: (amount: ReactNode) => <>Bạn cần trả {amount}</>,
+    // A house row: the words on the left, the amount on the right (specs/017, FR-002)
+    getWords: 'Bạn được nhận',
+    oweWords: 'Bạn cần trả',
     settled: 'Đã xong',
     waiting: (count: number) => `${count} việc đang chờ bạn`,
   },

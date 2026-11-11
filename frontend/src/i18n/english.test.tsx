@@ -87,7 +87,8 @@ test('VI switches the whole page, and the choice is remembered on this device', 
   expect(language()).toBe('vi')
   expect(localStorage.getItem(LANGUAGE_KEY)).toBe('vi')
   expect(document.documentElement.lang).toBe('vi')
-  expect(document.title).toBe('Fair-Share · Rõ ai trả ai.')
+  // The tab names the page, in the chosen language (specs/017, FR-024)
+  expect(document.title).toBe('Nhà của bạn · Fair-Share')
 })
 
 test('money and days are written the English way, and switch back with the language', () => {

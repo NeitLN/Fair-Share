@@ -124,7 +124,8 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     // only the dark ring, invisible on the dark theme). Reached with the keyboard, so the browser shows
     // focus-visible: back one stop, then forward to it
     await page.goto('/')
-    const invite = page.locator('summary.btn-secondary').first()
+    // The folds of Thêm nhà (specs/017): plain rows now, the global halo still drawn on focus
+    const invite = page.locator('.ways-in summary').first()
     await invite.focus()
     await page.keyboard.press('Shift+Tab')
     await page.keyboard.press('Tab')
@@ -132,6 +133,22 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await expect
       .poll(() => page.evaluate(() => getComputedStyle(document.activeElement as Element).boxShadow))
       .toContain('rgb(255, 225, 77)')
+    // Nhà của bạn (specs/017): no sideways scroll, every row and fold title at least 44 px, and opening a
+    // fold keeps its title in view and takes the keyboard to its field
+    for (const width of [320, 360, 1440]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/')
+      await expect(page.locator('.house-rows')).toBeVisible()
+      const sidewaysHome = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+      expect(sidewaysHome, `sideways scroll on / at ${width} px`).toBe(false)
+      const smallHome = await page.locator('.house-rows a, .ways-in summary').evaluateAll((els) =>
+        els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+      )
+      expect(smallHome, `controls under 44 px on / at ${width} px`).toEqual([])
+    }
+    await page.getByText('Nhập mã mời').click()
+    await expect(page.getByLabel('Mã mời')).toBeFocused()
+    await expect(page.getByText('Nhập mã mời')).toBeVisible()
     await page.setViewportSize({ width: 360, height: 800 })
 
     // Đã nhận: the stamp is text, the toast is a polite live region, and nothing moves
