@@ -9,7 +9,7 @@ expenses it is already part of.
 from datetime import date
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from psycopg import Connection, errors
 
 from app.access import (
@@ -23,6 +23,7 @@ from app.db import ConnDep, fetch_all, fetch_one
 from app.errors import ApiError
 from app.routers.households import lock_household
 from app.schemas import Expense, ExpenseIn, Id
+from app.services.drafts import expense_fingerprint, matching, repeat_of
 from app.services.splitting import equal_split, is_equal_split
 
 # A session and an approved member are required, also for /expenses/{id} through its household
@@ -181,8 +182,24 @@ def list_expenses(household_id: Id, conn: ConnDep):
 
 
 @router.post("/households/{household_id}/expenses", response_model=Expense, status_code=201)
-def create_expense(household_id: Id, body: ExpenseIn, access: AccessDep, conn: ConnDep):
-    lock_household(conn, household_id, shared=True)  # never while a transfer is being told
+def create_expense(household_id: Id, body: ExpenseIn, access: AccessDep, conn: ConnDep,
+                   response: Response):
+    """201 with the new expense. With `draft_id`, a press of a draft that already made one gets
+    that expense back as it is now (200) and nothing changes, or 409 draft_already_saved when it
+    says something else (specs/020-no-double-save): looked up before any other check, so neither a
+    removed member nor the month it took refuses an honest retry."""
+    # Never while a transfer is being told. Exclusive for a save that makes a recurring item: it
+    # then updates the house row (new_recurring_item), and two such saves each holding it shared
+    # would wait on each other for ever (specs/020, research R5)
+    lock_household(conn, household_id, shared=body.recurring is None)
+    fingerprint = None
+    if body.draft_id is not None:
+        fingerprint = expense_fingerprint(body)
+        found = repeat_of(conn, "expense", household_id, access.user_id, body.draft_id,
+                          fingerprint)
+        if found is not None:
+            response.status_code = 200
+            return get_expense(conn, found)
     shares = compute_shares(conn, household_id, body)
     item_id = None
     if body.recurring is not None:
@@ -194,15 +211,23 @@ def create_expense(household_id: Id, body: ExpenseIn, access: AccessDep, conn: C
         with conn.transaction():
             expense_id = conn.execute(
                 "INSERT INTO expenses (household_id, description, amount, payer_id, spent_at,"
-                " source, category, created_by, recurring_item_id)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                " source, category, created_by, recurring_item_id, draft_id, draft_fingerprint)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
                 (household_id, body.description, body.amount, body.payer_id, body.spent_at,
-                 body.source, body.category, access.user_id, item_id),
+                 body.source, body.category, access.user_id, item_id, body.draft_id,
+                 fingerprint),
             ).fetchone()[0]
             save_shares(conn, expense_id, shares)
     except errors.ForeignKeyViolation:  # a member was removed while this request ran
         raise unknown_member() from None
     except errors.UniqueViolation:  # this item's month already has its expense
+        # The draft first (FR-007): its own first press is never "the month is taken"
+        if body.draft_id is not None:
+            found = matching(conn, "expense", household_id, access.user_id, body.draft_id,
+                             fingerprint)
+            if found is not None:
+                response.status_code = 200
+                return get_expense(conn, found)
         raise month_taken(conn, item_id, body.spent_at, None) from None
     return get_expense(conn, expense_id)
 

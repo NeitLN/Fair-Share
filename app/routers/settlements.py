@@ -7,6 +7,7 @@ mistaken one; there is no edit: it is deleted and entered again.
 
 import hashlib
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Query, Response
 from psycopg import Connection, errors
@@ -37,6 +38,7 @@ from app.schemas import (
     Settlement,
     SettlementIn,
 )
+from app.services.drafts import repeat_of, settlement_fingerprint
 from app.services.vietqr import bank_for, payment_state, transfer_message
 
 # A session and an approved member are required, also for /settlements/{id} through its household
@@ -45,7 +47,7 @@ router = APIRouter(prefix="/api", tags=["settlements"], dependencies=[HouseholdA
 
 SETTLEMENT_COLUMNS = (
     "id, household_id, from_member_id, to_member_id, amount, settled_at, note, created_at,"
-    " created_by, notice_amount"
+    " created_by, notice_amount, draft_id"
 )
 
 
@@ -67,14 +69,30 @@ def list_settlements(household_id: Id, conn: ConnDep):
 @router.post(
     "/households/{household_id}/settlements", response_model=Settlement, status_code=201
 )
-def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, conn: ConnDep):
+def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, conn: ConnDep,
+                      response: Response):
     """A repayment typed in by hand. With `notice`, it is the money the payer told about: it is
     taken out of that notice (all of it at most) in the same transaction, so the same money can
     never be recorded again by confirming the notice. Without it, no notice changes (specs/014,
-    FR-008): today's "same amount answers the notice" guess is gone, it let money count twice."""
+    FR-008): today's "same amount answers the notice" guess is gone, it let money count twice.
+
+    With `draft_id`, pressing the same draft again gets the repayment it made back (200), or 409
+    draft_already_saved when it says something else (specs/020-no-double-save)."""
     if body.from_member_id == body.to_member_id:
         raise ApiError(422, "same_member", "A member cannot pay themselves")
     lock_household(conn, household_id, shared=True)
+    # A press of a draft that already made a repayment (specs/020-no-double-save): looked up before
+    # any other check, so a told notice that changed since (its first press took from it) never
+    # refuses an honest retry, and nothing changes again
+    fingerprint = None
+    if body.draft_id is not None:
+        fingerprint = settlement_fingerprint(body)
+        repeat = repeat_of(conn, "settlement", household_id, access.user_id, body.draft_id,
+                           fingerprint)
+        if repeat is not None:
+            response.status_code = 200
+            return fetch_one(conn, f"SELECT {SETTLEMENT_COLUMNS} FROM settlements WHERE id = %s",
+                             (repeat,))
     found = conn.execute(
         "SELECT count(*) FROM members WHERE household_id = %s AND id IN (%s, %s)",
         (household_id, body.from_member_id, body.to_member_id),
@@ -92,20 +110,22 @@ def create_settlement(household_id: Id, body: SettlementIn, access: AccessDep, c
     return insert_settlement(
         conn, household_id, body.from_member_id, body.to_member_id, body.amount,
         body.settled_at, body.note or None, access.user_id, taken,
+        draft_id=body.draft_id, fingerprint=fingerprint,
     )
 
 
 def insert_settlement(conn: Connection, household_id: int, from_member: int, to_member: int,
                       amount: int, settled_at, note: str | None, user_id: int,
-                      notice_amount: int | None) -> dict:
+                      notice_amount: int | None, draft_id: UUID | None = None,
+                      fingerprint: str | None = None) -> dict:
     try:
         return fetch_one(
             conn,
             "INSERT INTO settlements (household_id, from_member_id, to_member_id, amount,"
-            " settled_at, note, created_by, notice_amount)"
-            f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING {SETTLEMENT_COLUMNS}",
+            " settled_at, note, created_by, notice_amount, draft_id, draft_fingerprint)"
+            f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING {SETTLEMENT_COLUMNS}",
             (household_id, from_member, to_member, amount, settled_at, note, user_id,
-             notice_amount),
+             notice_amount, draft_id, fingerprint),
         )
     except errors.ForeignKeyViolation:  # a member was removed while this request ran
         raise unknown_member() from None

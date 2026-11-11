@@ -12,9 +12,11 @@ field named, never a database error (docs/ARCHITECTURE.md §5, "Input limits"):
 import unicodedata
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
 from fastapi import Path
 from pydantic import (
+    UUID4,
     BaseModel,
     BeforeValidator,
     Field,
@@ -37,6 +39,10 @@ RowId = Annotated[StrictInt, Field(ge=1, le=BIGINT_MAX)]
 # The day an expense was spent or a settlement paid. Anything outside this range is a typo
 # (year 0001 or 9999) that would sort the lists and the balances history in odd places.
 Day = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2099, 12, 31))]
+
+# A draft's identity (specs/020-no-double-save): a version-4 UUID made by the page; anything else
+# is a 422.
+DraftId = UUID4
 
 
 # Characters that take no space on screen. Left in, they make a name that looks empty, or a second
@@ -507,6 +513,9 @@ class ExpenseIn(BaseModel):
     # month's expense of an item. A PUT ignores both and keeps the expense's link.
     recurring: RecurringIn | None = None
     recurring_item_id: RowId | None = None
+    # POST only (specs/020-no-double-save): the draft this press belongs to. Pressing again with
+    # the same one gets the expense it already made back; a PUT ignores it.
+    draft_id: DraftId | None = None
 
     @model_validator(mode="after")
     def one_recurring_field(self) -> "ExpenseIn":
@@ -582,6 +591,10 @@ class SettlementIn(BaseModel):
     # Optional; blank is stored as no note.
     note: text(200, min_length=0) | None = None
     notice: NoticeRef | None = None
+    # The draft this press belongs to (specs/020-no-double-save). "card": the receiver's press on a
+    # suggested transfer, whose day is not compared, so a retry across midnight is the same press.
+    draft_id: DraftId | None = None
+    draft_kind: Literal["form", "card"] = "form"
 
 
 class Settlement(BaseModel):
@@ -596,6 +609,8 @@ class Settlement(BaseModel):
     created_by: int | None = None
     # How much of a transfer notice this repayment recorded, if any (specs/014)
     notice_amount: int | None = None
+    # The draft that made it (specs/020): a card whose answer was lost knows its press landed
+    draft_id: UUID | None = None
 
 
 class NoticeIn(BaseModel):
