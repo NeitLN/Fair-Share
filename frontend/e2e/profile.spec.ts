@@ -190,7 +190,9 @@ test('a photo uploaded on the profile page shows to a housemate, and the initial
     // counted above but stays empty, so img-src must allow data: (G3-05)
     const drawn = (img: HTMLImageElement) => img.complete && img.naturalWidth > 0
     await expect.poll(() => theirs.locator('.member-row img').evaluate(drawn)).toBe(true)
-    await expect.poll(() => mine.locator('.account-menu > summary .avatar img').evaluate(drawn)).toBe(true)
+    const header = mine.locator('.account-menu > summary .avatar img')
+    await expect(header).toHaveAttribute('src', /^data:image\//)
+    await expect.poll(() => header.evaluate(drawn)).toBe(true)
 
     await mine.getByRole('button', { name: 'Gỡ ảnh' }).click()
     await expect(mine.getByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).toBeVisible()
