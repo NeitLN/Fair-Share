@@ -162,7 +162,7 @@ Measured with the test account `tien123` in *Nhà trọ VLU*, read only, at main
 | Criterion | Result |
 |---|---|
 | SC-001 amounts on one edge, *Thêm nhà* at most 48 px from the list (1440 px) | 0 px apart, 26 px gap (was about 800 px). The account has one house; three houses on one edge show in `screenshots/houses-1440-light.png` and `houses-1440-dark.png` (#278), and `lists.spec.ts` checks two at 1024 and 1440 px |
-| SC-002 profile within 1.5 screens at 1440 px | 1359 px = 1.51 screens of 900 px (was about 2.5): 9 px over, accepted |
+| SC-002 profile within 1.5 screens at 1440 px | **Not met.** 1473 px = 1.64 screens of 900 px after #284 (was about 2.5 before spec 017, about 1517 to 1578 px before #284). The 1.51 first recorded here was measured before the receiving-account part had loaded, so it was too low; corrected on 11/11 |
 | SC-003 focus never on the page body (11 actions) | 11 of 11, Vitest and `a11y.spec.ts` |
 | SC-004 six different save names | 6 of 6, Vitest |
 | SC-005 no sideways scroll, no clipped text | No sideways scroll and no control under 44 px: 64 checks (8 widths × VI/EN × light/dark × 2 pages), 0 problems. Clipped text was not measured: checked by eye on the 360 and 1440 px screenshots, light and dark, none seen |
