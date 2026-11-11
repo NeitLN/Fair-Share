@@ -13,8 +13,10 @@
   --surface-2: #f1e9db;
   --ink: #17132b;
   --muted: #5e5868;
-  /* Dividers between rows: quiet on purpose, the spacing and alignment carry the grouping */
-  --line: #ece4d5;
+  /* Dividers between rows: quiet, the spacing and alignment carry the grouping, but visible: #ece4d5 was
+     1.24:1 on --surface and the rows of Tổng quan, Nhà của bạn and Hồ sơ ran together (owner, 11/11). About
+     1.5:1 now, still lighter than --card-edge (1.90:1) */
+  --line: #dcd0ba;
   /* The edge of anything you type in or press (fields, secondary buttons, chips, folds): ≥ 3:1 on
      --surface, --bg and --surface-2 (WCAG 1.4.11; DESIGN.md §3) */
   --control-line: #8a7f6e;
