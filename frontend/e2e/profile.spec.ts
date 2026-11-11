@@ -186,6 +186,11 @@ test('a photo uploaded on the profile page shows to a housemate, and the initial
     await expect(theirs.locator('.member-row img[src^="data:image/jpeg"]')).toHaveCount(1)
     await expect(theirs.locator('.house-head .avatar img')).toHaveCount(1) // the header stack too
     expect(batches).toHaveLength(1)
+    // The photo is a data: URL, and it really drew: an img the Content-Security-Policy blocks is still
+    // counted above but stays empty, so img-src must allow data: (G3-05)
+    const drawn = (img: HTMLImageElement) => img.complete && img.naturalWidth > 0
+    await expect.poll(() => theirs.locator('.member-row img').evaluate(drawn)).toBe(true)
+    await expect.poll(() => mine.locator('.account-menu > summary .avatar img').evaluate(drawn)).toBe(true)
 
     await mine.getByRole('button', { name: 'Gỡ ảnh' }).click()
     await expect(mine.getByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).toBeVisible()
