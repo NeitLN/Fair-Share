@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Member, Notice, SettlementInput } from '../api/types'
 import { isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
+import { newDraftId } from '../lib/draftId'
+import type { SavedDraft } from '../lib/saveOutcome'
 import { formatVND } from '../lib/money'
 import { parseAmount } from '../lib/split'
 import { useVisibleSaveError } from '../lib/toast'
@@ -25,13 +27,31 @@ interface SettlementFormProps {
    * form asks whether this is that money (taken out of the notice) or another payment (specs/014).
    */
   notices?: Notice[]
+  /**
+   * The last press was refused because this draft already recorded that repayment (specs/020, FR-009):
+   * `error` says so, and the form offers "Xem" and "Ghi thành khoản mới".
+   */
+  alreadySaved?: SavedDraft | null
+  /** "Xem": shows that repayment in the history. */
+  onShowSaved?: (id: number) => void
 }
 
 const MAX_NOTE = 200
 
 // US-08: "A paid B x đồng", for payments that do not match a suggested transfer exactly
-function SettlementForm({ members, onSubmit, submitting, error, receiver = null, notices = [] }: SettlementFormProps) {
+function SettlementForm({
+  members,
+  onSubmit,
+  submitting,
+  error,
+  receiver = null,
+  notices = [],
+  alreadySaved = null,
+  onShowSaved,
+}: SettlementFormProps) {
   const t = useT()
+  // The draft's identity, made at its first press (draftId() below); '' until then
+  const draft = useRef('')
   // While the repayment is being recorded nothing in the form changes (specs/018, FR-007)
   const lock = useSaveLock(submitting)
 
@@ -62,8 +82,22 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
     return null
   }
 
-  async function handleSubmit(event: FormEvent) {
+  /**
+   * This draft's identity (specs/020-no-double-save, FR-001): made at the first press, kept through a
+   * refusal or a "result unknown", new after a save or "Ghi thành khoản mới". Opening the form (it is
+   * mounted inside its fold) starts with none.
+   */
+  function draftId(): string {
+    if (!draft.current) draft.current = newDraftId()
+    return draft.current
+  }
+
+  function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    void submit()
+  }
+
+  async function submit() {
     if (submitting) return
     const found = problem()
     setValidation(found)
@@ -73,16 +107,23 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
       to_member_id: toId as number,
       amount: amount as number,
       settled_at: settledAt,
+      draft_id: draftId(),
     }
     if (note.trim()) input.note = note.trim()
     if (told && asTold) input.notice = { version: told.version }
     try {
       await onSubmit(input)
+      draft.current = ''
       setAmountText('')
       setNote('')
     } catch {
       // The page shows the server's message through `error`; keep what the user typed
     }
+  }
+
+  function saveAsNew() {
+    draft.current = ''
+    void submit()
   }
 
   const options = members.map((m) => (
@@ -177,7 +218,24 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
       />
 
       {validation && <p role="alert">{validation}</p>}
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert">
+          {error}
+          {/* This draft was already recorded as another repayment (specs/020, FR-009) */}
+          {alreadySaved && (
+            <>
+              {onShowSaved && (
+                <button type="button" className="btn-ghost" onClick={() => onShowSaved(alreadySaved.id)}>
+                  {t.save.draftSaved.show}
+                </button>
+              )}
+              <button type="button" className="btn-ghost" disabled={submitting} onClick={saveAsNew}>
+                {t.save.draftSaved.saveNew}
+              </button>
+            </>
+          )}
+        </p>
+      )}
 
       <button type="submit" aria-disabled={submitting || undefined}>
         {submitting ? t.common.saving : t.settlements.submit}

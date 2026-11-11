@@ -30,6 +30,8 @@ describe('SettlementForm', () => {
       amount: 120_000,
       settled_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       note: 'Chuyển khoản',
+      // The draft this press belongs to (specs/020-no-double-save)
+      draft_id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
     })
     expect(screen.getByLabelText('Số tiền (đồng)')).toHaveValue('')
   })

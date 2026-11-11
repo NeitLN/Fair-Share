@@ -16,6 +16,8 @@ const members: Member[] = [
 type User = ReturnType<typeof userEvent.setup>
 
 // Amounts read "240.000đ" (lib/money.ts); plain() keeps the helper for any other spacing
+// A draft's identity, a version-4 UUID (specs/020-no-double-save)
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const plain = (text: string | null) => (text ?? '').replace(/[  ]/g, ' ')
 
 /** Tiến is using this device unless a test says otherwise, so the payer starts as Tiến. */
@@ -70,6 +72,8 @@ describe('ExpenseForm, the 90% case', () => {
       // Guessed from "Tiền điện" with no press (specs/005-expense-categories)
       category: 'utilities',
       split: { type: 'equal', member_ids: [1, 2, 3] },
+      // A new expense's draft (specs/020-no-double-save)
+      draft_id: expect.stringMatching(UUID),
     })
   })
 
@@ -506,6 +510,7 @@ describe('ExpenseForm, filled by AI quick add', () => {
       // The AI is not asked for a category: the form guesses it from the drafted "Lẩu"
       category: 'food',
       split: { type: 'equal', member_ids: [1, 2] },
+      draft_id: expect.stringMatching(UUID),
     })
   })
 

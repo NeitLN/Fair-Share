@@ -799,7 +799,8 @@ describe('saving with no connection, or with no answer', () => {
     api({ 'POST /api/households/7/expenses': () => Promise.reject(new TypeError('Failed to fetch')) })
     renderApp('/households/7/expenses')
     await fillAndSave()
-    const line = 'Chưa nhận được kết quả. Có thể khoản chi đã được lưu, xem danh sách trước khi lưu lại.'
+    // Pressing again is safe since specs/020-no-double-save (US4)
+    const line = 'Chưa nhận được kết quả. Có thể khoản chi đã được lưu; bấm Lưu lại cũng không ghi trùng.'
     expect(await screen.findByText(line)).toBeInTheDocument()
     expect(screen.queryByText(/Chưa lưu được: Chưa nhận được/)).toBeNull()
     expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
@@ -818,6 +819,97 @@ describe('saving with no connection, or with no answer', () => {
     expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
     expect(screen.getByRole('button', { name: 'Lưu khoản chi' })).not.toHaveAttribute('aria-disabled', 'true')
+  })
+})
+
+// specs/020-no-double-save, User Story 1: one draft, one expense, however often Lưu is pressed
+describe('pressing Lưu again', () => {
+  const posts = (fetchFn: ReturnType<typeof api>) =>
+    fetchFn.mock.calls
+      .filter(([url, init]) => init?.method === 'POST' && String(url).endsWith('/expenses'))
+      .map(([, init]) => JSON.parse(init?.body as string) as ExpenseInput)
+
+  async function fillAndSave(user = userEvent.setup(), description = 'Đi chợ') {
+    await user.type(await screen.findByLabelText('Nội dung'), description)
+    await user.type(screen.getByLabelText('Số tiền'), '347,5k')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    return user
+  }
+
+  test('after no answer, the same draft is sent again; its answer is a save like any other', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/expenses': (body) => {
+        calls += 1
+        if (calls === 1) return Promise.reject(new TypeError('Failed to fetch'))
+        // The first press had landed: the server gives that expense back (200)
+        return [calls === 2 ? 200 : 201, saved(10 + calls, body as ExpenseInput)]
+      },
+    })
+    renderApp('/households/7/expenses')
+    const user = await fillAndSave()
+    await screen.findByText(/^Chưa nhận được kết quả/)
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
+    // The same values again, after a save: another expense, another draft ("Đi chợ" twice a day)
+    await fillAndSave(user)
+    await waitFor(() => expect(posts(fetchFn)).toHaveLength(3))
+    const [first, again, next] = posts(fetchFn)
+    expect(first.draft_id).toMatch(/^[0-9a-f-]{36}$/)
+    expect(again.draft_id).toBe(first.draft_id)
+    expect(next.draft_id).not.toBe(first.draft_id)
+  })
+
+  test('a quick-add fill or a changed field keeps the draft: the server compares it', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/expenses': () => {
+        calls += 1
+        return calls === 1
+          ? Promise.reject(new TypeError('Failed to fetch'))
+          : [409, { error: { code: 'draft_already_saved', message: 'x', details: { kind: 'expense', id: 10 } } }]
+      },
+    })
+    renderApp('/households/7/expenses')
+    const user = await fillAndSave()
+    await screen.findByText(/^Chưa nhận được kết quả/)
+    await user.clear(screen.getByLabelText('Số tiền'))
+    await user.type(screen.getByLabelText('Số tiền'), '400k')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    await screen.findByText(/^Khoản chi này đã được lưu rồi/)
+    const [first, changed] = posts(fetchFn)
+    expect(changed.draft_id).toBe(first.draft_id)
+    expect(changed.amount).toBe(400_000)
+  })
+
+  test('"đã được lưu rồi": the form keeps what was typed; Xem shows it; Ghi thành khoản mới saves a new draft', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/expenses': (body) => {
+        calls += 1
+        return calls === 1
+          ? [409, { error: { code: 'draft_already_saved', message: 'x', details: { kind: 'expense', id: 10 } } }]
+          : [201, saved(12, body as ExpenseInput)]
+      },
+    })
+    renderApp('/households/7/expenses')
+    const user = await fillAndSave()
+    const line = await screen.findByText(
+      'Khoản chi này đã được lưu rồi, có thể khác những gì đang nhập. Xem trong danh sách rồi sửa nếu cần.',
+    )
+    expect(line).toHaveAttribute('role', 'alert')
+    expect(screen.getByLabelText('Nội dung')).toHaveValue('Đi chợ')
+    // No "Chưa lưu được" in the form: the line is the whole message
+    expect(screen.queryByText(/Chưa lưu được/)).toBeNull()
+    await user.click(within(line).getByRole('button', { name: 'Xem' }))
+    await waitFor(() => expect(document.querySelector('[data-expense="10"]')).toHaveClass('just-saved'))
+    await user.click(within(line).getByRole('button', { name: 'Ghi thành khoản mới' }))
+    expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
+    const [first, asNew] = posts(fetchFn)
+    expect(asNew.draft_id).not.toBe(first.draft_id)
+    expect(asNew.amount).toBe(first.amount)
+    expect(screen.queryByText(/^Khoản chi này đã được lưu rồi/)).toBeNull()
   })
 })
 

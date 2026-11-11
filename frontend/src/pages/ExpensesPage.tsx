@@ -21,7 +21,7 @@ import RecurringList from '../components/RecurringList'
 import { draftToFill } from '../lib/draftFill'
 import { errorMessage } from '../lib/errors'
 import { formError } from '../lib/formError'
-import { outcomeLine } from '../lib/saveOutcome'
+import { outcomeLine, savedDraft } from '../lib/saveOutcome'
 import { today } from '../lib/date'
 import {
   filterExpenses,
@@ -230,6 +230,8 @@ function ExpensesPage() {
   const takenInput = editing ? update.variables?.input : create.variables
   const takenItem = editing ? editing.recurring_item_id : takenInput?.recurring_item_id
   const takenName = recurring.data?.find((item) => item.id === takenItem)?.description ?? takenInput?.description ?? ''
+  // This draft was already saved, and the press said something else (specs/020, FR-009)
+  const alreadySaved = editing ? null : savedDraft(create.error)
 
   const allExpenses = useMemo(() => expenses.data ?? [], [expenses.data])
   const months = useMemo(() => monthsOf(allExpenses), [allExpenses])
@@ -343,6 +345,30 @@ function ExpensesPage() {
                         {t.recurring.seeTaken}
                       </button>
                     )}
+                  </p>
+                )}
+                {alreadySaved && (
+                  <p className="note" role="alert">
+                    {t.save.draftSaved.expense}
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => {
+                        // The list may not have it yet: read it again, and the row is shown once it is there
+                        void refresh()
+                        reveal(alreadySaved.id)
+                      }}
+                    >
+                      {t.save.draftSaved.show}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      disabled={create.isPending}
+                      onClick={() => expenseForm.current?.saveAsNew()}
+                    >
+                      {t.save.draftSaved.saveNew}
+                    </button>
                   </p>
                 )}
               </div>

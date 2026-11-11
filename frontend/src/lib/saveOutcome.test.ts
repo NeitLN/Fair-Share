@@ -24,8 +24,13 @@ describe('outcomeLine (contracts/ui-contract.md §2)', () => {
   test('the exact lines, in Vietnamese', () => {
     expect(outcomeLine('A1', offline, vi)).toBe('Chưa lưu được: bạn đang mất mạng. Khoản chi này chưa được lưu.')
     expect(outcomeLine('A1', unknown, vi)).toBe(
-      'Chưa nhận được kết quả. Có thể khoản chi đã được lưu, xem danh sách trước khi lưu lại.',
+      // Pressing again is safe since specs/020-no-double-save (US4)
+      'Chưa nhận được kết quả. Có thể khoản chi đã được lưu; bấm Lưu lại cũng không ghi trùng.',
     )
+    expect(outcomeLine('A2', unknown, vi)).toBe(
+      'Chưa nhận được kết quả. Có thể khoản trả đã được ghi; bấm lại cũng không ghi trùng.',
+    )
+    expect(outcomeLine('A5', unknown, vi)).toBe(outcomeLine('A2', unknown, vi))
     expect(outcomeLine('A4', offline, vi)).toBe('Chưa huỷ được: bạn đang mất mạng.')
     expect(outcomeLine('A7', unknown, vi)).toBe(
       'Chưa nhận được kết quả. Có thể đã xoá rồi, xem lại danh sách trước khi xoá lại.',

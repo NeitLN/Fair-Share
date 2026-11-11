@@ -31,7 +31,9 @@ const SPLIT_CODES = new Set(['unknown_member', 'member_without_account'])
 
 export function formError(error: unknown): FormError | null {
   if (!error) return null
-  if (error instanceof ApiError && error.code === 'recurring_month_taken') return null
+  // So is "this draft was already saved", with its "Xem" and "Ghi thành khoản mới" (specs/020, FR-009)
+  if (error instanceof ApiError && (error.code === 'recurring_month_taken' || error.code === 'draft_already_saved'))
+    return null
   // Not sent, or sent with no answer: say only that (specs/018, contracts/ui-contract.md §2, A1)
   const line = outcomeLine('A1', error, messages())
   if (line) return { message: line, field: null, alone: true }

@@ -4,13 +4,20 @@ import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/client'
 import { keys } from '../api/households'
 import { refreshIfUnknown } from '../api/queryClient'
-import { acceptNotice, balancesFetchCount, createSettlement, deleteSettlement } from '../api/settlements'
-import type { Balances, Transfer } from '../api/types'
+import {
+  acceptNotice,
+  balancesFetchCount,
+  createSettlement,
+  deleteSettlement,
+  settlementKeys,
+} from '../api/settlements'
+import type { Balances, Settlement, Transfer } from '../api/types'
 import { messages } from '../i18n'
 import { today } from './date'
+import { newDraftId } from './draftId'
 import { errorMessage } from './errors'
 import { formatVND } from './money'
-import { isUnknown, outcomeLine } from './saveOutcome'
+import { isUnknown, outcomeLine, savedDraft } from './saveOutcome'
 import { useSaveFeedback, useToast } from './toast'
 
 /** One transfer card in the verdict block, as the block shows it. */
@@ -92,6 +99,28 @@ export function usePaidTransfers(
   // The order cards were last shown in, by key. A press takes the place of the suggestion it replaces,
   // so stamped cards stay where they were whatever order they are paid or answered in.
   const [layout, setLayout] = useState<string[]>([])
+  // Each pair's card draft (specs/020-no-double-save, research R4): the identity its presses send, the
+  // amount it was made for, and whether its last press ended with no answer
+  const cardDrafts = useRef(new Map<string, { id: string; amount: number; unknown: boolean }>())
+
+  /**
+   * The identity a card press sends (FR-001, S3): the pair's draft when it is for the same amount, or
+   * when its last press may have landed (no answer) and no read of the history shows it yet; a new one
+   * otherwise. A press whose answer was lost, pressed again, then gets its repayment back, never a second.
+   */
+  function cardDraft(pair: string, amount: number): string {
+    const entry = cardDrafts.current.get(pair)
+    if (entry?.unknown) {
+      const history = queryClient.getQueryData<Settlement[]>(settlementKeys.list(householdId)) ?? []
+      // That press did land, and the page has seen it: this is a new press
+      if (!history.some((s) => s.draft_id === entry.id)) return entry.id
+    } else if (entry?.amount === amount) {
+      return entry.id
+    }
+    const id = newDraftId()
+    cardDrafts.current.set(pair, { id, amount, unknown: false })
+    return id
+  }
 
   useEffect(() => {
     describeNow.current = describe
@@ -189,7 +218,16 @@ export function usePaidTransfers(
             settledAt: today(),
             warnedSuggestion: told.warned,
           })
-        : await createSettlement(householdId, { ...transfer, settled_at: today() })
+        : await createSettlement(householdId, {
+            from_member_id: transfer.from_member_id,
+            to_member_id: transfer.to_member_id,
+            amount: transfer.amount,
+            settled_at: today(),
+            draft_id: cardDraft(pair, transfer.amount),
+            draft_kind: 'card',
+          })
+      // Recorded: the pair's next press is a new repayment
+      if (!told) cardDrafts.current.delete(pair)
       if (deletedSettlements.current.has(settlement.id)) {
         // Deleted from Lịch sử trả before this answer arrived: nothing to stamp or undo
         change(id, null)
@@ -206,6 +244,27 @@ export function usePaidTransfers(
       onDone?.({ kind: 'done' })
       void refresh()
     } catch (failure) {
+      if (!told) {
+        // An earlier press of this card already recorded it, with another amount (specs/020, FR-009): the
+        // repayment exists, so the card is stamped, and the toast offers it in the history
+        const saved = savedDraft(failure)
+        if (saved) {
+          cardDrafts.current.delete(pair)
+          change(id, { state: 'paid', settlementId: saved.id, recordedAtFetch: balancesFetchCount() })
+          say(messages().save.draftSaved.settlement, {
+            label: messages().save.draftSaved.show,
+            onAction: () => document.getElementById(`settlement-${saved.id}`)?.scrollIntoView?.({ block: 'center' }),
+          })
+          onDone?.({ kind: 'done' })
+          void refresh()
+          return
+        }
+        // No answer: it may have landed, so the next press repeats it. Answered (refused, or never sent):
+        // nothing was recorded, and the next press is a draft of its own
+        const entry = cardDrafts.current.get(pair)
+        if (entry && isUnknown(failure)) entry.unknown = true
+        else cardDrafts.current.delete(pair)
+      }
       change(id, null)
       // More than is suggested now, and not warned yet: the card shows the warning (specs/019, FR-006)
       const warning = failure instanceof ApiError && failure.code === 'warning_required'

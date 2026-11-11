@@ -22,6 +22,23 @@ describe('HouseholdCreateForm', () => {
     expect(screen.getByLabelText('Tên nhà')).toHaveValue('')
   })
 
+  test('a double tap before the answer sends one request (specs/020, FR-011)', async () => {
+    let answer: () => void = () => {}
+    const onCreate = vi.fn(() => new Promise<void>((resolve) => (answer = resolve)))
+    // `submitting` stays false: the page has not re-rendered between the two taps
+    render(<HouseholdCreateForm onCreate={onCreate} submitting={false} error={null} />)
+
+    await userEvent.type(screen.getByLabelText('Tên nhà'), 'Nhà 12')
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Tạo nhà' }))
+    expect(onCreate).toHaveBeenCalledTimes(1)
+
+    // Answered: a later press works again
+    answer()
+    await userEvent.type(screen.getByLabelText('Tên nhà'), 'Nhà 13')
+    await userEvent.click(screen.getByRole('button', { name: 'Tạo nhà' }))
+    expect(onCreate).toHaveBeenCalledTimes(2)
+  })
+
   test('keeps the text when saving fails', async () => {
     const onCreate = vi.fn().mockRejectedValue(new Error('409'))
     render(<HouseholdCreateForm onCreate={onCreate} submitting={false} error={null} />)

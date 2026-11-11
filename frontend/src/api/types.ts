@@ -258,6 +258,11 @@ export interface ExpenseInput {
   recurring?: { varying_amount: boolean }
   /** New expenses only: this is the month's expense of that recurring item. */
   recurring_item_id?: number
+  /**
+   * New expenses only: the draft this press belongs to (specs/020-no-double-save). Pressing again
+   * with it gets the expense it already made back (200), or 409 draft_already_saved.
+   */
+  draft_id?: string
   split:
     | { type: 'equal'; member_ids: number[] }
     | { type: 'custom'; shares: Share[] }
@@ -294,6 +299,8 @@ export interface Settlement {
   created_by?: number | null
   /** How much of a "Tôi đã chuyển" notice this repayment recorded (specs/014). */
   notice_amount?: number | null
+  /** The draft that made it (specs/020): a card whose answer was lost knows its press landed. */
+  draft_id?: string | null
 }
 
 /** Body of POST /api/households/{id}/settlements. */
@@ -306,6 +313,10 @@ export interface SettlementInput {
   note?: string
   /** The money the payer told about: taken out of that notice, the version the screen showed. */
   notice?: { version: number }
+  /** The draft this press belongs to (specs/020-no-double-save). */
+  draft_id?: string
+  /** "card": a suggested-transfer card, whose day is not compared on a repeat. */
+  draft_kind?: 'form' | 'card'
 }
 
 /** One member's totals in đồng, plus their net position. */
