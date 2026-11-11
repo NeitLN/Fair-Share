@@ -4191,8 +4191,9 @@ button.ai:active:focus-visible {
     gap: 28px;
   }
 
+  /* 18 px top and bottom keeps the whole profile within 1.5 screens at 1440 × 900 (spec 017 SC-002) */
   .profile-part {
-    padding: 22px 26px;
+    padding: 18px 26px;
   }
 }
 
