@@ -5,7 +5,7 @@ a running stack with **one command**. This page is the script for that rehearsal
 to time, what "passed" means, and the record of each run. The README's
 [Quick start](../README.md#quick-start-docker-compose) is the user-facing version of the same steps.
 
-Owner: Duy Anh · Reviewer: Việt Tiến · Runs: dry run 22/10, **#1 29/10** (planned 03/11), **final Mon 09/11**.
+Owner: Duy Anh · Reviewer: Việt Tiến · Runs: dry run 22/10, **#1 29/10** (planned 03/11), **final Sun 08/11** (planned Mon 09/11).
 
 ## 1. Before you start
 
@@ -38,7 +38,7 @@ Then, in a second terminal or the browser:
 | 1 | http://localhost:3000 | The Fair-Share page |
 | 2 | http://localhost:3000/api/version | `{"app":"fair-share","version":…}` (web → nginx → api) |
 | 3 | http://localhost:8000/health | `{"status":"ok"}` |
-| 4 | http://localhost:8000/health/db | `{"db":"ok","schema":"002_household_keys"}` |
+| 4 | http://localhost:8000/health/db | `{"db":"ok","schema":…}` with the newest file in `db/migrations/` |
 | 5 | http://localhost:8000/docs | Swagger UI |
 | 6 | Open http://localhost:3000 and sign in as `tien@demo.local` with the password `fairshare-demo` (README; `docker compose logs api \| grep "demo household"` names the account too) | **Nhà trọ Bình Thạnh** on the home page, marked **Trưởng nhóm**: three members, five expenses over two months, a verdict on Tổng quan |
 | 7 | Reload on a deep link, e.g. http://localhost:3000/households/1/expenses | The page, not a 404 |
@@ -69,6 +69,7 @@ Base images (`python:3.12-slim`, `node:22-alpine`, `nginxinc/nginx-unprivileged:
 | Situation | Measured | Where it matters |
 |---|---|---|
 | Nothing cached: the four base images are downloaded, both images built | **358 s** from `git clone` to `/api/version` answering (22/10, home connection); **527 s** in run #1 (29/10, same connection, slower downloads) | The worst case on a fresh machine |
+| Our images, volume and build cache removed, and `postgres:16-alpine`; the other base images not on the machine either | **83 s** from `git clone` to `/api/version` answering (final run, 08/11) | The run recorded as final below |
 | Base images already pulled, nothing of ours cached | **30 s** from `git clone` to the stack up, with `pip install` and `npm ci` run again (24/10, `docker compose build --no-cache` then `up -d --wait`); pulling the four base images first took 14 s | Demo day: base images are pulled beforehand without touching the repository |
 | Restart (`down` then `up -d --wait`) | **13 s** (22/10) | Later starts |
 
@@ -84,4 +85,4 @@ about half a minute. Say so in the talk: what is cached are public base images, 
 | Dry run | 22/10 | Duy Anh's laptop, Windows 11 (had the project in another folder; no Fair-Share volume or image) | Docker Desktop 29.9, Compose v5.6 | ✅ passed checks 1–9, Playwright 2/2 | 358 s, nothing cached | README needed no change. Found: the demo household had no expenses, fixed in #124 / #125. Details in [#53](https://github.com/NeitLN/Fair-Share/issues/53) |
 | Demo timing | 24/10 | Same laptop, base images pulled first, our build cache bypassed | Docker Desktop 29.9 | ✅ `/api/version` 200, `/health/db` ok, demo household with 5 expenses | 30 s | Measures the demo-day plan above; not a fresh-machine run |
 | #1 | 29/10 (planned 03/11) | Duy Anh's laptop, Windows 11, the same one as the dry run. With the lecturer's and the reviewer's (Việt Tiến) agreement, instead of a second machine. Every Fair-Share image, volume and build cache, and the four base images, were removed first, so nothing of ours was cached | Docker Desktop 29.9, Compose v5.6 | ✅ passed: checks 1–9 with only the three commands and no file edited; Playwright 2/2 against the stack | **527 s**, nothing cached (commit `521b470`) | Step 6 with the invite link: `grep` (Git Bash) and `Select-String` (PowerShell) both print `Nhà trọ demo`'s link; a fresh browser's home page is empty until it is opened, the key leaves the address bar, Tổng quan says *Bạn cần trả Minh* for Duy Anh, the deep link lists 5 expenses over 2 months. Restart 13 s with the added expense kept; `down -v` gives the demo household back. Cleaned up afterwards (§3) |
-| Final | Mon 09/11 | | | | | |
+| Final | Sun 08/11 (planned Mon 09/11, run a day early once spec 012 was merged) | Duy Anh's laptop, Windows 11, the same one as run #1, with the same agreement. The Fair-Share images, volume and build cache and the `postgres:16-alpine` base image were removed first; the clone went into a new empty folder | Docker Desktop 29.9.1, Compose v5.6.0 | ✅ passed: checks 1–11 with only the three commands and no file edited | **83 s**, nothing of ours cached (commit `d31e3da`) | Checks 1–5 and 7 with `curl`; check 6 in the browser: **Nhà trọ Bình Thạnh** marked Trưởng nhóm, 3 members, 5 expenses over 2 months (10/2026 and 11/2026), a verdict on Tổng quan. Restart 13 s with a renamed house kept; `down -v` gave the demo household back. Checks 10–11 in a private window: *Đang chờ duyệt* without the house name, then the house after approval. Found: check 4 still expected `002_household_keys`; it now names the newest migration file instead of a fixed one. Cleaned up afterwards (§3) |
