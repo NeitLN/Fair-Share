@@ -276,7 +276,8 @@ function HouseholdsPage() {
             className="fold join-household"
             open={joining}
             onToggle={(event) => {
-              if (event.currentTarget.open) setJoining(true)
+              // Follows the fold both ways: its title stays in view, so a click can close it too (#278 review)
+              setJoining(event.currentTarget.open)
               focusFirstField(event)
             }}
             onKeyDown={(event) => {
@@ -293,7 +294,7 @@ function HouseholdsPage() {
             className="fold create-household"
             open={creating}
             onToggle={(event) => {
-              if (event.currentTarget.open) setCreating(true)
+              setCreating(event.currentTarget.open)
               focusFirstField(event)
             }}
             onKeyDown={(event) => {
