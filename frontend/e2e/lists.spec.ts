@@ -163,12 +163,16 @@ test('a long description offers Xem đủ, and an emptied month keeps its filter
     // September keeps its filter when its last expense is deleted, and says it is empty
     const month = page.getByRole('combobox', { name: 'Tháng', exact: true })
     await month.selectOption({ label: '9/2026' })
-    page.on('dialog', (dialog) => dialog.accept())
     await text.click()
     await page.getByRole('button', { name: `Xoá ${description}` }).click()
+    // Asked in place (plan item 8): the action in the question deletes it
+    await page.locator('.inline-confirm').getByRole('button', { name: 'Xoá', exact: true }).click()
 
     await expect(page.getByText('Tháng 9/2026 chưa có khoản chi nào.')).toBeVisible()
     await expect(month).toHaveValue('2026-09')
+    // The "Đã xoá … Hoàn tác" toast first goes on its own: the pointer over it would keep it (it pauses)
+    await page.mouse.move(0, 0)
+    await expect(page.locator('.toast')).toHaveCount(0, { timeout: 15_000 })
     await page.getByRole('button', { name: 'Bỏ lọc' }).last().click()
     await expect(page.getByText('Tháng 9/2026 chưa có khoản chi nào.')).toHaveCount(0)
     await expect(page.getByText('Chưa có khoản chi nào. Ghi khoản đầu tiên ở trên.')).toBeVisible()

@@ -150,6 +150,9 @@ const vi = {
     renew: 'Đổi mã mới',
     renewing: 'Đang đổi…',
     renewHint: 'Mã cũ sẽ không dùng được nữa.',
+    // Asked in place of the button (plan item 8, A05): the link already shared stops working
+    renewConfirm: 'Đổi mã? Link mời cũ, kể cả link đã gửi vào nhóm, sẽ không dùng được nữa.',
+    renewDo: 'Đổi mã',
     // specs/015: what a code shows to whoever has it
     shows: 'Ai có mã này sẽ thấy tên nhà và tên trưởng nhóm.',
     none: 'Chưa có mã mời còn hạn. Nhờ trưởng nhóm tạo mã mới.',
@@ -235,6 +238,7 @@ const vi = {
     photoPick: 'Chọn ảnh',
     photoChange: 'Đổi ảnh',
     photoRemove: 'Gỡ ảnh',
+    photoRemoveConfirm: 'Gỡ ảnh đại diện?',
     photoSaved: 'Đã lưu ảnh đại diện.',
     photoRemoved: 'Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.',
     photoTooBig: 'Ảnh lớn quá 10 MB. Chọn ảnh khác nhé.',
@@ -709,6 +713,12 @@ const vi = {
     loadingList: 'Đang tải danh sách khoản chi',
     empty: 'Chưa có khoản chi nào. Ghi khoản đầu tiên ở trên.',
     confirmDelete: (description: string) => `Xoá khoản "${description}"?`,
+    // Hoàn tác after Xoá (plan item 8): the same expense recorded again
+    deleted: (description: string) => `Đã xoá "${description}".`,
+    restored: (description: string) => `Đã ghi lại "${description}".`,
+    restoreFailed: (reason: string) => `Chưa ghi lại được: ${reason}`.trim(),
+    restoreOffline: 'Chưa ghi lại được: bạn đang mất mạng.',
+    restoreUnknown: 'Chưa nhận được kết quả. Có thể khoản chi đã được ghi lại; bấm Thử lại cũng không ghi trùng.',
     paidBy: (payer: string, split: string) => `${payer} trả · ${split}`,
     splitCustom: (people: number) => `tự chia ${people} người`,
     splitEqualOf: (people: number, all: number) => `chia đều ${people}/${all} người`,

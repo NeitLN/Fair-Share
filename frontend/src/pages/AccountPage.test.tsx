@@ -245,6 +245,37 @@ test('a picture the browser cannot open says which kinds work, and nothing is se
   expect(api.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
 })
 
+// Plan item 8 (review 12/11, F12): Gỡ ảnh asks first, and its toast puts the same photo back
+test('Hoàn tác after Gỡ ảnh saves the photo that was there again', async () => {
+  let current: unknown = { version: 'aaaaaaaaaaaa', data: photo }
+  const api = mockApi({
+    ...noHouses,
+    'GET /api/me/photo': () => [200, current],
+    'DELETE /api/me/photo': () => {
+      current = { version: null, data: null }
+      return [204]
+    },
+    'PUT /api/me/photo': () => {
+      current = { version: 'bbbbbbbbbbbb', data: photo }
+      return [200, { version: 'bbbbbbbbbbbb' }]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await waitFor(() => expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', photo))
+  await user.click(screen.getByRole('button', { name: 'Gỡ ảnh' }))
+  await user.click(within(document.querySelector('.inline-confirm') as HTMLElement).getByRole('button', { name: 'Gỡ ảnh' }))
+  const toast = (await screen.findByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).closest('.toast') as HTMLElement
+  await user.click(within(toast).getByRole('button', { name: 'Hoàn tác' }))
+  await waitFor(() => expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', photo))
+  const put = api.mock.calls.find(([url, init]) => url === '/api/me/photo' && init?.method === 'PUT')
+  // The bytes of the photo that was shown, as a JPEG
+  const sent = put?.[1]?.body as Blob
+  expect(sent.type).toBe('image/jpeg')
+  const bytes = new Uint8Array(await sent.arrayBuffer())
+  expect(btoa(String.fromCharCode(...bytes))).toBe(photo.split(',')[1])
+})
+
 test('a saved photo shows, and Gỡ ảnh goes back to the initial', async () => {
   let current: unknown = { version: 'aaaaaaaaaaaa', data: photo }
   mockApi({
@@ -259,6 +290,8 @@ test('a saved photo shows, and Gỡ ảnh goes back to the initial', async () =>
   renderApp('/account')
   await waitFor(() => expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', photo))
   await user.click(screen.getByRole('button', { name: 'Gỡ ảnh' }))
+  // Asked in place: the same words act in the question (plan item 8, F12)
+  await user.click(within(document.querySelector('.inline-confirm') as HTMLElement).getByRole('button', { name: 'Gỡ ảnh' }))
   expect(await screen.findByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).toBeInTheDocument()
   await waitFor(() => expect(document.querySelector('.profile-photo img')).toBeNull())
   expect(document.querySelector('.profile-photo .avatar')).toHaveTextContent('T')
@@ -624,6 +657,10 @@ test('the photo buttons hand the focus on: pick → Lưu ảnh, Huỷ → Chọn
   await waitFor(() => expect(screen.getByRole('button', { name: 'Đổi ảnh' })).toHaveFocus())
 
   await user.click(screen.getByRole('button', { name: 'Gỡ ảnh' }))
+
+  // Asked in place: the same words act in the question (plan item 8, F12)
+
+  await user.click(within(document.querySelector('.inline-confirm') as HTMLElement).getByRole('button', { name: 'Gỡ ảnh' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Chọn ảnh' })).toHaveFocus())
 })
 

@@ -6,6 +6,7 @@ import { parseExpense } from '../api/ai'
 import { createExpense, deleteExpense, expenseKeys, listExpenses, updateExpense } from '../api/expenses'
 import { getHousehold, keys, listMembers } from '../api/households'
 import { ApiError } from '../api/client'
+import { refreshIfUnknown } from '../api/queryClient'
 import { listRecurring, recurringKeys, stopRecurring } from '../api/recurring'
 import type { Category, Expense, ExpenseInput, RecurringItem } from '../api/types'
 import { CATEGORIES } from '../lib/categories'
@@ -19,9 +20,10 @@ import ExportCsvButton from '../components/ExportCsvButton'
 import MonthTotals from '../components/MonthTotals'
 import RecurringList from '../components/RecurringList'
 import { draftToFill } from '../lib/draftFill'
+import { newDraftId } from '../lib/draftId'
 import { errorMessage } from '../lib/errors'
 import { formError } from '../lib/formError'
-import { outcomeLine, savedDraft } from '../lib/saveOutcome'
+import { outcomeLine, outcomeOf, savedDraft } from '../lib/saveOutcome'
 import { today } from '../lib/date'
 import {
   filterExpenses,
@@ -43,6 +45,23 @@ import { useWide } from '../lib/useWide'
 import ErrorNote from '../components/ErrorNote'
 import Skeleton from '../components/Skeleton'
 import { useT } from '../i18n'
+
+/** What recording `expense` again sends: its content, split as it was (Hoàn tác after Xoá). */
+function inputOf(expense: Expense): ExpenseInput {
+  return {
+    description: expense.description,
+    amount: expense.amount,
+    payer_id: expense.payer_id,
+    spent_at: expense.spent_at,
+    source: expense.source,
+    category: expense.category,
+    ...(expense.recurring_item_id != null && { recurring_item_id: expense.recurring_item_id }),
+    split:
+      expense.split_type === 'equal'
+        ? { type: 'equal', member_ids: expense.shares.map((s) => s.member_id) }
+        : { type: 'custom', shares: expense.shares.map((s) => ({ member_id: s.member_id, amount: s.amount })) },
+  }
+}
 
 // US-03, US-04, US-05: record, list, edit and delete the expenses of one household
 function ExpensesPage() {
@@ -186,6 +205,45 @@ function ExpensesPage() {
       // The expense being edited is gone: back to adding a new one
       setEditing((current) => (current?.id === expense.id ? null : current))
       void refresh()
+      // Deleted, with Hoàn tác (plan item 8, B08): asked first, then undoable for as long as the toast stays
+      if (houseNow.current !== householdId) return
+      const draft = newDraftId()
+      toast({
+        kind: 'success',
+        text: t.expenses.deleted(expense.description),
+        action: { label: t.common.undo, onAction: () => restore.mutate({ expense, draft }) },
+      })
+    },
+  })
+  // Hoàn tác: the same expense is recorded again, as a new one with the same content. One draft per
+  // deletion, so a second press of Hoàn tác gets the first one back instead of recording it twice
+  // (specs/020). It is recorded by whoever undoes it; a person without an account any more cannot be
+  // in a new expense (M3), and that refusal is said as it is
+  const restore = useMutation({
+    mutationFn: ({ expense, draft }: { expense: Expense; draft: string }) =>
+      createExpense(householdId, { ...inputOf(expense), draft_id: draft }),
+    meta: { householdId },
+    onSuccess: (expense) => {
+      void refresh()
+      if (houseNow.current === householdId)
+        toast({ kind: 'success', text: t.expenses.restored(expense.description), action: { label: t.expenses.show, onAction: () => reveal(expense.id) } })
+    },
+    onError: (failure, variables) => {
+      if (houseNow.current !== householdId) return
+      // Not sent, or no answer: Thử lại with the same draft, which gets the expense back if the first
+      // press landed (specs/020), so the undo is never lost. Sticky while the result is unknown, as an
+      // unknown undo on a card (specs/018, A6). Review of #300
+      const outcome = outcomeOf(failure)
+      if (outcome !== 'other') {
+        toast({
+          text: outcome === 'offline' ? t.expenses.restoreOffline : t.expenses.restoreUnknown,
+          action: { label: t.common.tryAgain, onAction: () => restore.mutate(variables) },
+          sticky: outcome === 'unknown',
+        })
+        refreshIfUnknown(failure, householdId)
+        return
+      }
+      toast({ text: t.expenses.restoreFailed(errorMessage(failure) ?? '') })
     },
   })
   // A delete that was not sent, or whose answer never came, says so (specs/018, A7)

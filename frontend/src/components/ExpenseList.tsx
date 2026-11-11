@@ -8,6 +8,7 @@ import { Avatar } from './Avatar'
 import { Chip } from './Chip'
 import { Money } from './Money'
 import ErrorNote from './ErrorNote'
+import InlineConfirm from './InlineConfirm'
 import ShareList from './ShareList'
 import Skeleton from './Skeleton'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -86,11 +87,6 @@ function ExpenseList({
   }
 
   const lookOf = (id: number) => looks.get(id) ?? REMOVED_MEMBER
-
-  // Deleting cannot be undone from the UI, so ask first
-  function confirmDelete(expense: Expense) {
-    if (window.confirm(t.expenses.confirmDelete(expense.description))) onDelete(expense)
-  }
 
   return (
     <div className="expense-days">
@@ -174,15 +170,16 @@ function ExpenseList({
                           >
                             {t.common.edit}
                           </button>
-                          <button
-                            type="button"
+                          <InlineConfirm
                             className="btn-danger"
-                            aria-label={t.expenses.deleteLabel(expense.description)}
-                            disabled={deleting}
-                            onClick={() => confirmDelete(expense)}
-                          >
-                            {deleting ? t.common.deleting : t.common.delete}
-                          </button>
+                            label={t.common.delete}
+                            ariaLabel={t.expenses.deleteLabel(expense.description)}
+                            question={t.expenses.confirmDelete(expense.description)}
+                            confirmLabel={t.common.delete}
+                            onConfirm={() => onDelete(expense)}
+                            busy={deleting}
+                            busyLabel={t.common.deleting}
+                          />
                         </div>
                       )}
                     </details>

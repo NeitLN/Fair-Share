@@ -4,6 +4,7 @@ import { formatVND } from '../lib/money'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
 import { monthState } from '../lib/recurring'
+import InlineConfirm from './InlineConfirm'
 import { useT } from '../i18n'
 
 interface RecurringListProps {
@@ -54,17 +55,14 @@ function RecurringList({ items, expenses, today, looks, canStop, onStop, stoppin
                     <small className="recurring-state">{state[monthState(item, expenses, today)]}</small>
                   </span>
                   {canStop(item) && (
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      aria-label={t.recurring.stopLabel(item.description)}
-                      disabled={stoppingIds.includes(item.id)}
-                      onClick={() => {
-                        if (window.confirm(t.recurring.stopConfirm(item.description))) onStop(item)
-                      }}
-                    >
-                      {t.recurring.stop}
-                    </button>
+                    <InlineConfirm
+                      label={t.recurring.stop}
+                      ariaLabel={t.recurring.stopLabel(item.description)}
+                      question={t.recurring.stopConfirm(item.description)}
+                      confirmLabel={t.recurring.stop}
+                      onConfirm={() => onStop(item)}
+                      busy={stoppingIds.includes(item.id)}
+                    />
                   )}
                   {errors[item.id] && <p className="recurring-error">{errors[item.id]}</p>}
                 </li>

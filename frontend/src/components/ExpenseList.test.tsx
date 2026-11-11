@@ -192,28 +192,40 @@ describe('ExpenseList', () => {
     expect(onEdit).toHaveBeenCalledWith(electricity)
   })
 
-  test('deleting asks first, and cancel leaves the expense alone', async () => {
+  test('deleting asks first, in place; Huỷ and Escape leave the expense alone', async () => {
     const onDelete = vi.fn()
-    const confirm = vi.fn(() => false)
+    const confirm = vi.fn(() => true)
     vi.stubGlobal('confirm', confirm)
     renderList([electricity], { onDelete })
 
     await open('Tiền điện')
-    await userEvent.click(screen.getByRole('button', { name: 'Xoá Tiền điện' }))
-    expect(confirm).toHaveBeenCalledWith('Xoá khoản "Tiền điện"?')
+    const trigger = screen.getByRole('button', { name: 'Xoá Tiền điện' })
+    await userEvent.click(trigger)
+    // The question replaces the button, the focus on its action; never the browser's dialog (plan item 8)
+    const question = screen.getByRole('group', { name: 'Xoá khoản "Tiền điện"?' })
+    expect(within(question).getByRole('button', { name: 'Xoá' })).toHaveFocus()
+    await userEvent.click(within(question).getByRole('button', { name: 'Huỷ' }))
     expect(onDelete).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Xoá Tiền điện' })).toHaveFocus()
 
-    confirm.mockReturnValue(true)
     await userEvent.click(screen.getByRole('button', { name: 'Xoá Tiền điện' }))
+    await userEvent.keyboard('{Escape}')
+    expect(onDelete).not.toHaveBeenCalled()
+    // Escape closed the question only: the row stays open
+    expect(screen.getByRole('button', { name: 'Xoá Tiền điện' })).toHaveFocus()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Xoá Tiền điện' }))
+    await userEvent.click(within(document.querySelector('.inline-confirm') as HTMLElement).getByRole('button', { name: 'Xoá' }))
     expect(onDelete).toHaveBeenCalledWith(electricity)
+    expect(confirm).not.toHaveBeenCalled()
   })
 
   test('the expense being deleted has both buttons disabled', () => {
     renderList([electricity, dinner], { deletingId: 11 })
 
-    expect(screen.getByRole('button', { name: 'Xoá Tiền điện' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Xoá Tiền điện' })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByRole('button', { name: 'Sửa Tiền điện' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Xoá Ăn tối' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Xoá Ăn tối' })).not.toHaveAttribute('aria-disabled')
     expect(screen.getByRole('button', { name: 'Sửa Ăn tối' })).toBeEnabled()
   })
 
