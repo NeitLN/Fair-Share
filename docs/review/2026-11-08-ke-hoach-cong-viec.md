@@ -240,6 +240,8 @@ Mỗi gói ở đây chạy Spec Kit riêng. Ước lượng là cho bản đầ
 | G3-08 | Ảnh hoá đơn | Đính kèm một ảnh vào khoản chi, dùng lại cách kiểm tra và lưu ảnh của ảnh đại diện | Mở rộng phạm vi ảnh trong PROJECT_SPEC §3.3; tính lại dung lượng 500 MB | XL | Tiến |
 | G3-09 | Chia theo món, ngân sách | Nhập từng món và người ăn; ngân sách tháng theo danh mục | Ít cấp bách nhất | XL | để sau |
 
+**Trạng thái đợt 3 (12/11):** đã làm xong G3-02 (spec 016), G3-05 (#283, #289, #291) và G3-06 (#263). Nhóm quyết định bỏ các gói còn lại (G3-01, G3-03, G3-04, G3-07, G3-08, G3-09), không làm trong học phần này.
+
 ## 5. Gom thành PR
 
 | PR | Gói | Ghi chú |
@@ -284,7 +286,7 @@ Cuối tuần 1: một buổi kiểm tra lại toàn app trên điện thoại t
 - Tiến: G2-03, G2-06, phần thiết kế Tổng quan của G2-10.
 - Duy Anh: G2-05, G2-09, G2-11, phần còn lại của G2-10 (G2-07 và G2-08 đã chuyển lên spec `012`).
 
-**Sau đó (đợt 3)** theo thứ tự: G3-06 và G3-05 (nhỏ, giảm rủi ro), G3-01, G3-02, G3-03, G3-04, G3-07, rồi G3-08, G3-09 nếu còn thời gian.
+**Sau đó (đợt 3)** theo thứ tự: G3-06 và G3-05 (nhỏ, giảm rủi ro), G3-01, G3-02, G3-03, G3-04, G3-07, rồi G3-08, G3-09 nếu còn thời gian. Ngày 12/11 đợt 3 dừng sau G3-02, G3-05 và G3-06, các gói còn lại đã bỏ (xem mục 4).
 
 ## 7. Phụ thuộc chính
 
