@@ -145,15 +145,31 @@ description: "Task list for the house list and profile redesign"
 - [X] T041 [US5] Create branch `feat/017-header-avatar` from `main`
 - [X] T042 [US5] Vitest for `frontend/src/components/AccountMenu.tsx`: without a photo the summary shows the initial on tint `(id % 8) + 1`; with `getMyPhoto` returning data it shows the image; after `keys.myPhoto` is invalidated with a new photo the image changes; the summary keeps its accessible name and is at least 44 px
 - [X] T043 [US5] In `frontend/src/components/AccountMenu.tsx` (research R9) render `<Avatar look={…} size="sm" decorative />` inside the summary instead of `.account-initial`, with the photo from `useQuery({ queryKey: keys.myPhoto, queryFn: getMyPhoto, staleTime: Infinity })`; in `frontend/src/index.css` size it inside the 44 px summary with the sticker ring and drop `.account-initial`
-- [ ] T044 [US5] Update `docs/DESIGN.md` §5 (header account button); run the checks; open PR 3 (Minh reviews); after merge watch deploy and the live smoke run
+- [X] T044 [US5] Update `docs/DESIGN.md` §5 (header account button); run the checks; open PR 3 (Minh reviews); after merge watch deploy and the live smoke run (#280, main 5e07e36, live smoke green)
 
 ---
 
 ## Phase 8: Polish and cross-cutting
 
-- [ ] T045 On live with the test house: measure SC-001 (amount edges, gap to *Thêm nhà*), SC-002 (profile height at 1440), SC-005 (the eight widths, VI and EN, light and dark) and record them in the last PR
-- [ ] T046 Hallway check SC-007 with Tiến, Minh and Duy Anh (three questions, under 5 s each); record the result in the last PR
-- [ ] T047 Mark the tasks done in `specs/017-houses-profile-redesign/tasks.md` in a small docs PR
+- [X] T045 On live with the test house: measure SC-001 (amount edges, gap to *Thêm nhà*), SC-002 (profile height at 1440), SC-005 (the eight widths, VI and EN, light and dark) and record them in the last PR (results below)
+- [X] T046 Hallway check SC-007 with Tiến, Minh and Duy Anh (three questions, under 5 s each); record the result in the last PR (results below)
+- [X] T047 Mark the tasks done in `specs/017-houses-profile-redesign/tasks.md` in a small docs PR
+
+## Results (11/11/2026, live)
+
+Measured with the test account `tien123` in *Nhà trọ VLU*, read only, at main 5e07e36.
+
+| Criterion | Result |
+|---|---|
+| SC-001 amounts on one edge, *Thêm nhà* at most 48 px from the list (1440 px) | 0 px apart, 26 px gap (was about 800 px). The account has one house; the two-house case is checked by `lists.spec.ts` at 1024 and 1440 px |
+| SC-002 profile within 1.5 screens at 1440 px | 1359 px = 1.51 screens of 900 px (was about 2.5): 9 px over, accepted |
+| SC-003 focus never on the page body (11 actions) | 11 of 11, Vitest and `a11y.spec.ts` |
+| SC-004 six different save names | 6 of 6, Vitest |
+| SC-005 no sideways scroll, 44 px controls | 64 checks (8 widths × VI/EN × light/dark × 2 pages), 0 problems |
+| SC-006 accessibility checks and all tests after each PR, live smoke included | green after PR 0 to PR 3 (#277, #278, #279, #280) |
+| SC-007 hallway check, three questions under 5 s each | Tiến, Minh and Duy Anh: all three questions under 5 s each |
+
+Found along the way and fixed: the light theme's row dividers were 1.24:1 on the panels and hard to see (owner, 11/11); `--line` is `#DCD0BA` now, about 1.5:1 (#281).
 
 ---
 
