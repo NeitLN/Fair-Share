@@ -948,6 +948,43 @@ button.ghost {
   box-shadow: none;
 }
 
+/* Xoá on every row of the desktop table: quiet until pointed at or focused, so the table is not a
+   column of red (review 12/11, D08). It asks first (InlineConfirm), so it never deletes at once. */
+.btn-danger-quiet {
+  background: none;
+  border-color: transparent;
+  color: var(--muted);
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+.btn-danger-quiet:hover,
+.btn-danger-quiet:focus-visible {
+  color: var(--debt-text);
+}
+
+/* The one filled red button: the action inside an inline question (components/InlineConfirm.tsx) */
+.btn-danger-solid {
+  background: var(--debt-text);
+  border-color: var(--debt-text);
+  color: var(--surface);
+  padding: 0 12px;
+  box-shadow: none;
+}
+
+/* A question in place of the button that asked it: the words, then the action and Huỷ */
+.inline-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.inline-confirm-question {
+  font-weight: 600;
+  color: var(--ink);
+}
+
 /* A field that cannot be changed looks it: no white field, muted text */
 select:disabled,
 input:disabled {

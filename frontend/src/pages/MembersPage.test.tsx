@@ -108,6 +108,9 @@ test('the owner can replace the code; the new one is shown', async () => {
   await screen.findByText('K7QM-2XRT')
 
   await user.click(screen.getByRole('button', { name: 'Đổi mã mới' }))
+  // Asked in place first: the old link stops working (plan item 8, A05)
+  expect(screen.getByText(/^Đổi mã\? Link mời cũ/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Đổi mã' }))
 
   expect(await screen.findByText('NEWC-0DE5')).toBeInTheDocument()
 })

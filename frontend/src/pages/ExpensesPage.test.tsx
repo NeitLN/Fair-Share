@@ -86,6 +86,13 @@ function api(extra: Parameters<typeof mockApi>[0] = {}, memberList = members) {
 
 const list = () => within(screen.getByRole('region', { name: 'Các khoản chi' }))
 
+/** Presses a button that asks first (components/InlineConfirm.tsx), then the action in its question. */
+async function confirmed(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement) {
+  await user.click(trigger)
+  const question = document.querySelector('.inline-confirm') as HTMLElement
+  await user.click(within(question).getAllByRole('button')[0])
+}
+
 test('lists the expenses with who paid', async () => {
   api()
   renderApp('/households/7/expenses')
@@ -171,9 +178,10 @@ test('deleting asks first, then takes the expense off the list', async () => {
   const user = userEvent.setup()
   renderApp('/households/7/expenses')
 
-  await user.click(await screen.findByRole('button', { name: 'Xoá Tiền điện' }))
+  await confirmed(user, await screen.findByRole('button', { name: 'Xoá Tiền điện' }))
 
-  expect(window.confirm).toHaveBeenCalledWith('Xoá khoản "Tiền điện"?')
+  // Asked in place, never with the browser's dialog (plan item 8)
+  expect(window.confirm).not.toHaveBeenCalled()
   await waitFor(() => expect(list().queryByText('Tiền điện')).not.toBeInTheDocument())
   expect(list().getByText(/Chưa có khoản chi nào/)).toBeInTheDocument()
 })
@@ -219,7 +227,7 @@ test('every change refetches the household data, so balances follow', async () =
 
   await screen.findByText('Tiền điện')
   const before = listCalls()
-  await user.click(screen.getByRole('button', { name: 'Xoá Tiền điện' }))
+  await confirmed(user, screen.getByRole('button', { name: 'Xoá Tiền điện' }))
 
   await waitFor(() => expect(listCalls()).toBeGreaterThan(before))
 })
@@ -507,7 +515,7 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
 
     await user.click(list().getByText('Tiền điện'))
-    await user.click(list().getByRole('button', { name: 'Xoá Tiền điện' }))
+    await confirmed(user, list().getByRole('button', { name: 'Xoá Tiền điện' }))
 
     const empty = await list().findByText('Tháng 10/2026 chưa có khoản chi nào.')
     expect(list().getByLabelText('Tháng')).toHaveValue('2026-10')
@@ -706,7 +714,7 @@ describe('recurring expenses in Chi tiêu', () => {
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
     await user.click(await screen.findByText('Khoản định kỳ (1)'))
-    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
     await waitFor(() =>
       expect(fetchFn.mock.calls.some(([url, init]) => url === '/api/recurring/7/stop' && init?.method === 'POST')).toBe(true),
     )
@@ -740,8 +748,8 @@ describe('recurring expenses in Chi tiêu', () => {
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
     await user.click(await screen.findByText('Khoản định kỳ (2)'))
-    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Internet' }))
-    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Internet' }))
+    await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
     // Each its own wait: Internet still waits, Tiền nhà has answered
     expect(screen.getByRole('button', { name: 'Ngừng lặp Internet' })).toBeDisabled()
     const fold = screen.getByText('Khoản định kỳ (2)').closest('details') as HTMLElement
@@ -751,7 +759,7 @@ describe('recurring expenses in Chi tiêu', () => {
     expect(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' })).toBeEnabled()
     await act(async () => answerInternet([204]))
 
-    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
     expect(await screen.findByText('Đã ngừng lặp Tiền nhà.')).toBeInTheDocument()
     expect(rentRow).not.toHaveTextContent('Chưa xác nhận')
   })
@@ -766,7 +774,7 @@ describe('recurring expenses in Chi tiêu', () => {
     const user = userEvent.setup()
     renderApp('/households/7/expenses')
     await user.click(await screen.findByText('Khoản định kỳ (1)'))
-    await user.click(screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
+    await confirmed(user, screen.getByRole('button', { name: 'Ngừng lặp Tiền nhà' }))
     await user.click(screen.getByRole('link', { name: 'Tổng quan' }))
     await act(async () => answer([204]))
     expect(screen.queryByText('Đã ngừng lặp Tiền nhà.')).toBeNull()
@@ -819,6 +827,48 @@ describe('saving with no connection, or with no answer', () => {
     expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
     expect(screen.getByRole('button', { name: 'Lưu khoản chi' })).not.toHaveAttribute('aria-disabled', 'true')
+  })
+})
+
+// Plan item 8 (review 12/11, B08): a deleted expense can be put back from its toast
+describe('Hoàn tác after Xoá', () => {
+  test('records the same expense again, with its content and a draft of its own', async () => {
+    const fetchFn = api()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await confirmed(user, await screen.findByRole('button', { name: 'Xoá Tiền điện' }))
+    const toast = (await screen.findByText('Đã xoá "Tiền điện".')).closest('.toast') as HTMLElement
+    await user.click(within(toast).getByRole('button', { name: 'Hoàn tác' }))
+    expect(await screen.findByText('Đã ghi lại "Tiền điện".')).toBeInTheDocument()
+    expect(await list().findByText('Tiền điện')).toBeInTheDocument()
+    const posts = fetchFn.mock.calls.filter(([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST')
+    expect(posts).toHaveLength(1)
+    const body = JSON.parse(posts[0][1]?.body as string)
+    expect(body).toEqual({
+      description: 'Tiền điện',
+      amount: 450_000,
+      payer_id: 1,
+      spent_at: '2026-10-18',
+      source: 'manual',
+      category: 'other',
+      split: { type: 'equal', member_ids: [1, 2] },
+      draft_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    })
+  })
+
+  test('a refusal says why', async () => {
+    api({
+      'POST /api/households/7/expenses': [
+        422,
+        { error: { code: 'member_without_account', message: 'x' } },
+      ],
+    })
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await confirmed(user, await screen.findByRole('button', { name: 'Xoá Tiền điện' }))
+    const toast = (await screen.findByText('Đã xoá "Tiền điện".')).closest('.toast') as HTMLElement
+    await user.click(within(toast).getByRole('button', { name: 'Hoàn tác' }))
+    expect(await screen.findByText(/^Chưa ghi lại được:/)).toBeInTheDocument()
   })
 })
 

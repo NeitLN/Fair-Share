@@ -51,20 +51,18 @@ test('folded, with how many; each item, its day and this month', async () => {
   expect(rows[2]).toHaveTextContent('chưa tới ngày')
 })
 
-test('Ngừng lặp only where allowed, and only after a yes', async () => {
-  const confirm = vi.fn(() => false)
-  vi.stubGlobal('confirm', confirm)
+test('Ngừng lặp only where allowed, and only after a yes in place', async () => {
   const onStop = renderList([item(1, { description: 'Internet' }), item(2, { created_by: 11 })])
   await userEvent.click(screen.getByText('Khoản định kỳ (2)'))
   expect(screen.getAllByRole('button', { name: /^Ngừng lặp/ })).toHaveLength(1)
-  const stop = screen.getByRole('button', { name: 'Ngừng lặp Internet' })
-  await userEvent.click(stop)
-  expect(confirm).toHaveBeenCalledWith(
-    'Ngừng lặp Internet? Các khoản đã ghi vẫn giữ nguyên, chỉ không hiện trên Tổng quan nữa.',
-  )
+  await userEvent.click(screen.getByRole('button', { name: 'Ngừng lặp Internet' }))
+  const question = screen.getByRole('group', {
+    name: 'Ngừng lặp Internet? Các khoản đã ghi vẫn giữ nguyên, chỉ không hiện trên Tổng quan nữa.',
+  })
+  await userEvent.click(within(question).getByRole('button', { name: 'Huỷ' }))
   expect(onStop).not.toHaveBeenCalled()
-  confirm.mockReturnValue(true)
-  await userEvent.click(stop)
+  await userEvent.click(screen.getByRole('button', { name: 'Ngừng lặp Internet' }))
+  await userEvent.click(within(document.querySelector('.inline-confirm') as HTMLElement).getByRole('button', { name: 'Ngừng lặp' }))
   expect(onStop).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
 })
 

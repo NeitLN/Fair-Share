@@ -16,6 +16,7 @@ import {
   uploadPhoto,
 } from '../api/households'
 import { Avatar } from '../components/Avatar'
+import InlineConfirm from '../components/InlineConfirm'
 import ReceivingAccountForm from '../components/ReceivingAccountForm'
 import type { Gender, MyHouseholds, RenameResult, User } from '../api/types'
 import { useT } from '../i18n'
@@ -23,7 +24,16 @@ import { errorMessage } from '../lib/errors'
 import { initialOf } from '../lib/names'
 import { cropToSquare, PhotoPickError } from '../lib/photoCrop'
 import { updateUser, useSession } from '../lib/session'
+import { useToast } from '../lib/toast'
 import { usePageTitle } from '../lib/usePageTitle'
+
+/** The photo a data URL holds ("data:image/jpeg;base64,…"), to save it again after Gỡ ảnh. */
+function dataUrlToBlob(url: string): Blob {
+  const [head, body] = url.split(',', 2)
+  const type = /^data:([^;,]+)/.exec(head)?.[1] ?? 'image/jpeg'
+  const bytes = Uint8Array.from(atob(body), (ch) => ch.charCodeAt(0))
+  return new Blob([bytes], { type })
+}
 
 /**
  * The profile page (specs/010-profile-page, laid out by specs/017): a way back to the houses, then on a
@@ -228,16 +238,30 @@ function IdentityCard({ user }: { user: User }) {
     [picked],
   )
 
-  const done = (what: 'set' | 'removed') => {
+  // `said`: the line under the photo; a removal is said by its toast instead, which offers Hoàn tác
+  const done = (said: 'set' | 'removed' | null) => {
     setPicked(null)
-    setSaved(what)
+    setSaved(said)
     setFocusNext('pick')
     queryClient.invalidateQueries({ queryKey: keys.myPhoto })
     // Every household shows the new photo at its next look (FR-032)
     queryClient.invalidateQueries({ queryKey: keys.households })
   }
+  const toast = useToast()
   const save = useMutation({ mutationFn: (blob: Blob) => uploadPhoto(blob), onSuccess: () => done('set') })
-  const remove = useMutation({ mutationFn: removePhoto, onSuccess: () => done('removed') })
+  // Gỡ ảnh, asked first; the photo that was there is kept for Hoàn tác, which saves it again (review
+  // 12/11, F12). It counts as an upload, like any other
+  const remove = useMutation({
+    mutationFn: (_before: string | null) => removePhoto(),
+    onSuccess: (_result, before) => {
+      done(null)
+      toast({
+        kind: 'success',
+        text: t.profile.photoRemoved,
+        action: before ? { label: t.common.undo, onAction: () => save.mutate(dataUrlToBlob(before)) } : undefined,
+      })
+    },
+  })
   const busy = save.isPending || remove.isPending
 
   async function pick(event: ChangeEvent<HTMLInputElement>) {
@@ -329,9 +353,15 @@ function IdentityCard({ user }: { user: User }) {
                 {mine.data?.data ? t.profile.photoChange : t.profile.photoPick}
               </button>
               {mine.data?.data && (
-                <button type="button" className="btn-ghost" disabled={busy} onClick={() => remove.mutate()}>
-                  {remove.isPending ? t.profile.saving : t.profile.photoRemove}
-                </button>
+                <InlineConfirm
+                  label={t.profile.photoRemove}
+                  question={t.profile.photoRemoveConfirm}
+                  confirmLabel={t.profile.photoRemove}
+                  onConfirm={() => remove.mutate(mine.data?.data ?? null)}
+                  disabled={busy}
+                  busy={remove.isPending}
+                  busyLabel={t.profile.saving}
+                />
               )}
             </>
           )}

@@ -6,6 +6,7 @@ import { formatDate } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { formatCode, joinLink } from '../lib/invite'
 import { useToast } from '../lib/toast'
+import InlineConfirm from './InlineConfirm'
 import { useT } from '../i18n'
 
 /**
@@ -99,18 +100,19 @@ function InviteCard({ householdId, isOwner }: { householdId: number; isOwner: bo
       )}
       {isOwner && (
         <p>
-          <button
-            type="button"
-            className="btn-ghost"
-            disabled={renew.isPending}
-            aria-describedby={`${id}-renew-hint`}
-            onClick={() => {
+          {/* The old code stops at once, also in a group chat it was posted to: asked first (review 12/11, A05) */}
+          <InlineConfirm
+            label={t.invite.renew}
+            question={t.invite.renewConfirm}
+            confirmLabel={t.invite.renewDo}
+            onConfirm={() => {
               setShown(null)
               renew.mutate()
             }}
-          >
-            {renew.isPending ? t.invite.renewing : t.invite.renew}
-          </button>{' '}
+            busy={renew.isPending}
+            busyLabel={t.invite.renewing}
+            describedBy={`${id}-renew-hint`}
+          />{' '}
           <small id={`${id}-renew-hint`} className="hint">
             {t.invite.renewHint}
           </small>

@@ -195,6 +195,8 @@ test('a photo uploaded on the profile page shows to a housemate, and the initial
     await expect.poll(() => header.evaluate(drawn)).toBe(true)
 
     await mine.getByRole('button', { name: 'Gỡ ảnh' }).click()
+    // Asked in place (plan item 8): the same words act in the question
+    await mine.locator('.inline-confirm').getByRole('button', { name: 'Gỡ ảnh' }).click()
     await expect(mine.getByText('Đã gỡ ảnh. Avatar của bạn về lại chữ cái đầu.')).toBeVisible()
     await theirs.reload()
     await expect(theirs.locator('.member-row').first()).toBeVisible()
