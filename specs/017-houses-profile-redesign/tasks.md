@@ -20,7 +20,7 @@ description: "Task list for the house list and profile redesign"
 
 ## Phase 1: Setup
 
-- [ ] T001 Check `gh api user --jq .login` is NeitLN, update `main`, and confirm the local stack runs (`podman compose -p fsdemo up --build -d`, app at `http://172.21.33.10:3000`) per [quickstart.md](quickstart.md) Setup
+- [X] T001 Check `gh api user --jq .login` is NeitLN, update `main`, and confirm the local stack runs (`podman compose -p fsdemo up --build -d`, app at `http://172.21.33.10:3000`) per [quickstart.md](quickstart.md) Setup
 
 ---
 
@@ -28,10 +28,10 @@ description: "Task list for the house list and profile redesign"
 
 **Purpose**: FR-028. The profile tests press each save inside its region, so renaming and moving buttons in PR 2 cannot break the unit tests or the live smoke run.
 
-- [ ] T002 Create branch `test/017-profile-saves-by-region` from `main`
-- [ ] T003 [P] In `frontend/src/pages/AccountPage.test.tsx` replace every `getAllByRole('button', { name: 'Lưu' })[i]` / `saves[saves.length - 1]` (lines 52, 76, 89, 93, 166, 198, 226, 274, 298 to 302) with `within(screen.getByRole('region', { name: '<part>' })).getByRole('button', { name: /^Lưu/ })`, using the region names *Tên của bạn*, *Trạng thái*, *Ảnh đại diện*, *Giới tính*; change the three `within(section()).getByRole('button', { name: 'Lưu' })` (lines 346, 372, 421) to `{ name: /^Lưu/ }`
-- [ ] T004 [P] In `frontend/e2e/profile.spec.ts` replace `getByRole('button', { name: 'Lưu' }).first()` / `.last()` (lines 34, 122, 132, 162) with `page.getByRole('region', { name: '<part>' }).getByRole('button', { name: /^Lưu/ })` for the part each step saves
-- [ ] T005 Run `npx vitest run`, `npx tsc -b`, `npm run lint` and the local `npx playwright test e2e/profile.spec.ts`; all green with no product change; open PR 0 (Minh reviews), merge, watch deploy and the live smoke run
+- [X] T002 Create branch `test/017-profile-saves-by-region` from `main`
+- [X] T003 [P] In `frontend/src/pages/AccountPage.test.tsx` replace every `getAllByRole('button', { name: 'Lưu' })[i]` / `saves[saves.length - 1]` (lines 52, 76, 89, 93, 166, 198, 226, 274, 298 to 302) with `within(screen.getByRole('region', { name: '<part>' })).getByRole('button', { name: /^Lưu/ })`, using the region names *Tên của bạn*, *Trạng thái*, *Ảnh đại diện*, *Giới tính*; change the three `within(section()).getByRole('button', { name: 'Lưu' })` (lines 346, 372, 421) to `{ name: /^Lưu/ }`
+- [X] T004 [P] In `frontend/e2e/profile.spec.ts` replace `getByRole('button', { name: 'Lưu' }).first()` / `.last()` (lines 34, 122, 132, 162) with `page.getByRole('region', { name: '<part>' }).getByRole('button', { name: /^Lưu/ })` for the part each step saves
+- [X] T005 Run `npx vitest run`, `npx tsc -b`, `npm run lint` and the local `npx playwright test e2e/profile.spec.ts`; all green with no product change; open PR 0 (Minh reviews), merge, watch deploy and the live smoke run
 
 **Checkpoint**: PR 0 merged and the live smoke green before T029 starts.
 
@@ -45,19 +45,19 @@ description: "Task list for the house list and profile redesign"
 
 ### Tests for User Story 1
 
-- [ ] T006 [US1] Create branch `feat/017-house-rows` from `main`
-- [ ] T007 [P] [US1] Vitest in `frontend/src/lib/usePageTitle.test.ts`: sets `"<text> · Fair-Share"`, puts back the previous title on unmount
-- [ ] T008 [P] [US1] Vitest in `frontend/src/components/HouseholdList.test.tsx` (create if absent): one `ul.house-rows` with a `li` per house; each row a link to `/households/<id>`; the `.house-tile` has `aria-hidden="true"`; owing row text "Bạn cần trả" + "150.000đ", owed "Bạn được nhận", zero *Đã xong*; owner chip; the waiting badge keeps `role="status"` and the name "1 việc đang chờ bạn"
-- [ ] T009 [US1] Vitest in `frontend/src/pages/HouseholdsPage.test.tsx`: with ≥ 1 house neither `inviteHint` nor `howItWorks` text is on the page; with 0 houses the start screen still shows `howItWorks`; `document.title` is "Nhà của bạn · Fair-Share"
+- [X] T006 [US1] Create branch `feat/017-house-rows` from `main`
+- [X] T007 [P] [US1] Vitest in `frontend/src/lib/usePageTitle.test.ts`: sets `"<text> · Fair-Share"`, puts back the previous title on unmount
+- [X] T008 [P] [US1] Vitest in `frontend/src/components/HouseholdList.test.tsx` (create if absent): one `ul.house-rows` with a `li` per house; each row a link to `/households/<id>`; the `.house-tile` has `aria-hidden="true"`; owing row text "Bạn cần trả" + "150.000đ", owed "Bạn được nhận", zero *Đã xong*; owner chip; the waiting badge keeps `role="status"` and the name "1 việc đang chờ bạn"
+- [X] T009 [US1] Vitest in `frontend/src/pages/HouseholdsPage.test.tsx`: with ≥ 1 house neither `inviteHint` nor `howItWorks` text is on the page; with 0 houses the start screen still shows `howItWorks`; `document.title` is "Nhà của bạn · Fair-Share"
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] Create `frontend/src/lib/usePageTitle.ts` (research R8): `usePageTitle(text)` sets `document.title = \`${text} · Fair-Share\`` in an effect and restores the previous title on cleanup
-- [ ] T011 [P] [US1] Add keys in `frontend/src/i18n/vi.tsx` and `frontend/src/i18n/en.tsx`: `households.oweWords` ("Bạn cần trả" / "You owe"), `households.getWords` ("Bạn được nhận" / "You get back"), `households.addTitle` ("Thêm nhà" / "Add a group")
-- [ ] T012 [US1] Rewrite `frontend/src/components/HouseholdList.tsx` (research R2): `<ul className="house-rows">`; each `<Link className="household-row">` holds `<span className="house-tile tint-N" aria-hidden="true">` with the roof SVG (N = `(id % 8) + 1`), `<span className="household-head">` (name, owner chip, the existing waiting badge unchanged), and `<span className="household-money">` with `<span className="household-words">` + `<Money>` (debt or credit class), or `t.households.settled`; the empty state unchanged
-- [ ] T013 [US1] In `frontend/src/index.css`: `.house-rows` panel (`--surface`, 1 px `--card-edge`, `--radius-section`, rows split by `--line`, no gap); `.household-row` grid `auto minmax(0,1fr) auto`, min-height 64 px, hover `--surface-2`; `.house-tile` 40 px, radius `--radius-control`, 2 px `--edge` ring, `2px 2px 0 var(--sticker-shadow)`, glyph `--on-fill`; `.household-money` right-aligned, amount bold, tabular, 20 px from 1024 px; below 480 px the money spans `2 / -1` on its own line; move the 1024 px `repeat(auto-fill, minmax(280px, 1fr))` rule from `.household-list` to nothing (the pending and outcome lists stay one column); no fixed heights
-- [ ] T014 [US1] In `frontend/src/pages/HouseholdsPage.tsx`: call `usePageTitle(t.households.title)`; stop rendering `inviteHint` and `howItWorks` in the returning-user branch (the start branch keeps `howItWorks`)
-- [ ] T015 [US1] In `frontend/e2e/lists.spec.ts` replace the grid-track count (lines 101 to 104) with: at 1024 px, the `right` of every `.household-money` is equal (±1 px)
+- [X] T010 [P] [US1] Create `frontend/src/lib/usePageTitle.ts` (research R8): `usePageTitle(text)` sets `document.title = \`${text} · Fair-Share\`` in an effect and restores the previous title on cleanup
+- [X] T011 [P] [US1] Add keys in `frontend/src/i18n/vi.tsx` and `frontend/src/i18n/en.tsx`: `households.oweWords` ("Bạn cần trả" / "You owe"), `households.getWords` ("Bạn được nhận" / "You get back"), `households.addTitle` ("Thêm nhà" / "Add a group")
+- [X] T012 [US1] Rewrite `frontend/src/components/HouseholdList.tsx` (research R2): `<ul className="house-rows">`; each `<Link className="household-row">` holds `<span className="house-tile tint-N" aria-hidden="true">` with the roof SVG (N = `(id % 8) + 1`), `<span className="household-head">` (name, owner chip, the existing waiting badge unchanged), and `<span className="household-money">` with `<span className="household-words">` + `<Money>` (debt or credit class), or `t.households.settled`; the empty state unchanged
+- [X] T013 [US1] In `frontend/src/index.css`: `.house-rows` panel (`--surface`, 1 px `--card-edge`, `--radius-section`, rows split by `--line`, no gap); `.household-row` grid `auto minmax(0,1fr) auto`, min-height 64 px, hover `--surface-2`; `.house-tile` 40 px, radius `--radius-control`, 2 px `--edge` ring, `2px 2px 0 var(--sticker-shadow)`, glyph `--on-fill`; `.household-money` right-aligned, amount bold, tabular, 20 px from 1024 px; below 480 px the money spans `2 / -1` on its own line; move the 1024 px `repeat(auto-fill, minmax(280px, 1fr))` rule from `.household-list` to nothing (the pending and outcome lists stay one column); no fixed heights
+- [X] T014 [US1] In `frontend/src/pages/HouseholdsPage.tsx`: call `usePageTitle(t.households.title)`; stop rendering `inviteHint` and `howItWorks` in the returning-user branch (the start branch keeps `howItWorks`)
+- [X] T015 [US1] In `frontend/e2e/lists.spec.ts` replace the grid-track count (lines 101 to 104) with: at 1024 px, the `right` of every `.household-money` is equal (±1 px)
 
 **Checkpoint**: US1 works on its own: rows, money edge, no hints, title.
 
@@ -71,16 +71,16 @@ description: "Task list for the house list and profile redesign"
 
 ### Tests for User Story 2
 
-- [ ] T016 [US2] Vitest in `frontend/src/pages/HouseholdsPage.test.tsx`: the folds sit in a region named *Thêm nhà* after the list and *Đang chờ duyệt* in DOM order; opening *Nhập mã mời* focuses `#join-code` and its summary is still visible; Escape closes and focuses the summary (keep the existing Escape test); the open create fold shows the invite hint; `/join/K7QM2XRT` with a house opens the code fold and focuses the code field; the spec 015 *Tạo nhà khác* rule on the start screen unchanged
-- [ ] T017 [P] [US2] Vitest in `frontend/src/components/JoinForm.test.tsx` and `HouseholdCreateForm.test.tsx` (create if absent): a problem has an id that the field's `aria-describedby` lists; the join preview area is in the DOM before any preview
+- [X] T016 [US2] Vitest in `frontend/src/pages/HouseholdsPage.test.tsx`: the folds sit in a region named *Thêm nhà* after the list and *Đang chờ duyệt* in DOM order; opening *Nhập mã mời* focuses `#join-code` and its summary is still visible; Escape closes and focuses the summary (keep the existing Escape test); the open create fold shows the invite hint; `/join/K7QM2XRT` with a house opens the code fold and focuses the code field; the spec 015 *Tạo nhà khác* rule on the start screen unchanged
+- [X] T017 [P] [US2] Vitest in `frontend/src/components/JoinForm.test.tsx` and `HouseholdCreateForm.test.tsx` (create if absent): a problem has an id that the field's `aria-describedby` lists; the join preview area is in the DOM before any preview
 
 ### Implementation for User Story 2
 
-- [ ] T018 [P] [US2] In `frontend/src/components/JoinForm.tsx` and `frontend/src/components/HouseholdCreateForm.tsx` (research R7): ids on the problem texts, `aria-describedby` listing hint and problem ids, `aria-invalid`; the create form accepts a `hint` prop rendered under its name field; keep the field ids (`#join-code`)
-- [ ] T019 [US2] In `frontend/src/pages/HouseholdsPage.tsx` (research R1, R3): wrap the two `<details className="fold">` in `<section className="ways-in" aria-labelledby="ways-in-title">` with `<h2 id="ways-in-title">{t.households.addTitle}</h2>`, after the list, the outcomes and the wait; on `onToggle` to open, focus the fold's first field in `requestAnimationFrame`; pass `t.households.inviteHint` as the create form's hint; when `linkCode` is set and the person has a house, once the fold is open `scrollIntoView({ block: 'center' })` and focus `#join-code`
-- [ ] T020 [US2] In `frontend/src/index.css`: from 1280 px `.households-split { grid-template-columns: minmax(0, 1fr) minmax(320px, 360px) }`; `.ways-in` panel (same panel look as `.house-rows`, padding 16 to 22 px); inside `.ways-in` a fold summary is always shown (override `.fold[open] > summary { display: none }`), a 44 px row with a chevron that turns 90° when open (`transform` only, reduced motion respected); drop `.join-preview:empty { display: none }` and give it no height when empty; remove the old `.households-split > .split-rest` flex rules that the panel replaces
-- [ ] T021 [US2] In `frontend/e2e/a11y.spec.ts` replace `page.locator('summary.btn-secondary').first()` (line 127) with the *Nhập mã mời* summary found by text inside the *Thêm nhà* region, keep its assertions; add `/` to the width loop at 320, 360 and 1440 px (no sideways scroll, every control ≥ 44 × 44 px)
-- [ ] T022 [US2] Update `docs/DESIGN.md` §6.1 (rows, *Thêm nhà*, no hints for returning users), §6.6 and §6.8 (the right column is now ~360 px, the list gets the rest)
+- [X] T018 [P] [US2] In `frontend/src/components/JoinForm.tsx` and `frontend/src/components/HouseholdCreateForm.tsx` (research R7): ids on the problem texts, `aria-describedby` listing hint and problem ids, `aria-invalid`; the create form accepts a `hint` prop rendered under its name field; keep the field ids (`#join-code`)
+- [X] T019 [US2] In `frontend/src/pages/HouseholdsPage.tsx` (research R1, R3): wrap the two `<details className="fold">` in `<section className="ways-in" aria-labelledby="ways-in-title">` with `<h2 id="ways-in-title">{t.households.addTitle}</h2>`, after the list, the outcomes and the wait; on `onToggle` to open, focus the fold's first field in `requestAnimationFrame`; pass `t.households.inviteHint` as the create form's hint; when `linkCode` is set and the person has a house, once the fold is open `scrollIntoView({ block: 'center' })` and focus `#join-code`
+- [X] T020 [US2] In `frontend/src/index.css`: from 1280 px `.households-split { grid-template-columns: minmax(0, 1fr) minmax(320px, 360px) }`; `.ways-in` panel (same panel look as `.house-rows`, padding 16 to 22 px); inside `.ways-in` a fold summary is always shown (override `.fold[open] > summary { display: none }`), a 44 px row with a chevron that turns 90° when open (`transform` only, reduced motion respected); drop `.join-preview:empty { display: none }` and give it no height when empty; remove the old `.households-split > .split-rest` flex rules that the panel replaces
+- [X] T021 [US2] In `frontend/e2e/a11y.spec.ts` replace `page.locator('summary.btn-secondary').first()` (line 127) with the *Nhập mã mời* summary found by text inside the *Thêm nhà* region, keep its assertions; add `/` to the width loop at 320, 360 and 1440 px (no sideways scroll, every control ≥ 44 × 44 px)
+- [X] T022 [US2] Update `docs/DESIGN.md` §6.1 (rows, *Thêm nhà*, no hints for returning users), §6.6 and §6.8 (the right column is now ~360 px, the list gets the rest)
 - [ ] T023 [US2] Run vitest, tsc, lint, build and the local E2E; walk [quickstart.md](quickstart.md) PR 1 by hand; screenshots at 360 and 1440 px light and dark in the PR; open PR 1 (Duy Anh and Minh review); after merge watch deploy and the live smoke run
 
 **Checkpoint**: `/` fully redesigned and live.

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { cancelRequest, createHousehold, dismissOutcome, keys, listMyHouseholds } from '../api/households'
@@ -14,14 +14,31 @@ import { errorMessage } from '../lib/errors'
 import { shortName } from '../lib/names'
 import { closeFoldOnEscape } from '../lib/fold'
 import { useJoinRequests } from '../lib/useJoinRequests'
+import { usePageTitle } from '../lib/usePageTitle'
 import { useSession } from '../lib/session'
 import { useToast } from '../lib/toast'
 import { useT } from '../i18n'
 
 // US-01: the signed-in user's households, creating one, and joining one with an invite code
 // (docs/DESIGN.md §6.1, docs/ACCOUNTS.md). Also the page of a `/join/CODE` link, with the code filled in.
+// The chevron of a fold in Thêm nhà: it turns when the fold is open (specs/017)
+const chevron = (
+  <svg className="fold-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+)
+
+/** Opening a fold takes the keyboard to its first field, so focus never stays on a title it just
+ * passed or falls to the page (specs/017, FR-007). After paint: the field is shown only then. */
+function focusFirstField(event: SyntheticEvent<HTMLDetailsElement>) {
+  const fold = event.currentTarget
+  if (!fold.open) return
+  requestAnimationFrame(() => fold.querySelector<HTMLElement>('input, select, textarea')?.focus())
+}
+
 function HouseholdsPage() {
   const t = useT()
+  usePageTitle(t.households.title, t.pageTitle)
   const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -127,6 +144,19 @@ function HouseholdsPage() {
     setCreating(false)
     requested.current = true
   }
+  // Came by an invite link while already in a house: the code is the reason for the visit, so the page
+  // brings it into view and puts the keyboard in it, once (specs/017, FR-009)
+  const broughtToCode = useRef(false)
+  const returning = mine.isSuccess && !none
+  useEffect(() => {
+    if (!returning || linkCode === '' || broughtToCode.current) return
+    broughtToCode.current = true
+    requestAnimationFrame(() => {
+      const field = document.getElementById('join-code')
+      field?.scrollIntoView?.({ block: 'center' })
+      field?.focus()
+    })
+  }, [returning, linkCode])
 
   // Until the list is known nothing else shows: a form typed into now would be swapped for the start
   // below, or for the folded one, as soon as it loads
@@ -183,7 +213,8 @@ function HouseholdsPage() {
   return (
     <>
       <h1>{t.households.title}</h1>
-      {/* On a computer the groups and the wait are on the left, the ways in on the right */}
+      {/* On a computer the houses and the wait on the left, the ways in on the right from 1280 px; under
+          them below that, so the keyboard meets them in the order they are seen (specs/017, FR-006) */}
       <div className="page-split households-split">
         <div className="split-lead">
           {mine.error && (
@@ -236,46 +267,52 @@ function HouseholdsPage() {
           )}
         </div>
 
-        <div className="split-rest">
-
+        {/* The titles stay in view when a fold is open, so it says it is open and can be closed again
+            (specs/017, FR-007). The two help lines are gone for people with a house: the invite one now
+            sits in the create fold, where it becomes true (FR-004, FR-008) */}
+        <section className="split-rest ways-in" aria-labelledby="ways-in-title">
+          <h2 id="ways-in-title">{t.households.addTitle}</h2>
           <details
             className="fold join-household"
             open={joining}
             onToggle={(event) => {
-              if (event.currentTarget.open) setJoining(true)
+              // Follows the fold both ways: its title stays in view, so a click can close it too (#278 review)
+              setJoining(event.currentTarget.open)
+              focusFirstField(event)
             }}
             onKeyDown={(event) => {
               if (closeFoldOnEscape(event)) setJoining(false)
             }}
           >
-            <summary className="btn-secondary">{t.join.open}</summary>
+            <summary>
+              {t.join.open}
+              {chevron}
+            </summary>
             <JoinForm initialCode={linkCode} onRequested={onRequested} onPreview={setLinkPreview} />
           </details>
           <details
             className="fold create-household"
             open={creating}
             onToggle={(event) => {
-              if (event.currentTarget.open) setCreating(true)
+              setCreating(event.currentTarget.open)
+              focusFirstField(event)
             }}
             onKeyDown={(event) => {
               if (closeFoldOnEscape(event)) setCreating(false)
             }}
           >
-            <summary className="btn-secondary">{t.households.newHousehold}</summary>
+            <summary>
+              {t.households.newHousehold}
+              {chevron}
+            </summary>
             <HouseholdCreateForm
               onCreate={create.mutateAsync}
               submitting={create.isPending}
               error={errorMessage(create.error)}
+              hint={t.households.inviteHint}
             />
           </details>
-          {/* Someone waiting to join is not the one inviting: these are for the people already in a house */}
-          {pending.length === 0 && (
-            <>
-              <p className="hint">{t.households.inviteHint}</p>
-              <p className="hint">{t.households.howItWorks}</p>
-            </>
-          )}
-        </div>
+        </section>
       </div>
     </>
   )

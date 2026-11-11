@@ -402,3 +402,72 @@ test('sending a request shows its waiting card at once, from the person\'s reque
   await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu vào nhà' }))
   expect(await screen.findByText(/^Bạn đang xin vào Nhà trọ Q7 của Tiến · gửi ngày/)).toBeInTheDocument()
 })
+
+// --- specs/017-houses-profile-redesign ----------------------------------------------------------
+
+test('with a house the two help paragraphs are gone, a new account still reads how it works, and the tab is named', async () => {
+  mockApi({ 'GET /api/households': mine([nha7]) })
+  const { unmount } = renderApp('/')
+  await screen.findByRole('link', { name: /^Nhà 7/ })
+  expect(screen.queryByText(/^Ghi khoản chi khi vừa trả tiền/)).not.toBeInTheDocument()
+  // The invite line lives only inside the create fold now (FR-008)
+  expect(screen.getByText(/mời bạn cùng nhà bằng mã mời ở trang Thành viên/).closest('details')).toHaveClass('create-household')
+  expect(document.title).toBe('Nhà của bạn · Fair-Share')
+  unmount()
+
+  mockApi({ 'GET /api/households': mine() })
+  renderApp('/')
+  expect(await screen.findByText(/^Ghi khoản chi khi vừa trả tiền/)).toBeInTheDocument()
+})
+
+test('the ways in sit in Thêm nhà, after the houses and the wait', async () => {
+  mockApi({ 'GET /api/households': mine([nha7], [{ household_id: 12, requested_at: '2026-11-02T08:00:00Z' }]) })
+  renderApp('/')
+  const list = await screen.findByRole('link', { name: /^Nhà 7/ })
+  const waiting = screen.getByRole('region', { name: 'Đang chờ duyệt' })
+  const add = screen.getByRole('region', { name: 'Thêm nhà' })
+  expect(within(add).getByText('Nhập mã mời').closest('details')).toBeInTheDocument()
+  expect(within(add).getByText('+ Tạo nhà mới').closest('details')).toBeInTheDocument()
+  // DOM order is the keyboard order: houses, the wait, then the ways in
+  expect(list.compareDocumentPosition(waiting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(waiting.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+test('opening a fold takes the keyboard to its field, and the create fold says how to invite', async () => {
+  mockApi({ 'GET /api/households': mine([nha7]) })
+  const user = userEvent.setup()
+  renderApp('/')
+  await screen.findByRole('link', { name: /^Nhà 7/ })
+
+  await user.click(screen.getByText('Nhập mã mời'))
+  await waitFor(() => expect(screen.getByLabelText('Mã mời')).toHaveFocus())
+
+  await user.click(screen.getByText('+ Tạo nhà mới'))
+  await waitFor(() => expect(screen.getByLabelText('Tên nhà')).toHaveFocus())
+  expect(screen.getByLabelText('Tên nhà')).toHaveAccessibleDescription(/mời bạn cùng nhà bằng mã mời ở trang Thành viên/)
+})
+
+test('an invite link while in a house puts the keyboard in the code', async () => {
+  mockApi({ 'GET /api/households': mine([nha7]) })
+  renderApp('/join/K7QM2XRT')
+  const field = await screen.findByLabelText('Mã mời')
+  await waitFor(() => expect(field).toHaveFocus())
+  expect(field).toHaveValue('K7QM2XRT')
+})
+
+test('a problem with the code or the name is read with its field', async () => {
+  mockApi({ 'GET /api/households': mine([nha7]) })
+  const user = userEvent.setup()
+  renderApp('/')
+  await screen.findByRole('link', { name: /^Nhà 7/ })
+
+  await user.click(screen.getByText('Nhập mã mời'))
+  await user.type(screen.getByLabelText('Mã mời'), 'ABC')
+  await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu vào nhà' }))
+  expect(screen.getByLabelText('Mã mời')).toHaveAccessibleDescription(/Mã mời có 8 ký tự\./)
+
+  await user.click(screen.getByText('+ Tạo nhà mới'))
+  await user.click(screen.getByRole('button', { name: 'Tạo nhà' }))
+  expect(screen.getByLabelText('Tên nhà')).toHaveAttribute('aria-invalid', 'true')
+  expect(screen.getByLabelText('Tên nhà')).toHaveAccessibleDescription(/Nhập tên nhà\./)
+})

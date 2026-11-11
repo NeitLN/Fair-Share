@@ -196,78 +196,139 @@ body {
   font-size: var(--text-small);
 }
 
-/* One card: its name and chip, your balance under it, and a badge on the right for what waits */
-.household-row {
+/* The houses as rows in one panel (specs/017, FR-001 to FR-003; Astryx "records as rows in one section"):
+   a sticker in the house's colour, the name with its chip and badge, and the money on the right, the
+   words quiet and the amount strong, every amount on one edge. The pending and outcome lists keep the
+   one-card-per-item .household-list above */
+.house-rows {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "head badge"
-    "balance badge";
-  align-items: center;
-  column-gap: 12px;
-  row-gap: 4px;
-  min-height: 76px;
-  padding: 12px 16px;
   border: 1px solid var(--card-edge);
   border-radius: var(--radius-section);
   background: var(--surface);
+}
+
+/* Each item only holds its link, which takes the whole width (the generic li is a padded flex row) */
+.house-rows > li {
+  display: grid;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+
+.house-rows > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.household-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 6px;
+  min-height: 64px;
+  padding: 12px 16px;
   color: var(--ink);
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 20px;
-  letter-spacing: -0.02em;
   text-decoration: none;
-  overflow-wrap: anywhere;
+}
+
+.house-rows > li:first-child > .household-row {
+  border-top-left-radius: var(--radius-section);
+  border-top-right-radius: var(--radius-section);
+}
+
+.house-rows > li:last-child > .household-row {
+  border-bottom-left-radius: var(--radius-section);
+  border-bottom-right-radius: var(--radius-section);
+}
+
+/* A focused row's halo is drawn over its neighbours, not under them */
+.household-row:focus-visible {
+  z-index: 1;
+}
+
+/* The house's sticker: decoration only (the name says which house), the same tints as the avatars */
+.house-tile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--edge);
+  border-radius: var(--radius-control);
+  box-shadow: 2px 2px 0 var(--sticker-shadow);
+  color: var(--on-fill);
 }
 
 .household-head {
-  grid-area: head;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 10px;
   min-width: 0;
 }
 
-.household-name {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* The chip keeps its size: the name wraps rather than pushing it off the card */
+/* The chip keeps its size: the name wraps rather than pushing it out of the row */
 .household-head .chip {
   flex: none;
 }
 
-.household-balance {
-  grid-area: balance;
+.household-money {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  justify-self: end;
+  column-gap: 10px;
+  text-align: right;
+}
+
+.household-words,
+.household-settled {
   color: var(--muted);
-  font-family: var(--font-body);
-  font-weight: 600;
   font-size: var(--text-small);
-  letter-spacing: normal;
-  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.household-amount {
+  font-weight: 800;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* The same pill as the tab's count: debt pink with the dark figures that pass 4.5:1 */
 .household-waiting {
-  grid-area: badge;
   display: inline-grid;
   place-items: center;
   min-width: 24px;
-  height: 24px;
+  min-height: 24px;
   padding: 0 7px;
   border-radius: var(--radius-pill);
   background: var(--debt);
   color: var(--on-fill);
-  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: normal;
 }
 
-.household-row:hover {
-  box-shadow: inset 0 0 0 2px var(--ink);
+@media (hover: hover) {
+  .household-row:hover {
+    background: var(--surface-2);
+  }
+}
+
+/* A phone: the money moves to its own line under the name, the words on the left and the amount on
+   the right, so a long name or a 13-digit amount is never cut (FR-003) */
+@media (max-width: 479px) {
+  .household-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .household-money {
+    grid-column: 2;
+    justify-self: stretch;
+    justify-content: space-between;
+  }
 }
 
 /* Nothing here yet: a sentence, not a frame (a dashed edge read as something to press) */
@@ -406,6 +467,63 @@ body {
   padding: 14px;
   border-radius: var(--radius-section);
   background: var(--surface);
+}
+
+/* Thêm nhà (specs/017): one quiet panel; each fold's title is a row that stays in view when open, so it
+   says it is open and closes again; the chevron turns, and the form opens in place under it */
+/* Beats the 28 to 32 px gap of .split-rest: the title and its two folds are one group */
+.page-split > .split-rest.ways-in,
+.ways-in {
+  gap: 2px;
+  padding: 14px 18px 6px;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.ways-in h2 {
+  margin-bottom: 4px;
+  font-size: 17px;
+}
+
+.ways-in .fold + .fold {
+  border-top: 1px solid var(--line);
+}
+
+.ways-in .fold > summary,
+.ways-in .fold[open] > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+}
+
+.ways-in .fold[open] > summary {
+  margin-bottom: 4px;
+}
+
+.fold-chevron {
+  flex: none;
+  transition: rotate var(--press) ease-out;
+}
+
+.ways-in .fold[open] .fold-chevron {
+  rotate: 90deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold-chevron {
+    transition: none;
+  }
+}
+
+.ways-in .join-form,
+.ways-in .create-household form {
+  padding: 0 6px 16px;
+  border: 0;
+  background: none;
 }
 
 /* A new account's start: the two ways in as two panels, side by side once there is room */
@@ -594,10 +712,15 @@ main {
   overflow-wrap: anywhere;
 }
 
+.house-rows .household-name {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
 /* DESIGN.md §4: titles step down on the narrowest phones */
 @media (max-width: 380px) {
-  :where(h1),
-  .household-name {
+  :where(h1) {
     font-size: 24px;
   }
 }
@@ -3392,7 +3515,7 @@ button.ai:active:focus-visible {
 }
 
 .join-preview:empty {
-  display: none;
+  margin: 0;
 }
 
 /* How a request ended, until "Đã hiểu": a card like the waiting one, the button under the sentence */
@@ -3730,35 +3853,14 @@ button.ai:active:focus-visible {
     grid-template-columns: minmax(0, 1fr) 320px;
   }
 
-  /* Nhà của bạn: the cards get the page's width, so two or three fit from 1024 px; the two ways in
-     move below them until 1280, where they get a column of their own (spec 012, US4) */
-  .household-list {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-  }
-
-  .households-split > .split-rest {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 12px;
+  /* Nhà của bạn: the rows get the page's width; Thêm nhà stays under them until 1280, where it gets a
+     column of its own (spec 012, US4; specs/017). The amount reads a size up on a computer */
+  .household-amount {
+    font-size: 20px;
   }
 
   .section-head:has(.section-link) {
     align-items: center;
-  }
-
-  .households-split > .split-rest > .fold:not([open]) > summary {
-    width: auto;
-    padding: 0 20px;
-  }
-
-  .households-split > .split-rest > :is(.fold[open], .hint) {
-    flex: 1 1 100%;
-  }
-
-  .household-row {
-    min-height: 72px;
   }
 
   /* The whole form is in view on a computer: Lưu khoản chi sits at its end, not over the fields */
@@ -3878,9 +3980,9 @@ button.ai:active:focus-visible {
 /* From 1280 px the columns keep the proportions they have at 1280 (2 : 3, 1 : 2, 2 : 1) as the screen
    widens, with a floor so the form and the verdict never get narrower than at 1280 */
 @media (min-width: 1280px) {
-  /* Nhà của bạn: the cards and the wait on the left, the two ways in on the right */
+  /* Nhà của bạn: the houses and the wait on the left, Thêm nhà beside them (specs/017, FR-006) */
   .households-split {
-    grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
   }
 
   /* Wide rows read across, not down: who, then what they spent, then where they stand */
