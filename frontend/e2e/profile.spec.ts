@@ -164,7 +164,7 @@ test('a photo uploaded on the profile page shows to a housemate, and the initial
     await mine.goto('/account')
     await mine.locator('#profile-photo-file').setInputFiles(fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url)))
     await expect(mine.getByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')).toBeVisible()
-    await saveIn(mine, 'Ảnh đại diện').click()
+    await saveIn(mine, 'Bạn cùng nhà thấy bạn thế này').click()
     await expect(mine.getByText('Đã lưu ảnh đại diện.')).toBeVisible()
 
     // The server kept its own clean 256 × 256 copy, not the 800 × 600 file with its camera data

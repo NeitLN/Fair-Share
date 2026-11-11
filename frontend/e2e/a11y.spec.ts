@@ -149,6 +149,27 @@ test('the household screens meet the accessibility checklist', async ({ page, re
     await page.getByText('Nhập mã mời').click()
     await expect(page.getByLabel('Mã mời')).toBeFocused()
     await expect(page.getByText('Nhập mã mời')).toBeVisible()
+    // Hồ sơ của bạn (specs/017): no sideways scroll and 44 px controls at every width; Xoá trạng thái and
+    // the receiving account's Huỷ never leave the keyboard on the page body
+    for (const width of [320, 360, 1440]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/account')
+      await expect(page.getByRole('region', { name: 'Bạn cùng nhà thấy bạn thế này' })).toBeVisible()
+      const sidewaysProfile = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+      expect(sidewaysProfile, `sideways scroll on /account at ${width} px`).toBe(false)
+      const smallProfile = await page.locator('.profile button:visible, .profile-choice').evaluateAll((els) =>
+        els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent),
+      )
+      expect(smallProfile, `controls under 44 px on /account at ${width} px`).toEqual([])
+    }
+    await page.getByLabel('Trạng thái bạn cùng nhà thấy').fill('đang thử')
+    await page.getByRole('button', { name: 'Lưu trạng thái' }).click()
+    await page.getByRole('button', { name: 'Xoá trạng thái' }).click()
+    await expect(page.getByLabel('Trạng thái bạn cùng nhà thấy')).toBeFocused()
+    const receiving = page.getByRole('region', { name: 'Tài khoản nhận tiền' })
+    await receiving.getByRole('button', { name: /^(Thêm tài khoản|Sửa)$/ }).click()
+    await receiving.getByRole('button', { name: 'Huỷ' }).click()
+    expect(await page.evaluate(() => document.activeElement === document.body), 'focus on body after Huỷ').toBe(false)
     await page.setViewportSize({ width: 360, height: 800 })
 
     // Đã nhận: the stamp is text, the toast is a polite live region, and nothing moves

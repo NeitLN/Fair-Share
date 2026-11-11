@@ -4083,31 +4083,177 @@ button.ai:active:focus-visible {
   }
 }
 
-/* The profile page (specs/010-profile-page): one column, one card per part, each its own form */
+/* The profile page (specs/010-profile-page, laid out by specs/017): the way back and the title, then a
+   card with how housemates see you and one panel of parts (Astryx: a summary beside the content, the
+   sections in order with no nav). Side by side from 1024 px, one under the other below, in the same
+   order, so the keyboard follows the eye */
 .profile {
   display: grid;
   gap: 16px;
-  max-width: 560px;
+  max-width: 1120px;
 }
 
-.profile-email {
+.profile-head {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.profile-layout {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+/* The card: a quiet band with the avatar sticker over its edge, then who you are as the others see it */
+.profile-card {
+  display: grid;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--radius-section);
+  background: var(--surface);
+}
+
+.profile-band {
+  height: 64px;
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-section) var(--radius-section) 0 0;
+  background: var(--surface-2);
+}
+
+.profile-card-body {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: -48px;
+  padding: 0 20px 20px;
+  min-width: 0;
+}
+
+.profile-card-title {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.profile-who {
   display: grid;
   gap: 2px;
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.profile-part {
+.profile-card-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.profile-card-receiving {
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.profile-email {
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  justify-self: stretch;
+  gap: 2px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+/* The parts: one panel, split by quiet lines, instead of a card each */
+.profile-parts {
+  display: grid;
+  min-width: 0;
   border: 1px solid var(--card-edge);
   border-radius: var(--radius-section);
   background: var(--surface);
 }
 
+.profile-part {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.profile-part + .profile-part {
+  border-top: 1px solid var(--line);
+}
+
 .profile-part h2 {
   font-size: 17px;
+}
+
+@media (min-width: 1024px) {
+  .profile-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .profile-part {
+    padding: 22px 26px;
+  }
+}
+
+/* A field and its save on one line where there is room; on a phone the button wraps under it */
+.field-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-part .field-inline > input {
+  flex: 1 1 220px;
+  max-width: 420px;
+  min-width: 0;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* "Chưa lưu": text in a small yellow pill, its edge kept so it survives forced colours */
+.unsaved {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-pill);
+  background: var(--ai);
+  color: var(--on-fill);
+  font-size: var(--text-small);
+  font-weight: 700;
+}
+
+/* The two password fields side by side once they fit */
+.profile-pair {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+  /* Each field keeps its own height: the one with a hint must not stretch the other's input */
+  align-items: start;
+}
+
+.profile-pair .field {
+  align-content: start;
+}
+
+@media (min-width: 720px) {
+  .profile-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .profile-part form {
@@ -4170,8 +4316,24 @@ button.ai:active:focus-visible {
   overflow-wrap: anywhere;
 }
 
-/* Your own receiving account on the profile: the full line wraps, never scrolls sideways */
-.receiving-saved {
+/* Your own receiving account on the profile: three labelled values, side by side when they fit, each
+   wrapping rather than scrolling sideways (specs/017, FR-019) */
+.receiving-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 24px;
+  margin: 0;
+}
+
+.receiving-facts dt {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.receiving-facts dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
@@ -4207,24 +4369,45 @@ button.ai:active:focus-visible {
 }
 
 .profile-photo .avatar {
-  --size: 88px;
+  --size: 96px;
 }
 
-/* The gender choice: one 44 px row per option */
+/* The gender choice: real radios drawn as 44 px pills; the radio stays visible as the mark, so the
+   choice still shows in forced colours (specs/017, FR-020) */
 .profile-choices {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0;
   padding: 0;
   border: 0;
 }
 
 .profile-choice {
-  display: flex;
+  /* A form's labels take a whole line (`:where(form label)`); a pill takes only its own width */
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: var(--target);
+  padding: 0 16px;
+  border: 2px solid var(--control-line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-choice:has(input:checked) {
+  border-color: var(--ink);
+  background: var(--surface-2);
+}
+
+.profile-choice input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
 }
 
 /* A stated gender after the name on Thành viên: small and quiet */

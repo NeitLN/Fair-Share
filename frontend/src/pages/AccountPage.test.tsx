@@ -228,7 +228,7 @@ test('a picked photo is previewed as it will be saved, then sent as a JPEG', asy
   await pickFile()
   expect(await screen.findByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')).toBeInTheDocument()
   expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', 'blob:preview')
-  await user.click(saveIn('Ảnh đại diện'))
+  await user.click(saveIn('Bạn cùng nhà thấy bạn thế này'))
   expect(await screen.findByText('Đã lưu ảnh đại diện.')).toBeInTheDocument()
   const sent = api.mock.calls.find(([url, init]) => url === '/api/me/photo' && init?.method === 'PUT')
   expect(new Headers(sent?.[1]?.headers).get('Content-Type')).toBe('image/jpeg')
@@ -276,7 +276,7 @@ test('a full photo store is said in plain words', async () => {
   await screen.findByRole('button', { name: 'Chọn ảnh' })
   await pickFile()
   await screen.findByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')
-  await user.click(saveIn('Ảnh đại diện'))
+  await user.click(saveIn('Bạn cùng nhà thấy bạn thế này'))
   expect(await screen.findByText('Kho ảnh đã đầy, tạm thời chưa thêm ảnh mới được.')).toBeInTheDocument()
 })
 
@@ -349,7 +349,7 @@ test('a receiving account is added with a preview of the name and who will see i
   expect(screen.getByText('Sẽ hiện: NGUYEN VAN MINH')).toBeInTheDocument()
   await user.click(saveIn('Tài khoản nhận tiền'))
 
-  expect(await screen.findByText('Vietcombank · 0123456789 · NGUYEN VAN MINH')).toBeInTheDocument()
+  expect(await screen.findByText('NGUYEN VAN MINH', { selector: 'dd' })).toBeInTheDocument()
   const put = api.mock.calls.find(([url, init]) => url === '/api/me/receiving-account' && init?.method === 'PUT')
   expect(JSON.parse(put?.[1]?.body as string)).toEqual({
     bank_bin: '970436',
@@ -392,7 +392,7 @@ test('removing it asks first, then it is gone', async () => {
   vi.stubGlobal('confirm', ask)
   const user = userEvent.setup()
   renderApp('/account')
-  expect(await screen.findByText('Vietcombank · 0123456789 · NGUYEN VAN MINH')).toBeInTheDocument()
+  expect(await screen.findByText('NGUYEN VAN MINH', { selector: 'dd' })).toBeInTheDocument()
   expect(screen.getByText(/^Đã xoá thì không ai tải được nữa/)).toBeInTheDocument()
   await user.click(within(section()).getByRole('button', { name: 'Xoá' }))
   expect(ask).toHaveBeenCalledWith('Xoá tài khoản nhận tiền? Bạn cùng nhà sẽ không mở được mã QR của bạn nữa.')
@@ -427,5 +427,249 @@ test('leaving the page while the account is saving keeps no number in memory', a
   await act(async () => answer([200, { account: saved }]))
   await waitFor(() => expect(client.getQueryData(['me', 'receiving-account'])).toBeUndefined())
   expect(JSON.stringify(client.getQueryCache().getAll().map((q) => q.state.data))).not.toContain('0123456789')
+})
+
+// --- specs/017-houses-profile-redesign: layout (US3) ---------------------------------------------
+
+const card = () => screen.getByRole('region', { name: 'Bạn cùng nhà thấy bạn thế này' })
+
+test('a way back, then how housemates see you, then the parts in their order', async () => {
+  mockApi({ ...noHouses, ...noPhoto, 'GET /api/me/receiving-account': [200, { account: saved }] })
+  renderApp('/account')
+  const back = screen.getByRole('link', { name: 'Nhà của bạn' })
+  expect(back).toHaveAttribute('href', '/')
+  const title = screen.getByRole('heading', { level: 1, name: 'Hồ sơ của bạn' })
+  expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(document.title).toBe('Hồ sơ của bạn · Fair-Share')
+
+  const names = screen.getAllByRole('region').map((region) => region.getAttribute('aria-labelledby'))
+  expect(names).toEqual([
+    'profile-card-title',
+    'profile-name-title',
+    'profile-status-title',
+    'profile-receiving-title',
+    'profile-password-title',
+    'profile-gender-title',
+  ])
+  // Saved values only: the name, no status yet, the email, and the account as housemates see it
+  expect(within(card()).getByText('Tiến', { selector: 'strong' })).toBeInTheDocument()
+  expect(within(card()).getByText('Chưa có trạng thái')).toBeInTheDocument()
+  expect(within(card()).getByText(testUser.email)).toBeInTheDocument()
+  expect(await within(card()).findByText('Có tài khoản nhận tiền · Vietcombank •••• 6789')).toBeInTheDocument()
+})
+
+test('what is typed and not saved never shows on the card', async () => {
+  mockApi({ ...noHouses, ...noPhoto })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'đang ăn kiêng')
+  expect(within(card()).queryByText('đang ăn kiêng')).not.toBeInTheDocument()
+  expect(within(card()).getByText('Chưa có trạng thái')).toBeInTheDocument()
+})
+
+test('a bank no longer listed gives the card no hint line', async () => {
+  mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'GET /api/me/receiving-account': [200, { account: { ...saved, bank_name: null, supported: false } }],
+  })
+  renderApp('/account')
+  await screen.findByText(/^Ngân hàng này không còn trong danh sách VietQR/)
+  expect(within(card()).queryByText(/Có tài khoản nhận tiền/)).not.toBeInTheDocument()
+})
+
+test('a saved account reads as three labelled values', async () => {
+  mockApi({ ...noHouses, ...noPhoto, 'GET /api/me/receiving-account': [200, { account: saved }] })
+  renderApp('/account')
+  await screen.findByText('NGUYEN VAN MINH', { selector: 'dd' })
+  const terms = [...section().querySelectorAll('dl.receiving-facts dt')].map((dt) => dt.textContent)
+  const values = [...section().querySelectorAll('dl.receiving-facts dd')].map((dd) => dd.textContent)
+  expect(terms).toEqual(['Ngân hàng hoặc ví', 'Số tài khoản', 'Tên chủ tài khoản'])
+  expect(values).toEqual(['Vietcombank', '0123456789', 'NGUYEN VAN MINH'])
+})
+
+test('the account menu marks the profile as the current page and takes the keyboard to its title', async () => {
+  mockApi({ ...noHouses, ...noPhoto })
+  const user = userEvent.setup()
+  renderApp('/')
+  await user.click(screen.getByLabelText('Tài khoản: Tiến'))
+  expect(screen.getByRole('link', { name: 'Hồ sơ của bạn' })).not.toHaveAttribute('aria-current')
+  await user.click(screen.getByRole('link', { name: 'Hồ sơ của bạn' }))
+  const title = await screen.findByRole('heading', { level: 1, name: 'Hồ sơ của bạn' })
+  await waitFor(() => expect(title).toHaveFocus())
+  await user.click(screen.getByLabelText('Tài khoản: Tiến'))
+  expect(screen.getByRole('link', { name: 'Hồ sơ của bạn' })).toHaveAttribute('aria-current', 'page')
+})
+
+// --- specs/017-houses-profile-redesign: saving (US4) ---------------------------------------------
+
+test('each part saves under its own name', async () => {
+  vi.mocked(cropToSquare).mockResolvedValue(new Blob(['jpeg'], { type: 'image/jpeg' }))
+  mockApi({ ...noHouses, ...noPhoto, 'GET /api/me/receiving-account': [200, { account: null }] })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.click(await screen.findByRole('button', { name: 'Thêm tài khoản' }))
+  await pickFile()
+  await screen.findByRole('button', { name: 'Lưu ảnh' })
+  for (const name of ['Lưu ảnh', 'Lưu tên', 'Lưu trạng thái', 'Lưu tài khoản', 'Đổi mật khẩu', 'Lưu giới tính']) {
+    expect(screen.getAllByRole('button', { name })).toHaveLength(1)
+  }
+  expect(screen.queryByRole('button', { name: 'Lưu' })).not.toBeInTheDocument()
+})
+
+test('Chưa lưu shows by the part that was typed in and goes once it is saved', async () => {
+  mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'PUT /api/me/status': (body) => [200, { ...testUser, status: (body as { status: string }).status }],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  const status = within(screen.getByRole('region', { name: 'Trạng thái' }))
+  expect(status.queryByText('Chưa lưu')).not.toBeInTheDocument()
+  // Quiet until something is typed, so the page is not a row of loud buttons (review of #279)
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).toHaveClass('btn-secondary')
+  await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'ăn kiêng')
+  expect(status.getByText('Chưa lưu')).toBeInTheDocument()
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).not.toHaveClass('btn-secondary')
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).toHaveAccessibleDescription('Chưa lưu')
+  // Only that part
+  expect(within(screen.getByRole('region', { name: 'Tên của bạn' })).queryByText('Chưa lưu')).not.toBeInTheDocument()
+  await user.click(status.getByRole('button', { name: 'Lưu trạng thái' }))
+  await screen.findByText('Đã lưu trạng thái.')
+  expect(status.queryByText('Chưa lưu')).not.toBeInTheDocument()
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).toHaveClass('btn-secondary')
+})
+
+// Review of #276: some keyboards send the accents as separate marks, and the server keeps NFC
+test('a name typed with separate accent marks is not left as Chưa lưu once saved', async () => {
+  mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'PATCH /api/me': (body) => [
+      200,
+      { user: { ...testUser, display_name: (body as { display_name: string }).display_name.normalize('NFC') }, kept: [] },
+    ],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  const field = screen.getByLabelText('Tên hiển thị')
+  await user.clear(field)
+  await user.type(field, 'Tiến Võ'.normalize('NFD'))
+  const part = within(screen.getByRole('region', { name: 'Tên của bạn' }))
+  expect(part.getByText('Chưa lưu')).toBeInTheDocument()
+  await user.click(part.getByRole('button', { name: 'Lưu tên' }))
+  await screen.findByText('Đã đổi tên ở mọi nhà.')
+  expect(part.queryByText('Chưa lưu')).not.toBeInTheDocument()
+})
+
+test('while a part saves, its button says so, ignores presses and keeps the focus', async () => {
+  let answer: (value: [number, unknown]) => void = () => {}
+  const api = mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'PUT /api/me/status': () => new Promise<[number, unknown]>((resolve) => (answer = resolve)),
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'ăn kiêng')
+  await user.click(screen.getByRole('button', { name: 'Lưu trạng thái' }))
+  const busy = screen.getByRole('button', { name: 'Đang lưu…' })
+  expect(busy).toHaveAttribute('aria-disabled', 'true')
+  expect(busy).toHaveFocus()
+  await user.click(busy)
+  expect(api.mock.calls.filter(([url]) => url === '/api/me/status')).toHaveLength(1)
+  await act(async () => answer([200, { ...testUser, status: 'ăn kiêng' }]))
+  expect(await screen.findByRole('button', { name: 'Lưu trạng thái' })).toHaveFocus()
+})
+
+test('a too long status keeps the counter, with the problem under it', async () => {
+  mockApi({ ...noHouses, ...noPhoto })
+  const user = userEvent.setup()
+  renderApp('/account')
+  const field = screen.getByLabelText('Trạng thái bạn cùng nhà thấy')
+  await user.type(field, 'a'.repeat(61))
+  await user.click(screen.getByRole('button', { name: 'Lưu trạng thái' }))
+  expect(field).toHaveAccessibleDescription(/61\/60 ký tự.*Trạng thái dài tối đa 60 ký tự/)
+})
+
+// --- Focus after a control replaces itself (research R6, SC-003) ---------------------------------
+
+test('the photo buttons hand the focus on: pick → Lưu ảnh, Huỷ → Chọn ảnh, saved → Đổi ảnh, removed → Chọn ảnh', async () => {
+  vi.mocked(cropToSquare).mockResolvedValue(new Blob(['jpeg'], { type: 'image/jpeg' }))
+  let current: unknown = { version: null, data: null }
+  mockApi({
+    ...noHouses,
+    'GET /api/me/photo': () => [200, current],
+    'PUT /api/me/photo': () => {
+      current = { version: 'aaaaaaaaaaaa', data: photo }
+      return [200, { version: 'aaaaaaaaaaaa' }]
+    },
+    'DELETE /api/me/photo': () => {
+      current = { version: null, data: null }
+      return [204]
+    },
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await screen.findByRole('button', { name: 'Chọn ảnh' })
+
+  await pickFile()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu ảnh' })).toHaveFocus())
+  await user.click(screen.getByRole('button', { name: 'Huỷ' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Chọn ảnh' })).toHaveFocus())
+
+  await pickFile()
+  await user.click(await screen.findByRole('button', { name: 'Lưu ảnh' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Đổi ảnh' })).toHaveFocus())
+
+  await user.click(screen.getByRole('button', { name: 'Gỡ ảnh' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Chọn ảnh' })).toHaveFocus())
+})
+
+test('Xoá trạng thái hands the focus to the status field', async () => {
+  mockApi({ ...noHouses, ...noPhoto, 'PUT /api/me/status': [200, { ...testUser, status: null }] })
+  const user = userEvent.setup()
+  renderApp('/account')
+  act(() => updateUser({ ...testUser, status: 'đang ăn kiêng' }))
+  await user.click(screen.getByRole('button', { name: 'Xoá trạng thái' }))
+  await screen.findByText('Đã xoá trạng thái.')
+  await waitFor(() => expect(screen.getByLabelText('Trạng thái bạn cùng nhà thấy')).toHaveFocus())
+})
+
+test('the receiving account hands the focus on: Thêm → bank, Huỷ → Thêm, saved → Sửa, removed → Thêm', async () => {
+  let account: typeof saved | null = null
+  mockApi({
+    ...noHouses,
+    ...noPhoto,
+    'GET /api/me/receiving-account': () => [200, { account }],
+    'PUT /api/me/receiving-account': () => {
+      account = saved
+      return [200, { account }]
+    },
+    'DELETE /api/me/receiving-account': () => {
+      account = null
+      return [204]
+    },
+  })
+  vi.stubGlobal('confirm', vi.fn(() => true))
+  const user = userEvent.setup()
+  renderApp('/account')
+
+  await user.click(await screen.findByRole('button', { name: 'Thêm tài khoản' }))
+  await waitFor(() => expect(screen.getByLabelText('Ngân hàng hoặc ví')).toHaveFocus())
+  await user.click(within(section()).getByRole('button', { name: 'Huỷ' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Thêm tài khoản' })).toHaveFocus())
+
+  await user.click(screen.getByRole('button', { name: 'Thêm tài khoản' }))
+  await user.selectOptions(screen.getByLabelText('Ngân hàng hoặc ví'), 'Vietcombank')
+  expect(within(section()).getByText('Chưa lưu')).toBeInTheDocument()
+  await user.type(screen.getByLabelText('Số tài khoản'), '0123456789')
+  await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Minh')
+  await user.click(screen.getByRole('button', { name: 'Lưu tài khoản' }))
+  await waitFor(() => expect(within(section()).getByRole('button', { name: 'Sửa' })).toHaveFocus())
+
+  await user.click(within(section()).getByRole('button', { name: 'Xoá' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Thêm tài khoản' })).toHaveFocus())
 })
 

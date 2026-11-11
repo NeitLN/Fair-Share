@@ -48,6 +48,17 @@ function ReceivingAccountForm() {
   const [number, setNumber] = useState('')
   const [holder, setHolder] = useState('')
   const [said, setSaid] = useState<'saved' | 'deleted' | null>(null)
+  // The form and the saved view replace each other; the focus goes to what appears, never to the page
+  // (specs/017, FR-022): the bank list when editing starts, Sửa once an account is there, Thêm tài
+  // khoản once it is gone, and the heading if none of those is on screen
+  const [focusNext, setFocusNext] = useState<'bank' | 'edit' | 'add' | null>(null)
+  useEffect(() => {
+    if (!focusNext) return
+    const target =
+      document.getElementById(`receiving-${focusNext}`) ?? document.getElementById('profile-receiving-title')
+    target?.focus()
+    setFocusNext(null)
+  }, [focusNext])
 
   const save = useMutation({
     mutationFn: () => saveReceivingAccount({ bank_bin: bank, account_number: number, holder_name: holder }),
@@ -56,6 +67,7 @@ function ReceivingAccountForm() {
       queryClient.setQueryData(keys.receivingAccount, result)
       setEditing(false)
       setSaid('saved')
+      setFocusNext('edit')
     },
   })
   const remove = useMutation({
@@ -64,6 +76,7 @@ function ReceivingAccountForm() {
       if (!onScreen.current) return
       queryClient.setQueryData(keys.receivingAccount, { account: null })
       setSaid('deleted')
+      setFocusNext('add')
     },
   })
 
@@ -82,10 +95,12 @@ function ReceivingAccountForm() {
     setSaid(null)
     save.reset()
     setEditing(true)
+    setFocusNext('bank')
   }
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (save.isPending) return
     setSaid(null)
     save.mutate()
   }
@@ -114,10 +129,16 @@ function ReceivingAccountForm() {
     failedField === id ? `receiving-${id}-problem` : `receiving-${id}-hint`
   const invalid = (id: Field) => (failedField === id ? true : undefined)
   const preview = cleanAscii(holder)
+  // Typed and not saved yet: shown by Lưu tài khoản (specs/017, FR-017)
+  const dirty =
+    editing &&
+    (bank !== (saved?.bank_bin ?? '') || number !== (saved?.account_number ?? '') || holder !== (saved?.holder_name ?? ''))
 
   return (
     <section className="profile-part" aria-labelledby="profile-receiving-title">
-      <h2 id="profile-receiving-title">{t.profile.receivingTitle}</h2>
+      <h2 id="profile-receiving-title" tabIndex={-1}>
+        {t.profile.receivingTitle}
+      </h2>
       <p className="hint">{t.profile.receivingIntro}</p>
       {account.isError && <p role="alert">{errorMessage(account.error)}</p>}
 
@@ -173,26 +194,53 @@ function ReceivingAccountForm() {
           <p className="note">{t.profile.receivingPrivacy}</p>
           {save.error && !failedField && <p role="alert">{errorMessage(save.error)}</p>}
           <div className="profile-buttons">
-            <button type="submit" disabled={save.isPending}>
-              {save.isPending ? t.profile.saving : t.profile.save}
+            <button
+              type="submit"
+              className={dirty ? undefined : 'btn-secondary'}
+              aria-disabled={save.isPending || undefined}
+              aria-describedby={dirty ? 'receiving-unsaved' : undefined}
+            >
+              {save.isPending ? t.profile.saving : t.profile.saveReceiving}
             </button>
-            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setEditing(false)
+                setFocusNext(saved ? 'edit' : 'add')
+              }}
+            >
               {t.profile.receivingCancel}
             </button>
+            {dirty && (
+              <span id="receiving-unsaved" className="unsaved">
+                {t.profile.unsaved}
+              </span>
+            )}
           </div>
         </form>
       ) : saved ? (
         <>
-          <p className="receiving-saved">
-            <strong>
-              {[saved.bank_name ?? saved.bank_bin, saved.account_number, saved.holder_name].join(' · ')}
-            </strong>
-          </p>
+          {/* Three labelled values, side by side when there is room (specs/017, FR-019) */}
+          <dl className="receiving-facts">
+            <div>
+              <dt>{t.profile.receivingBank}</dt>
+              <dd>{saved.bank_name ?? saved.bank_bin}</dd>
+            </div>
+            <div>
+              <dt>{t.profile.receivingNumber}</dt>
+              <dd>{saved.account_number}</dd>
+            </div>
+            <div>
+              <dt>{t.profile.receivingHolder}</dt>
+              <dd>{saved.holder_name}</dd>
+            </div>
+          </dl>
           {!saved.supported && <p className="note">{t.profile.receivingUnsupported}</p>}
           <p className="hint">{t.profile.receivingAfterDelete}</p>
           {remove.error && <p role="alert">{errorMessage(remove.error)}</p>}
           <div className="profile-buttons">
-            <button type="button" className="btn-secondary" onClick={startEditing}>
+            <button id="receiving-edit" type="button" className="btn-secondary" onClick={startEditing}>
               {t.profile.receivingEdit}
             </button>
             <button
@@ -211,7 +259,7 @@ function ReceivingAccountForm() {
         account.isSuccess && (
           <>
             <p>{t.profile.receivingNone}</p>
-            <button type="button" className="btn-secondary" onClick={startEditing}>
+            <button id="receiving-add" type="button" className="btn-secondary" onClick={startEditing}>
               {t.profile.receivingAdd}
             </button>
           </>

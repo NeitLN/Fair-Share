@@ -659,37 +659,56 @@ chart for an empty month.
 
 ### 6.10 Hồ sơ của bạn `/account`
 
-Opened from *Hồ sơ của bạn* in the account menu ([specs/010-profile-page](../specs/010-profile-page/spec.md)).
-One column, at most 560 px wide. Under the h1 the email, read only, with "Email là tên tài khoản, không đổi
-được.". Then one card per part (the *start-way* card look: 1 px card edge, section radius, surface), each its
-own form with its own button, so an error in one never loses what was typed in another:
+Opened from *Hồ sơ của bạn* in the account menu ([specs/010-profile-page](../specs/010-profile-page/spec.md),
+laid out by [spec 017](../specs/017-houses-profile-redesign/spec.md)). The link is marked current there and
+puts the keyboard on the h1; *‹ Nhà của bạn* above the h1 leads back. From 1024 px two areas, at most
+1120 px: on the left (320 px) a card **Bạn cùng nhà thấy bạn thế này**, on the right one panel of parts split
+by `--line`; below 1024 px the card, then the parts, one under the other. Same order either way (photo and
+identity, name, status, receiving account, password, gender), so the keyboard follows the eye. No in-page
+menu, nothing sticky; *Đăng xuất* stays in the account menu. The tab reads "Hồ sơ của bạn · Fair-Share".
 
-* **Ảnh đại diện**: the large avatar (88 px), photo or initial, beside *Chọn ảnh* / *Đổi ảnh* and *Gỡ ảnh*.
-  A picked photo is shown as it will be saved (the centre square, upright) with *Lưu* and *Huỷ*; the
-  hint says who sees it. A picture the browser cannot open: "Chưa đọc được ảnh này. Chọn ảnh JPEG, PNG
+Each part is its own form with its own button, so an error in one never loses what was typed in another.
+Every button says what it saves (*Lưu ảnh*, *Lưu tên*, *Lưu trạng thái*, *Lưu tài khoản*, *Đổi mật khẩu*,
+*Lưu giới tính*) and is never disabled: while saving it reads *Đang lưu…* with `aria-disabled` and keeps the
+focus. A save is secondary while its part has nothing unsaved; typed and not saved, it turns filled and a small
+yellow *Chưa lưu* sits beside it as part of its description, so the page has one loud save at most;
+after a save each field takes what the server kept (NFC), so the mark goes. When a control replaces itself
+(*Chọn ảnh*, *Huỷ*, *Xoá trạng thái*, the receiving account's *Thêm tài khoản*, *Sửa*, *Huỷ*, *Lưu tài
+khoản*, *Xoá*), the focus goes to what appears in the same part, never to the page.
+
+* **The card**: a quiet `--surface-2` band with the avatar sticker (96 px, photo or initial on the person's
+  tint) over its edge, then saved values only (the one exception: a picked photo shows as its preview until
+  *Lưu ảnh* or *Huỷ*): the name, the status or "Chưa có trạng thái", the receiving
+  account as housemates see it ("Có tài khoản nhận tiền · Timo •••• 3019"), the email read only with
+  "Email là tên tài khoản, không đổi được.", and *Chọn ảnh* / *Đổi ảnh* (secondary) with *Gỡ ảnh* (quiet). A
+  picked photo is shown as it will be saved (the centre square, upright) with *Lưu ảnh*, the card's one
+  filled button, and *Huỷ*. A picture the browser cannot open: "Chưa đọc được ảnh này. Chọn ảnh JPEG, PNG
   hoặc WebP nhé."
-* **Tên của bạn**: the display name, with "Đổi ở đây là đổi tên của bạn ở mọi nhà đang ở."; *Lưu* stays
-  enabled for the same name (saving it again brings back a household the owner renamed). The answer is
-  "Đã đổi tên ở mọi nhà." in a green note, or one line per household that kept the old name: "Ở Nhà B đã có
-  người tên Lan, nên ở đó bạn vẫn là Tiến." The account initial in the header follows at once.
-* **Trạng thái**: one line, placeholder "VD: đang ăn kiêng 🥗", the hint counts "10/60 ký tự" (an emoji is
-  one) and says where it shows; *Lưu* and, when one is set, *Xoá trạng thái* side by side.
-* **Mật khẩu**: current and new password, the new one with its 8–128 hint; both fields empty after any
-  answer. A wrong current password is said under its field; too many tries reads like sign-in ("Bạn thử
-  quá nhiều lần…"); success: "Đã đổi mật khẩu. Các nơi khác đã đăng xuất."
+* **Tên của bạn**: the display name and *Lưu tên* on one line where they fit, with "Đổi ở đây là đổi tên của
+  bạn ở mọi nhà đang ở."; saving the same name again brings back a household the owner renamed. The answer
+  is "Đã đổi tên ở mọi nhà." in a green note, or one line per household that kept the old name: "Ở Nhà B đã
+  có người tên Lan, nên ở đó bạn vẫn là Tiến." The account initial in the header follows at once.
+* **Trạng thái**: one line and *Lưu trạng thái*, placeholder "VD: đang ăn kiêng 🥗"; the hint counts "10/60
+  ký tự" (an emoji is one) and stays when there is a problem, which comes under it; *Xoá trạng thái* (quiet)
+  when one is set.
+* **Mật khẩu**: current and new password side by side once they fit, the new one with its 8–128 hint; both
+  fields empty after any answer. A wrong current password is said under its field; too many tries reads like
+  sign-in ("Bạn thử quá nhiều lần…"); success: "Đã đổi mật khẩu. Các nơi khác đã đăng xuất."
 
-Field problems sit under their field (`field-problem`, `aria-describedby`); answers are in a polite live
-region.
+Field problems sit under their field (`field-problem`, `aria-describedby` with the hint); answers are in a
+polite live region.
 
 * **Tài khoản nhận tiền** ([spec 016](../specs/016-vietqr/spec.md)), after *Trạng thái*: a bank from the
   VietQR list, the account number (numeric keyboard), the holder's name with "Sẽ hiện: NGUYEN VAN MINH" as
   typed, and before *Lưu* the line "Chỉ bạn cùng nhà đang cần trả bạn mới thấy đầy đủ số tài khoản và tên.
-  Những người khác trong nhà thấy ngân hàng và 4 số cuối.". Saved, it reads "Vietcombank · 0123456789 ·
-  NGUYEN VAN MINH" with *Sửa* and *Xoá* (asked first). On Thành viên, housemates see "Có tài khoản nhận tiền ·
+  Những người khác trong nhà thấy ngân hàng và 4 số cuối.". Saved, it reads as three labelled values
+  (*Ngân hàng hoặc ví*, *Số tài khoản*, *Tên chủ tài khoản*), side by side once they fit, with *Sửa* and
+  *Xoá* (asked first). On Thành viên, housemates see "Có tài khoản nhận tiền ·
   Vietcombank •••• 6789" under the name, never more.
 * **Giới tính** (last): the notice first, "Không bắt buộc. Dùng để cho bạn cùng nhà biết giới tính của bạn;
   bạn cùng nhà hiện tại và sau này đều thấy. Giữ tới khi bạn đổi hoặc bỏ. Chọn Không nêu là xoá hẳn.", then
-  four 44 px radio rows, *Không nêu* (checked by default), *Nam*, *Nữ*, *Khác*, and *Lưu*. Nobody is asked
+  four real radios drawn as 44 px pills, the radio itself kept as the mark, *Không nêu* (checked by
+  default), *Nam*, *Nữ*, *Khác*, and *Lưu giới tính*. Nobody is asked
   for a gender anywhere else.
 
 ## 7. Copy
