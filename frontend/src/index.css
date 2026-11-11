@@ -2016,7 +2016,9 @@ button.ai:active:focus-visible {
   min-height: var(--target);
 }
 
-.debtor-qr-missing {
+/* A plain fact, not something to act on: quieter than .debtor-action p, which it would lose to */
+.debtor-action .debtor-qr-missing {
+  color: var(--on-block-muted);
   font-size: 14px;
   font-weight: 400;
 }
@@ -2058,7 +2060,9 @@ button.ai:active:focus-visible {
   opacity: 1;
 }
 
+/* On its light chip the problem keeps the debt colour; .debtor-action p would make it white on white */
 .debtor-action .notice-step .field-problem {
+  color: var(--debt-text);
   padding: 4px 8px;
   border-radius: 8px;
   background: var(--surface);
