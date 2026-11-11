@@ -11,5 +11,6 @@ try {
     })
   }
 } catch {
-  // Storage blocked: the theme follows the system until React reads the choice
+  // Storage blocked: nothing forced, the page follows the system theme (React applies a saved choice only
+  // when it is changed, never on start)
 }
