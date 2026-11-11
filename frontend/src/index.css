@@ -703,19 +703,14 @@ main {
   line-height: 28px;
 }
 
-.household-name {
+/* A house's name in its row on Nhà của bạn (specs/017); the 28 px rule of the old house cards is gone */
+.house-rows .household-name {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 28px;
-  line-height: 1.07;
-  letter-spacing: -0.025em;
-  overflow-wrap: anywhere;
-}
-
-.house-rows .household-name {
   font-size: 18px;
   line-height: 1.25;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 /* DESIGN.md §4: titles step down on the narrowest phones */
