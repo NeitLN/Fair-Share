@@ -633,6 +633,9 @@ class NoticeAccept(NoticeAnswer):
 
     received: Amount | None = None
     settled_at: Day
+    # More than the pair's suggestion is recorded only with the suggestion the person was warned
+    # about (0: none), checked at the server under the house lock (specs/019, FR-006)
+    warned_suggestion: Annotated[StrictInt, Field(ge=0, le=MAX_AMOUNT)] | None = None
 
 
 class Notice(BaseModel):

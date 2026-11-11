@@ -232,7 +232,7 @@ action and leads to the existing explanation.
   balances arrive. On a refusal the page loads the notice as it is now. When the outcome is unknown (the answer was
   lost), the page reloads the notice and the balances before anything can be recorded again; it never shows an old
   notice as one that can still be confirmed.
-- **FR-011a**: Deleting a repayment that was recorded from a notice (by "Hoàn tác" or later from the list) MUST give
+- **FR-011a** (superseded by [spec 019](../019-notices-one-story/spec.md) FR-007: the amount now always goes back into the pair's notice): Deleting a repayment that was recorded from a notice (by "Hoàn tác" or later from the list) MUST give
   the amount it took back as a waiting notice when that pair has no notice at that moment, so the payer does not
   tell it again; the receiver is told so before deleting. When the pair already has a notice (waiting or answered
   "Chưa nhận được"), nothing is given back and that notice is left as it is; the receiver is told before deleting

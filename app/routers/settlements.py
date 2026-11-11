@@ -135,6 +135,12 @@ def suggested_amount(transfers, from_member: int, to_member: int) -> int | None:
                  if (debtor, creditor) == (from_member, to_member)), None)
 
 
+def warning_required(suggestion: int) -> ApiError:
+    """More than the suggestion, and the person was not shown that yet (specs/019, FR-006)."""
+    message = "This is more than is suggested right now; confirm it with warned_suggestion"
+    return ApiError(409, "warning_required", message, {"suggestion": suggestion})
+
+
 def notice_changed() -> ApiError:
     message = "This notice was taken back, answered or told again since this screen showed it"
     return ApiError(409, "notice_changed", message)
@@ -277,8 +283,15 @@ def accept_notice(
     """The receiver's "Đã nhận" on a waiting notice: records `received` (all of it when left out,
     else "Nhận số khác") and takes it out of the notice, in one transaction. The notice row is
     locked and its version checked first, so a second press, another tab, or a retry after a lost
-    answer records nothing."""
-    lock_household(conn, household_id, shared=True)
+    answer records nothing.
+
+    More than the pair's suggestion right now is recorded only when the person was warned about
+    that very suggestion (specs/019, FR-006): without `warned_suggestion` the answer is 409
+    warning_required with the suggestion, with another one 409 suggestion_changed. The house is
+    held exclusively, as for telling, so the suggestion checked is the one at commit, and two
+    confirmations on different pairs cannot pass it together."""
+    lock_household(conn, household_id)
+    _, transfers = compute(conn, household_id)
     notice = expect_version(
         current_notice(conn, household_id, from_member, access.member_id), body.version
     )
@@ -288,6 +301,12 @@ def accept_notice(
     if received > notice["amount"]:
         message = "More than was told cannot be confirmed from this notice"
         raise ApiError(422, "more_than_told", message)
+    ceiling = suggested_amount(transfers, from_member, access.member_id) or 0
+    if received > ceiling:
+        if body.warned_suggestion is None:
+            raise warning_required(ceiling)
+        if body.warned_suggestion != ceiling:
+            raise suggestion_changed()
     take_from_notice(conn, notice, received)
     return insert_settlement(
         conn, household_id, from_member, access.member_id, received, body.settled_at,
@@ -319,10 +338,14 @@ def decline_notice(
 
 @router.delete("/settlements/{settlement_id}", status_code=204)
 def delete_settlement(settlement_id: Id, access: AccessDep, conn: ConnDep):
-    """Deleting a repayment recorded from a notice gives that amount back as a waiting notice when
-    the pair has none at that moment, so the payer does not tell it again (specs/014, FR-011a).
-    When the pair has a notice, it is left as it is; the page warns before deleting."""
-    lock_household(conn, access.household_id, shared=True)
+    """Deleting a repayment recorded from a notice puts exactly that amount back into the pair's
+    notice (specs/019, FR-007, replacing specs/014 FR-011a): added to a waiting one, a new one
+    when there is none, and a "Chưa nhận được" one waits again with both amounts. Its note and
+    who told it stay. More than 10^12 in all refuses the deletion and changes nothing (FR-008).
+
+    The house is held exclusively, then the notice row, so no telling, confirmation, decline,
+    take-back or other deletion of the same house runs in between (FR-009)."""
+    lock_household(conn, access.household_id)
     row = fetch_one(
         conn,
         "SELECT created_by, household_id, from_member_id, to_member_id, notice_amount"
@@ -334,7 +357,13 @@ def delete_settlement(settlement_id: Id, access: AccessDep, conn: ConnDep):
     require_owner_or_author(access, row["created_by"])
     conn.execute("DELETE FROM settlements WHERE id = %s", (settlement_id,))
     if row["notice_amount"]:
-        conn.execute(
+        waiting = current_notice(conn, row["household_id"], row["from_member_id"],
+                                 row["to_member_id"])
+        if waiting is not None and waiting["amount"] + row["notice_amount"] > MAX_AMOUNT:
+            # Raising rolls the whole request back: the repayment is still there
+            raise ApiError(422, "amount_too_large", "A notice cannot be more than 10^12 đồng")
+        fetch_one(
+            conn,
             "INSERT INTO payment_notices"
             " (household_id, from_member_id, to_member_id, amount, created_by)"
             # Told by the payer, not by whoever deleted the repayment (their account, if any)
@@ -342,7 +371,10 @@ def delete_settlement(settlement_id: Id, access: AccessDep, conn: ConnDep):
             "   (SELECT user_id FROM household_users WHERE household_id = %s AND member_id = %s)"
             " WHERE EXISTS (SELECT 1 FROM members WHERE household_id = %s AND id = %s)"
             "   AND EXISTS (SELECT 1 FROM members WHERE household_id = %s AND id = %s)"
-            " ON CONFLICT (household_id, from_member_id, to_member_id) DO NOTHING",
+            " ON CONFLICT (household_id, from_member_id, to_member_id) DO UPDATE"
+            " SET amount = payment_notices.amount + excluded.amount, status = 'sent',"
+            " version = nextval('notice_versions')"
+            " RETURNING amount",
             (row["household_id"], row["from_member_id"], row["to_member_id"],
              row["notice_amount"], row["household_id"], row["from_member_id"],
              row["household_id"], row["from_member_id"], row["household_id"],
