@@ -130,6 +130,27 @@ jobs:
           docker logs web
           exit 1
 
+      # G3-05: the page, a deep link, index.html and a hashed asset all carry the security headers.
+      # The last two have their own add_header in nginx.conf, which is where a header usually goes missing
+      - name: The web container sends the security headers on every kind of path
+        if: hashFiles('frontend/Dockerfile') != ''
+        run: |
+          asset=$(curl -fsS http://localhost:8080/ | grep -oE '/assets/[^"]+\.js' | head -n 1)
+          [ -n "$asset" ] || { echo "::error::index.html names no /assets/*.js"; exit 1; }
+          for path in / /households/1 /index.html "$asset"; do
+            headers=$(curl -fsSI "http://localhost:8080$path")
+            for name in content-security-policy referrer-policy permissions-policy x-content-type-options; do
+              if ! printf '%s' "$headers" | grep -qi "^$name:"; then
+                echo "::error::$path is missing $name"
+                printf '%s\n' "$headers"
+                exit 1
+              fi
+            done
+            printf '%s' "$headers" | grep -i '^content-security-policy:' | grep -q "frame-ancestors 'none'" ||
+              { echo "::error::$path: the CSP has no frame-ancestors 'none'"; exit 1; }
+          done
+          echo "Security headers on / /households/1 /index.html $asset"
+
       # Exactly what a teammate or the lecturer does after `git clone`: no .env, no DB_PASSWORD
       - name: The Compose stack starts from a clean clone and the web app reaches the API
         if: hashFiles('frontend/Dockerfile') != ''

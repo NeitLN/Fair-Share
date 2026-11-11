@@ -54,6 +54,38 @@ flowchart LR
 **Why the browser never talks to Gemini or the database:** the key and the connection string exist only
 on the API server. The SPA is static files; anything shipped to the browser is public.
 
+### Security headers (G3-05)
+
+The repository has no `render.yaml`, so the Static Site's headers live in the Render dashboard:
+`fair-share-web` → **Settings → Headers**, each one with path `/*`. Render already adds
+`Strict-Transport-Security` and `X-Content-Type-Options: nosniff` by itself. The local web image sends
+the same set from `frontend/security-headers.conf`, except that `connect-src` there is only `'self'`
+(nginx proxies `/api`, so the API is the same origin).
+
+| Name | Value |
+|---|---|
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://fair-share-4bu9.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()` |
+
+Why each part is there:
+
+* `script-src 'self'` with no `'unsafe-inline'`: the app has no inline script. The theme script that has
+  to run before the first paint is the file `public/theme-boot.js`. **Do not add an inline `<script>`
+  to `index.html`**: the live site would block it.
+* `img-src data: blob:`: avatars come from the API as `data:` URLs, and the photo preview on the profile
+  is an object URL (`blob:`). The VietQR code is inline SVG, which needs nothing.
+* `connect-src`: the one other origin the browser calls is the API. If the API's URL changes
+  (`VITE_API_BASE_URL`), change it here too, or every request fails.
+* `frame-ancestors 'none'`: no other site can show the app in a frame (clickjacking).
+* `strict-origin-when-cross-origin`: a request to the API or a link out sends only the origin, never a
+  path such as `/join/<code>` with an invite code in it.
+* `Permissions-Policy`: the app needs no camera, microphone, location or payment API. Choosing a photo
+  uses the file picker, which this does not limit. The clipboard (*Sao chép*) is not limited either.
+
+`e2e/security.spec.ts` checks the headers on the live site after each deploy, and that the main screens
+load with no blocked request. The CI image check does the same for the local nginx.
+
 ## 2. Local topology (Docker Compose) — and why it differs
 
 ```mermaid

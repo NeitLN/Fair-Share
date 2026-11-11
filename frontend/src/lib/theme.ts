@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 /** "system" follows the phone; the other two force a theme (docs/DESIGN.md §3). */
 export type ThemeChoice = 'system' | 'light' | 'dark'
 
-// The same key is read by the inline script in index.html, before React, so the page never flashes
+// The same key is read by public/theme-boot.js from index.html, before React, so the page never flashes
 export const THEME_KEY = 'fair-share:theme'
 
 function isChoice(value: unknown): value is ThemeChoice {
