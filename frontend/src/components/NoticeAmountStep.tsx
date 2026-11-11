@@ -28,6 +28,13 @@ interface NoticeAmountStepProps {
   onSubmit: (amount: number, note?: string) => void
   /** Closes the step; the opener gets the focus back. */
   onCancel: () => void
+  /** What the send button says while it is sent: "Đang báo…" for the payer (specs/019, FR-017). */
+  busyLabel?: string
+  /**
+   * Above `max`, a way to the right amount instead of only a refusal (specs/019, US5): the line to show
+   * and a button that fills `amount`. Left out when the 10^12 limit is what binds.
+   */
+  fill?: { amount: number; line: string; label: string }
 }
 
 /**
@@ -45,6 +52,8 @@ function NoticeAmountStep({
   withNote = false,
   sumLine,
   serverProblem = null,
+  busyLabel,
+  fill,
   onSubmit,
   onCancel,
 }: NoticeAmountStepProps) {
@@ -54,6 +63,8 @@ function NoticeAmountStep({
   const [text, setText] = useState(String(initial))
   const [note, setNote] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
+  // Too much typed, with a right amount to offer (specs/019, FR-021)
+  const [offer, setOffer] = useState(false)
   const amount = parseAmount(text)
   const shownProblem = problem ?? serverProblem
   // While it is being sent the step cannot change or close (specs/018, FR-007, FR-009)
@@ -74,9 +85,10 @@ function NoticeAmountStep({
       : amount === null || amount <= 0
         ? t.settlements.badAmount
         : amount > max
-          ? maxMessage(formatVND(max))
+          ? (fill?.line ?? maxMessage(formatVND(max)))
           : null
     setProblem(found)
+    setOffer(found !== null && amount !== null && amount > max && fill !== undefined)
     if (found) {
       field.current?.focus()
       return
@@ -111,6 +123,7 @@ function NoticeAmountStep({
         onChange={(e) => {
           setText(e.target.value)
           setProblem(null)
+          setOffer(false)
         }}
       />
       <span id={`${id}-echo`} className="amount-preview">
@@ -131,6 +144,21 @@ function NoticeAmountStep({
           {shownProblem}
         </p>
       )}
+      {offer && fill && !busy && (
+        <button
+          type="button"
+          className="btn-secondary"
+          data-action="fill-exact"
+          onClick={() => {
+            setText(String(fill.amount))
+            setProblem(null)
+            setOffer(false)
+            field.current?.focus()
+          }}
+        >
+          {fill.label}
+        </button>
+      )}
       {withNote && (
         <>
           <label htmlFor={`${id}-note`}>{t.verdict.noteLabel}</label>
@@ -146,7 +174,7 @@ function NoticeAmountStep({
       )}
       <span className="notice-step-buttons">
         <button type="submit" className="btn-secondary" aria-disabled={busy || undefined}>
-          {busy ? t.verdict.paying : submitLabel}
+          {busy ? (busyLabel ?? t.verdict.paying) : submitLabel}
         </button>
         <button type="button" className="btn-ghost" aria-disabled={busy || undefined} onClick={() => !busy && onCancel()}>
           {t.common.cancel}

@@ -36,7 +36,10 @@ import InviteCard from '../components/InviteCard'
 import { today } from '../lib/date'
 import { filterExpenses, monthTotals, NO_FILTER } from '../lib/expenseFilters'
 import { errorMessage } from '../lib/errors'
+import { formatVND } from '../lib/money'
 import { outcomeLine } from '../lib/saveOutcome'
+import { classify, raceOf, snapshot } from '../lib/notices'
+import type { RaceSnapshot } from '../lib/notices'
 import { BUSY_HOUSE } from '../lib/folds'
 import { explain } from '../lib/explain'
 import { useMe } from '../lib/identity'
@@ -136,6 +139,40 @@ function Dashboard({ householdId }: { householdId: number }) {
   // The words for a notice action that was not sent, or whose answer never came (specs/018, A3 to A5)
   const feedback = useSaveFeedback()
   const pairSource = (transfer: Transfer) => `transfer-${transfer.from_member_id}-${transfer.to_member_id}`
+  const noticeOf = (transfer: Transfer) =>
+    notices.data?.find((n) => n.from_member_id === transfer.from_member_id && n.to_member_id === transfer.to_member_id)
+  // After a refusal because the notice changed: what the fresh data proves happened, for 10 s or until the
+  // next press (specs/019, FR-020)
+  const [race, setRace] = useState<{ line: string } | null>(null)
+  const raceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const clearRace = () => {
+    clearTimeout(raceTimer.current)
+    setRace(null)
+  }
+  useEffect(() => () => clearTimeout(raceTimer.current), [])
+  async function explainRace(transfer: Transfer, before: RaceSnapshot | undefined) {
+    const [fresh, history] = await Promise.all([notices.refetch(), settlements.refetch()])
+    void refresh()
+    if (!alive.current) return
+    notice.reset()
+    let line = t.notices.raceChanged
+    if (fresh.isError || history.isError) line = t.notices.raceUnread
+    else if (before) {
+      const now = fresh.data?.find(
+        (n) => n.from_member_id === transfer.from_member_id && n.to_member_id === transfer.to_member_id,
+      )
+      const to = nameOf(transfer.to_member_id)
+      const what = raceOf(before, { from: transfer.from_member_id, to: transfer.to_member_id }, now, history.data ?? [])
+      // A decline on a pair that is not suggested is said on its card (FR-004a): only "changed" here
+      const unmatched = now !== undefined && classify(now, balances.data?.suggested ?? []).kind === 'unmatched'
+      if (what.kind === 'declined' && !unmatched) line = t.notices.raceDeclined(to, formatVND(what.amount))
+      if (what.kind === 'confirmed') line = t.notices.raceConfirmed(to, formatVND(what.amount))
+      if (what.kind === 'takenBack') line = t.notices.raceTakenBack
+    }
+    clearTimeout(raceTimer.current)
+    setRace({ line })
+    raceTimer.current = setTimeout(() => setRace(null), 10_000)
+  }
   const noticeLine = (kind: NoticeAction['kind'], failure: unknown) =>
     outcomeLine(kind === 'cancel' ? 'A4' : kind === 'decline' ? 'A5' : 'A3', failure, t)
   const shownVersion = (transfer: Transfer) =>
@@ -157,8 +194,13 @@ function Dashboard({ householdId }: { householdId: number }) {
         : declineNotice(householdId, transfer.from_member_id, version)
     },
     meta: { householdId },
-    // A new press on this pair takes away its last "Đã báo" nobody is using (specs/018, FR-012)
-    onMutate: ({ transfer }) => feedback.started(pairSource(transfer)),
+    // A new press on this pair takes away its last "Đã báo" nobody is using (specs/018, FR-012), and what
+    // the page showed is kept, to say afterwards who did what if it is refused (specs/019, FR-020)
+    onMutate: ({ transfer }) => {
+      feedback.started(pairSource(transfer))
+      clearRace()
+      return { before: snapshot(noticeOf(transfer), settlements.data) }
+    },
     onSuccess: (_result, { kind, transfer }) => {
       const tag = { kind: 'success', source: pairSource(transfer) } as const
       if (alive.current && (kind === 'send' || kind === 'add')) toast({ ...tag, text: t.verdict.notified(nameOf(transfer.to_member_id)) })
@@ -166,9 +208,11 @@ function Dashboard({ householdId }: { householdId: number }) {
       // Done when the write is: the refresh is not waited for (specs/018, FR-010)
       void refreshNotices()
     },
-    // The balances or the notice changed since the page loaded: show what is true now
-    onError: (failure) => {
-      if (failure instanceof ApiError && failure.status === 409) void refresh()
+    // The balances or the notice changed since the page loaded: show what is true now, and say what
+    // happened when the fresh data proves it (specs/019, FR-020)
+    onError: (failure, { transfer }, context) => {
+      if (failure instanceof ApiError && failure.status === 409) void explainRace(transfer, context?.before)
+      if (failure instanceof ApiError && failure.code === 'outcome_unknown') unknownSince.current.set(pairSource(transfer), Date.now())
     },
   })
   // Every pair with a notice press on its way, not only the latest one
@@ -179,11 +223,41 @@ function Dashboard({ householdId }: { householdId: number }) {
       return `${transfer.from_member_id}-${transfer.to_member_id}`
     },
   })
-  // From a step: the refusal is said there, with what was typed (null once told)
-  const tellPart = (kind: 'send' | 'add', transfer: Transfer, part: NoticePart) =>
-    notice.mutateAsync({ kind, transfer, part }).then(
-      () => null,
-      (failure: unknown) => noticeLine(kind, failure) ?? errorMessage(failure) ?? t.common.tryAgain,
+  // One press per pair at a time, whichever control it comes from, including after a "result unknown"
+  // until the notices have been read again (specs/019, FR-019)
+  const pressing = useRef(new Set<string>())
+  const unknownSince = useRef(new Map<string, number>())
+  const pairBusy = (transfer: Transfer) => {
+    const key = pairSource(transfer)
+    const unknown = unknownSince.current.get(key)
+    if (unknown !== undefined && notices.dataUpdatedAt > unknown) unknownSince.current.delete(key)
+    return (
+      pressing.current.has(key) ||
+      unknownSince.current.has(key) ||
+      paid.cards.some(
+        (card) =>
+          card.state === 'paying' &&
+          card.transfer.from_member_id === transfer.from_member_id &&
+          card.transfer.to_member_id === transfer.to_member_id,
+      )
+    )
+  }
+  const press = <T,>(transfer: Transfer, run: () => Promise<T>): Promise<T> | undefined => {
+    if (pairBusy(transfer)) return undefined
+    const key = pairSource(transfer)
+    pressing.current.add(key)
+    return run().finally(() => pressing.current.delete(key))
+  }
+  const act = (kind: NoticeAction['kind'], transfer: Transfer) =>
+    void press(transfer, () => notice.mutateAsync({ kind, transfer }).catch(() => undefined))
+  // From a step: the refusal is said there, with what was typed (null once told). A press the pair
+  // guard ignores answers undefined: the step stays as it is, nothing was told (review of #296)
+  const tellPart = (kind: 'send' | 'add', transfer: Transfer, part: NoticePart): Promise<string | null> | undefined =>
+    press(transfer, () =>
+      notice.mutateAsync({ kind, transfer, part }).then(
+        () => null,
+        (failure: unknown) => noticeLine(kind, failure) ?? errorMessage(failure) ?? t.common.tryAgain,
+      ),
     )
   const record = useMutation({
     mutationFn: (input: SettlementInput) => createSettlement(householdId, input),
@@ -274,7 +348,7 @@ function Dashboard({ householdId }: { householdId: number }) {
     notice.error && notice.variables && !notice.variables.part
       ? (noticeLine(notice.variables.kind, notice.error) ?? errorMessage(notice.error))
       : null
-  const panelError = paid.error ?? noticeError
+  const panelError = race?.line ?? paid.error ?? noticeError
   useVisibleSaveError(recordError)
   useVisibleSaveError(removeError)
   useVisibleSaveError(panelError)
@@ -357,8 +431,10 @@ function Dashboard({ householdId }: { householdId: number }) {
         notices={notices.data}
         deletingId={remove.isPending ? remove.variables?.id : null}
         fold={fold}
+        // While its stamped card offers Hoàn tác, a repayment has one undo, not two (specs/019, FR-016)
         canDelete={(settlement) =>
-          household.data?.role === 'owner' || settlement.created_by === session?.user.id
+          !paid.undoable.has(settlement.id) &&
+          (household.data?.role === 'owner' || settlement.created_by === session?.user.id)
         }
       />
     </section>
@@ -413,10 +489,10 @@ function Dashboard({ householdId }: { householdId: number }) {
             notices={notices.data}
             noticesError={notices.data ? null : errorMessage(notices.error)}
             onRetryNotices={() => notices.refetch()}
-            onNotify={(transfer, part) => (part ? tellPart('send', transfer, part) : notice.mutate({ kind: 'send', transfer }))}
+            onNotify={(transfer, part) => (part ? tellPart('send', transfer, part) : act('send', transfer))}
             onAddToNotice={(transfer, part) => tellPart('add', transfer, part)}
-            onCancelNotice={(transfer) => notice.mutate({ kind: 'cancel', transfer })}
-            onDecline={(transfer) => notice.mutate({ kind: 'decline', transfer })}
+            onCancelNotice={(transfer) => act('cancel', transfer)}
+            onDecline={(transfer) => act('decline', transfer)}
             noticeBusy={noticeBusy}
             foldOthers={fold}
             householdId={householdId}

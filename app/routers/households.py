@@ -105,10 +105,11 @@ def add_name(conn: Connection, household_id: int, name: str) -> int:
 def lock_household(conn: Connection, household_id: int, shared: bool = False) -> None:
     """Locks the household's row until the transaction ends.
 
-    shared=False (FOR UPDATE) for changes that must see the house still: membership, and telling
-    a transfer, which checks the amount against the balances (specs/014, research R2). shared=True
-    (FOR SHARE) for every other change of money (expenses, repayments, answering a notice): they
-    run side by side, but never while a telling is checking the balances, nor it while they run.
+    shared=False (FOR UPDATE) for changes that must see the house still: membership, telling a
+    transfer, and confirming one, which check the amount against the balances (specs/014,
+    research R2; specs/019, FR-006), and deleting a repayment, which gives told money back
+    (specs/019, FR-009). shared=True (FOR SHARE) for every other change of money (expenses,
+    repayments recorded by hand): they run side by side, but never while one of those runs.
     Taken first, before any other row, so two transactions never wait on each other in a circle."""
     mode = "FOR SHARE" if shared else "FOR UPDATE"
     sql = f"SELECT 1 FROM households WHERE id = %s {mode}"

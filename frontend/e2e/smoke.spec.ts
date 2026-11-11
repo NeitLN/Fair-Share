@@ -80,9 +80,8 @@ test('two housemates, from signing up to everyone settled', async ({ page, brows
     // spec 012: the next step is under the block, one button naming the amount and the receiver
     const nextStep = page.locator('.debtor-action')
     await expect(nextStep.getByRole('button', { name: 'Tôi đã chuyển 150.000đ cho Minh' })).toBeVisible()
-    // The suggestion row keeps its hint, without a second button
-    const suggestions = page.getByRole('list', { name: 'Các lần trả gợi ý' })
-    await expect(suggestions).toContainText('Chuyển xong thì báo để Minh xác nhận.')
+    // The one transfer is the block's action: the list does not repeat it (specs/019, FR-014)
+    await expect(page.getByRole('list', { name: 'Các lần trả gợi ý' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /^Xác nhận đã nhận/ })).toHaveCount(0)
 
     // 7. Minh confirms; Hoàn tác takes it back; he confirms again and the house is settled

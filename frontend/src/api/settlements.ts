@@ -49,12 +49,14 @@ export const cancelNotice = (householdId: number, toMemberId: number, version: n
 export const acceptNotice = (
   householdId: number,
   fromMemberId: number,
-  answer: { version: number; received: number; settledAt: string },
+  answer: { version: number; received: number; settledAt: string; warnedSuggestion?: number },
 ) =>
   api.post<Settlement>(`/api/households/${householdId}/notices/${fromMemberId}/accept`, {
     version: answer.version,
     received: answer.received,
     settled_at: answer.settledAt,
+    // Only after the over-suggestion warning (specs/019, FR-006): the suggestion it named, 0 for none
+    ...(answer.warnedSuggestion !== undefined && { warned_suggestion: answer.warnedSuggestion }),
   })
 
 export const declineNotice = (householdId: number, fromMemberId: number, version: number) =>

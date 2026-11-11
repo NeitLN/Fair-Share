@@ -63,14 +63,20 @@ function SettlementList({
   function confirmDelete(settlement: Settlement) {
     const what = describe(settlement)
     const from = nameOf(settlement.from_member_id)
-    // Recorded from a notice: the amount goes back to one, unless the pair already has another
-    const question = !settlement.notice_amount
+    const to = nameOf(settlement.to_member_id)
+    // Recorded from a notice: the server puts exactly that amount back into the pair's notice (specs/019,
+    // FR-007, FR-011). The total is said only when the pair's notice is on screen
+    const back = settlement.notice_amount
+    const pairNotice = notices.find(
+      (n) => n.from_member_id === settlement.from_member_id && n.to_member_id === settlement.to_member_id,
+    )
+    const question = !back
       ? t.settlements.confirmDelete(what)
-      : notices.some(
-            (n) => n.from_member_id === settlement.from_member_id && n.to_member_id === settlement.to_member_id,
-          )
-        ? t.settlements.confirmDeleteNoGiveBack(what, from)
-        : t.settlements.confirmDeleteGivesBack(what, from, formatVND(settlement.notice_amount))
+      : pairNotice?.status === 'sent'
+        ? t.settlements.confirmDeleteAddsBack(what, from, to, formatVND(back), formatVND(pairNotice.amount + back))
+        : pairNotice?.status === 'declined'
+          ? t.settlements.confirmDeleteResends(what, from, to, formatVND(back), formatVND(pairNotice.amount))
+          : t.settlements.confirmDeleteGivesBack(what, from, to, formatVND(back))
     if (window.confirm(question)) onDelete(settlement)
   }
 

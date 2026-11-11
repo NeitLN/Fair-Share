@@ -446,12 +446,16 @@ def test_undoing_a_confirmation_gives_the_amount_back(client, house, db_url):
     )
 
 
-def test_deleting_leaves_a_notice_told_since_as_it_is(client, house):
-    tell(client, house, house["tien"])
+def test_deleting_gives_the_told_money_back_into_the_notice_still_waiting(client, house):
+    """specs/019, FR-007 (replacing specs/014 FR-011a): 40.000đ still waits; deleting the 60.000đ
+    taken from it makes it 100.000đ again, a new version, the same note."""
+    tell(client, house, house["tien"], note="chuyển khoản")
     paid = accept(client, house, house["minh"], received=60000).json()
-    # 40.000đ still waits: deleting the 60.000đ gives nothing back into it
+    waiting = version_of(client, house, house["minh"], house["tien"])
     assert client.delete(f"/api/settlements/{paid['id']}").status_code == 204
-    assert [(n["amount"], n["status"]) for n in notices(client, house["id"])] == [(40000, "sent")]
+    [back] = notices(client, house["id"])
+    assert (back["amount"], back["status"], back["note"]) == (100000, "sent", "chuyển khoản")
+    assert back["version"] != waiting
 
 
 def test_deleting_another_repayment_gives_nothing_back(client, house):
@@ -680,3 +684,161 @@ def test_only_the_payer_adds_to_their_own_notice(client, house):
     lan = add_more(client, house, house["tien"], 10000, version=shown, token=house["lan_token"])
     assert lan.status_code == 409
     assert notices(client, house["id"])[0]["amount"] == 50000
+
+
+# --- specs/019: notices tell one story --------------------------------------------------------
+
+
+def accept_warned(client, house, sender, warned, received=None, version="current"):
+    """Tiến's "Ghi" after the warning naming `warned` as the suggestion (0: none)."""
+    if version == "current":
+        version = version_of(client, house, sender, house["tien"])
+    body = {"version": version, "settled_at": "2026-11-03", "warned_suggestion": warned}
+    if received is not None:
+        body["received"] = received
+    return client.post(f"/api/households/{house['id']}/notices/{sender}/accept", json=body)
+
+
+def test_a_notice_no_longer_suggested_is_recorded_only_after_the_warning(client, house):
+    """FR-006: Minh told 100.000đ, then paid it some other way: nothing is suggested any more."""
+    tell(client, house, house["tien"])
+    pay_by_hand(client, house, house["minh"], 100000)
+    refused = accept(client, house, house["minh"])
+    assert refused.status_code == 409
+    assert error_code(refused) == "warning_required"
+    assert refused.json()["error"]["details"] == {"suggestion": 0}
+    assert len(settlements(client, house["id"])) == 1  # only the one by hand
+    assert accept_warned(client, house, house["minh"], warned=5000).status_code == 409
+    wrong = accept_warned(client, house, house["minh"], warned=5000)
+    assert error_code(wrong) == "suggestion_changed"
+    assert accept_warned(client, house, house["minh"], warned=0).status_code == 201
+    assert notices(client, house["id"]) == []
+
+
+def test_up_to_the_suggestion_needs_no_warning_and_more_does(client, house):
+    """FR-006: Minh told 100.000đ, then 60.000đ arrived by hand: 40.000đ is suggested now."""
+    tell(client, house, house["tien"])
+    pay_by_hand(client, house, house["minh"], 60000)
+    over = accept(client, house, house["minh"])
+    assert error_code(over) == "warning_required"
+    assert over.json()["error"]["details"] == {"suggestion": 40000}
+    assert accept(client, house, house["minh"], received=40000).status_code == 201
+    assert [(n["amount"], n["status"]) for n in notices(client, house["id"])] == [(60000, "sent")]
+
+
+def test_a_warning_about_an_old_suggestion_records_nothing(client, house):
+    """FR-006: warned at 40.000đ; another 10.000đ arrives by hand before "Ghi"."""
+    tell(client, house, house["tien"])
+    pay_by_hand(client, house, house["minh"], 60000)
+    pay_by_hand(client, house, house["minh"], 10000)
+    stale = accept_warned(client, house, house["minh"], warned=40000)
+    assert error_code(stale) == "suggestion_changed"
+    assert [(n["amount"], n["status"]) for n in notices(client, house["id"])] == [(100000, "sent")]
+
+
+@pytest.mark.parametrize("bad", [-1, "0", True, 1.5, 10**12 + 1])
+def test_warned_suggestion_is_a_whole_number_of_dong(client, house, bad):
+    tell(client, house, house["tien"])
+    assert accept_warned(client, house, house["minh"], warned=bad).status_code == 422
+
+
+def test_confirming_waits_while_the_house_is_held(client, house, db_url):
+    """FR-006: a confirmation checks the suggestion under the exclusive house lock, so nothing
+    changes the balances between its check and its write, and it waits for anyone holding it."""
+    tell(client, house, house["tien"])
+    blocker = psycopg.connect(db_url)
+    try:
+        blocker.execute("SELECT 1 FROM households WHERE id = %s FOR SHARE", (house["id"],))
+        done: list[int] = []
+        def confirm():
+            done.append(accept(client, house, house["minh"]).status_code)
+
+        worker = threading.Thread(target=confirm)
+        worker.start()
+        time.sleep(0.8)
+        assert done == []  # an exclusive lock waits even for a shared one
+        blocker.rollback()
+        worker.join(timeout=10)
+        assert done == [201]
+    finally:
+        blocker.close()
+
+
+def test_deleting_after_not_received_makes_the_whole_told_money_wait_again(client, house):
+    """FR-007: 40.000đ declined, 60.000đ taken from the notice deleted: 100.000đ waits again."""
+    tell(client, house, house["tien"], note="chuyển khoản")
+    paid = accept(client, house, house["minh"], received=60000).json()
+    assert decline(client, house, house["minh"]).status_code == 200
+    assert client.delete(f"/api/settlements/{paid['id']}").status_code == 204
+    [back] = notices(client, house["id"])
+    assert (back["amount"], back["status"], back["note"]) == (100000, "sent", "chuyển khoản")
+
+
+def test_giving_back_past_the_limit_refuses_the_deletion(client, house, db_url):
+    """FR-008: more than 10^12 in all is refused and nothing changes."""
+    tell(client, house, house["tien"])
+    paid = accept(client, house, house["minh"], received=60000).json()
+    with psycopg.connect(db_url) as conn:
+        conn.execute("UPDATE payment_notices SET amount = %s WHERE household_id = %s",
+                     (10**12 - 1, house["id"]))
+    refused = client.delete(f"/api/settlements/{paid['id']}")
+    assert refused.status_code == 422
+    assert error_code(refused) == "amount_too_large"
+    assert any(s["id"] == paid["id"] for s in settlements(client, house["id"]))
+    assert [n["amount"] for n in notices(client, house["id"])] == [10**12 - 1]
+
+
+@pytest.mark.parametrize("other", ["accept", "add", "decline", "take_back", "delete"])
+def test_a_deletion_and_another_answer_at_once_never_lose_or_double_told_money(
+    make_client, client, house, db_url, other
+):
+    """FR-009: deleting a repayment taken from the notice runs at the same moment as another change
+    of that notice, in whichever order they get the row. The told money is counted once: what
+    waits plus what was recorded from it stays 100.000đ, give or take only what the other change
+    itself does (Báo thêm adds 1.000đ; a take-back drops the 40.000đ that waited then)."""
+    tell(client, house, house["tien"])
+    first = accept(client, house, house["minh"], received=30000).json()
+    second = accept(client, house, house["minh"], received=30000).json()
+    version = version_of(client, house, house["minh"], house["tien"])  # 40.000đ waits
+    tien = bearer(client.member_tokens[house["tien"]])
+    actions = {
+        "accept": lambda c: accept(c, house, house["minh"], version=version, received=10000,
+                                   headers=tien).status_code,
+        "add": lambda c: add_more(c, house, house["tien"], 1000, version=version,
+                                  token=house["minh_token"]).status_code,
+        "decline": lambda c: decline(c, house, house["minh"], version=version,
+                                     token=client.member_tokens[house["tien"]]).status_code,
+        "take_back": lambda c: take_back(c, house, house["tien"], version,
+                                         token=house["minh_token"]).status_code,
+        "delete": lambda c: c.delete(f"/api/settlements/{second['id']}", headers=tien).status_code,
+    }
+    deleter, changer = make_client(), make_client()
+    answers: dict[str, int] = {}
+    blocker = psycopg.connect(db_url)
+    try:
+        # Both reach the notice row and wait on it; which one goes first is up to the database
+        blocker.execute("SELECT 1 FROM payment_notices WHERE household_id = %s FOR UPDATE",
+                        (house["id"],))
+        def delete_first():
+            answers["delete"] = deleter.delete(f"/api/settlements/{first['id']}",
+                                               headers=tien).status_code
+
+        def change():
+            answers[other + "_"] = actions[other](changer)
+
+        threads = [threading.Thread(target=delete_first), threading.Thread(target=change)]
+        for t in threads:
+            t.start()
+        time.sleep(0.8)
+        blocker.rollback()
+        for t in threads:
+            t.join(timeout=15)
+    finally:
+        blocker.close()
+    assert answers["delete"] == 204
+    done = answers[other + "_"] in (200, 201, 204)
+    told = sum(n["amount"] for n in notices(client, house["id"]))
+    recorded = sum(s["notice_amount"] or 0 for s in settlements(client, house["id"]))
+    expected = 100000 + (1000 if other == "add" and done else 0) - (
+        40000 if other == "take_back" and done else 0)
+    assert told + recorded == expected
