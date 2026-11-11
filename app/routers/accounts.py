@@ -64,7 +64,7 @@ LOGIN_PER_IP = 20
 REGISTER_WINDOW = timedelta(hours=1)
 # A class on one campus Wi-Fi shares one address: enough for a room signing up at once, still far
 # from a script making accounts by the thousand
-REGISTER_PER_IP = 30
+REGISTER_PER_IP = 60
 JOIN_WINDOW = timedelta(minutes=1)
 JOIN_PER_USER = 5
 JOIN_PER_IP = 20
