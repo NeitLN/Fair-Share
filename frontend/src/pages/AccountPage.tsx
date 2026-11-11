@@ -441,6 +441,12 @@ function StatusForm({ current }: { current: string }) {
                 {save.isPending ? t.profile.saving : t.profile.saveStatus}
               </button>
               <Unsaved id="profile-status-unsaved" show={dirty} />
+              {/* On the save's line, not a row of its own: the part stays short (TODO 1, SC-002) */}
+              {current && (
+                <button type="button" className="btn-ghost" disabled={save.isPending} onClick={() => send('')}>
+                  {t.profile.statusClear}
+                </button>
+              )}
             </span>
           </div>
           {/* The counter stays when there is a problem: the problem comes under it (FR-021) */}
@@ -457,13 +463,6 @@ function StatusForm({ current }: { current: string }) {
         <div className="profile-live" aria-live="polite">
           {saved && <p className="note ok">{saved === 'set' ? t.profile.statusSaved : t.profile.statusCleared}</p>}
         </div>
-        {current && (
-          <div className="profile-buttons">
-            <button type="button" className="btn-ghost" disabled={save.isPending} onClick={() => send('')}>
-              {t.profile.statusClear}
-            </button>
-          </div>
-        )}
       </form>
     </section>
   )
