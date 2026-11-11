@@ -527,14 +527,18 @@ test('Chưa lưu shows by the part that was typed in and goes once it is saved',
   renderApp('/account')
   const status = within(screen.getByRole('region', { name: 'Trạng thái' }))
   expect(status.queryByText('Chưa lưu')).not.toBeInTheDocument()
+  // Quiet until something is typed, so the page is not a row of loud buttons (review of #279)
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).toHaveClass('btn-secondary')
   await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'ăn kiêng')
   expect(status.getByText('Chưa lưu')).toBeInTheDocument()
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).not.toHaveClass('btn-secondary')
   expect(status.getByRole('button', { name: 'Lưu trạng thái' })).toHaveAccessibleDescription('Chưa lưu')
   // Only that part
   expect(within(screen.getByRole('region', { name: 'Tên của bạn' })).queryByText('Chưa lưu')).not.toBeInTheDocument()
   await user.click(status.getByRole('button', { name: 'Lưu trạng thái' }))
   await screen.findByText('Đã lưu trạng thái.')
   expect(status.queryByText('Chưa lưu')).not.toBeInTheDocument()
+  expect(status.getByRole('button', { name: 'Lưu trạng thái' })).toHaveClass('btn-secondary')
 })
 
 // Review of #276: some keyboards send the accents as separate marks, and the server keeps NFC

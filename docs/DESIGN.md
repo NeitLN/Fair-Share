@@ -670,13 +670,15 @@ menu, nothing sticky; *Đăng xuất* stays in the account menu. The tab reads "
 Each part is its own form with its own button, so an error in one never loses what was typed in another.
 Every button says what it saves (*Lưu ảnh*, *Lưu tên*, *Lưu trạng thái*, *Lưu tài khoản*, *Đổi mật khẩu*,
 *Lưu giới tính*) and is never disabled: while saving it reads *Đang lưu…* with `aria-disabled` and keeps the
-focus. Typed and not saved, a small yellow *Chưa lưu* sits beside the button and is part of its description;
+focus. A save is secondary while its part has nothing unsaved; typed and not saved, it turns filled and a small
+yellow *Chưa lưu* sits beside it as part of its description, so the page has one loud save at most;
 after a save each field takes what the server kept (NFC), so the mark goes. When a control replaces itself
 (*Chọn ảnh*, *Huỷ*, *Xoá trạng thái*, the receiving account's *Thêm tài khoản*, *Sửa*, *Huỷ*, *Lưu tài
 khoản*, *Xoá*), the focus goes to what appears in the same part, never to the page.
 
 * **The card**: a quiet `--surface-2` band with the avatar sticker (96 px, photo or initial on the person's
-  tint) over its edge, then saved values only: the name, the status or "Chưa có trạng thái", the receiving
+  tint) over its edge, then saved values only (the one exception: a picked photo shows as its preview until
+  *Lưu ảnh* or *Huỷ*): the name, the status or "Chưa có trạng thái", the receiving
   account as housemates see it ("Có tài khoản nhận tiền · Timo •••• 3019"), the email read only with
   "Email là tên tài khoản, không đổi được.", and *Chọn ảnh* / *Đổi ảnh* (secondary) with *Gỡ ảnh* (quiet). A
   picked photo is shown as it will be saved (the centre square, upright) with *Lưu ảnh*, the card's one

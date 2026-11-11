@@ -75,7 +75,9 @@ function AccountPage() {
  * gets the composed text back, and the two must count as equal (review of #276). */
 const nfc = (text: string) => text.normalize('NFC').trim()
 
-/** "Chưa lưu" beside a part's button while what is typed there is not saved (specs/017, FR-017). */
+/** "Chưa lưu" beside a part's button while what is typed there is not saved (specs/017, FR-017). The
+ * button itself is quiet (secondary) until then and filled while it shows, so the page has one loud
+ * button at most, where the change is (review of #279). */
 function Unsaved({ id, show }: { id: string; show: boolean }) {
   const t = useT()
   return show ? (
@@ -149,6 +151,7 @@ function NameForm({ current }: { current: string }) {
                   line (FR-006). While it saves it says so and ignores presses, keeping the focus */}
               <button
                 type="submit"
+                className={dirty ? undefined : 'btn-secondary'}
                 aria-disabled={save.isPending || undefined}
                 aria-describedby={dirty ? 'profile-name-unsaved' : undefined}
               >
@@ -431,6 +434,7 @@ function StatusForm({ current }: { current: string }) {
             <span className="profile-actions">
               <button
                 type="submit"
+                className={dirty ? undefined : 'btn-secondary'}
                 aria-disabled={save.isPending || undefined}
                 aria-describedby={dirty ? 'profile-status-unsaved' : undefined}
               >
@@ -523,6 +527,7 @@ function GenderForm({ current }: { current: Gender | null }) {
         <span className="profile-actions">
           <button
             type="submit"
+            className={dirty ? undefined : 'btn-secondary'}
             aria-disabled={save.isPending || undefined}
             aria-describedby={dirty ? 'profile-gender-unsaved' : undefined}
           >
@@ -614,6 +619,7 @@ function PasswordForm() {
         <span className="profile-actions">
           <button
             type="submit"
+            className={dirty ? undefined : 'btn-secondary'}
             aria-disabled={save.isPending || undefined}
             aria-describedby={dirty ? 'profile-password-unsaved' : undefined}
           >

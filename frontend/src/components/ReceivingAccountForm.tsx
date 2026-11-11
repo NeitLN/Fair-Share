@@ -196,6 +196,7 @@ function ReceivingAccountForm() {
           <div className="profile-buttons">
             <button
               type="submit"
+              className={dirty ? undefined : 'btn-secondary'}
               aria-disabled={save.isPending || undefined}
               aria-describedby={dirty ? 'receiving-unsaved' : undefined}
             >
