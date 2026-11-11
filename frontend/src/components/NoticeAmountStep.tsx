@@ -3,6 +3,8 @@ import type { FormEvent } from 'react'
 
 import { formatVND } from '../lib/money'
 import { parseAmount } from '../lib/split'
+import { useVisibleSaveError } from '../lib/toast'
+import { useSaveLock } from '../lib/useSaveLock'
 import { useT } from '../i18n'
 
 interface NoticeAmountStepProps {
@@ -54,6 +56,10 @@ function NoticeAmountStep({
   const [problem, setProblem] = useState<string | null>(null)
   const amount = parseAmount(text)
   const shownProblem = problem ?? serverProblem
+  // While it is being sent the step cannot change or close (specs/018, FR-007, FR-009)
+  const lock = useSaveLock(busy)
+  // While a problem shows here, no "saved" toast stands beside it (specs/018, FR-012)
+  useVisibleSaveError(shownProblem, () => field.current)
 
   useEffect(() => {
     field.current?.focus()
@@ -83,10 +89,11 @@ function NoticeAmountStep({
       className="notice-step"
       onSubmit={submit}
       noValidate
+      {...lock.form}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return
         event.preventDefault()
-        onCancel()
+        if (!busy) onCancel()
       }}
     >
       <label htmlFor={`${id}-amount`}>{label}</label>
@@ -96,6 +103,7 @@ function NoticeAmountStep({
         type="text"
         inputMode="numeric"
         value={text}
+        {...lock.text}
         aria-invalid={shownProblem ? true : undefined}
         aria-describedby={[`${id}-echo`, sumLine && `${id}-sum`, hint && `${id}-hint`, shownProblem && `${id}-problem`]
           .filter(Boolean)
@@ -131,15 +139,16 @@ function NoticeAmountStep({
             type="text"
             maxLength={120}
             value={note}
+            {...lock.text}
             onChange={(e) => setNote(e.target.value)}
           />
         </>
       )}
       <span className="notice-step-buttons">
-        <button type="submit" className="btn-secondary" disabled={busy}>
+        <button type="submit" className="btn-secondary" aria-disabled={busy || undefined}>
           {busy ? t.verdict.paying : submitLabel}
         </button>
-        <button type="button" className="btn-ghost" onClick={onCancel}>
+        <button type="button" className="btn-ghost" aria-disabled={busy || undefined} onClick={() => !busy && onCancel()}>
           {t.common.cancel}
         </button>
       </span>

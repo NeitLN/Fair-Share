@@ -89,6 +89,8 @@ const vi = {
     unexpected: 'Đã có lỗi xảy ra. Thử lại sau ít phút.',
     server: (status: number) => `Máy chủ trả lỗi ${status}`,
     network: 'Không kết nối được tới máy chủ. Hãy thử lại.',
+    // A write that never left the browser (specs/018); money writes say it in their own words (save.*)
+    offline: 'Bạn đang mất mạng. Chưa gửi được.',
   },
   dates: {
     weekdays: ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'],
@@ -825,6 +827,40 @@ const vi = {
     custom: 'tự chia',
   },
   notFound: { title: 'Không tìm thấy trang' },
+  // What a money write says when it was not sent (offline) or its result is unknown (specs/018, FR-016).
+  // An unknown line is shown alone, never after "Chưa lưu được:" (FR-016a).
+  save: {
+    close: 'Đóng',
+    A1: {
+      offline: 'Chưa lưu được: bạn đang mất mạng. Khoản chi này chưa được lưu.',
+      unknown: 'Chưa nhận được kết quả. Có thể khoản chi đã được lưu, xem danh sách trước khi lưu lại.',
+    },
+    A2: {
+      offline: 'Chưa ghi được: bạn đang mất mạng. Khoản trả này chưa được ghi.',
+      unknown: 'Chưa nhận được kết quả. Có thể khoản trả đã được ghi, xem lịch sử trước khi ghi lại.',
+    },
+    A3: {
+      offline: 'Chưa báo được: bạn đang mất mạng.',
+      unknown: 'Chưa nhận được kết quả. Có thể đã báo rồi, xem lại khối của bạn trước khi báo lại.',
+    },
+    A4: {
+      offline: 'Chưa huỷ được: bạn đang mất mạng.',
+      unknown: 'Chưa nhận được kết quả. Có thể đã huỷ rồi, xem lại khối của bạn trước khi bấm lại.',
+    },
+    A5: {
+      offline: 'Chưa ghi được: bạn đang mất mạng.',
+      unknown: 'Chưa nhận được kết quả. Có thể đã ghi rồi, xem lại thẻ trước khi bấm lại.',
+    },
+    A6: {
+      offline: 'Chưa hoàn tác được: bạn đang mất mạng.',
+      unknown: 'Chưa nhận được kết quả. Có thể đã hoàn tác rồi, xem lại thẻ trước khi bấm lại.',
+    },
+    A7: {
+      offline: 'Chưa xoá được: bạn đang mất mạng.',
+      unknown: 'Chưa nhận được kết quả. Có thể đã xoá rồi, xem lại danh sách trước khi xoá lại.',
+    },
+    quickAdd: { offline: 'Đang mất mạng, chưa đọc được câu này.' },
+  },
 }
 
 export default vi

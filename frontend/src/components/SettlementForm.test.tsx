@@ -93,3 +93,20 @@ describe('SettlementForm', () => {
   })
 })
 
+
+// specs/018-safe-saves, User Story 2: while the repayment is on its way nothing in the form changes
+test('while it is being recorded the fields cannot change, and a press sends nothing more', async () => {
+  const onSubmit = vi.fn().mockResolvedValue({})
+  render(<SettlementForm members={members} onSubmit={onSubmit} submitting={true} error={null} />)
+  const user = userEvent.setup()
+  const amount = screen.getByLabelText('Số tiền (đồng)')
+  expect(amount).toHaveAttribute('readonly')
+  expect(amount).toHaveAttribute('aria-readonly', 'true')
+  await user.type(amount, '50000')
+  expect(amount).toHaveValue('')
+  await user.selectOptions(screen.getByLabelText('Người trả'), 'Minh')
+  expect(screen.getByLabelText('Người trả')).toHaveValue('1')
+  expect(document.querySelector('form')).toHaveAttribute('aria-busy', 'true')
+  await user.click(screen.getByRole('button', { name: /Đang lưu/ }))
+  expect(onSubmit).not.toHaveBeenCalled()
+})

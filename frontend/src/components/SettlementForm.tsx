@@ -5,6 +5,8 @@ import type { Member, Notice, SettlementInput } from '../api/types'
 import { isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { parseAmount } from '../lib/split'
+import { useVisibleSaveError } from '../lib/toast'
+import { useSaveLock } from '../lib/useSaveLock'
 import { useT } from '../i18n'
 
 interface SettlementFormProps {
@@ -30,6 +32,9 @@ const MAX_NOTE = 200
 // US-08: "A paid B x đồng", for payments that do not match a suggested transfer exactly
 function SettlementForm({ members, onSubmit, submitting, error, receiver = null, notices = [] }: SettlementFormProps) {
   const t = useT()
+  // While the repayment is being recorded nothing in the form changes (specs/018, FR-007)
+  const lock = useSaveLock(submitting)
+
   const firstOther = members.find((m) => m.id !== receiver)?.id ?? ''
   const [fromId, setFromId] = useState<number | ''>(receiver === null ? (members[0]?.id ?? '') : firstOther)
   const [toId, setToId] = useState<number | ''>(receiver ?? members[1]?.id ?? '')
@@ -39,6 +44,8 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
   const [validation, setValidation] = useState<string | null>(null)
   // Whether this is the money the payer told about; asked only when there is such a notice
   const [asTold, setAsTold] = useState(true)
+  // While its problem shows, no "saved" toast stands beside it (specs/018, FR-012)
+  useVisibleSaveError(validation ?? error)
 
   const amount = parseAmount(amountText)
   const told = notices.find((n) => n.from_member_id === fromId && n.to_member_id === toId)
@@ -57,6 +64,7 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
+    if (submitting) return
     const found = problem()
     setValidation(found)
     if (found) return
@@ -85,9 +93,16 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
   const pick = (value: string) => (value === '' ? '' : Number(value))
 
   return (
-    <form className="settlement-form" onSubmit={handleSubmit} noValidate>
+    <form className="settlement-form" onSubmit={handleSubmit} noValidate {...lock.form}>
       <label htmlFor="settlement-from">{t.settlements.fromLabel}</label>
-      <select id="settlement-from" value={fromId} onChange={(e) => setFromId(pick(e.target.value))}>
+      <select
+        id="settlement-from"
+        value={fromId}
+        {...lock.choice}
+        onChange={(e) => {
+          if (!lock.locked) setFromId(pick(e.target.value))
+        }}
+      >
         {options}
       </select>
 
@@ -97,7 +112,10 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
         value={toId}
         disabled={receiver !== null}
         aria-describedby={receiver !== null ? 'settlement-to-hint' : undefined}
-        onChange={(e) => setToId(pick(e.target.value))}
+        {...lock.choice}
+        onChange={(e) => {
+          if (!lock.locked) setToId(pick(e.target.value))
+        }}
       >
         {options}
       </select>
@@ -115,6 +133,7 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
         value={amountText}
         placeholder={t.settlements.amountPlaceholder}
         aria-describedby="settlement-amount-preview"
+        {...lock.text}
         onChange={(e) => setAmountText(e.target.value)}
       />
       <span id="settlement-amount-preview" className="hint">
@@ -125,11 +144,11 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
         <fieldset className="settlement-which">
           <legend>{t.settlements.whichMoney}</legend>
           <label className="inline">
-            <input type="radio" name="settlement-which" checked={asTold} onChange={() => setAsTold(true)} />
+            <input type="radio" name="settlement-which" checked={asTold} {...lock.choice} onChange={() => setAsTold(true)} />
             {t.settlements.toldMoney(nameOf(fromId), formatVND(told.amount))}
           </label>
           <label className="inline">
-            <input type="radio" name="settlement-which" checked={!asTold} onChange={() => setAsTold(false)} />
+            <input type="radio" name="settlement-which" checked={!asTold} {...lock.choice} onChange={() => setAsTold(false)} />
             {t.settlements.otherMoney}
           </label>
         </fieldset>
@@ -142,6 +161,7 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
         min={MIN_DAY}
         max={MAX_DAY}
         value={settledAt}
+        {...lock.text}
         onChange={(e) => setSettledAt(e.target.value)}
       />
 
@@ -152,13 +172,14 @@ function SettlementForm({ members, onSubmit, submitting, error, receiver = null,
         value={note}
         maxLength={MAX_NOTE}
         placeholder={t.settlements.notePlaceholder}
+        {...lock.text}
         onChange={(e) => setNote(e.target.value)}
       />
 
       {validation && <p role="alert">{validation}</p>}
       {error && <p role="alert">{error}</p>}
 
-      <button type="submit" disabled={submitting}>
+      <button type="submit" aria-disabled={submitting || undefined}>
         {submitting ? t.common.saving : t.settlements.submit}
       </button>
     </form>

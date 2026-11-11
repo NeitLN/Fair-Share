@@ -21,6 +21,7 @@ import RecurringList from '../components/RecurringList'
 import { draftToFill } from '../lib/draftFill'
 import { errorMessage } from '../lib/errors'
 import { formError } from '../lib/formError'
+import { outcomeLine } from '../lib/saveOutcome'
 import { today } from '../lib/date'
 import {
   filterExpenses,
@@ -37,7 +38,7 @@ import { memberLooks } from '../lib/names'
 import { useMemberPhotos } from '../lib/useMemberPhotos'
 import { formatVND } from '../lib/money'
 import { useSession } from '../lib/session'
-import { useToast } from '../lib/toast'
+import { useSaveFeedback, useToast, useVisibleSaveError } from '../lib/toast'
 import { useWide } from '../lib/useWide'
 import ErrorNote from '../components/ErrorNote'
 import Skeleton from '../components/Skeleton'
@@ -109,7 +110,11 @@ function ExpensesPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
   // Saved: said in a toast, since on a phone the new row lands below the screen (UI review 04/11)
   function saved(expense: Expense) {
+    // Answered after leaving this page or house: nothing to say here (specs/018, research R8)
+    if (houseNow.current !== householdId) return
     toast({
+      kind: 'success',
+      source: 'expense-form',
       text: t.expenses.saved(expense.description, formatVND(expense.amount)),
       action: { label: t.expenses.show, onAction: () => reveal(expense.id) },
     })
@@ -121,21 +126,24 @@ function ExpensesPage() {
   }
   const create = useMutation({
     mutationFn: (input: ExpenseInput) => createExpense(householdId, input),
+    meta: { householdId },
     onSuccess: (expense, input) => {
       writeLastPayer(householdId, input.payer_id)
       setComposerKey((key) => key + 1)
       // Recorded: the next expense is an ordinary one again
       if (input.recurring_item_id !== undefined) setRecordingId(null)
       saved(expense)
-      return refresh()
+      // The save is done when the write is: the refresh is not waited for (specs/018, FR-010)
+      void refresh()
     },
   })
   const update = useMutation({
     mutationFn: ({ id, input }: { id: number; input: ExpenseInput }) => updateExpense(id, input, householdId),
+    meta: { householdId },
     onSuccess: (expense) => {
       setEditing(null)
       saved(expense)
-      return refresh()
+      void refresh()
     },
   })
   // Ngừng lặp, item by item (specs/011, FR-020): each has its own wait and its own message, kept for the
@@ -173,12 +181,19 @@ function ExpensesPage() {
   }
   const remove = useMutation({
     mutationFn: (expense: Expense) => deleteExpense(expense.id, householdId),
+    meta: { householdId },
     onSuccess: (_result, expense) => {
       // The expense being edited is gone: back to adding a new one
       setEditing((current) => (current?.id === expense.id ? null : current))
-      return refresh()
+      void refresh()
     },
   })
+  // A delete that was not sent, or whose answer never came, says so (specs/018, A7)
+  const listError = expenses.error
+    ? errorMessage(expenses.error)
+    : (outcomeLine('A7', remove.error, t) ?? errorMessage(remove.error))
+  const feedback = useSaveFeedback()
+  useVisibleSaveError(remove.error ? listError : null)
 
   function startEditing(expense: Expense) {
     update.reset()
@@ -297,6 +312,7 @@ function ExpensesPage() {
                     }
                     onUndo={() => expenseForm.current?.undoFill()}
                     onManual={() => expenseForm.current?.focusDescription()}
+                    blocked={create.isPending || update.isPending}
                   />
                 )}
                 <ExpenseForm
@@ -310,9 +326,11 @@ function ExpensesPage() {
                   defaultPayer={defaultPayer}
                   initial={editing}
                   fromItem={editing ? null : recordingItem}
-                  onSubmit={(input) =>
-                    editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
-                  }
+                  onSubmit={(input) => {
+                    // A new save takes away the last "Đã lưu" nobody is using (specs/018, FR-012)
+                    feedback.started('expense-form')
+                    return editing ? update.mutateAsync({ id: editing.id, input }) : create.mutateAsync(input)
+                  }}
                   onCancel={editing ? () => setEditing(null) : undefined}
                   submitting={form.isPending}
                   serverError={serverError}
@@ -393,7 +411,7 @@ function ExpensesPage() {
                 members={members.data ?? []}
                 looks={looks}
                 loading={expenses.isPending}
-                error={errorMessage(expenses.error ?? remove.error)}
+                error={listError}
                 // Thử lại reloads the list; a failed delete is retried from its row
                 onRetry={expenses.error ? () => expenses.refetch() : undefined}
                 retrying={expenses.isFetching}
@@ -410,7 +428,7 @@ function ExpensesPage() {
                 members={members.data ?? []}
                 looks={looks}
                 loading={expenses.isPending}
-                error={errorMessage(expenses.error ?? remove.error)}
+                error={listError}
                 // Thử lại reloads the list; a failed delete is retried from its row
                 onRetry={expenses.error ? () => expenses.refetch() : undefined}
                 retrying={expenses.isFetching}

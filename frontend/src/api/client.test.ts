@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { currentSession, signIn, signOut } from '../lib/session'
 import { resetSlowRequests, slowState } from '../lib/slowRequests'
-import { api, ApiError, KEY_HEADER, request } from './client'
+import { api, ApiError, KEY_HEADER, request, WRITE_GIVE_UP_MS } from './client'
 
 function mockFetch(response: Response | Error) {
   const fn = vi.fn(() =>
@@ -78,6 +78,77 @@ describe('api client', () => {
       status: 0,
       code: 'network_error',
     })
+  })
+})
+
+// specs/018-safe-saves, research R1 and R2: a write says only what is known
+describe('writes: offline, result unknown, given up', () => {
+  const offline = (value: boolean) => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(!value)
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+    resetSlowRequests()
+  })
+
+  test.each(['post', 'put', 'patch', 'delete'] as const)('offline, a %s is never sent', async (method) => {
+    offline(true)
+    const fetchFn = mockFetch(json(200, {}))
+    const call = method === 'delete' ? api.delete('/api/expenses/1') : api[method]('/api/expenses', {})
+    await expect(call).rejects.toMatchObject({ status: 0, code: 'offline' })
+    expect(fetchFn).not.toHaveBeenCalled()
+  })
+
+  test('offline, a read is still tried, and fails as before', async () => {
+    offline(true)
+    const fetchFn = mockFetch(new TypeError('Failed to fetch'))
+    await expect(api.get('/api/households')).rejects.toMatchObject({ code: 'network_error' })
+    expect(fetchFn).toHaveBeenCalledOnce()
+  })
+
+  test('a sent write whose answer never arrives: result unknown', async () => {
+    mockFetch(new TypeError('Failed to fetch'))
+    await expect(api.post('/api/expenses', {})).rejects.toMatchObject({ status: 0, code: 'outcome_unknown' })
+  })
+
+  test('a sent write whose answer is cut off while read: result unknown', async () => {
+    const broken = new Response('{"id": 1', { status: 201, headers: { 'Content-Type': 'application/json' } })
+    mockFetch(broken)
+    await expect(api.post('/api/expenses', {})).rejects.toMatchObject({ code: 'outcome_unknown' })
+  })
+
+  test('a refused write is still a refusal, with its own message', async () => {
+    mockFetch(json(422, { error: { code: 'validation_error', message: 'Số tiền chưa hợp lệ.' } }))
+    await expect(api.post('/api/expenses', {})).rejects.toMatchObject({ status: 422, code: 'validation_error' })
+  })
+
+  test('a write with no answer after 90 s is given up as result unknown, and the slow notice ends', async () => {
+    vi.useFakeTimers()
+    resetSlowRequests()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+          }),
+      ),
+    )
+    const pending = api.post('/api/expenses', {}).catch((error: unknown) => error)
+    vi.advanceTimersByTime(6_000)
+    expect(slowState().slow).toBe(true)
+    vi.advanceTimersByTime(WRITE_GIVE_UP_MS - 6_000 - 1)
+    expect(slowState().slow).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(await pending).toMatchObject({ code: 'outcome_unknown' })
+    expect(slowState().slow).toBe(false)
+  })
+
+  test('a read has no give-up time', async () => {
+    vi.useFakeTimers()
+    const fetchFn = vi.fn((_url: string, _init: RequestInit) => new Promise<Response>(() => {}))
+    vi.stubGlobal('fetch', fetchFn)
+    void api.get('/api/households')
+    expect(fetchFn.mock.calls[0][1].signal).toBeUndefined()
   })
 })
 

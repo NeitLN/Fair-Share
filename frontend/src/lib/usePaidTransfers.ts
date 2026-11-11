@@ -3,13 +3,15 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '../api/client'
 import { keys } from '../api/households'
+import { refreshIfUnknown } from '../api/queryClient'
 import { acceptNotice, balancesFetchCount, createSettlement, deleteSettlement } from '../api/settlements'
 import type { Balances, Transfer } from '../api/types'
 import { messages } from '../i18n'
 import { today } from './date'
 import { errorMessage } from './errors'
 import { formatVND } from './money'
-import { useToast } from './toast'
+import { isUnknown, outcomeLine } from './saveOutcome'
+import { useSaveFeedback, useToast } from './toast'
 
 /** One transfer card in the verdict block, as the block shows it. */
 export interface TransferCard {
@@ -59,6 +61,7 @@ export function usePaidTransfers(
 ) {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const feedback = useSaveFeedback()
   const [payments, setPayments] = useState<Payment[]>([])
   const [error, setError] = useState<string | null>(null)
   const nextId = useRef(1)
@@ -93,11 +96,19 @@ export function usePaidTransfers(
     }
   }, [])
 
-  const say = (text: string, action?: { label: string; onAction: () => void }) => {
+  const say = (
+    text: string,
+    action?: { label: string; onAction: () => void },
+    sticky?: boolean,
+    success?: { source: string },
+  ) => {
     if (!alive.current) return undefined
     const dismiss = toast({
       text,
       action,
+      sticky,
+      kind: success ? 'success' : undefined,
+      source: success?.source,
       // Gone by any way (timed out, pushed out, acted on): nothing to take away on unmount
       onGone: action && (() => dismissers.current.delete(dismiss)),
     })
@@ -119,10 +130,11 @@ export function usePaidTransfers(
    * (all of it, or part with "Nhận số khác"), which records it and takes it out of the notice in one go,
    * once however many times it is pressed (docs/ACCOUNTS.md, S3; specs/014).
    */
-  function pay(transfer: Transfer, told?: { version: number }): number | null {
+  function pay(transfer: Transfer, told?: { version: number }, onDone?: (problem: string | null) => void): number | null {
     const pair = pairKey(transfer)
     if (recording.current.has(pair)) return null
     recording.current.add(pair)
+    feedback.started(`transfer-${pair}`)
     const id = nextId.current++
     setError(null)
     setPayments((current) => [
@@ -141,11 +153,22 @@ export function usePaidTransfers(
     setLayout((current) =>
       arrange(current, shown.map((c) => c.key)).map((key) => (key === `open-${pair}` ? `pay-${id}` : key)),
     )
-    void record(id, transfer, pair, told)
+    void record(id, transfer, pair, told, onDone)
     return id
   }
 
-  async function record(id: number, transfer: Transfer, pair: string, told?: { version: number }) {
+  /**
+   * `onDone`: told how it ended (null: recorded; else the line to show), for a step that keeps what was
+   * typed until the money is recorded ("Nhận số khác", specs/018, FR-009); its error is said there, not
+   * in the panel.
+   */
+  async function record(
+    id: number,
+    transfer: Transfer,
+    pair: string,
+    told?: { version: number },
+    onDone?: (problem: string | null) => void,
+  ) {
     try {
       const settlement = told
         ? await acceptNotice(householdId, transfer.from_member_id, {
@@ -159,19 +182,26 @@ export function usePaidTransfers(
         change(id, null)
       } else {
         change(id, { state: 'paid', settlementId: settlement.id, recordedAtFetch: balancesFetchCount() })
-        const dismiss = say(messages().paid.recorded(named(transfer)), {
-          label: messages().common.undo,
-          onAction: () => undo(id, settlement.id, transfer),
-        })
+        const dismiss = say(
+          messages().paid.recorded(named(transfer)),
+          { label: messages().common.undo, onAction: () => undo(id, settlement.id, transfer) },
+          false,
+          { source: `transfer-${pair}` },
+        )
         if (dismiss) toastOf.current.set(id, dismiss)
       }
+      onDone?.(null)
       void refresh()
     } catch (failure) {
       change(id, null)
-      if (alive.current) setError(errorMessage(failure))
+      // Not sent, or sent with no answer: said in those words (specs/018, A5)
+      const line = outcomeLine('A5', failure, messages()) ?? errorMessage(failure)
+      if (onDone) onDone(line ?? messages().common.tryAgain)
+      else if (alive.current) setError(line)
       // Refused (the notice changed since), or no answer at all (it may have been recorded): what is on
       // screen may be old, so the notices and balances are read again before anything else is pressed
       void refresh()
+      refreshIfUnknown(failure, householdId)
     } finally {
       recording.current.delete(pair)
     }
@@ -198,10 +228,15 @@ export function usePaidTransfers(
         say(messages().paid.alreadyDeleted)
       } else {
         change(id, { state: 'paid' })
-        say(messages().paid.undoFailed(errorMessage(failure) ?? ''), {
-          label: messages().common.tryAgain,
-          onAction: () => undo(id, settlementId, transfer),
-        })
+        // Offline or unknown has its own line, never after "Couldn't undo." (specs/018, A6, FR-016a). An
+        // unknown one stays until closed or used, so its warning is not lost (FR-015)
+        const line = outcomeLine('A6', failure, messages())
+        say(
+          line ?? messages().paid.undoFailed(errorMessage(failure) ?? ''),
+          { label: messages().common.tryAgain, onAction: () => undo(id, settlementId, transfer) },
+          isUnknown(failure),
+        )
+        refreshIfUnknown(failure, householdId)
       }
     } finally {
       undoing.current.delete(id)

@@ -45,7 +45,10 @@ export const testUser = { id: 9, email: 'tien@test.local', display_name: 'Tiến
 export function renderApp(path: string | { pathname: string; state: unknown }, { signedOut = false } = {}) {
   if (signedOut) signOut()
   else signIn({ token: 'test-token', user: testUser })
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  // Writes as in the app (specs/018): never paused while offline, never retried
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { networkMode: 'always', retry: 0 } },
+  })
   const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
