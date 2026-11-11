@@ -21,6 +21,11 @@ const noHouses: Record<string, [number, unknown]> = {
   'GET /api/households': [200, { households: [], pending: [] }],
 }
 
+// A part's save, found inside that part (specs/017, FR-028): "Lưu" today and "Lưu tên" later both
+// match, and moving the parts around cannot make a test press another part's button
+const saveIn = (part: string) =>
+  within(screen.getByRole('region', { name: part })).getByRole('button', { name: /^Lưu/ })
+
 test('the account menu opens the profile page, which shows the email as it is', async () => {
   mockApi({ ...noHouses })
   const user = userEvent.setup()
@@ -49,7 +54,7 @@ test('a new name is saved everywhere, and the account in the header follows it',
   const field = screen.getByLabelText('Tên hiển thị')
   await user.clear(field)
   await user.type(field, '  Việt Tiến ')
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  await user.click(saveIn('Tên của bạn'))
   expect(await screen.findByText('Đã đổi tên ở mọi nhà.')).toBeInTheDocument()
   const sent = api.mock.calls.find(([url, init]) => url === '/api/me' && init?.method === 'PATCH')
   expect(JSON.parse(String(sent?.[1]?.body))).toEqual({ display_name: 'Việt Tiến' })
@@ -73,7 +78,7 @@ test('a household where the name is taken is named, with the name kept there', a
   const field = screen.getByLabelText('Tên hiển thị')
   await user.clear(field)
   await user.type(field, 'Lan')
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  await user.click(saveIn('Tên của bạn'))
   expect(
     await screen.findByText('Ở Nhà B đã có người tên Lan, nên ở đó bạn vẫn là Tiến.'),
   ).toBeInTheDocument()
@@ -86,11 +91,11 @@ test('an empty or too long name is refused next to the field, and what was typed
   const field = screen.getByLabelText('Tên hiển thị')
   await user.clear(field)
   await user.type(field, '   ')
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  await user.click(saveIn('Tên của bạn'))
   expect(screen.getByText('Nhập tên của bạn.')).toBeInTheDocument()
   expect(field).toHaveAttribute('aria-invalid', 'true')
   await user.type(field, 'x'.repeat(41))
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  await user.click(saveIn('Tên của bạn'))
   expect(screen.getByText('Tên dài 1 đến 40 ký tự.')).toBeInTheDocument()
   expect(field).toHaveValue(`   ${'x'.repeat(41)}`)
   expect(api.mock.calls.some(([url]) => url === '/api/me')).toBe(false)
@@ -163,7 +168,7 @@ test('a status is saved, and the counter counts an emoji once', async () => {
   const field = screen.getByLabelText('Trạng thái bạn cùng nhà thấy')
   await user.type(field, 'ăn kiêng 🥗')
   expect(screen.getByText(/^10\/60 ký tự/)).toBeInTheDocument()
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[1])
+  await user.click(saveIn('Trạng thái'))
   expect(await screen.findByText('Đã lưu trạng thái.')).toBeInTheDocument()
   const sent = api.mock.calls.find(([url]) => url === '/api/me/status')
   expect(JSON.parse(String(sent?.[1]?.body))).toEqual({ status: 'ăn kiêng 🥗' })
@@ -195,7 +200,7 @@ test('more than 60 characters is refused next to the field before anything is se
   const user = userEvent.setup()
   renderApp('/account')
   await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'a'.repeat(61))
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[1])
+  await user.click(saveIn('Trạng thái'))
   expect(screen.getByText('Trạng thái dài tối đa 60 ký tự, trên một dòng.')).toBeInTheDocument()
   expect(api.mock.calls.some(([url]) => url === '/api/me/status')).toBe(false)
 })
@@ -223,7 +228,7 @@ test('a picked photo is previewed as it will be saved, then sent as a JPEG', asy
   await pickFile()
   expect(await screen.findByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')).toBeInTheDocument()
   expect(document.querySelector('.profile-photo img')).toHaveAttribute('src', 'blob:preview')
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  await user.click(saveIn('Ảnh đại diện'))
   expect(await screen.findByText('Đã lưu ảnh đại diện.')).toBeInTheDocument()
   const sent = api.mock.calls.find(([url, init]) => url === '/api/me/photo' && init?.method === 'PUT')
   expect(new Headers(sent?.[1]?.headers).get('Content-Type')).toBe('image/jpeg')
@@ -271,7 +276,7 @@ test('a full photo store is said in plain words', async () => {
   await screen.findByRole('button', { name: 'Chọn ảnh' })
   await pickFile()
   await screen.findByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')
-  await user.click(screen.getAllByRole('button', { name: 'Lưu' })[0])
+  await user.click(saveIn('Ảnh đại diện'))
   expect(await screen.findByText('Kho ảnh đã đầy, tạm thời chưa thêm ảnh mới được.')).toBeInTheDocument()
 })
 
@@ -295,11 +300,10 @@ test('a chosen gender is sent with the notice version, and Không nêu sends nul
   const user = userEvent.setup()
   renderApp('/account')
   await user.click(await screen.findByRole('radio', { name: 'Nữ' }))
-  const saves = screen.getAllByRole('button', { name: 'Lưu' })
-  await user.click(saves[saves.length - 1])
+  await user.click(saveIn('Giới tính'))
   expect(await screen.findByText('Đã lưu giới tính.')).toBeInTheDocument()
   await user.click(screen.getByRole('radio', { name: 'Không nêu' }))
-  await user.click(saves[saves.length - 1])
+  await user.click(saveIn('Giới tính'))
   expect(await screen.findByText('Đã xoá giới tính.')).toBeInTheDocument()
   const sent = api.mock.calls
     .filter(([url]) => url === '/api/me/gender')
@@ -343,7 +347,7 @@ test('a receiving account is added with a preview of the name and who will see i
   await user.type(screen.getByLabelText('Số tài khoản'), '0123 456.789')
   await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Nguyễn Văn Minh')
   expect(screen.getByText('Sẽ hiện: NGUYEN VAN MINH')).toBeInTheDocument()
-  await user.click(within(section()).getByRole('button', { name: 'Lưu' }))
+  await user.click(saveIn('Tài khoản nhận tiền'))
 
   expect(await screen.findByText('Vietcombank · 0123456789 · NGUYEN VAN MINH')).toBeInTheDocument()
   const put = api.mock.calls.find(([url, init]) => url === '/api/me/receiving-account' && init?.method === 'PUT')
@@ -369,7 +373,7 @@ test("the server's refusals land under their fields", async () => {
   await user.selectOptions(screen.getByLabelText('Ngân hàng hoặc ví'), 'Vietcombank')
   await user.type(screen.getByLabelText('Số tài khoản'), '12345')
   await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Minh')
-  await user.click(within(section()).getByRole('button', { name: 'Lưu' }))
+  await user.click(saveIn('Tài khoản nhận tiền'))
   expect(await screen.findByText('Số tài khoản là 6 đến 19 chữ số.')).toBeInTheDocument()
   expect(screen.getByLabelText('Số tài khoản')).toHaveAttribute('aria-invalid', 'true')
 })
@@ -418,7 +422,7 @@ test('leaving the page while the account is saving keeps no number in memory', a
   await user.selectOptions(screen.getByLabelText('Ngân hàng hoặc ví'), 'Vietcombank')
   await user.type(screen.getByLabelText('Số tài khoản'), '0123456789')
   await user.type(screen.getByLabelText('Tên chủ tài khoản'), 'Minh')
-  await user.click(within(section()).getByRole('button', { name: 'Lưu' }))
+  await user.click(saveIn('Tài khoản nhận tiền'))
   unmount()
   await act(async () => answer([200, { account: saved }]))
   await waitFor(() => expect(client.getQueryData(['me', 'receiving-account'])).toBeUndefined())

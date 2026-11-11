@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 import { addMember, API, bearer, deleteHousehold, shared, signInPage, signUp } from './accounts.js'
 
@@ -12,6 +12,11 @@ import { addMember, API, bearer, deleteHousehold, shared, signInPage, signUp } f
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
 })
+
+// A part's save, found inside that part (specs/017, FR-028): "Lưu" today and "Lưu tên" later both
+// match, and moving the parts around cannot make this run press another part's button
+const saveIn = (page: Page, part: string) =>
+  page.getByRole('region', { name: part }).getByRole('button', { name: /^Lưu/ })
 
 test('a new name reaches every household, and one where it is taken keeps the old one', async ({ page, request }) => {
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
@@ -31,7 +36,7 @@ test('a new name reaches every household, and one where it is taken keeps the ol
 
     const field = page.getByLabel('Tên hiển thị')
     await field.fill('Ngọc Lan')
-    await page.getByRole('button', { name: 'Lưu' }).first().click()
+    await saveIn(page, 'Tên của bạn').click()
     await expect(page.getByText(`Ở E2E B ${stamp} đã có người tên Ngọc Lan, nên ở đó bạn vẫn là Lan.`)).toBeVisible()
     await expect(page.getByLabel('Tài khoản: Ngọc Lan')).toBeVisible()
 
@@ -119,7 +124,7 @@ test('a gender chosen after reading the notice is seen by a housemate, and Khôn
     await mine.goto('/account')
     await expect(mine.getByText(/^Không bắt buộc, để bạn cùng nhà biết giới tính/)).toBeVisible()
     await mine.getByRole('radio', { name: 'Nữ' }).check()
-    await mine.getByRole('button', { name: 'Lưu' }).last().click()
+    await saveIn(mine, 'Giới tính').click()
     await expect(mine.getByText('Đã lưu giới tính.')).toBeVisible()
 
     const theirs = await browser.newPage()
@@ -129,7 +134,7 @@ test('a gender chosen after reading the notice is seen by a housemate, and Khôn
     await expect(theirs.locator('.member-gender')).toHaveText('Nữ')
 
     await mine.getByRole('radio', { name: 'Không nêu' }).check()
-    await mine.getByRole('button', { name: 'Lưu' }).last().click()
+    await saveIn(mine, 'Giới tính').click()
     await expect(mine.getByText('Đã xoá giới tính.')).toBeVisible()
     await theirs.reload()
     await expect(theirs.locator('.member-row').first()).toBeVisible()
@@ -159,7 +164,7 @@ test('a photo uploaded on the profile page shows to a housemate, and the initial
     await mine.goto('/account')
     await mine.locator('#profile-photo-file').setInputFiles(fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url)))
     await expect(mine.getByText('Ảnh sẽ trông như thế này. Lưu để dùng, hoặc Huỷ.')).toBeVisible()
-    await mine.getByRole('button', { name: 'Lưu' }).first().click()
+    await saveIn(mine, 'Ảnh đại diện').click()
     await expect(mine.getByText('Đã lưu ảnh đại diện.')).toBeVisible()
 
     // The server kept its own clean 256 × 256 copy, not the 800 × 600 file with its camera data
