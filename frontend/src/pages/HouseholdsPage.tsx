@@ -158,9 +158,9 @@ function HouseholdsPage() {
     requestAnimationFrame(() => {
       // Only while nothing else has the keyboard: a request sent in the same frame has already moved it
       // to the wait, and that must win (a flaky CI run of #287)
-      const active = document.activeElement
-      if (active && active !== document.body) return
       const field = document.getElementById('join-code')
+      const active = document.activeElement
+      if (active && active !== document.body && active !== field) return
       field?.scrollIntoView?.({ block: 'center' })
       field?.focus()
     })
