@@ -25,6 +25,8 @@ ENV API_UPSTREAM=http://api:8000 \
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Included by nginx.conf; not a template, it has no ${...} to fill
+COPY security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /src/dist /usr/share/nginx/html
 
 EXPOSE 8080
