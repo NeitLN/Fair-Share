@@ -61,7 +61,7 @@ never a literal colour. Dark values apply under `prefers-color-scheme: dark` unl
 | `--surface-2` | `#F1E9DB` | `#2D2822` | folds, segmented track, paid transfer, opened shares |
 | `--ink` | `#17132B` | `#F6F1E7` | text |
 | `--muted` | `#5E5868` | `#BDB3A3` | secondary text |
-| `--line` | `#ECE4D5` | `#37312A` | row dividers only (quiet on purpose) |
+| `--line` | `#DCD0BA` | `#37312A` | row dividers only: quiet, about 1.5:1 on `--surface` in light (was `#ECE4D5`, 1.24:1, too faint; owner 11/11) |
 | `--card-edge` | `#C8B99F` | `#544B40` | the 1 px edge of a white panel on the page (rule 2): 1.71:1 to bg, 1.90:1 to surface (light); 2.17 / 1.94 (dark) |
 | `--control-line` | `#8A7F6E` | `#8F8576` | the 2 px edge of fields, selects, secondary buttons, folds, payer chips, the account menu |
 | `--focus-outline` | `#17132B` | `#17132B` | the ring inside the yellow focus halo |
