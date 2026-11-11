@@ -156,6 +156,10 @@ function HouseholdsPage() {
     if (!returning || linkCode === '' || broughtToCode.current) return
     broughtToCode.current = true
     requestAnimationFrame(() => {
+      // Only while nothing else has the keyboard: a request sent in the same frame has already moved it
+      // to the wait, and that must win (a flaky CI run of #287)
+      const active = document.activeElement
+      if (active && active !== document.body) return
       const field = document.getElementById('join-code')
       field?.scrollIntoView?.({ block: 'center' })
       field?.focus()
