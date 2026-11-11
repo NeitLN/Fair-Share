@@ -97,6 +97,8 @@ const en: Messages = {
   },
   failure: {
     unexpected: 'Something went wrong. Try again in a few minutes.',
+    tryAgainIn: (minutes: number) =>
+      `Too many tries. Try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`,
     server: (status: number) => `The server answered with error ${status}`,
     network: "Can't reach the server. Try again.",
     offline: "You're offline. Nothing was sent.",
@@ -184,6 +186,7 @@ const en: Messages = {
     nameEmpty: 'Enter your name.',
     nameProblem: 'The name must be 1 to 40 characters.',
     noReset: "There's no password reset yet, so use a password you'll remember.",
+    sessionEnded: 'Your session ended. Sign in again to go on; an expense you were typing is kept.',
     showPassword: 'Show',
     hidePassword: 'Hide',
     showPasswordLabel: 'Show password',
@@ -215,6 +218,8 @@ const en: Messages = {
     currentPassword: 'Current password',
     newPassword: 'New password',
     newPasswordHint: '8 to 128 characters. Once changed, every other place you are signed in is signed out.',
+    againPassword: 'New password again',
+    againProblem: "The two new passwords don't match.",
     currentProblem: 'Type your current password.',
     newProblem: 'A new password is 8 to 128 characters.',
     passwordChanged: 'Password changed. Every other place is signed out.',
@@ -233,6 +238,7 @@ const en: Messages = {
     saveReceiving: 'Save account',
     saveGender: 'Save gender',
     unsaved: 'Not saved',
+    leaveUnsaved: 'Some changes on this page are not saved. Leaving loses what you typed. Leave anyway?',
     cardTitle: 'How your housemates see you',
     noStatus: 'No status yet',
     photoHint: 'Your housemates see it wherever your avatar is. Without one, your avatar is your initial.',

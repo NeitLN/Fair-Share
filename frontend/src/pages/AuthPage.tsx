@@ -7,11 +7,12 @@ import { login, register } from '../api/households'
 import type { Session } from '../api/types'
 import { Avatar } from '../components/Avatar'
 import LanguageSwitch from '../components/LanguageSwitch'
+import PasswordInput from '../components/PasswordInput'
 import ThemeSwitch from '../components/ThemeSwitch'
 import { Wordmark } from '../components/Wordmark'
 import { errorMessage } from '../lib/errors'
 import type { MemberLook } from '../lib/names'
-import { signIn } from '../lib/session'
+import { sessionEnded, signIn } from '../lib/session'
 import { useWide } from '../lib/useWide'
 import { useT } from '../i18n'
 
@@ -38,10 +39,11 @@ function AuthPage() {
   // Someone opening a housemate's /join/CODE link is most likely new: they start on Tạo tài khoản and
   // are told why they are here
   const invited = useLocation().pathname.startsWith('/join/')
-  const [mode, setMode] = useState<Mode>(invited ? 'register' : 'signIn')
+  // Read once: the line belongs to this visit of the sign-in page
+  const [ended] = useState(sessionEnded)
+  const [mode, setMode] = useState<Mode>(invited && !ended ? 'register' : 'signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState('')
   const [problems, setProblems] = useState<Partial<Record<'email' | 'password' | 'name', string>>>({})
 
@@ -92,6 +94,12 @@ function AuthPage() {
       <h1 id="auth-title">
         {invited ? t.auth.invitedTitle : mode === 'register' ? t.auth.registerTitle : t.auth.title}
       </h1>
+      {/* Signed out by the server or another tab, not by Đăng xuất here: said, not left to guess */}
+      {ended && mode === 'signIn' && (
+        <p className="note" role="status">
+          {t.auth.sessionEnded}
+        </p>
+      )}
       {invited ? (
         <p className="note ok">{t.auth.invited}</p>
       ) : (
@@ -152,28 +160,15 @@ function AuthPage() {
         <div className="field">
           <label htmlFor="auth-password">{t.auth.password}</label>
           {/* Hiện / Ẩn inside the field, so a long password can be checked before it is sent */}
-          <div className="password-field">
-            <input
-              id="auth-password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-              value={password}
-              maxLength={128}
-              disabled={busy}
-              aria-invalid={problems.password ? true : undefined}
-              aria-describedby={problems.password ? 'auth-password-problem' : 'auth-password-hint'}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              aria-controls="auth-password"
-              aria-label={showPassword ? t.auth.hidePasswordLabel : t.auth.showPasswordLabel}
-              onClick={() => setShowPassword((shown) => !shown)}
-            >
-              {showPassword ? t.auth.hidePassword : t.auth.showPassword}
-            </button>
-          </div>
+          <PasswordInput
+            id="auth-password"
+            autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+            value={password}
+            disabled={busy}
+            invalid={Boolean(problems.password)}
+            describedBy={problems.password ? 'auth-password-problem' : 'auth-password-hint'}
+            onChange={setPassword}
+          />
           {mode === 'register' && !problems.password && (
             <p id="auth-password-hint" className="hint">
               {t.auth.passwordHint} {t.auth.noReset}

@@ -10,6 +10,9 @@ export function errorMessage(error: unknown): string | null {
   if (!error) return null
   const t = messages()
   if (error instanceof ApiError) {
+    // Locked out after wrong guesses: say how long, not "a while" (review 12/11, E09)
+    if (error.code === 'too_many_attempts' && error.retryAfter)
+      return t.failure.tryAgainIn(Math.max(1, Math.ceil(error.retryAfter / 60)))
     return t.errors[error.code] ?? error.message
   }
   return t.failure.unexpected

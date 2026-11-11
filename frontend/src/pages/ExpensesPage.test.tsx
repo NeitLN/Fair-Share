@@ -1038,3 +1038,46 @@ describe('a save on its way', () => {
     expect(screen.getByLabelText('Nội dung').closest('form')).not.toHaveAttribute('aria-busy')
   })
 })
+
+// Review 12/11, E10/F16: a new expense being typed survives a reload or a sign-in again in this tab, with its
+// draft, so a save whose answer was lost does not become two after the reload (specs/020)
+describe('the expense being typed is kept in this tab', () => {
+  test('a reload brings back what was typed and the same draft', async () => {
+    let calls = 0
+    const fetchFn = api({
+      'POST /api/households/7/expenses': (body) =>
+        ++calls === 1 ? Promise.reject(new TypeError('Failed to fetch')) : [200, saved(11, body as ExpenseInput)],
+    })
+    const user = userEvent.setup()
+    const first = renderApp('/households/7/expenses')
+    await user.type(await screen.findByLabelText('Nội dung'), 'Đi chợ')
+    await user.type(screen.getByLabelText('Số tiền'), '347,5k')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    await screen.findByText(/^Chưa nhận được kết quả/)
+    first.unmount()
+
+    renderApp('/households/7/expenses')
+    expect(await screen.findByLabelText('Nội dung')).toHaveValue('Đi chợ')
+    expect(screen.getByLabelText('Số tiền')).toHaveValue('347,5k')
+    await user.click(screen.getByRole('button', { name: 'Lưu khoản chi' }))
+    expect(await screen.findByText(/^Đã lưu: Đi chợ/)).toBeInTheDocument()
+    const posts = fetchFn.mock.calls
+      .filter(([url, init]) => url === '/api/households/7/expenses' && init?.method === 'POST')
+      .map(([, init]) => JSON.parse(init?.body as string) as ExpenseInput)
+    expect(posts[1].draft_id).toBe(posts[0].draft_id)
+    // Saved: nothing is kept any more
+    await waitFor(() => expect(screen.getByLabelText('Nội dung')).toHaveValue(''))
+    expect(Object.keys(sessionStorage).filter((key) => key.startsWith('fair-share:expense-draft:'))).toEqual([])
+  })
+
+  test('another account on the same tab does not get it', async () => {
+    api()
+    const user = userEvent.setup()
+    const first = renderApp('/households/7/expenses')
+    await user.type(await screen.findByLabelText('Nội dung'), 'Đi chợ')
+    first.unmount()
+    // The kept draft belongs to testUser (id 9) in house 7, never to anyone else
+    expect(sessionStorage.getItem('fair-share:expense-draft:9:7')).toContain('Đi chợ')
+    expect(Object.keys(sessionStorage).filter((key) => key.startsWith('fair-share:expense-draft:'))).toHaveLength(1)
+  })
+})

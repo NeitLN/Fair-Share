@@ -153,3 +153,24 @@ test('on a computer the stickers carry a line that says what they stand for', as
 
   expect(await screen.findByText('Một nhà, nhiều người. Chi tiêu vẫn rõ ràng.')).toBeInTheDocument()
 })
+
+// Review 12/11, E10/F16: a session the server stopped accepting signs out and says so on the sign-in page
+test('a session that ended says so on the sign-in page', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => json(401, { error: { code: 'not_signed_in', message: 'no' } })),
+  )
+  renderApp('/')
+  expect(await screen.findByText(/^Phiên đăng nhập đã kết thúc/)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Đăng nhập')
+})
+
+test('another tab signing out signs this one out too, and says why', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => json(200, { households: [], pending: [] })))
+  renderApp('/')
+  await screen.findByRole('heading', { level: 1 })
+  // What another tab does: the stored session goes, and this tab hears it
+  localStorage.removeItem('fair-share:session')
+  window.dispatchEvent(new StorageEvent('storage', { key: 'fair-share:session', newValue: null }))
+  expect(await screen.findByText(/^Phiên đăng nhập đã kết thúc/)).toBeInTheDocument()
+})

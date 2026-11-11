@@ -7,6 +7,7 @@ import banks from '../data/vietqr-banks.json'
 import { useT } from '../i18n'
 import { cleanAscii } from '../lib/cleanAscii'
 import { errorMessage } from '../lib/errors'
+import { useUnsaved } from '../lib/unsaved'
 
 // Only the banks that take VietQR account transfers can be chosen (FR-016); the server checks too
 const CHOICES = banks.banks.filter((bank) => bank.transfer)
@@ -133,6 +134,8 @@ function ReceivingAccountForm() {
   const dirty =
     editing &&
     (bank !== (saved?.bank_bin ?? '') || number !== (saved?.account_number ?? '') || holder !== (saved?.holder_name ?? ''))
+  // Leaving the page with it asks first (review 12/11, F09)
+  useUnsaved('receiving', Boolean(dirty))
 
   return (
     <section className="profile-part" aria-labelledby="profile-receiving-title">

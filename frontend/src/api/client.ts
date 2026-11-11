@@ -11,19 +11,22 @@ export class ApiError extends Error {
   readonly code: string
   /** What the server added for the page, e.g. the expense a 409 conflicts with. */
   readonly details: unknown
+  /** Seconds to wait before trying again, from a 429 of the guessing limits (app/auth.py). */
+  readonly retryAfter?: number
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(status: number, code: string, message: string, details?: unknown, retryAfter?: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
     this.details = details
+    this.retryAfter = retryAfter
   }
 }
 
 type ErrorBody = {
   // Our format (docs/ARCHITECTURE.md §5): {"error": {"code": "...", "message": "..."}}
-  error?: { code?: string; message?: string; details?: unknown }
+  error?: { code?: string; message?: string; details?: unknown; retry_after?: unknown }
   // FastAPI's default format, until every route uses ours
   detail?: unknown
 }
@@ -36,7 +39,14 @@ async function toApiError(response: Response): Promise<ApiError> {
     // Not JSON (e.g. an HTML page from a proxy); fall through to the generic message
   }
   if (body.error?.message) {
-    return new ApiError(response.status, body.error.code ?? 'error', body.error.message, body.error.details)
+    const wait = body.error.retry_after
+    return new ApiError(
+      response.status,
+      body.error.code ?? 'error',
+      body.error.message,
+      body.error.details,
+      typeof wait === 'number' && wait > 0 ? wait : undefined,
+    )
   }
   if (typeof body.detail === 'string') {
     return new ApiError(response.status, 'error', body.detail)
@@ -104,7 +114,7 @@ export async function request<T>(path: string, init: RequestInit = {}, { countsA
     if (changed()) throw sessionChanged()
 
     // The session ended (logged out elsewhere, or expired): back to the sign-in page
-    if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut()
+    if (response.status === 401 && session && !SIGN_IN_ROUTES.test(path)) signOut('ended')
     if (!response.ok) throw await toApiError(response)
     let body: unknown
     try {

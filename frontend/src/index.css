@@ -3404,6 +3404,12 @@ button.ai:active:focus-visible {
   padding-right: 76px;
 }
 
+/* Edge draws its own eye in a password field: one way to show it, ours (review 12/11, D16) */
+.password-field input::-ms-reveal,
+.password-field input::-ms-clear {
+  display: none;
+}
+
 .password-field .password-toggle {
   position: absolute;
   top: 50%;

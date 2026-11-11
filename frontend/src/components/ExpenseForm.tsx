@@ -6,6 +6,7 @@ import { guessCategory } from '../lib/categories'
 import { monthNumber } from '../lib/expenseFilters'
 import { keptPeople } from '../lib/recurring'
 import { newDraftId } from '../lib/draftId'
+import { readKept, writeKept } from '../lib/keptDraft'
 import { dayLabel, isDayInRange, MAX_DAY, MIN_DAY, today } from '../lib/date'
 import { formatVND } from '../lib/money'
 import { memberLooks, REMOVED_MEMBER } from '../lib/names'
@@ -93,6 +94,11 @@ interface ExpenseFormProps {
    * the focus (specs/011-first-impressions, FR-002 to FR-004). Null when nothing failed.
    */
   serverError?: FormError | null
+  /**
+   * Where this tab keeps a new expense being typed (lib/keptDraft.ts), so a reload or a session that ended
+   * does not lose it. Not for an edit or a recurring item's month.
+   */
+  keepAs?: string
 }
 
 /** Whether the one-time equal prefill of Tự chia (FR-014) may still run, has run, or must never run. */
@@ -118,6 +124,7 @@ function ExpenseForm({
   onCancel,
   submitting,
   serverError = null,
+  keepAs,
 }: ExpenseFormProps) {
   const t = useT()
   const editing = Boolean(initial)
@@ -134,37 +141,51 @@ function ExpenseForm({
 
   // Filled from a recurring item: only the people still in the house, and who was left out (FR-008)
   const [kept] = useState(() => (fromItem ? keptPeople(fromItem, members) : null))
-  const [description, setDescription] = useState(initial?.description ?? fromItem?.description ?? '')
+  // A new expense typed in this tab before a reload, or before the session ended (lib/keptDraft.ts)
+  const [saved] = useState(() => (keepAs && !initial && !fromItem ? readKept(keepAs) : null))
+  const isMember = (id: number) => members.some((m) => m.id === id)
+  const [description, setDescription] = useState(initial?.description ?? fromItem?.description ?? saved?.description ?? '')
   const [amountText, setAmountText] = useState(
-    initial ? String(initial.amount) : fromItem?.amount ? String(fromItem.amount) : '',
+    initial ? String(initial.amount) : fromItem?.amount ? String(fromItem.amount) : (saved?.amountText ?? ''),
   )
   const [payerId, setPayerId] = useState<number | ''>(
-    initial?.payer_id ?? (kept ? (kept.payerId ?? '') : validPayer(defaultPayer)),
+    initial?.payer_id ??
+      (kept
+        ? (kept.payerId ?? '')
+        : saved && (saved.payerId === '' || isMember(saved.payerId))
+          ? saved.payerId
+          : validPayer(defaultPayer)),
   )
   // The payer is still the default (not chosen by the user, not filled or cleared by the AI): only then
   // may a change of "Bạn là ai?" move it. Its value alone cannot tell, the AI may fill the same person.
-  const [payerIsDefault, setPayerIsDefault] = useState(!initial && !fromItem)
-  const [spentAt, setSpentAt] = useState(initial?.spent_at ?? today())
-  const [splitType, setSplitType] = useState<SplitType>(initial?.split_type ?? 'equal')
+  const [payerIsDefault, setPayerIsDefault] = useState(!initial && !fromItem && (saved?.payerIsDefault ?? true))
+  const [spentAt, setSpentAt] = useState(initial?.spent_at ?? saved?.spentAt ?? today())
+  const [splitType, setSplitType] = useState<SplitType>(initial?.split_type ?? saved?.splitType ?? 'equal')
   // Danh mục (specs/005-expense-categories): guessed from the description until the user picks one.
   // Editing keeps the stored one; an AI fill sets the description, so the guess follows it too.
   const [pickedCategory, setPickedCategory] = useState<Category | null>(
-    initial ? (initial.category ?? 'other') : (fromItem?.category ?? null),
+    initial ? (initial.category ?? 'other') : (fromItem?.category ?? saved?.pickedCategory ?? null),
   )
   const category = pickedCategory ?? guessCategory(description)
   // Equal split: who takes part. A new expense starts with everyone.
   const [selected, setSelected] = useState<Set<number>>(
-    () => new Set(initial ? initialShares.keys() : kept ? kept.memberIds : members.map((m) => m.id)),
+    () => {
+      if (initial) return new Set(initialShares.keys())
+      if (kept) return new Set(kept.memberIds)
+      // Kept people who are still here; nobody left is everyone, as for a new expense
+      const still = saved?.selected.filter(isMember) ?? []
+      return new Set(still.length > 0 ? still : members.map((m) => m.id))
+    },
   )
   // "Lặp lại hằng tháng" (specs/007-recurring-expenses): only when adding, never when recording an item
-  const [repeat, setRepeat] = useState(false)
-  const [varying, setVarying] = useState(false)
+  const [repeat, setRepeat] = useState(saved?.repeat ?? false)
+  const [varying, setVarying] = useState(saved?.varying ?? false)
   const offerRepeat = !editing && !fromItem
   // Custom split: what each person typed, kept as text so "240.000" stays as typed.
   const [customText, setCustomText] = useState<Record<number, string>>(() =>
     initial?.split_type === 'custom'
       ? Object.fromEntries([...initialShares].map(([id, amount]) => [id, String(amount)]))
-      : {},
+      : (saved?.customText ?? {}),
   )
   const [problems, setProblems] = useState<Problems>({})
   // After a failed save, every edit checks the form again, so the summary moves to the next problem
@@ -180,10 +201,12 @@ function ExpenseForm({
   const keyOnConfirm = useRef(false)
   const saving = useRef(false)
   // The draft's identity, made at its first press (draftId() below); '' until then
-  const draft = useRef('')
+  const draft = useRef(saved?.draftId ?? '')
   // While the save is on its way nothing in the form changes (specs/018, FR-007)
   const lock = useSaveLock(submitting)
-  const [prefill, setPrefill] = useState<Prefill>(initial?.split_type === 'custom' ? 'off' : 'pending')
+  const [prefill, setPrefill] = useState<Prefill>(
+    initial?.split_type === 'custom' ? 'off' : saved && Object.keys(saved.customText).length > 0 ? 'done' : 'pending',
+  )
   // The date and the split are folded: the 90% case is "today, everyone, equally"
   const [dateOpen, setDateOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
@@ -200,7 +223,7 @@ function ExpenseForm({
   }
 
   // AI quick add: what the user changed by hand is never overwritten, and a fill can be undone
-  const [touched, setTouched] = useState<Set<FillField>>(new Set())
+  const [touched, setTouched] = useState<Set<FillField>>(() => new Set(saved?.touched ?? []))
   const [justFilled, setJustFilled] = useState<Set<FillField>>(new Set())
   const [fromAi, setFromAi] = useState(false)
   // e.g. "AI chia cho cả nhà, bạn kiểm tra lại.": only while the split the AI filled is untouched
@@ -252,6 +275,33 @@ function ExpenseForm({
     if (!field) return
     focusField.current = null
     focusTarget(field)
+  })
+
+  // What is typed is kept in this tab after every change, with the draft's identity; once saved (the form
+  // empties) or never typed, nothing is kept (lib/keptDraft.ts; review 12/11, E10/F16)
+  useEffect(() => {
+    if (!keepAs || initial || fromItem) return
+    const typed = description.trim() !== '' || amountText.trim() !== ''
+    writeKept(
+      keepAs,
+      typed
+        ? {
+            draftId: draft.current,
+            description,
+            amountText,
+            payerId,
+            payerIsDefault,
+            spentAt,
+            splitType,
+            selected: [...selected],
+            customText,
+            pickedCategory,
+            repeat,
+            varying,
+            touched: [...touched],
+          }
+        : null,
+    )
   })
 
   /** Scrolls a field into view (instantly when the person asked for less motion) and focuses it. */
