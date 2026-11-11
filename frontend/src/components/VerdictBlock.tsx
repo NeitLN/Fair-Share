@@ -7,7 +7,8 @@ import { formatVND } from '../lib/money'
 import { MAX_AMOUNT } from '../lib/split'
 import { REMOVED_MEMBER } from '../lib/names'
 import type { MemberLook } from '../lib/names'
-import type { FocusIntent, TransferCard } from '../lib/usePaidTransfers'
+import { classify } from '../lib/notices'
+import type { FocusIntent, PayOutcome, ToldAnswer, TransferCard } from '../lib/usePaidTransfers'
 import { transferText, verdict, verdictPeople } from '../lib/verdict'
 import { Avatar } from './Avatar'
 import FoldMore from './FoldMore'
@@ -42,7 +43,7 @@ interface VerdictBlockProps {
    * `told`: the receiver's "Đã nhận" on the "Tôi đã chuyển" notice of that version, for `transfer.amount`
    * (all of it, or less with "Nhận số khác", specs/014).
    */
-  onPaid: (transfer: Transfer, told?: { version: number }, onDone?: (problem: string | null) => void) => void
+  onPaid: (transfer: Transfer, told?: ToldAnswer, onDone?: (outcome: PayOutcome) => void) => void
   onUndo: (paymentId: number) => void
   /** A focus move asked for by the last Đã trả or Hoàn tác, and how to say it is done. */
   focusIntent?: () => FocusIntent | null
@@ -114,6 +115,8 @@ interface PartDraft {
   amount: number
   problem: string | null
   sending: boolean
+  /** Above the suggestion: warned about this one (specs/019, FR-004); the next Gửi records with it. */
+  warned?: number
 }
 
 function VerdictBlock({
@@ -233,15 +236,6 @@ function VerdictBlock({
       return act(transfer, ...rest)
     })
 
-  // "Vì sao ra số này?" from the line under the debtor's action: the same fold, opened and focused
-  function openExplanation() {
-    const fold = explainFold.current
-    if (!fold) return
-    fold.open = true
-    fold.querySelector('summary')?.focus()
-    fold.scrollIntoView?.({ block: 'nearest' })
-  }
-
   async function copy() {
     try {
       await navigator.clipboard.writeText(reminder)
@@ -279,11 +273,13 @@ function VerdictBlock({
   const people = verdictPeople(owed, me)
 
   // A notice whose pair is no longer suggested (an expense or another repayment changed the balances)
-  // keeps its own card, so it can still be answered or taken back: the money may have moved. A declined
-  // one only matters to the person who told it.
-  const onScreen = new Set(cards.map((card) => pairOf(card.transfer)))
+  // keeps its own card, so it can still be answered or taken back: the money may have moved. Decided from
+  // the suggestions only, so a stamped card of the same pair never hides it (specs/019, FR-001). A
+  // declined one only matters to the person who told it.
+  const paying = new Set(cards.filter((card) => card.state === 'paying').map((card) => pairOf(card.transfer)))
   const leftOver: TransferCard[] = (onlyReceiver ? (notices ?? []) : [])
-    .filter((n) => !onScreen.has(pairOf(n)) && (n.status === 'sent' || n.from_member_id === me))
+    .filter((n) => classify(n, suggested).kind === 'unmatched' && !paying.has(pairOf(n)))
+    .filter((n) => n.status === 'sent' || n.from_member_id === me)
     .map((n) => ({
       key: `told-${pairOf(n)}`,
       transfer: { from_member_id: n.from_member_id, to_member_id: n.to_member_id, amount: n.amount },
@@ -293,7 +289,10 @@ function VerdictBlock({
   // not move while you press it
   const aboutMe = (card: TransferCard) =>
     me !== null && (card.transfer.from_member_id === me || card.transfer.to_member_id === me)
-  const all = [...cards, ...leftOver]
+  // The one transfer you must make is already the block's action: not repeated as a row (FR-014)
+  const toTellNow = onlyReceiver && me !== null ? suggested.filter((t) => t.from_member_id === me) : []
+  const repeated = toTellNow.length === 1 ? `open-${pairOf(toTellNow[0])}` : null
+  const all = [...cards.filter((card) => card.key !== repeated), ...leftOver]
   const mine = all.filter(aboutMe)
   const others = all.filter((card) => !aboutMe(card))
   const shown = [...mine, ...others]
@@ -301,6 +300,27 @@ function VerdictBlock({
   const toTell = onlyReceiver && me !== null ? suggested.filter((t) => t.from_member_id === me) : []
   // Nothing to list and nothing to copy: no empty panel under the answer
   const hasPanel = Boolean((onlyReceiver && noticesError) || shown.length > 0 || error || suggested.length > 0)
+
+  // FR-002, FR-004a: the receiver, the one who told, everyone else
+  const unmatchedLine = (transfer: Transfer, notice: Notice | undefined) => {
+    const from = nameOf(transfer.from_member_id)
+    const to = nameOf(transfer.to_member_id)
+    const amount = <Money amount={transfer.amount} />
+    if (me === transfer.to_member_id) {
+      return (
+        <>
+          {t.notices.unmatchedToMe(from, amount)}
+          {suggested.length === 0 && t.notices.houseSettled}
+        </>
+      )
+    }
+    if (me === transfer.from_member_id) {
+      return notice?.status === 'declined'
+        ? t.notices.declinedUnmatched(to, amount)
+        : t.notices.unmatchedFromMe(amount, to)
+    }
+    return t.notices.unmatchedOthers(from, amount, to)
+  }
 
   const renderCard = (card: TransferCard) => {
     const { transfer } = card
@@ -316,7 +336,14 @@ function VerdictBlock({
       >
         <Avatar look={lookOf(transfer.from_member_id)} size="sm" decorative />
         <span id={textId} className="transfer-text">
-          {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
+          {card.key.startsWith('told-') ? (
+            // Not suggested any more: said for what it is, never as a debt (specs/019, FR-002)
+            unmatchedLine(transfer, notices?.find((n) => pairOf(n) === pair))
+          ) : (
+            <>
+              {transferText(transfer, me, nameOf, done)} <Money amount={transfer.amount} />
+            </>
+          )}
         </span>
         {done ? (
           <span className="transfer-done">
@@ -422,14 +449,8 @@ function VerdictBlock({
               )
             })}
             {/* Why one transfer to one person (specs/014 US4): said once, under every action */}
-            <p className="debtor-hint">
-              {t.verdict.combinedHint}{' '}
-              {explanation && (
-                <button type="button" className="btn-ghost" onClick={openExplanation}>
-                  {t.explain.open}
-                </button>
-              )}
-            </p>
+            {/* One "Vì sao ra số này?", the fold under the amount (specs/019, FR-015) */}
+            <p className="debtor-hint">{t.verdict.combinedHint}</p>
           </div>
         )}
         {refreshError && (
@@ -661,6 +682,13 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
             withNote
             submitLabel={t.verdict.send}
             busy={busy}
+            busyLabel={t.verdict.notifying}
+            // The rest of what is owed, when the 10^12 limit is not what stops it (specs/019, FR-021)
+            fill={
+              rest <= MAX_AMOUNT - sent.amount
+                ? { amount: rest, line: t.notices.onlyMore(formatVND(rest)), label: t.notices.addExact(formatVND(rest)) }
+                : undefined
+            }
             serverProblem={problem}
             onSubmit={(amount, typed) => void told(onAddToNotice?.(transfer, { amount, note: typed }))}
             onCancel={close}
@@ -715,6 +743,13 @@ function DebtorAction({ transfer, notice, nameOf, known, busy, onNotify, onAddTo
           withNote
           submitLabel={t.verdict.send}
           busy={busy}
+          busyLabel={t.verdict.notifying}
+          // What is owed, unless the 10^12 limit is what stops it (specs/019, FR-021)
+          fill={
+            tooLarge
+              ? undefined
+              : { amount: ceiling, line: t.notices.onlyNeed(to, formatVND(ceiling)), label: t.notices.tellExact(formatVND(ceiling)) }
+          }
           serverProblem={problem}
           onSubmit={(amount, typed) => void told(onNotify?.(transfer, { amount, note: typed }))}
           onCancel={close}
@@ -741,7 +776,7 @@ interface ReceiverOnlyProps {
   /** "Nhận số khác" on its way or refused: the step stays open with it (specs/018). */
   partDraft?: PartDraft
   onPartDraft: (draft: PartDraft | null) => void
-  onPaid: (transfer: Transfer, told?: { version: number }, onDone?: (problem: string | null) => void) => void
+  onPaid: (transfer: Transfer, told?: ToldAnswer, onDone?: (outcome: PayOutcome) => void) => void
   onNotify?: (transfer: Transfer) => void
   onCancelNotice?: (transfer: Transfer) => void
   onDecline?: (transfer: Transfer) => void
@@ -782,6 +817,11 @@ function ReceiverOnly({
   // "Nhận số khác": the receiver records less than was told; the rest keeps waiting (specs/014)
   const [partOpen, setPartOpen] = useState(() => partDraft !== undefined)
   const partOpener = useRef<HTMLButtonElement>(null)
+  // The over-suggestion warning on screen, for the notice version and suggestion it named (specs/019)
+  const [warn, setWarn] = useState<{ amount: number; suggestion: number; version: number } | null>(null)
+  const nowSuggested = outdated ? 0 : transfer.amount
+  // Withdrawn when the notice or the suggestion changed since it was shown (FR-005)
+  if (warn && (warn.version !== told?.version || warn.suggestion !== nowSuggested)) setWarn(null)
   const cancel = (
     <button
       type="button"
@@ -797,15 +837,81 @@ function ReceiverOnly({
 
   if (transfer.to_member_id === me) {
     const asTold = told && { ...transfer, amount: told.amount }
+    // What is suggested from them right now: nothing for a notice that no longer matches (specs/019)
+    const suggestion = outdated ? 0 : transfer.amount
+    // More than the suggestion asks first, then records with the suggestion it named (FR-003, FR-004)
+    const record = (amount: number, warned?: number) => {
+      if (!told || !asTold) return
+      if (amount > suggestion && warned === undefined) {
+        setWarn({ amount, suggestion, version: told.version })
+        return
+      }
+      setWarn(null)
+      onPaid({ ...asTold, amount }, {
+        version: told.version,
+        warned,
+        onWarn: (now) => setWarn({ amount, suggestion: now, version: told.version }),
+      })
+    }
+    const warning = warn && (
+      <div className="notice-warning" role="status">
+        <p>
+          {warn.suggestion === 0
+            ? t.notices.warnUnmatched(from, formatVND(warn.amount))
+            : t.notices.warnOver(from, formatVND(warn.suggestion), formatVND(warn.amount), formatVND(warn.amount - warn.suggestion))}
+        </p>
+        <span className="debtor-buttons">
+          <button type="button" className="btn-secondary" data-action="record-anyway" onClick={() => record(warn.amount, warn.suggestion)}>
+            {t.notices.record}
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => setWarn(null)}>
+            {t.notices.back}
+          </button>
+        </span>
+      </div>
+    )
+    // Not suggested any more: the main answer records nothing; recording it anyway warns first (FR-003)
+    if (outdated && asTold && told) {
+      return (
+        <>
+          {told.note && (
+            <span className="transfer-status">
+              <small className="notice-note">“{told.note}”</small>
+            </span>
+          )}
+          <span className="transfer-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              aria-describedby={textId}
+              data-action="decline"
+              disabled={busy || card.state === 'paying' || !known}
+              onClick={() => onDecline?.(asTold)}
+            >
+              {t.notices.skip}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              aria-describedby={textId}
+              data-action="pay"
+              disabled={busy || card.state === 'paying' || !known || warn !== null}
+              onClick={() => record(asTold.amount)}
+            >
+              {card.state === 'paying' ? t.verdict.paying : t.notices.recordAnyway}
+            </button>
+          </span>
+          {warning}
+        </>
+      )
+    }
     return (
       <>
         {asTold ? (
           <span className="transfer-status">
             <small id={statusId}>
               {t.verdict.toldMe(from)} <Money amount={asTold.amount} />
-              {outdated
-                ? t.verdict.receiverNotSuggested
-                : asTold.amount !== transfer.amount && t.verdict.receiverCurrent(from, <Money amount={transfer.amount} />)}
+              {asTold.amount !== transfer.amount && t.verdict.receiverCurrent(from, <Money amount={transfer.amount} />)}
             </small>
             {told.note && <small className="notice-note">“{told.note}”</small>}
           </span>
@@ -816,6 +922,7 @@ function ReceiverOnly({
             </span>
           )
         )}
+        {warning}
         <span className="transfer-actions">
           <button
             type="button"
@@ -824,7 +931,7 @@ function ReceiverOnly({
             aria-describedby={told ? `${textId} ${statusId}` : textId}
             data-action="pay"
             disabled={card.state === 'paying' || busy || !known}
-            onClick={() => (asTold && told ? onPaid(asTold, { version: told.version }) : onPaid(transfer))}
+            onClick={() => (asTold && told ? record(asTold.amount) : onPaid(transfer))}
           >
             {card.state === 'paying' ? (
               t.verdict.paying
@@ -874,10 +981,26 @@ function ReceiverOnly({
             busy={card.state === 'paying' || busy || partDraft?.sending === true}
             serverProblem={partDraft?.problem ?? null}
             onSubmit={(amount) => {
+              const warnFor = (now: number) =>
+                now === 0
+                  ? t.notices.warnUnmatched(from, formatVND(amount))
+                  : t.notices.warnOver(from, formatVND(now), formatVND(amount), formatVND(amount - now))
+              // Above the suggestion: warned inside the step first; the same amount again records it (FR-004)
+              const warned = partDraft?.amount === amount ? partDraft.warned : undefined
+              if (amount > suggestion && warned === undefined) {
+                onPartDraft({ amount, problem: warnFor(suggestion), sending: false, warned: suggestion })
+                return
+              }
               // Open until it is recorded; a refusal or no answer is said inside the step (FR-009, FR-016)
               onPartDraft({ amount, problem: null, sending: true })
-              onPaid({ ...asTold, amount }, { version: told.version }, (problem) =>
-                onPartDraft(problem === null ? null : { amount, problem, sending: false }),
+              onPaid({ ...asTold, amount }, { version: told.version, warned }, (outcome) =>
+                onPartDraft(
+                  outcome.kind === 'done'
+                    ? null
+                    : outcome.kind === 'warn'
+                      ? { amount, problem: warnFor(outcome.suggestion), sending: false, warned: outcome.suggestion }
+                      : { amount, problem: outcome.line, sending: false },
+                ),
               )
             }}
             onCancel={() => {
@@ -898,10 +1021,12 @@ function ReceiverOnly({
         <span className="transfer-status">
           <small>
             {told ? (
-              <>
-                {t.verdict.toldWaiting(to)}
-                {outdated && <> {t.verdict.outdated}</>}
-              </>
+              // The same amounts as the block above (specs/019, FR-013)
+              told.amount < transfer.amount ? (
+                t.notices.rowPartial(<Money amount={told.amount} />, <Money amount={transfer.amount - told.amount} />, to)
+              ) : (
+                t.verdict.toldWaiting(to)
+              )
             ) : declined ? (
               t.verdict.declinedBy(to)
             ) : (
@@ -914,26 +1039,20 @@ function ReceiverOnly({
     if (told) {
       return (
         <>
-          <span className="transfer-status">
-            <small>
-              {outdated ? t.verdict.toldNotSuggested(<Money amount={told.amount} />, to) : t.verdict.toldWaiting(to)}
-            </small>
-            {told.note && <small className="notice-note">“{told.note}”</small>}
-          </span>
+          {/* Not suggested any more: the card's own line says it (specs/019, FR-002) */}
+          {(!outdated || told.note) && (
+            <span className="transfer-status">
+              {!outdated && <small>{t.verdict.toldWaiting(to)}</small>}
+              {told.note && <small className="notice-note">“{told.note}”</small>}
+            </span>
+          )}
           <span className="transfer-actions">{cancel}</span>
         </>
       )
     }
-    // Declined, and not suggested any more: nothing to tell again, only to take back
+    // Declined, and not suggested any more: the card's line says why (FR-004a); only to take back
     if (outdated) {
-      return (
-        <>
-          <span className="transfer-status">
-            <small>{t.verdict.declinedBy(to)}</small>
-          </span>
-          <span className="transfer-actions">{cancel}</span>
-        </>
-      )
+      return <span className="transfer-actions">{cancel}</span>
     }
     return (
       <>
@@ -957,6 +1076,8 @@ function ReceiverOnly({
     )
   }
 
+  // Someone else's notice that is not suggested any more: the card's line is all there is to say
+  if (outdated) return null
   return (
     <span className="transfer-status">
       <small>{told ? t.verdict.toldOthers(from, to) : t.verdict.notPaidYet}</small>

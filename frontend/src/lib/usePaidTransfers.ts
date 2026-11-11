@@ -43,6 +43,18 @@ interface Payment {
   recordedAtFetch: number
 }
 
+/** The receiver's answer to a notice: its version, and the suggestion they were warned about (specs/019). */
+export interface ToldAnswer {
+  version: number
+  /** Set after the over-suggestion warning: the suggestion it named (0: none), checked by the server. */
+  warned?: number
+  /** The server asks for that warning first (409 warning_required): the card shows it, not an error. */
+  onWarn?: (suggestion: number) => void
+}
+
+/** How a recording ended, for a card or step that waits for it (specs/018, FR-009; specs/019, FR-006). */
+export type PayOutcome = { kind: 'done' } | { kind: 'problem'; line: string } | { kind: 'warn'; suggestion: number }
+
 const pairKey = (t: Transfer) => `${t.from_member_id}-${t.to_member_id}`
 
 /**
@@ -130,7 +142,7 @@ export function usePaidTransfers(
    * (all of it, or part with "Nhận số khác"), which records it and takes it out of the notice in one go,
    * once however many times it is pressed (docs/ACCOUNTS.md, S3; specs/014).
    */
-  function pay(transfer: Transfer, told?: { version: number }, onDone?: (problem: string | null) => void): number | null {
+  function pay(transfer: Transfer, told?: ToldAnswer, onDone?: (outcome: PayOutcome) => void): number | null {
     const pair = pairKey(transfer)
     if (recording.current.has(pair)) return null
     recording.current.add(pair)
@@ -166,8 +178,8 @@ export function usePaidTransfers(
     id: number,
     transfer: Transfer,
     pair: string,
-    told?: { version: number },
-    onDone?: (problem: string | null) => void,
+    told?: ToldAnswer,
+    onDone?: (outcome: PayOutcome) => void,
   ) {
     try {
       const settlement = told
@@ -175,6 +187,7 @@ export function usePaidTransfers(
             version: told.version,
             received: transfer.amount,
             settledAt: today(),
+            warnedSuggestion: told.warned,
           })
         : await createSettlement(householdId, { ...transfer, settled_at: today() })
       if (deletedSettlements.current.has(settlement.id)) {
@@ -190,13 +203,22 @@ export function usePaidTransfers(
         )
         if (dismiss) toastOf.current.set(id, dismiss)
       }
-      onDone?.(null)
+      onDone?.({ kind: 'done' })
       void refresh()
     } catch (failure) {
       change(id, null)
+      // More than is suggested now, and not warned yet: the card shows the warning (specs/019, FR-006)
+      const warning = failure instanceof ApiError && failure.code === 'warning_required'
+      if (warning && (told?.onWarn || onDone)) {
+        const suggestion = (failure.details as { suggestion?: number } | undefined)?.suggestion ?? 0
+        if (told?.onWarn) told.onWarn(suggestion)
+        else onDone?.({ kind: 'warn', suggestion })
+        void refresh()
+        return
+      }
       // Not sent, or sent with no answer: said in those words (specs/018, A5)
       const line = outcomeLine('A5', failure, messages()) ?? errorMessage(failure)
-      if (onDone) onDone(line ?? messages().common.tryAgain)
+      if (onDone) onDone({ kind: 'problem', line: line ?? messages().common.tryAgain })
       else if (alive.current) setError(line)
       // Refused (the notice changed since), or no answer at all (it may have been recorded): what is on
       // screen may be old, so the notices and balances are read again before anything else is pressed
@@ -275,6 +297,10 @@ export function usePaidTransfers(
 
   return {
     cards: shown,
+    /** Repayments whose stamped card still offers Hoàn tác: their history row offers no Xoá (specs/019, FR-016). */
+    undoable: new Set(
+      payments.filter((p) => p.state === 'paid' && p.settlementId !== null).map((p) => p.settlementId as number),
+    ),
     /** The suggestions still to pay, without the ones being recorded: the cards and the reminder. */
     outstanding,
     /** The same, but a payment still being recorded counts as owed: the verdict sentence and total. */

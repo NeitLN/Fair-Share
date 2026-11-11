@@ -637,10 +637,12 @@ const en: Messages = {
     loading: 'Loading repayments',
     describe: (from: string, to: string, amount: string) => `the repayment from ${from} to ${to} of ${amount}`,
     confirmDelete: (what: string) => `Delete ${what}?`,
-    confirmDeleteGivesBack: (what: string, from: string, amount: string) =>
-      `Delete ${what}? ${from}'s notice of ${amount} will be waiting for you again.`,
-    confirmDeleteNoGiveBack: (what: string, from: string) =>
-      `Delete ${what}? ${from} has told you about another payment, so this amount will not go back to a notice; ${from} may need to tell you again.`,
+    confirmDeleteGivesBack: (what: string, from: string, to: string, amount: string) =>
+      `Delete ${what}? The ${amount} ${from} told goes back to told money, waiting for ${to} to confirm again.`,
+    confirmDeleteAddsBack: (what: string, from: string, to: string, amount: string, total: string) =>
+      `Delete ${what}? The ${amount} ${from} told goes back to told money (${total} in all), waiting for ${to} to confirm again.`,
+    confirmDeleteResends: (what: string, from: string, to: string, amount: string, declined: string) =>
+      `Delete ${what}? The ${amount} ${from} told goes back to told money, and the ${declined} ${to} said had not arrived waits for ${to} to confirm again too.`,
     whichMoney: 'This payment is',
     toldMoney: (from: string, amount: string) => `The money ${from} told you about (${amount})`,
     otherMoney: 'Another payment',
@@ -808,6 +810,52 @@ const en: Messages = {
     custom: 'custom',
   },
   notFound: { title: "Can't find this page" },
+  notices: {
+    unmatchedToMe: (from: string, amount: ReactNode) => (
+      <>
+        {from} told you they sent {amount}, but right now {from} doesn't need to pay you.
+      </>
+    ),
+    houseSettled: ' (everyone is settled up)',
+    unmatchedFromMe: (amount: ReactNode, to: string) => (
+      <>
+        You told {to} you sent {amount}; right now you don't need to pay {to}, and {to} hasn't answered.
+      </>
+    ),
+    declinedUnmatched: (to: string, amount: ReactNode) => (
+      <>
+        {to} didn't record {amount} because right now you don't need to pay {to}.
+      </>
+    ),
+    unmatchedOthers: (from: string, amount: ReactNode, to: string) => (
+      <>
+        {from} told {to} they sent {amount}
+      </>
+    ),
+    skip: "Don't record this",
+    recordAnyway: 'Record it anyway',
+    record: 'Record',
+    back: 'Back',
+    warnUnmatched: (from: string, amount: string) =>
+      `Right now ${from} doesn't need to pay you; recording ${amount} works out the house's balances again.`,
+    warnOver: (from: string, suggestion: string, amount: string, excess: string) =>
+      `Right now ${from} needs to pay you ${suggestion}; recording ${amount} is ${excess} more, and the house's balances are worked out again.`,
+    rowPartial: (told: ReactNode, missing: ReactNode, to: string) => (
+      <>
+        Told {told}, {missing} still missing, waiting for {to} to confirm.
+      </>
+    ),
+    raceDeclined: (to: string, amount: string) => `${to} said ${amount} hasn't arrived.`,
+    raceConfirmed: (to: string, amount: string) => `${to} confirmed ${amount}.`,
+    raceTakenBack: 'This notice was taken back.',
+    raceChanged: 'The numbers just changed and were reloaded.',
+    raceUnread: "The numbers just changed; they couldn't be reloaded yet.",
+    onlyNeed: (to: string, max: string) => `You only need to pay ${to} ${max}.`,
+    tellExact: (max: string) => `Tell ${max}`,
+    onlyMore: (max: string) => `You only need to add ${max}.`,
+    addExact: (max: string) => `Add ${max}`,
+    toldEnough: "You've told the whole amount.",
+  },
   save: {
     close: 'Close',
     A1: {

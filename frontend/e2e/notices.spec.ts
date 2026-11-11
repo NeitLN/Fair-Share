@@ -132,3 +132,84 @@ test('a part told with a note, "Báo thêm" for the rest, and one confirmation o
     expect(response.status(), 'test household deleted').toBe(204)
   }
 })
+
+// specs/019: deleting a repayment taken from told money puts it back into the notice, and telling too much
+// offers the right amount. Shared accounts (Tiến receives, An owes), own house, deleted at the end.
+async function owedHouse(request: import('@playwright/test').APIRequestContext, label: string) {
+  const tien = shared('Tiến')
+  const an = shared('An')
+  const name = `E2E ${label} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+  const household = await (await request.post(`${API}/api/households`, { data: { name }, headers: bearer(tien) })).json()
+  const anId = await addMember(request, household.id, tien, an)
+  await request.post(`${API}/api/households/${household.id}/expenses`, {
+    data: {
+      description: 'Tiền điện', amount: 200_000, payer_id: household.member_id, spent_at: new Date().toISOString().slice(0, 10),
+      split: { type: 'equal', member_ids: [household.member_id, anId] },
+    },
+    headers: bearer(tien),
+  }) // An owes Tiến 100.000đ
+  return { household, tien, an, tienId: household.member_id as number, anId }
+}
+
+const noticesOf = async (request: import('@playwright/test').APIRequestContext, householdId: number, token: string) =>
+  (await (await request.get(`${API}/api/households/${householdId}/notices`, { headers: { Authorization: `Bearer ${token}` } })).json()) as {
+    amount: number
+    status: string
+    version: number
+  }[]
+
+test('deleting a repayment taken from told money puts it back into the notice', async ({ page, request }) => {
+  const { household, tien, an, tienId } = await owedHouse(request, 'give back')
+  try {
+    // An tells 100.000đ; Tiến records 60.000đ of it by hand: 40.000đ keeps waiting
+    await request.put(`${API}/api/households/${household.id}/notices`, {
+      data: { to_member_id: tienId, amount: 100_000, version: null },
+      headers: bearer(an),
+    })
+    const [told] = await noticesOf(request, household.id, tien.token)
+    const anMember = (await (await request.get(`${API}/api/households/${household.id}/members`, { headers: bearer(tien) })).json())
+      .find((m: { id: number }) => m.id !== tienId).id
+    await request.post(`${API}/api/households/${household.id}/settlements`, {
+      data: { from_member_id: anMember, to_member_id: tienId, amount: 60_000, settled_at: new Date().toISOString().slice(0, 10),
+        notice: { version: told.version } },
+      headers: bearer(tien),
+    })
+    expect((await noticesOf(request, household.id, tien.token)).map((n) => n.amount)).toEqual([40_000])
+
+    await signInPage(page, tien)
+    await page.goto(`/households/${household.id}`)
+    let asked = ''
+    page.once('dialog', (dialog) => {
+      asked = dialog.message()
+      void dialog.accept()
+    })
+    await page.getByRole('button', { name: /^Xoá khoản An trả Tiến 60\.000đ/ }).click()
+    await expect.poll(() => asked).toContain('60.000đ An đã báo sẽ trở lại thành tiền đã báo (thành 100.000đ)')
+    expect(asked).not.toContain('thông báo khác')
+    await expect.poll(async () => (await noticesOf(request, household.id, tien.token)).map((n) => [n.amount, n.status])).toEqual([
+      [100_000, 'sent'],
+    ])
+  } finally {
+    await deleteHousehold(request, household.id, tien)
+  }
+})
+
+test('telling more than owed offers the right amount', async ({ page, request }) => {
+  const { household, tien, an } = await owedHouse(request, 'fill')
+  try {
+    await page.setViewportSize({ width: 360, height: 740 })
+    await signInPage(page, an)
+    await page.goto(`/households/${household.id}`)
+    await page.getByRole('button', { name: 'Chuyển số khác' }).click()
+    const amount = page.getByLabel('Số tiền đã chuyển')
+    await amount.fill('150000')
+    await page.getByRole('button', { name: 'Gửi' }).click()
+    await expect(page.getByText('Bạn chỉ cần trả Tiến 100.000đ.')).toBeVisible()
+    await page.getByRole('button', { name: 'Báo 100.000đ' }).click()
+    await expect(amount).toHaveValue('100000')
+    await page.getByRole('button', { name: 'Gửi' }).click()
+    await expect.poll(async () => (await noticesOf(request, household.id, tien.token)).map((n) => n.amount)).toEqual([100_000])
+  } finally {
+    await deleteHousehold(request, household.id, tien)
+  }
+})

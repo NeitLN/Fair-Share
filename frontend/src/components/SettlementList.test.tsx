@@ -128,8 +128,9 @@ describe('SettlementList', () => {
 })
 
 
-// specs/014: deleting a repayment recorded from a notice says what happens to that money
-test('deleting a repayment from a notice says whether it goes back to a notice', async () => {
+// specs/019, FR-011: deleting a repayment recorded from a notice says the money goes back, and the total
+// when the pair's notice is on screen; never "thông báo khác"
+test('deleting a repayment from a notice says the told money goes back', async () => {
   const confirm = vi.fn(() => false)
   vi.stubGlobal('confirm', confirm)
   // Minh (1) paid Tiến (2) from a notice
@@ -139,7 +140,9 @@ test('deleting a repayment from a notice says whether it goes back to a notice',
     <SettlementList settlements={[fromNotice]} looks={looksForNotice} onDelete={vi.fn()} notices={[]} />,
   )
   await userEvent.click(screen.getByRole('button', { name: /^Xoá/ }))
-  expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/Minh sẽ lại có thông báo 60\.000đ chờ bạn xác nhận\.$/))
+  expect(confirm).toHaveBeenLastCalledWith(
+    expect.stringMatching(/60\.000đ Minh đã báo sẽ trở lại thành tiền đã báo, chờ Tiến xác nhận lại\.$/),
+  )
   rerender(
     <SettlementList
       settlements={[fromNotice]}
@@ -149,6 +152,19 @@ test('deleting a repayment from a notice says whether it goes back to a notice',
     />,
   )
   await userEvent.click(screen.getByRole('button', { name: /^Xoá/ }))
-  expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/Minh đang có thông báo khác/))
+  expect(confirm).toHaveBeenLastCalledWith(expect.stringMatching(/\(thành 65\.000đ\), chờ Tiến xác nhận lại\.$/))
+  rerender(
+    <SettlementList
+      settlements={[fromNotice]}
+      looks={looksForNotice}
+      onDelete={vi.fn()}
+      notices={[{ from_member_id: 1, to_member_id: 2, amount: 5_000, status: 'declined', created_at: '', version: 4 }]}
+    />,
+  )
+  await userEvent.click(screen.getByRole('button', { name: /^Xoá/ }))
+  expect(confirm).toHaveBeenLastCalledWith(
+    expect.stringMatching(/và 5\.000đ Tiến đã báo chưa nhận được cũng sẽ chờ Tiến xác nhận lại\.$/),
+  )
+  expect(confirm).not.toHaveBeenCalledWith(expect.stringMatching(/thông báo khác/))
   vi.unstubAllGlobals()
 })

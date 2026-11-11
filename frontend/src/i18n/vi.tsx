@@ -646,11 +646,14 @@ const vi = {
     loading: 'Đang tải các khoản trả',
     describe: (from: string, to: string, amount: string) => `khoản ${from} trả ${to} ${amount}`,
     confirmDelete: (what: string) => `Xoá ${what}?`,
-    // Deleting a repayment recorded from a notice (specs/014, FR-011a)
-    confirmDeleteGivesBack: (what: string, from: string, amount: string) =>
-      `Xoá ${what}? ${from} sẽ lại có thông báo ${amount} chờ bạn xác nhận.`,
-    confirmDeleteNoGiveBack: (what: string, from: string) =>
-      `Xoá ${what}? ${from} đang có thông báo khác, nên số này không trở lại thông báo; ${from} có thể cần báo lại.`,
+    // Deleting a repayment recorded from a notice puts that money back into the pair's notice (specs/019,
+    // FR-011): said with the total only when the pair's notice is on screen
+    confirmDeleteGivesBack: (what: string, from: string, to: string, amount: string) =>
+      `Xoá ${what}? ${amount} ${from} đã báo sẽ trở lại thành tiền đã báo, chờ ${to} xác nhận lại.`,
+    confirmDeleteAddsBack: (what: string, from: string, to: string, amount: string, total: string) =>
+      `Xoá ${what}? ${amount} ${from} đã báo sẽ trở lại thành tiền đã báo (thành ${total}), chờ ${to} xác nhận lại.`,
+    confirmDeleteResends: (what: string, from: string, to: string, amount: string, declined: string) =>
+      `Xoá ${what}? ${amount} ${from} đã báo sẽ trở lại thành tiền đã báo, và ${declined} ${to} đã báo chưa nhận được cũng sẽ chờ ${to} xác nhận lại.`,
     // A repayment typed in while the payer's notice waits (specs/014, FR-008)
     whichMoney: 'Khoản này là',
     toldMoney: (from: string, amount: string) => `Tiền ${from} đã báo (${amount})`,
@@ -827,6 +830,53 @@ const vi = {
     custom: 'tự chia',
   },
   notFound: { title: 'Không tìm thấy trang' },
+  // Notices that tell one story (specs/019, contracts/ui-contract.md)
+  notices: {
+    unmatchedToMe: (from: string, amount: ReactNode) => (
+      <>
+        {from} đã báo chuyển {amount} cho bạn, nhưng lúc này {from} không cần trả bạn nữa.
+      </>
+    ),
+    houseSettled: ' (cả nhà đã sạch nợ)',
+    unmatchedFromMe: (amount: ReactNode, to: string) => (
+      <>
+        Bạn đã báo chuyển {amount} cho {to}; lúc này bạn không cần trả {to} nữa, {to} chưa trả lời.
+      </>
+    ),
+    declinedUnmatched: (to: string, amount: ReactNode) => (
+      <>
+        {to} không ghi {amount} vì lúc này bạn không cần trả {to}.
+      </>
+    ),
+    unmatchedOthers: (from: string, amount: ReactNode, to: string) => (
+      <>
+        {from} đã báo chuyển {amount} cho {to}
+      </>
+    ),
+    skip: 'Không ghi khoản này',
+    recordAnyway: 'Vẫn ghi đã nhận',
+    record: 'Ghi',
+    back: 'Thôi',
+    warnUnmatched: (from: string, amount: string) =>
+      `Lúc này ${from} không cần trả bạn; ghi ${amount} thì số dư cả nhà sẽ tính lại.`,
+    warnOver: (from: string, suggestion: string, amount: string, excess: string) =>
+      `Lúc này ${from} cần trả bạn ${suggestion}; ghi ${amount} là nhiều hơn ${excess}, số dư cả nhà sẽ tính lại.`,
+    rowPartial: (told: ReactNode, missing: ReactNode, to: string) => (
+      <>
+        Đã báo {told}, còn thiếu {missing}, chờ {to} xác nhận.
+      </>
+    ),
+    raceDeclined: (to: string, amount: string) => `${to} đã báo chưa nhận được ${amount}.`,
+    raceConfirmed: (to: string, amount: string) => `${to} đã xác nhận ${amount}.`,
+    raceTakenBack: 'Thông báo này đã được huỷ.',
+    raceChanged: 'Số liệu vừa thay đổi, đã tải lại.',
+    raceUnread: 'Số liệu vừa thay đổi; chưa tải lại được.',
+    onlyNeed: (to: string, max: string) => `Bạn chỉ cần trả ${to} ${max}.`,
+    tellExact: (max: string) => `Báo ${max}`,
+    onlyMore: (max: string) => `Chỉ cần báo thêm ${max}.`,
+    addExact: (max: string) => `Báo thêm ${max}`,
+    toldEnough: 'Bạn đã báo đủ số cần trả.',
+  },
   // What a money write says when it was not sent (offline) or its result is unknown (specs/018, FR-016).
   // An unknown line is shown alone, never after "Chưa lưu được:" (FR-016a).
   save: {
