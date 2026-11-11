@@ -66,7 +66,10 @@ test('a new password keeps this browser signed in and signs the other one out', 
   await phone.getByLabel('Mật khẩu hiện tại').fill('e2e-password-not-secret')
   await phone.getByLabel('Mật khẩu mới').fill('e2e-new-password-1')
   await phone.getByRole('button', { name: 'Đổi mật khẩu' }).click()
-  await expect(phone.getByText('Đã đổi mật khẩu. Các nơi khác đã đăng xuất.')).toBeVisible()
+  // The slowest answer in this file: argon2id twice (the old password checked, the new one hashed) and
+  // every other session ended, on the free instance. A live run failed once on one of this test's waits
+  // (12/11, log lost) and passed on retry; this one is the likely one, so it gets 30 s like invite.spec
+  await expect(phone.getByText('Đã đổi mật khẩu. Các nơi khác đã đăng xuất.')).toBeVisible({ timeout: 30_000 })
 
   const other = await browser.newPage()
   await other.addInitScript(() => localStorage.setItem('fair-share:language', 'vi'))
