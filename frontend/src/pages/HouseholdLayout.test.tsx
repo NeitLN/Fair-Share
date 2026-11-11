@@ -82,7 +82,8 @@ test('a non-numeric id never reaches the API', async () => {
   const fetchFn = mockApi({})
   renderApp('/households/abc')
   expect(await screen.findByRole('heading', { level: 1, name: 'Không tìm thấy nhà này' })).toBeInTheDocument()
-  expect(fetchFn).not.toHaveBeenCalled()
+  // Only the header's own avatar is asked for (specs/017, US5); nothing about the house
+  expect(fetchFn.mock.calls.filter(([url]) => url !== '/api/me/photo')).toHaveLength(0)
 })
 
 test('the house shows three of its people, then how many more, named for screen readers', async () => {

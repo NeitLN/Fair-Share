@@ -125,6 +125,7 @@ Weights loaded: Be Vietnam Pro 400, 500, 700; Bricolage Grotesque 800. Nothing e
 | Component | Spec |
 |---|---|
 | **Avatar** | Circle, 32 px (26 small, 44 large). Background tint per §3 (stable, no repeats up to 8), initial of the **last word** of the name in `--on-fill`, 2 px `--edge` ring, 2 px `--sticker-shadow` offset. `title` and accessible name = full name. A stack shows at most 3, then `+n`. With a photo (spec 010) the photo fills the same circle (`object-fit: cover`), same ring and shadow, `alt=""` so the name is read once; while it loads or if it fails, the initial |
+| **Account button** | The header's 44 px round button that opens the account menu (specs/017, US5): the person's own avatar inside it, 34 px, the same as on the profile (the photo, or the initial on the tint of their user id; a house's member list picks colours per house, so there it may differ). Decorative: the button keeps its name "Tài khoản: …". The photo loads once per session and follows a change on the profile without a reload |
 | **Money** | `<Money amount={n} />` → `120.000<span class="cur">đ</span>`; sign variants `+` (credit text) and `−` (debt text, a real minus `U+2212`). Replaces `formatVND`'s "₫" everywhere |
 | **Chip** | 12 px 700, pill. `credit` mint, `debt` pink, `ai` yellow (`✦ AI`): text `--on-fill`. `me` (*bạn*) is the exception: background `--ink`, text `--bg` (16:1 both themes) |
 | **Stamp ĐÃ TRẢ** | Mint sticker, 3 px edge, −8°, on a transfer the moment it is recorded; animation: scale 1.7 → 1 in 240 ms with a slight overshoot (the one deliberate bounce in the app; instant under reduce motion). The card turns `--surface-2`, never faded |
@@ -687,7 +688,7 @@ khoản*, *Xoá*), the focus goes to what appears in the same part, never to the
 * **Tên của bạn**: the display name and *Lưu tên* on one line where they fit, with "Đổi ở đây là đổi tên của
   bạn ở mọi nhà đang ở."; saving the same name again brings back a household the owner renamed. The answer
   is "Đã đổi tên ở mọi nhà." in a green note, or one line per household that kept the old name: "Ở Nhà B đã
-  có người tên Lan, nên ở đó bạn vẫn là Tiến." The account initial in the header follows at once.
+  có người tên Lan, nên ở đó bạn vẫn là Tiến." The account button in the header follows at once.
 * **Trạng thái**: one line and *Lưu trạng thái*, placeholder "VD: đang ăn kiêng 🥗"; the hint counts "10/60
   ký tự" (an emoji is one) and stays when there is a problem, which comes under it; *Xoá trạng thái* (quiet)
   when one is set.
