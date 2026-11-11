@@ -31,8 +31,8 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 ### Phase 1: Setup (PR-A)
 
-- [ ] T001 Open a GitHub issue "Tổng quan reads right on phones (spec 012, PR-A)" with US1–US3 acceptance scenarios as the definition of done, and create branch `feat/012-overview` from `main`
-- [ ] T002 [P] Add the PR-A strings in both languages, in new keys only: `verdict.debtorSend(amount, name)` "Tôi đã chuyển {amount} cho {name}" / "I've sent {amount} to {name}", `verdict.debtorSent(amount, name)` "Đã báo chuyển {amount}, chờ {name} xác nhận." / "Told {name} you sent {amount}; waiting for them to confirm.", `verdict.debtorDeclined(name)` "{name} báo chưa nhận được." / "{name} says it hasn't arrived.", `dashboard.inviteLead` "Fair-Share có ích khi bạn cùng phòng vào nhà." / "Fair-Share is useful once your housemates join.", `dashboard.waitingToJoin(n)` "Có {n} người đang chờ duyệt" / "{n} waiting for approval", in frontend/src/i18n/vi.tsx and frontend/src/i18n/en.tsx
+- [x] T001 Open a GitHub issue "Tổng quan reads right on phones (spec 012, PR-A)" with US1–US3 acceptance scenarios as the definition of done, and create branch `feat/012-overview` from `main`
+- [x] T002 [P] Add the PR-A strings in both languages, in new keys only: `verdict.debtorSend(amount, name)` "Tôi đã chuyển {amount} cho {name}" / "I've sent {amount} to {name}", `verdict.debtorSent(amount, name)` "Đã báo chuyển {amount}, chờ {name} xác nhận." / "Told {name} you sent {amount}; waiting for them to confirm.", `verdict.debtorDeclined(name)` "{name} báo chưa nhận được." / "{name} says it hasn't arrived.", `dashboard.inviteLead` "Fair-Share có ích khi bạn cùng phòng vào nhà." / "Fair-Share is useful once your housemates join.", `dashboard.waitingToJoin(n)` "Có {n} người đang chờ duyệt" / "{n} waiting for approval", in frontend/src/i18n/vi.tsx and frontend/src/i18n/en.tsx
 
 ### Phase 2: User Story 1, the main answer reads whole on a phone (P1) 🎯 MVP
 
@@ -40,10 +40,10 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: at 320, 360, 375, 390 px the sentence and the avatars do not intersect; a 13-digit amount is fully visible.
 
-- [ ] T003 [US1] Add a check to frontend/e2e/a11y.spec.ts: on a household where the signed-in person is owed by 3+ people, at viewports 320, 360, 375 and 390 px, the bounding boxes of `.verdict-sentence` and `.verdict-people` do not intersect, and `.verdict-total` is inside `.verdict` (its right edge ≤ the block's right edge)
-- [ ] T004 [US1] In frontend/src/index.css add `@media (max-width: 379px)` rules: `.verdict-people { position: static; display: flex; justify-content: flex-end; margin-bottom: 8px; }`, remove the right padding the sentence keeps for the avatars, `.verdict-total { font-size: 36px; }` and let the number wrap (`overflow-wrap: anywhere`) while the currency sign stays with the last digits; leave everything from 380 px unchanged
-- [ ] T005 [US1] If T004 needs the avatars before the sentence in the DOM for the static row, keep `aria-hidden` on the stack and the heading order unchanged in frontend/src/components/VerdictBlock.tsx; check the block at 1440 px still looks as on 07/11 (design C)
-- [ ] T006 [US1] Run T003 locally (`E2E_BASE_URL=http://localhost:3000 npx playwright test a11y`) and attach screenshots at 320, 360 and 1440 px, plus a 999.999.999.999đ balance at 320 px, to the PR
+- [x] T003 [US1] Add a check to frontend/e2e/a11y.spec.ts: on a household where the signed-in person is owed by 3+ people, at viewports 320, 360, 375 and 390 px, the bounding boxes of `.verdict-sentence` and `.verdict-people` do not intersect, and `.verdict-total` is inside `.verdict` (its right edge ≤ the block's right edge)
+- [x] T004 [US1] In frontend/src/index.css add `@media (max-width: 379px)` rules: `.verdict-people { position: static; display: flex; justify-content: flex-end; margin-bottom: 8px; }`, remove the right padding the sentence keeps for the avatars, `.verdict-total { font-size: 36px; }` and let the number wrap (`overflow-wrap: anywhere`) while the currency sign stays with the last digits; leave everything from 380 px unchanged
+- [x] T005 [US1] If T004 needs the avatars before the sentence in the DOM for the static row, keep `aria-hidden` on the stack and the heading order unchanged in frontend/src/components/VerdictBlock.tsx; check the block at 1440 px still looks as on 07/11 (design C)
+- [x] T006 [US1] Run T003 locally (`E2E_BASE_URL=http://localhost:3000 npx playwright test a11y`) and attach screenshots at 320, 360 and 1440 px, plus a 999.999.999.999đ balance at 320 px, to the PR
 
 ### Phase 3: User Story 2, the debtor sees the next step first (P1)
 
@@ -51,10 +51,10 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: as a debtor the first button under the block tells the receiver; as a creditor or settled person there is none.
 
-- [ ] T007 [US2] Write Vitest cases in frontend/src/pages/DashboardPage.test.tsx: (a) debtor with no notice sees one primary button "Tôi đã chuyển 2.286.500đ cho Tiến" directly after the total, pressing it sends the same request as today's button (`PUT /api/households/{id}/notices`); (b) debtor whose notice is `sent` sees "Đã báo chuyển …, chờ Tiến xác nhận." and "Huỷ thông báo", no button; (c) notice `declined` shows "Tiến báo chưa nhận được." and the button again; (d) debtor owing two people sees two buttons in suggestion order; (e) creditor and settled person see none; (f) the transfer list under the block shows no "Tôi đã chuyển" button for the debtor's own rows
-- [ ] T008 [US2] In frontend/src/components/VerdictBlock.tsx compute `mine` = suggested transfers whose `from_member_id === me`, and render a `DebtorAction` for each under the total and the "Vì sao ra số này?" fold: no notice → primary button (class of the app's primary buttons, full width below 720 px) calling the existing tell handler; `sent` → `verdict.debtorSent` + the existing take-back button; `declined` → `verdict.debtorDeclined` + the primary button
-- [ ] T009 [US2] In the same file, stop rendering the separate `ownTold` lines (now covered by `DebtorAction`) and pass a flag to `TransferCard` so the debtor's own rows keep their text and status but render no action button; other pairs unchanged
-- [ ] T010 [P] [US2] Add `.debtor-action` styles in frontend/src/index.css: 8 px gap from the fold, buttons at least 44 px tall, text readable on the purple block (white, 4.5:1)
+- [x] T007 [US2] Write Vitest cases in frontend/src/pages/DashboardPage.test.tsx: (a) debtor with no notice sees one primary button "Tôi đã chuyển 2.286.500đ cho Tiến" directly after the total, pressing it sends the same request as today's button (`PUT /api/households/{id}/notices`); (b) debtor whose notice is `sent` sees "Đã báo chuyển …, chờ Tiến xác nhận." and "Huỷ thông báo", no button; (c) notice `declined` shows "Tiến báo chưa nhận được." and the button again; (d) debtor owing two people sees two buttons in suggestion order; (e) creditor and settled person see none; (f) the transfer list under the block shows no "Tôi đã chuyển" button for the debtor's own rows
+- [x] T008 [US2] In frontend/src/components/VerdictBlock.tsx compute `mine` = suggested transfers whose `from_member_id === me`, and render a `DebtorAction` for each under the total and the "Vì sao ra số này?" fold: no notice → primary button (class of the app's primary buttons, full width below 720 px) calling the existing tell handler; `sent` → `verdict.debtorSent` + the existing take-back button; `declined` → `verdict.debtorDeclined` + the primary button
+- [x] T009 [US2] In the same file, stop rendering the separate `ownTold` lines (now covered by `DebtorAction`) and pass a flag to `TransferCard` so the debtor's own rows keep their text and status but render no action button; other pairs unchanged
+- [x] T010 [P] [US2] Add `.debtor-action` styles in frontend/src/index.css: 8 px gap from the fold, buttons at least 44 px tall, text readable on the purple block (white, 4.5:1)
 
 ### Phase 4: User Story 3, a new house points to the invite (P2)
 
@@ -62,9 +62,9 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: a fresh house shows the card and hides "Tháng này", balances and history; with a second member Tổng quan is unchanged.
 
-- [ ] T011 [US3] Write Vitest cases in frontend/src/pages/DashboardPage.test.tsx: members = [owner] → `InviteCard` with the code and "Fair-Share có ích khi bạn cùng phòng vào nhà.", no "Tháng này", no per-person balances, no repayment history, "+ Ghi khoản chi" still there; with one join request waiting → "Có 1 người đang chờ duyệt" linking to `members`; members = 2 → page as today
-- [ ] T012 [US3] In frontend/src/pages/DashboardPage.tsx add `const alone = members.data?.length === 1`; when `alone`, render `<InviteCard householdId={householdId} isOwner={…} />` (frontend/src/components/InviteCard.tsx, reused as is) with `dashboard.inviteLead` under "+ Ghi khoản chi", skip the month totals, balance rows and repayment history, and show `dashboard.waitingToJoin(n)` with a link to `members` when requests wait; while `members` is loading render as today
-- [ ] T013 [US3] Update docs/DESIGN.md §6.2 (Tổng quan): the coloured block below 380 px, the debtor's actions, and the one-person house
+- [x] T011 [US3] Write Vitest cases in frontend/src/pages/DashboardPage.test.tsx: members = [owner] → `InviteCard` with the code and "Fair-Share có ích khi bạn cùng phòng vào nhà.", no "Tháng này", no per-person balances, no repayment history, "+ Ghi khoản chi" still there; with one join request waiting → "Có 1 người đang chờ duyệt" linking to `members`; members = 2 → page as today
+- [x] T012 [US3] In frontend/src/pages/DashboardPage.tsx add `const alone = members.data?.length === 1`; when `alone`, render `<InviteCard householdId={householdId} isOwner={…} />` (frontend/src/components/InviteCard.tsx, reused as is) with `dashboard.inviteLead` under "+ Ghi khoản chi", skip the month totals, balance rows and repayment history, and show `dashboard.waitingToJoin(n)` with a link to `members` when requests wait; while `members` is loading render as today
+- [x] T013 [US3] Update docs/DESIGN.md §6.2 (Tổng quan): the coloured block below 380 px, the debtor's actions, and the one-person house
 
 **Checkpoint PR-A**: `npm run lint && npm test && npm run build`, local E2E green, screenshots in the PR. Open PR-A.
 
@@ -74,7 +74,7 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 ### Phase 5: Setup (PR-E)
 
-- [ ] T014 Open an issue "Vietnamese by default and clearer messages (spec 012, PR-E)" and create branch `feat/012-language-copy` from `main`
+- [x] T014 Open an issue "Vietnamese by default and clearer messages (spec 012, PR-E)" and create branch `feat/012-language-copy` from `main`
 
 ### Phase 6: User Story 6, Vietnamese by default (P3)
 
@@ -82,10 +82,10 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: fresh browser `vi-VN` or no language → Vietnamese; `en-US` → English; saved choice wins.
 
-- [ ] T015 [US6] Create frontend/src/i18n/language.test.ts with Vitest cases: no saved value + `navigator.languages = ['vi-VN']` → `vi`; `['en-US', 'vi']` → `en`; empty list and no `navigator.language` → `vi`; `localStorage` throwing → `vi`; saved `en` with a Vietnamese browser → `en`; saved `vi` with an English browser → `vi`
-- [ ] T016 [US6] Change `readLanguage()` in frontend/src/i18n/language.ts: saved value first; else `'en'` if `(navigator.languages?.[0] ?? navigator.language ?? '')` starts with `en` (case-insensitive), else `'vi'`; any exception → `'vi'`
-- [ ] T017 [US6] Run the whole Vitest suite and fix tests that assumed English by default by setting the language explicitly (`localStorage.setItem('fair-share:language', 'en')` in their setup), never by changing what they check
-- [ ] T018 [US6] Update frontend/e2e/english.spec.ts: `test.use({ locale: 'en-US' })` for the existing "first visit is English" test, and add a test with `locale: 'vi-VN'` asserting a first visit is in Vietnamese
+- [x] T015 [US6] Create frontend/src/i18n/language.test.ts with Vitest cases: no saved value + `navigator.languages = ['vi-VN']` → `vi`; `['en-US', 'vi']` → `en`; empty list and no `navigator.language` → `vi`; `localStorage` throwing → `vi`; saved `en` with a Vietnamese browser → `en`; saved `vi` with an English browser → `vi`
+- [x] T016 [US6] Change `readLanguage()` in frontend/src/i18n/language.ts: saved value first; else `'en'` if `(navigator.languages?.[0] ?? navigator.language ?? '')` starts with `en` (case-insensitive), else `'vi'`; any exception → `'vi'`
+- [x] T017 [US6] Run the whole Vitest suite and fix tests that assumed English by default by setting the language explicitly (`localStorage.setItem('fair-share:language', 'en')` in their setup), never by changing what they check
+- [x] T018 [US6] Update frontend/e2e/english.spec.ts: `test.use({ locale: 'en-US' })` for the existing "first visit is English" test, and add a test with `locale: 'vi-VN'` asserting a first visit is in Vietnamese
 
 ### Phase 7: User Story 7, words say exactly what happens (P3)
 
@@ -93,14 +93,14 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: each listed message in both languages, plus an empty house name and an empty sign-up name.
 
-- [ ] T019 [P] [US7] Add empty-field messages and use them before the length rule: `households.nameEmpty` in frontend/src/components/HouseholdCreateForm.tsx, `auth.nameEmpty` in frontend/src/pages/AuthPage.tsx, `profile.nameEmpty` in frontend/src/pages/AccountPage.tsx (only the name check; nothing else in that file); strings in frontend/src/i18n/vi.tsx and en.tsx as in contracts/ui-contract.md
-- [ ] T020 [US7] In frontend/src/pages/AuthPage.tsx render a field's hint only while that field has no problem, and point `aria-describedby` at the problem when there is one (as AccountPage does)
-- [ ] T021 [P] [US7] Update the recurring hint and the stop question in frontend/src/i18n/vi.tsx and en.tsx (FR-018): no "nhắc" / "remind"; "Hiện trên Tổng quan từ ngày {day} hằng tháng · không tự lưu khoản chi"
-- [ ] T022 [P] [US7] Update `errors.notice_changed` and `errors.suggestion_changed` in both languages (FR-019) to the texts in contracts/ui-contract.md
-- [ ] T023 [P] [US7] English only in frontend/src/i18n/en.tsx: `verdict.cancelNotice` → "Withdraw notice"; in `profile.nameHint`, `profile.renamedEverywhere`, `profile.renamedNoHouse`, `profile.statusHint` replace "household" with "group" (glossary at the top of en.tsx); search en.tsx for any other user-facing "household" and change it
-- [ ] T024 [US7] Shorten `profile.genderNotice` in both languages to the texts in contracts/ui-contract.md, and change the notice version from `2026-11-v1` to `2026-11-v2` in app/schemas.py (`GENDER_NOTICE`) and frontend/src/api/households.ts (`GENDER_NOTICE`); update every test that hard-codes `2026-11-v1` (frontend/src/pages/AccountPage.test.tsx) and add a pytest case in tests/test_gender.py that `2026-11-v1` is now refused with 422
-- [ ] T025 [US7] Write or update Vitest cases for T019–T023: empty house name shows "Nhập tên nhà."; empty sign-up name shows "Nhập tên của bạn." and its hint is gone while the error shows; the recurring hint text; the two conflict messages; the English "Withdraw notice" and "group" sentences
-- [ ] T026 [US7] Update docs/DESIGN.md §7 and §7.1 (copy and language default) and the glossary note at the top of frontend/src/i18n/en.tsx if it mentions the default language
+- [x] T019 [P] [US7] Add empty-field messages and use them before the length rule: `households.nameEmpty` in frontend/src/components/HouseholdCreateForm.tsx, `auth.nameEmpty` in frontend/src/pages/AuthPage.tsx, `profile.nameEmpty` in frontend/src/pages/AccountPage.tsx (only the name check; nothing else in that file); strings in frontend/src/i18n/vi.tsx and en.tsx as in contracts/ui-contract.md
+- [x] T020 [US7] In frontend/src/pages/AuthPage.tsx render a field's hint only while that field has no problem, and point `aria-describedby` at the problem when there is one (as AccountPage does)
+- [x] T021 [P] [US7] Update the recurring hint and the stop question in frontend/src/i18n/vi.tsx and en.tsx (FR-018): no "nhắc" / "remind"; "Hiện trên Tổng quan từ ngày {day} hằng tháng · không tự lưu khoản chi"
+- [x] T022 [P] [US7] Update `errors.notice_changed` and `errors.suggestion_changed` in both languages (FR-019) to the texts in contracts/ui-contract.md
+- [x] T023 [P] [US7] English only in frontend/src/i18n/en.tsx: `verdict.cancelNotice` → "Withdraw notice"; in `profile.nameHint`, `profile.renamedEverywhere`, `profile.renamedNoHouse`, `profile.statusHint` replace "household" with "group" (glossary at the top of en.tsx); search en.tsx for any other user-facing "household" and change it
+- [x] T024 [US7] Shorten `profile.genderNotice` in both languages to the texts in contracts/ui-contract.md, and change the notice version from `2026-11-v1` to `2026-11-v2` in app/schemas.py (`GENDER_NOTICE`) and frontend/src/api/households.ts (`GENDER_NOTICE`); update every test that hard-codes `2026-11-v1` (frontend/src/pages/AccountPage.test.tsx) and add a pytest case in tests/test_gender.py that `2026-11-v1` is now refused with 422
+- [x] T025 [US7] Write or update Vitest cases for T019–T023: empty house name shows "Nhập tên nhà."; empty sign-up name shows "Nhập tên của bạn." and its hint is gone while the error shows; the recurring hint text; the two conflict messages; the English "Withdraw notice" and "group" sentences
+- [x] T026 [US7] Update docs/DESIGN.md §7 and §7.1 (copy and language default) and the glossary note at the top of frontend/src/i18n/en.tsx if it mentions the default language
 
 **Checkpoint PR-E**: `ruff check .`, pytest (T024), lint, Vitest, build, local E2E (english.spec in both locales). Open PR-E.
 
@@ -110,7 +110,7 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 ### Phase 8: Setup (PR-L)
 
-- [ ] T027 Open an issue "House cards with balances, short lists, honest month filter (spec 012, PR-L)" and create branch `feat/012-lists-houses` from `main`
+- [x] T027 Open an issue "House cards with balances, short lists, honest month filter (spec 012, PR-L)" and create branch `feat/012-lists-houses` from `main`
 
 ### Phase 9: User Story 4, the list of houses says what is going on (P2)
 
@@ -118,12 +118,12 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: someone in two houses sees the right balance and badge on each card; 1440 px shows a grid.
 
-- [ ] T028 [US4] Write pytest cases in tests/test_households.py for `GET /api/households`: `my_net` equals the caller's `net` in `GET /api/households/{id}/balances` for a house with expenses and a repayment (positive, negative and 0); `waiting` counts pending join requests only for the owner, plus notices with `to_member_id` = the caller's member and `status = 'sent'` (a `declined` notice does not count); a member who is not the owner gets 0 for join requests; `pending` entries have neither field
-- [ ] T029 [US4] Extend the query in `list_my_households` in app/routers/households.py with `my_net` (for `hu.member_id`: paid − owed + sent − received, the same sub-selects as app/routers/balances.py) and `waiting` (`CASE WHEN hu.role = 'owner'` count of `household_users` rows with `role = 'pending'` in that house `END` + count of `payment_notices` with `to_member_id = hu.member_id AND status = 'sent'`), computed only for owner/member rows; add `my_net: int = 0` and `waiting: int = 0` to `MyHousehold` in app/schemas.py
-- [ ] T030 [P] [US4] Add `my_net?: number` and `waiting?: number` to `MyHousehold` in frontend/src/api/types.ts
-- [ ] T031 [US4] Write Vitest cases in frontend/src/components/HouseholdList.test.tsx: credit card shows "Bạn được nhận 5.633.500đ", debt card "Bạn cần trả …", zero "Đã xong"; `waiting: 2` shows a badge with accessible name "2 việc đang chờ bạn"; missing fields show only the name and still link to the house
-- [ ] T032 [US4] Update frontend/src/components/HouseholdList.tsx: name (wraps) + "Trưởng nhóm" chip with an 8 px gap, a second line with the balance using the app's `Money` component and colours, and a right-aligned badge when `waiting > 0`; new strings `households.youGet(amount)`, `households.youOwe(amount)`, `households.settled`, `households.waiting(n)` in vi.tsx and en.tsx
-- [ ] T033 [P] [US4] In frontend/src/index.css: `.household-list` becomes `display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px` from 1024 px, one column below; card at least 44 px tall; badge as a pill (`--debt` background, white text, 4.5:1)
+- [x] T028 [US4] Write pytest cases in tests/test_households.py for `GET /api/households`: `my_net` equals the caller's `net` in `GET /api/households/{id}/balances` for a house with expenses and a repayment (positive, negative and 0); `waiting` counts pending join requests only for the owner, plus notices with `to_member_id` = the caller's member and `status = 'sent'` (a `declined` notice does not count); a member who is not the owner gets 0 for join requests; `pending` entries have neither field
+- [x] T029 [US4] Extend the query in `list_my_households` in app/routers/households.py with `my_net` (for `hu.member_id`: paid − owed + sent − received, the same sub-selects as app/routers/balances.py) and `waiting` (`CASE WHEN hu.role = 'owner'` count of `household_users` rows with `role = 'pending'` in that house `END` + count of `payment_notices` with `to_member_id = hu.member_id AND status = 'sent'`), computed only for owner/member rows; add `my_net: int = 0` and `waiting: int = 0` to `MyHousehold` in app/schemas.py
+- [x] T030 [P] [US4] Add `my_net?: number` and `waiting?: number` to `MyHousehold` in frontend/src/api/types.ts
+- [x] T031 [US4] Write Vitest cases in frontend/src/components/HouseholdList.test.tsx: credit card shows "Bạn được nhận 5.633.500đ", debt card "Bạn cần trả …", zero "Đã xong"; `waiting: 2` shows a badge with accessible name "2 việc đang chờ bạn"; missing fields show only the name and still link to the house
+- [x] T032 [US4] Update frontend/src/components/HouseholdList.tsx: name (wraps) + "Trưởng nhóm" chip with an 8 px gap, a second line with the balance using the app's `Money` component and colours, and a right-aligned badge when `waiting > 0`; new strings `households.youGet(amount)`, `households.youOwe(amount)`, `households.settled`, `households.waiting(n)` in vi.tsx and en.tsx
+- [x] T033 [P] [US4] In frontend/src/index.css: `.household-list` becomes `display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px` from 1024 px, one column below; card at least 44 px tall; badge as a pill (`--debt` background, white text, 4.5:1)
 
 ### Phase 10: User Story 5, short lists and honest filters (P2)
 
@@ -131,12 +131,12 @@ PR-A and PR-E can be built in parallel; PR-L last.
 
 **Independent Test**: a 120-character description is two lines at 360 px; a month without expenses keeps its filter and says so.
 
-- [ ] T034 [US5] Write Vitest cases in frontend/src/components/ExpenseList.test.tsx: a long description has the full text in `title` and in the DOM; when clamped (mock `scrollHeight > clientHeight`), "Xem đủ" shows and removes the clamp for that row only; a short description shows no "Xem đủ"
-- [ ] T035 [US5] Add the clamp to `.expense-description` and the meta line in frontend/src/index.css (`display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere`) and the same for the description cell of the laptop table
-- [ ] T036 [US5] In frontend/src/components/ExpenseList.tsx and frontend/src/components/ExpenseTable.tsx: put the full description in `title`, measure after layout whether it is clamped, and show a "Xem đủ" / "Show all" text button (44 px target) that toggles a `.expanded` class on that row; string `expenses.showAll` in vi.tsx and en.tsx
-- [ ] T037 [US5] Write Vitest cases in frontend/src/pages/ExpensesPage.test.tsx: arriving with month 2026-09 (state from the report) when no expense is in September keeps the month filter, shows "Tháng 9/2026 chưa có khoản chi nào." and "Bỏ lọc" clears it; deleting the last expense of the filtered month keeps the filter and shows the same text
-- [ ] T038 [US5] In frontend/src/pages/ExpensesPage.tsx keep `chosen.month` whenever it is a valid `YYYY-MM` (drop the `months.includes` condition for the month only; keep the member rule), and in frontend/src/components/ExpenseFilters.tsx include the chosen month in the month options even without expenses and show the empty-month text `expenses.emptyMonth(month)` with "Bỏ lọc"
-- [ ] T039 [US5] Update docs/DESIGN.md §6.1 (house cards) and §6.3 (clamp, empty month)
+- [x] T034 [US5] Write Vitest cases in frontend/src/components/ExpenseList.test.tsx: a long description has the full text in `title` and in the DOM; when clamped (mock `scrollHeight > clientHeight`), "Xem đủ" shows and removes the clamp for that row only; a short description shows no "Xem đủ"
+- [x] T035 [US5] Add the clamp to `.expense-description` and the meta line in frontend/src/index.css (`display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere`) and the same for the description cell of the laptop table
+- [x] T036 [US5] In frontend/src/components/ExpenseList.tsx and frontend/src/components/ExpenseTable.tsx: put the full description in `title`, measure after layout whether it is clamped, and show a "Xem đủ" / "Show all" text button (44 px target) that toggles a `.expanded` class on that row; string `expenses.showAll` in vi.tsx and en.tsx
+- [x] T037 [US5] Write Vitest cases in frontend/src/pages/ExpensesPage.test.tsx: arriving with month 2026-09 (state from the report) when no expense is in September keeps the month filter, shows "Tháng 9/2026 chưa có khoản chi nào." and "Bỏ lọc" clears it; deleting the last expense of the filtered month keeps the filter and shows the same text
+- [x] T038 [US5] In frontend/src/pages/ExpensesPage.tsx keep `chosen.month` whenever it is a valid `YYYY-MM` (drop the `months.includes` condition for the month only; keep the member rule), and in frontend/src/components/ExpenseFilters.tsx include the chosen month in the month options even without expenses and show the empty-month text `expenses.emptyMonth(month)` with "Bỏ lọc"
+- [x] T039 [US5] Update docs/DESIGN.md §6.1 (house cards) and §6.3 (clamp, empty month)
 
 **Checkpoint PR-L**: `ruff check .`, pytest, lint, Vitest, build, local E2E. Open PR-L.
 
