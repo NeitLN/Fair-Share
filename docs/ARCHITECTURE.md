@@ -298,9 +298,9 @@ settlement must be members of the **same household** (composite foreign keys on
 | `GET/PATCH/DELETE /api/households/{id}` | One household | `404 household_not_found`; delete removes everything in it, `204` |
 | `GET/POST /api/households/{id}/members` | Members of a household, oldest first | `409 member_name_taken` (case-insensitive), `409 too_many_members` (50, the most one expense can be split between) |
 | `PATCH/DELETE /api/members/{id}` | Rename / remove member | `404 member_not_found`; `409 member_in_use` if in an expense or a settlement |
-| `GET/POST /api/households/{id}/expenses` | List (newest first by `spent_at`) / create | Body below; `422 split_mismatch`, `unknown_member`, `duplicate_member` |
+| `GET/POST /api/households/{id}/expenses` | List (newest first by `spent_at`) / create | Body below; `422 split_mismatch`, `unknown_member`, `duplicate_member`. With `draft_id`, pressing the same draft again gets the expense it made back (`200`) or `409 draft_already_saved` ([spec 020](../specs/020-no-double-save/spec.md), below) |
 | `GET/PUT/DELETE /api/expenses/{id}` | One expense with its shares | `PUT` replaces it, same body as create; `404 expense_not_found` |
-| `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?, notice?: {version}}`: with `notice` it is the money the payer told about and is taken out of that notice (`notice_amount` in the answer); `422 same_member`, `unknown_member`; `409 notice_changed` |
+| `GET/POST /api/households/{id}/settlements` | List (newest first) / record a payment | Body `{from_member_id, to_member_id, amount, settled_at, note?, notice?: {version}, draft_id?, draft_kind?}`: with `notice` it is the money the payer told about and is taken out of that notice (`notice_amount` in the answer); `422 same_member`, `unknown_member`; `409 notice_changed`. `draft_id` as for expenses; `draft_kind: "card"` (a suggested-transfer card) leaves the day out of the comparison. Each repayment carries its `draft_id` (or null) |
 | `DELETE /api/settlements/{id}` | Undo a mistaken settlement (there is no edit) | `204`; `404 settlement_not_found`. A repayment recorded from a notice gives its amount back as a waiting notice when the pair has none |
 | `GET/PUT /api/households/{id}/notices` | "Tôi đã chuyển": list / tell any amount up to the suggestion (rule S3) | Notices carry `note` and `version`; telling sends `{to_member_id, amount, note?, version}` (`version` null when the screen showed no notice); `409 notice_changed`, `409 suggestion_changed` |
 | `POST /api/households/{id}/notices/{to}/add` | "Báo thêm": more on a waiting notice ([spec 014](../specs/014-partial-transfer-notices/spec.md)) | Body `{amount, note?, version}`; the notice with the total; `409 notice_changed` (old version, declined or none), `409 suggestion_changed` (total above the suggestion), `422 amount_too_large` (above 10^12) |
@@ -388,11 +388,28 @@ FastAPI's interactive docs at `/docs` are the living API reference.
   "recurring_item_id": 7,                // this is item 7's expense for the month of spent_at
                                          // (404 recurring_not_found, 409 recurring_stopped,
                                          // 409 recurring_month_taken with details.expense_id)
+  "draft_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", // POST only, optional (spec 020): see below
   "split": {"type": "equal", "member_ids": [1, 2, 3]}
   // or:   {"type": "custom", "shares": [{"member_id": 1, "amount": 60000},
   //                                     {"member_id": 3, "amount": 40000}]}   // must sum to amount
 }
 ```
+
+**No double save** ([spec 020](../specs/020-no-double-save/spec.md)). The page gives each thing a person
+means to record once (the expense form, the repayment form, a suggested-transfer card) a version-4 UUID
+and sends it with every press. Under the house lock, the server takes a transaction lock on (house,
+account, `draft_id`) and looks the identity up before any other check:
+
+* no live record with it: an ordinary create, which stores the identity and a fingerprint of the
+  request (`201`);
+* a record with the same fingerprint: that record as it is now, nothing changed (`200`), even if the
+  month it took, a member removed or a notice changed since would refuse a first save;
+* a record with another fingerprint: `409 draft_already_saved` with `details: {kind, id}`, nothing
+  changed. The page offers "Xem" and "Ghi thành khoản mới" (a new draft).
+
+The fingerprint is the request as sent, normalized, never the row now: an edit by the owner does not
+turn an honest retry into a refusal. `source`, and the told notice with its version, are not part of
+it. A deleted record takes its identity with it. A request without `draft_id` behaves as before.
 
 The response adds `id`, `household_id`, `created_at`, the stored `shares` (in member id order, always
 summing to `amount`; an equal split of 100 000 between members 1, 2, 3 is 33 334 / 33 333 / 33 333) and

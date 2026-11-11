@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import type { APIRequestContext, Page } from '@playwright/test'
+import type { APIRequestContext, Page, Route } from '@playwright/test'
 
 import { addMember, API, bearer, deleteHousehold, shared, signInPage } from './accounts.js'
 
@@ -58,25 +58,39 @@ test('offline: nothing is sent, now or later, and the form keeps what was typed'
   }
 })
 
-test('sent with no answer: the result is unknown, and the list catches up without a reload', async ({ page, request }) => {
+test('sent with no answer: the result is unknown, the list catches up, and pressing again saves nothing twice', async ({
+  page,
+  request,
+}) => {
   const { id, tien } = await house(request, 'no answer')
   try {
     await openForm(page, id)
     // The server records it, but its answer never reaches the page
-    await page.route(/\/api\/households\/\d+\/expenses$/, async (route) => {
+    const lose = async (route: Route) => {
       if (route.request().method() !== 'POST') return route.fallback()
       await route.fetch()
       await route.abort('connectionreset')
-    })
+    }
+    await page.route(/\/api\/households\/\d+\/expenses$/, lose)
     await page.getByLabel('Nội dung').fill('Nước giặt')
     await page.getByLabel('Số tiền').fill('85k')
     await page.getByRole('button', { name: 'Lưu khoản chi' }).click()
+    // Pressing again is safe since specs/020-no-double-save (US4)
     await expect(page.locator('.form-summary')).toHaveText(
-      'Chưa nhận được kết quả. Có thể khoản chi đã được lưu, xem danh sách trước khi lưu lại.',
+      'Chưa nhận được kết quả. Có thể khoản chi đã được lưu; bấm Lưu lại cũng không ghi trùng.',
     )
     await expect(page.getByLabel('Nội dung')).toHaveValue('Nước giặt')
     // Read again on its own (0, 10, 30 s): the person sees it was saved before pressing again (SC-007)
     await expect(page.locator('.expense-days').getByText('Nước giặt')).toBeVisible({ timeout: 35_000 })
+
+    // The answer gets through now; the same draft pressed again gets that expense back (specs/020, SC-001)
+    await page.unroute(/\/api\/households\/\d+\/expenses$/, lose)
+    await page.getByRole('button', { name: 'Lưu khoản chi' }).click()
+    await expect(page.locator('.toast', { hasText: 'Đã lưu: Nước giặt' })).toBeVisible()
+    await expect(page.getByLabel('Nội dung')).toHaveValue('')
+    await expect(page.locator('.expense-days').getByText('Nước giặt')).toHaveCount(1)
+    const saved = await (await request.get(`${API}/api/households/${id}/expenses`, { headers: bearer(tien) })).json()
+    expect(saved.map((e: { description: string }) => e.description)).toEqual(['Nước giặt'])
   } finally {
     await deleteHousehold(request, id, tien)
   }
