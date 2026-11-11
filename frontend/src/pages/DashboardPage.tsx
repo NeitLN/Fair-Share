@@ -497,7 +497,14 @@ function Dashboard({ householdId }: { householdId: number }) {
             loadError={balances.data ? null : errorMessage(balances.error)}
             refreshError={balances.data ? errorMessage(balances.error) : null}
             onRetry={() => balances.refetch()}
-            onPaid={paid.pay}
+            onPaid={(transfer, told, onDone) => {
+              if (!told) return void paid.pay(transfer, told, onDone)
+              // The receiver's confirmation on the card: if the notice changed since, say who did what once
+              // the pair is read again, as for the other notice actions (specs/019, FR-020)
+              const before = snapshot(noticeOf(transfer), settlements.data)
+              clearRace()
+              void paid.pay(transfer, { ...told, onChanged: () => void explainRace(transfer, before) }, onDone)
+            }}
             onUndo={paid.undo}
             focusIntent={paid.focusIntent}
             onFocusDone={paid.clearFocusIntent}

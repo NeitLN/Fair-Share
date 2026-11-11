@@ -57,6 +57,11 @@ export interface ToldAnswer {
   warned?: number
   /** The server asks for that warning first (409 warning_required): the card shows it, not an error. */
   onWarn?: (suggestion: number) => void
+  /**
+   * A card's press refused because the notice changed since (409 notice_changed): the page reads the pair
+   * again and says who did what, instead of the refusal's own text (specs/019, FR-020).
+   */
+  onChanged?: () => void
 }
 
 /** How a recording ended, for a card or step that waits for it (specs/018, FR-009; specs/019, FR-006). */
@@ -273,6 +278,12 @@ export function usePaidTransfers(
         if (told?.onWarn) told.onWarn(suggestion)
         else onDone?.({ kind: 'warn', suggestion })
         void refresh()
+        return
+      }
+      // A card's confirmation lost a race: the page says what happened once it has read the pair again
+      if (!onDone && told?.onChanged && failure instanceof ApiError && failure.code === 'notice_changed') {
+        if (alive.current) setError(null)
+        told.onChanged()
         return
       }
       // Not sent, or sent with no answer: said in those words (specs/018, A5)
