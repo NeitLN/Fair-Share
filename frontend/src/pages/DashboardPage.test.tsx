@@ -1978,6 +1978,79 @@ describe('presses and races on a notice', () => {
   })
 })
 
+// specs/019, FR-020 on the receiver's card: a confirmation refused because the payer took the notice back
+// says so after one read, not the refusal's text (TODO 9, follow-up of #296)
+test('confirming a notice the payer just took back says so on the receiver side', async () => {
+  let takenBack = false
+  api({
+    'POST /api/households/7/notices/2/accept': () => {
+      takenBack = true
+      return [409, { error: { code: 'notice_changed', message: 'This notice was taken back' } }]
+    },
+    'GET /api/households/7/notices': () =>
+      takenBack ? [200, []] : [200, [{ from_member_id: 2, to_member_id: 1, amount: 90_000, status: 'sent', created_at: '', version: 1 }]],
+  })
+  const user = userEvent.setup()
+  renderApp('/households/7')
+  const card = within(await transfers()).getAllByRole('listitem')[0]
+  await user.click(await within(card).findByRole('button', { name: 'Xác nhận đã nhận 90.000đ' }))
+  expect(await screen.findByText('Thông báo này đã được huỷ.')).toBeInTheDocument()
+  expect(screen.queryByText('This notice was taken back')).not.toBeInTheDocument()
+  expect(screen.queryByText(/vừa thay đổi hoặc đã được trả lời/)).not.toBeInTheDocument()
+})
+
+// specs/019, FR-005: a warning shown for one notice version is withdrawn when the notice changes
+test('the over-suggestion warning goes away when the notice changes under it', async () => {
+  let version = 1
+  api({
+    'GET /api/households/7/notices': () => [
+      200,
+      [{ from_member_id: 2, to_member_id: 1, amount: 150_000, status: 'sent', created_at: '', version }],
+    ],
+  })
+  const user = userEvent.setup()
+  const { client } = renderApp('/households/7')
+  const card = within(await transfers()).getAllByRole('listitem')[0]
+  await user.click(await within(card).findByRole('button', { name: 'Xác nhận đã nhận 150.000đ' }))
+  const warning = 'Lúc này Minh cần trả bạn 100.000đ; ghi 150.000đ là nhiều hơn 50.000đ, số dư cả nhà sẽ tính lại.'
+  expect(await screen.findByText(warning)).toBeInTheDocument()
+  // Minh told again: a new version of the notice reaches the page
+  version = 2
+  await act(() => client.invalidateQueries({ queryKey: keys.household(7) }))
+  await waitFor(() => expect(screen.queryByText(warning)).not.toBeInTheDocument())
+})
+
+// specs/019, FR-013: the debtor's row for a part told says the told amount and what is still missing
+test('the debtor row for a partial notice says what was told and what is missing', async () => {
+  iAm(2)
+  // Minh owes two people, so each pair keeps its own row under the block (FR-014 drops it for one)
+  const balance = (member_id: number, name: string, net: number) => ({
+    member_id, name, paid: 0, owed: 0, sent: 0, received: 0, net,
+  })
+  api(
+    {
+      'GET /api/households/7/balances': [
+        200,
+        {
+          balances: [balance(1, 'Tiến', 100_000), balance(2, 'Minh', -150_000), balance(3, 'An', 50_000)],
+          suggested: [
+            { from_member_id: 2, to_member_id: 1, amount: 100_000 },
+            { from_member_id: 2, to_member_id: 3, amount: 50_000 },
+          ],
+        },
+      ],
+    },
+    members,
+    [{ from_member_id: 2, to_member_id: 1, amount: 40_000, status: 'sent', created_at: '', version: 3 }],
+  )
+  renderApp('/households/7')
+  // The amounts are <Money> elements inside the line: matched on the line's whole text
+  const line = await within(await transfers()).findByText(
+    (_, element) => element?.tagName === 'SMALL' && /^Đã báo 40\.000/.test(element.textContent ?? ''),
+  )
+  expect(line).toHaveTextContent('Đã báo 40.000đ, còn thiếu 60.000đ, chờ Tiến xác nhận.')
+})
+
 // Review of #296: a press the pair guard ignores tells nothing, so the step stays with what was typed
 test('after a "result unknown", pressing Gửi again keeps the step and its line, and sends nothing', async () => {
   iAm(2)
