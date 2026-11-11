@@ -130,7 +130,7 @@ description: "Task list for the house list and profile redesign"
 - [X] T037 [US4] Focus after a swap (research R6) in `frontend/src/pages/AccountPage.tsx` (`IdentityCard` photo states, `StatusForm` after *Xoá trạng thái*) and `frontend/src/components/ReceivingAccountForm.tsx` (*Thêm tài khoản*, *Sửa*, *Huỷ*, *Lưu tài khoản*, *Xoá*): a `focusNext` ref set before the state change and a layout effect that focuses it, falling back to the part's h2 with `tabIndex={-1}`; the receiving save button uses `saveReceiving` and the same pending pattern
 - [X] T038 [US4] In `frontend/src/index.css`: `.field-inline` (flex, wrap, gap 10 px; field `flex: 1 1 220px; max-width: 420px`; from 1024 px only, below it stacks); `.unsaved` (a small `--ai` pill with `--on-fill` text, and a visible border so it survives forced colours)
 - [X] T039 [US4] Update `docs/DESIGN.md` §6.10 (card, parts panel, names, *Chưa lưu*, focus rules)
-- [ ] T040 [US4] Run vitest, tsc, lint, build and the local E2E; walk [quickstart.md](quickstart.md) PR 2 by hand with the keyboard and a screen reader; screenshots at 360 and 1440 px light and dark in the PR; open PR 2 (Minh reviews); after merge watch deploy and the live smoke run
+- [X] T040 [US4] Run vitest, tsc, lint, build and the local E2E; walk [quickstart.md](quickstart.md) PR 2 by hand with the keyboard and a screen reader; screenshots at 360 and 1440 px light and dark in the PR; open PR 2 (Minh reviews); after merge watch deploy and the live smoke run
 
 **Checkpoint**: `/account` fully redesigned and live.
 
@@ -142,9 +142,9 @@ description: "Task list for the house list and profile redesign"
 
 **Independent Test**: [quickstart.md](quickstart.md) PR 3.
 
-- [ ] T041 [US5] Create branch `feat/017-header-avatar` from `main`
-- [ ] T042 [US5] Vitest for `frontend/src/components/AccountMenu.tsx`: without a photo the summary shows the initial on tint `(id % 8) + 1`; with `getMyPhoto` returning data it shows the image; after `keys.myPhoto` is invalidated with a new photo the image changes; the summary keeps its accessible name and is at least 44 px
-- [ ] T043 [US5] In `frontend/src/components/AccountMenu.tsx` (research R9) render `<Avatar look={…} size="sm" decorative />` inside the summary instead of `.account-initial`, with the photo from `useQuery({ queryKey: keys.myPhoto, queryFn: getMyPhoto, staleTime: Infinity })`; in `frontend/src/index.css` size it inside the 44 px summary with the sticker ring and drop `.account-initial`
+- [X] T041 [US5] Create branch `feat/017-header-avatar` from `main`
+- [X] T042 [US5] Vitest for `frontend/src/components/AccountMenu.tsx`: without a photo the summary shows the initial on tint `(id % 8) + 1`; with `getMyPhoto` returning data it shows the image; after `keys.myPhoto` is invalidated with a new photo the image changes; the summary keeps its accessible name and is at least 44 px
+- [X] T043 [US5] In `frontend/src/components/AccountMenu.tsx` (research R9) render `<Avatar look={…} size="sm" decorative />` inside the summary instead of `.account-initial`, with the photo from `useQuery({ queryKey: keys.myPhoto, queryFn: getMyPhoto, staleTime: Infinity })`; in `frontend/src/index.css` size it inside the 44 px summary with the sticker ring and drop `.account-initial`
 - [ ] T044 [US5] Update `docs/DESIGN.md` §5 (header account button); run the checks; open PR 3 (Minh reviews); after merge watch deploy and the live smoke run
 
 ---

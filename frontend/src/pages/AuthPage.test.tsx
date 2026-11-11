@@ -30,6 +30,8 @@ test("after a session expires, the next person on this device never sees the las
       if (signedInAs === 'An') {
         if (path === '/api/households') return json(200, { households: [group], pending: [] })
         if (path === '/api/me/requests') return json(200, { pending: [], joined: [7], outcomes: [] })
+        // The header's own avatar (specs/017, US5) loads before the house is opened
+        if (path === '/api/me/photo') return json(200, { version: null, data: null })
         // An's session has expired on the server
         return json(401, { error: { code: 'not_authenticated', message: 'Sign in to continue' } })
       }

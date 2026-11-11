@@ -3380,15 +3380,9 @@ button.ai:active:focus-visible {
   display: none;
 }
 
-.account-initial {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: var(--on-primary);
-  font-weight: 800;
+/* The account's own avatar, as on the profile (specs/017, US5), inside the 44 px button */
+.account-menu > summary .avatar {
+  --size: 34px;
 }
 
 .account-panel {

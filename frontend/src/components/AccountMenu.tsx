@@ -1,16 +1,19 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 
-import { logout } from '../api/households'
+import { getMyPhoto, keys, logout } from '../api/households'
 import { closeFoldOnEscape } from '../lib/fold'
+import { initialOf } from '../lib/names'
 import { signOut, useSession } from '../lib/session'
 import { useT } from '../i18n'
+import { Avatar } from './Avatar'
 import LanguageSwitch from './LanguageSwitch'
 import ThemeSwitch from './ThemeSwitch'
 
 /**
- * The signed-in account in the header: its initial, opening to the name, the email, the language
+ * The signed-in account in the header: its avatar, the same as on the profile (photo, or the initial on
+ * the person's own tint; specs/017, US5), opening to the name, the email, the language
  * and theme switches, and Sign out. Keeping the switches here leaves the header one line on a phone
  * (the wordmark and this button). Signing out ends the session on the server too (the token stops
  * working at once) and clears everything cached, so the next person on this device sees nothing of
@@ -37,8 +40,19 @@ function AccountMenu() {
       document.removeEventListener('focusin', outside)
     }
   }, [open])
+  // The person's own photo, once per session; the profile invalidates it after a change, so the button
+  // follows without a reload. Cleared with everything else on sign-out
+  const photo = useQuery({ queryKey: keys.myPhoto, queryFn: getMyPhoto, staleTime: Infinity, enabled: !!session })
   if (!session) return null
   const { display_name: name, email } = session.user
+  // The profile's colour (user id), not a house's member list, which picks colours per house (#276 review)
+  const look = {
+    full: name,
+    short: name,
+    initial: initialOf(name),
+    tint: (session.user.id % 8) + 1,
+    photo: photo.data?.data ?? undefined,
+  }
 
   async function signOutHere() {
     setLeaving(true)
@@ -59,9 +73,7 @@ function AccountMenu() {
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary aria-label={t.account.menu(name)}>
-        <span className="account-initial" aria-hidden="true">
-          {name.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}
-        </span>
+        <Avatar look={look} decorative />
       </summary>
       <div className="account-panel">
         <p className="hint">{t.account.signedInAs}</p>
