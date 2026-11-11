@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: redesign the house list (`/`) and the profile (`/account`) along the direction a three-person design review settled on (product/UX, UI/visual, accessibility and responsive; two rounds), with the layout guidance of the Astryx design system used as a reference only (no package added). The mock-up the owner approved on 11/11/2026: https://claude.ai/artifact/GQ76KhdRcstoDQSx9mCn4N (houses as rows, light and dark, 1440 and 390 px).
+**Input**: User description: redesign the house list (`/`) and the profile (`/account`) along the direction a three-person design review settled on (product/UX, UI/visual, accessibility and responsive; two rounds), with the layout guidance of the Astryx design system used as a reference only (no package added). The owner approved a clickable mock-up on 11/11/2026 (houses as rows, light and dark, 1440 and 390 px); screenshots of the built pages at the same widths go in [screenshots/](screenshots/) with each pull request.
 
 ## Why
 
@@ -99,7 +99,7 @@ Tiến changes his status and his name. He wants to be sure which button saves w
 
 ### User Story 5 - The account button shows me (Priority: P3)
 
-The round button at the top right of every page shows Tiến's own photo, or his own tint and initial, the same as on his profile and on Thành viên.
+The round button at the top right of every page shows Tiến's own photo, or his own tint and initial, the same as on his profile. (A house's member list picks colours per house, so there his colour may differ.)
 
 **Why this priority**: today it is always a purple initial, a different look for the same person; small, but it touches every page, so it ships alone.
 
@@ -164,7 +164,7 @@ The round button at the top right of every page shows Tiến's own photo, or his
 **Every page touched**
 
 - **FR-024**: Each of the two pages MUST set its own browser tab title ("Nhà của bạn · Fair-Share", "Hồ sơ của bạn · Fair-Share", and English equivalents).
-- **FR-025**: The account button MUST show the user's photo, or their initial on their own tint, the same as on Thành viên; it MUST update after the photo changes; the *Hồ sơ của bạn* link MUST be marked current on `/account`, and following it MUST put the focus on the page title.
+- **FR-025**: The account button MUST show the user's photo, or their initial on their own tint, the same as on the profile page (a house's member list may give them another colour); it MUST update after the photo changes; the *Hồ sơ của bạn* link MUST be marked current on `/account`, and following it MUST put the focus on the page title.
 - **FR-026**: Both pages MUST work from 320 to 2560 px wide, in Vietnamese and English, light and dark, and at 200% zoom, with no sideways scroll, every control at least 44 × 44 px, text lines at most about 65 characters, and no fixed heights that clip text.
 - **FR-027**: No new server endpoint, no new library and no new colour token; the existing tokens, fonts and Sticker pop rules (one loud place per page, hard shadows only on a form's main action) apply.
 
@@ -192,10 +192,10 @@ No new data. The pages show what the app already returns: each house with its na
 
 ## Assumptions
 
-- The approved mock-up is the visual reference; small differences in spacing are settled in the plan, not here.
+- The approved mock-up was the visual reference; the screenshots in `screenshots/` record what was built, and small differences in spacing are settled in the plan, not here.
 - Houses as rows (not cards) was chosen by the owner on 11/11/2026, following the design review and Astryx's "records as rows in one section" rule.
 - English keeps "group" ("Your groups", "+ New group"), as DESIGN §7.1 decided and as the English tests check; only Vietnamese wording is changed where this spec says so.
 - The right-hand *Thêm nhà* column from 1280 px keeps the 3:2 decision of DESIGN §6.6 and §6.8 in spirit (list first, ways in beside it); the exact widths follow the 110% zoom.
-- The account button can read the user's photo and tint from what the app already loads for the profile and Thành viên; if it cannot without a new request, the plan says so and User Story 5 waits.
+- The account button can read the user's photo and tint from what the app already loads for the profile; if it cannot without a new request, the plan says so and User Story 5 waits.
 - A cross-house total, member avatars on house rows, a new-house versus settled-house difference, a "sign out everywhere" action and an unsaved-changes dialog are out of scope.
 - Teammates: Duy Anh reviews the house-list pull request; Minh reviews all four as usual.

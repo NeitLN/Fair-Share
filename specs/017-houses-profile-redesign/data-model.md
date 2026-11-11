@@ -18,7 +18,7 @@ No new data, no migration, no API change. The pages show what the API already re
 |---|---|
 | House tint | `(household.id % 8) + 1` → `--tint-N` (same in both themes) |
 | Money words | `my_net < 0` → *Bạn cần trả* + amount `-my_net` in the debt colour; `> 0` → *Bạn được nhận* + amount in the credit colour; `0` → *Đã xong* in `--muted` |
-| Personal tint | `(user.id % 8) + 1`, as on Thành viên (`PhotoForm` today) |
+| Personal tint | `(user.id % 8) + 1`, as on the profile (`PhotoForm` today). Thành viên picks tints per house by member id (`tints()` in `lib/names.ts`), so the header colour may differ from a house's member list |
 | Card status | saved `status`, or *Chưa có trạng thái* |
 | Card receiving hint | saved account that is supported → `"<bank name> •••• <last 4 digits>"`; otherwise no line |
 
@@ -33,4 +33,4 @@ No new data, no migration, no API change. The pages show what the API already re
 | Password | current, new | either field not empty | none |
 | Gender | `choice` | `choice ≠ saved gender` | none |
 
-A save in flight: the part's button shows *Đang lưu…* with `aria-disabled="true"` and ignores presses (research R5). After a successful save, `dirty` becomes false because the saved value now equals the typed one.
+A save in flight: the part's button shows *Đang lưu…* with `aria-disabled="true"` and ignores presses (research R5). After a successful save the field takes the value the server returned (it applies NFC and drops invisible characters), and `dirty` compares both sides after `.normalize('NFC')`, so *Chưa lưu* goes away even when a keyboard typed the accents as separate marks.
