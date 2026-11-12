@@ -135,6 +135,8 @@ test('from an invite link too, sending the request folds the form that opened wi
 
   expect(await screen.findByRole('heading', { name: 'Đang chờ duyệt' })).toHaveFocus()
   expect(screen.getByText('Nhập mã mời').closest('details')).not.toHaveAttribute('open')
+  // The link is left behind: a later visit shows no code filled in (review 12/11, A04)
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
 })
 
 test('while a request waits, the page is about the wait: no "no groups yet", both forms folded', async () => {
@@ -470,4 +472,20 @@ test('a problem with the code or the name is read with its field', async () => {
   await user.click(screen.getByRole('button', { name: 'Tạo nhà' }))
   expect(screen.getByLabelText('Tên nhà')).toHaveAttribute('aria-invalid', 'true')
   expect(screen.getByLabelText('Tên nhà')).toHaveAccessibleDescription(/Nhập tên nhà\./)
+})
+
+// Review 12/11, A06: what the server said about the last code goes once the code changes
+test('a changed code drops the old answer about the last one', async () => {
+  mockApi({
+    'GET /api/households': mine(),
+    'POST /api/join': [404, { error: { code: 'invite_not_found', message: 'no' } }],
+  })
+  const user = userEvent.setup()
+  renderApp('/')
+  const field = await screen.findByLabelText('Mã mời')
+  await user.type(field, 'k7qm-2xrt')
+  await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu vào nhà' }))
+  const old = await screen.findByRole('alert')
+  await user.type(field, 'x')
+  expect(old).not.toBeInTheDocument()
 })

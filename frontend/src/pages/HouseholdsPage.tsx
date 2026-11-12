@@ -9,7 +9,7 @@ import HouseholdCreateForm from '../components/HouseholdCreateForm'
 import HouseholdList from '../components/HouseholdList'
 import JoinForm from '../components/JoinForm'
 import Skeleton from '../components/Skeleton'
-import { formatDate } from '../lib/date'
+import { formatDate, localDay } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { shortName } from '../lib/names'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -147,6 +147,9 @@ function HouseholdsPage() {
     setJoining(false)
     setCreating(false)
     requested.current = true
+    // The link has done its job: the page is the houses page again, so a later visit (after a refusal,
+    // say) shows no code filled in with Xin vào beside it (review 12/11, A04)
+    if (linkCode !== '') navigate('/', { replace: true })
   }
   // Came by an invite link while already in a house: the code is the reason for the visit, so the page
   // brings it into view and puts the keyboard in it, once (specs/017, FR-009)
@@ -243,9 +246,9 @@ function HouseholdsPage() {
                     <span className="pending-row">
                       {request.household_name
                         ? `${t.pending.waitingFor(request.household_name, request.owner_name)} · ${t.pending.sentOn(
-                            formatDate(request.requested_at.slice(0, 10)),
+                            formatDate(localDay(request.requested_at)),
                           )}`
-                        : t.pending.row(formatDate(request.requested_at.slice(0, 10)))}
+                        : t.pending.row(formatDate(localDay(request.requested_at)))}
                     </span>
                     <span className="pending-actions">
                       <button

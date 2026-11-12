@@ -21,6 +21,8 @@ export interface MyHousehold extends Household {
   my_net?: number
   /** Join requests to approve (owner only) and "Tôi đã chuyển" notices to answer. */
   waiting?: number
+  /** Owners and members there, the caller included: one says "Chỉ có bạn" (review 12/11, A13). */
+  people?: number
 }
 
 /** A request to join that is still waiting: nothing about the household until it is approved. */

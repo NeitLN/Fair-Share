@@ -52,13 +52,13 @@ test('a browser in English opens in English when nothing was chosen on this devi
   expect(document.documentElement.lang).toBe('en')
 })
 
-test('the profile talks about groups, and a notice is withdrawn', () => {
+test('the profile talks about houses, and a notice is withdrawn', () => {
   expect(en.verdict.cancelNotice).toBe('Withdraw notice')
-  expect(en.profile.nameHint).toBe('Changing it here changes your name in every group you are in.')
-  expect(en.profile.renamedEverywhere).toBe('Your name changed in every group.')
-  expect(en.profile.renamedNoHouse).toBe('Your name changed. You are not in a group yet.')
+  expect(en.profile.nameHint).toBe('Changing it here changes your name in every house you are in.')
+  expect(en.profile.renamedEverywhere).toBe('Your name changed in every house.')
+  expect(en.profile.renamedNoHouse).toBe('Your name changed. You are not in a house yet.')
   expect(en.profile.statusHint(10, 60)).toBe(
-    '10/60 characters. Shown under your name on Members in every group.',
+    '10/60 characters. Shown under your name on Members in every house.',
   )
   expect(en.errors.notice_changed).toBe(
     'This notice just changed or was answered. The figures are refreshing; have another look once they show.',
@@ -73,7 +73,7 @@ test('VI switches the whole page, and the choice is remembered on this device', 
   const user = userEvent.setup()
   renderApp('/')
 
-  expect(await screen.findByRole('heading', { level: 1, name: 'Your groups' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Your houses' })).toBeInTheDocument()
   expect(await screen.findByRole('heading', { level: 2, name: "Hi Tiến, let's get started" })).toBeInTheDocument()
   await user.click(screen.getByLabelText(/^Account:/))
   const switcher = screen.getByRole('group', { name: 'Language' })
@@ -172,7 +172,7 @@ test('a household frame in English: tabs, invite, members and their chips', asyn
   renderApp('/households/7/members')
 
   expect(await screen.findByRole('heading', { level: 1, name: 'Room 302' })).toBeInTheDocument()
-  const tabs = screen.getByRole('navigation', { name: 'Group sections' })
+  const tabs = screen.getByRole('navigation', { name: 'House sections' })
   expect(within(tabs).getAllByRole('link').map((link) => link.textContent)).toEqual([
     'Overview',
     'Expenses',
@@ -189,13 +189,13 @@ test('a household frame in English: tabs, invite, members and their chips', asyn
   )
   expect(money).toEqual(expect.arrayContaining([expect.stringMatching(/^−100,000\s₫ owes$/), expect.stringMatching(/^\+100,000\s₫ gets back$/)]))
   expect(screen.getByRole('button', { name: 'Rename Võ Việt Tiến' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Remove Hoàng Minh from the group' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Hoàng Minh from the house' })).toBeInTheDocument()
   expect(screen.getAllByText('Owner').length).toBeGreaterThan(0)
 })
 
 test('the sign-in page in English', async () => {
   renderApp('/', { signedOut: true })
-  expect(await screen.findByRole('heading', { level: 1, name: 'Sign in to see your groups' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Sign in to see your houses' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument()
   expect(screen.getByLabelText('Password')).toBeInTheDocument()
 })

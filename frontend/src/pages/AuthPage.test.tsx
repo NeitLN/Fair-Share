@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
@@ -173,4 +173,35 @@ test('another tab signing out signs this one out too, and says why', async () =>
   localStorage.removeItem('fair-share:session')
   window.dispatchEvent(new StorageEvent('storage', { key: 'fair-share:session', newValue: null }))
   expect(await screen.findByText(/^Phiên đăng nhập đã kết thúc/)).toBeInTheDocument()
+})
+
+// Review 12/11, A09: an empty password says to enter one, not the length rule
+test('an empty password on sign-in asks for it', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => json(200, {})))
+  const user = userEvent.setup()
+  renderApp('/', { signedOut: true })
+  const email = await screen.findByLabelText('Email')
+  await user.type(email, 'an@test.local')
+  await user.click(within(email.closest('form') as HTMLElement).getByRole('button', { name: 'Đăng nhập' }))
+  expect(screen.getByText('Nhập mật khẩu.')).toBeInTheDocument()
+  expect(screen.queryByText(/8 đến 128/)).not.toBeInTheDocument()
+})
+
+// Review 12/11, A12: an email that has an account offers to sign in with it
+test('an email that already has an account offers to sign in with it, keeping the email', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => json(409, { error: { code: 'email_taken', message: 'taken' } })),
+  )
+  const user = userEvent.setup()
+  renderApp('/', { signedOut: true })
+  await user.click(await screen.findByRole('button', { name: 'Tạo tài khoản' }))
+  await user.type(screen.getByLabelText('Email'), 'an@test.local')
+  await user.type(screen.getByLabelText('Tên của bạn'), 'An')
+  await user.type(screen.getByLabelText('Mật khẩu'), 'mat-khau-dai')
+  const form = screen.getByLabelText('Email').closest('form') as HTMLElement
+  await user.click(within(form).getByRole('button', { name: 'Tạo tài khoản' }))
+  await user.click(await screen.findByRole('button', { name: 'Đăng nhập bằng email này' }))
+  expect(screen.getByRole('button', { name: 'Đăng nhập', pressed: true })).toBeInTheDocument()
+  expect(screen.getByLabelText('Email')).toHaveValue('an@test.local')
 })

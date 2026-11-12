@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { dayLabel, formatDate, isDayInRange, today } from './date'
+import { dayLabel, formatDate, isDayInRange, localDay, today } from './date'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -49,4 +49,11 @@ test.each([
   ['', false],
 ])('isDayInRange(%s) is %s', (iso, inside) => {
   expect(isDayInRange(iso)).toBe(inside)
+})
+
+// Review 12/11, A03: a moment from the server is shown on the day it is here, not in UTC
+test('localDay reads a timestamp on this device’s calendar', () => {
+  const moment = new Date(2026, 10, 12, 1, 0) // 1 a.m. on 12/11 here
+  expect(localDay(moment.toISOString())).toBe('2026-11-12')
+  expect(localDay('not a date')).toBe('not a date')
 })

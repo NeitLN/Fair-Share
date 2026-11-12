@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 
 import { getMyPhoto, keys, logout } from '../api/households'
 import { closeFoldOnEscape } from '../lib/fold'
@@ -25,6 +25,7 @@ function AccountMenu() {
   const queryClient = useQueryClient()
   const [leaving, setLeaving] = useState(false)
   const onProfile = useLocation().pathname === '/account'
+  const navigate = useNavigate()
   const menu = useRef<HTMLDetailsElement>(null)
   // It covers part of the page, so it closes like a menu: a tap outside, or the keyboard leaving it
   const [open, setOpen] = useState(false)
@@ -62,6 +63,9 @@ function AccountMenu() {
       // Offline or already ended: forgetting it here is what matters
     }
     queryClient.clear()
+    // Back to the start: whoever signs in next does not land on this house's address and read "Không
+    // tìm thấy nhà này" (review 12/11, A08)
+    navigate('/', { replace: true })
     signOut()
   }
 

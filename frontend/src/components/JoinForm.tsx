@@ -84,6 +84,8 @@ function JoinForm({
   function submit(event: FormEvent) {
     event.preventDefault()
     if (code.replace(CODE_CHARS, '').length !== 8) {
+      // The server's last answer is about another code: only the new problem shows (review 12/11, A06)
+      send.reset()
       setProblem(t.join.codeProblem)
       return
     }
@@ -106,7 +108,12 @@ function JoinForm({
         disabled={send.isPending}
         aria-invalid={problem ? true : undefined}
         aria-describedby={describedBy}
-        onChange={(event) => setCode(event.target.value)}
+        onChange={(event) => {
+          setCode(event.target.value)
+          // A changed code: what was said about the old one goes (review 12/11, A06)
+          if (send.error) send.reset()
+          if (problem) setProblem(null)
+        }}
       />
       {/* Read once per code by screen readers; empty while there is nothing to say */}
       <p id="join-code-preview" className="join-preview" aria-live="polite">

@@ -136,6 +136,9 @@ class MyHousehold(Household):
     member_id: int
     my_net: int = 0
     waiting: int = 0
+    # Owners and members with an account there, the caller included (review 12/11, A13). Counted
+    # for the list of the caller's houses; None where a route does not count them
+    people: int | None = None
 
 
 class PendingRequest(BaseModel):

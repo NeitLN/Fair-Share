@@ -123,6 +123,8 @@ const vi = {
     getWords: 'Bạn được nhận',
     oweWords: 'Bạn cần trả',
     settled: 'Đã xong',
+    // A house with nobody else in it yet (review 12/11, A13)
+    onlyYou: 'Chỉ có bạn',
     waiting: (count: number) => `${count} việc đang chờ bạn`,
   },
   household: {
@@ -179,6 +181,10 @@ const vi = {
     registering: 'Đang tạo…',
     emailProblem: 'Nhập một địa chỉ email, ví dụ: minh@gmail.com.',
     passwordProblem: 'Mật khẩu cần từ 8 đến 128 ký tự.',
+    // Nothing typed (review 12/11, A09): not the length rule
+    passwordEmpty: 'Nhập mật khẩu.',
+    // "This email already has an account" offers the way there (A12)
+    signInInstead: 'Đăng nhập bằng email này',
     nameEmpty: 'Nhập tên của bạn.',
     nameProblem: 'Tên cần từ 1 đến 40 ký tự.',
     noReset: 'App chưa hỗ trợ đặt lại mật khẩu nếu bạn quên.',

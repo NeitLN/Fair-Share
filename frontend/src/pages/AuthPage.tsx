@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation } from 'react-router'
 
+import { ApiError } from '../api/client'
 import { login, register } from '../api/households'
 import type { Session } from '../api/types'
 import { Avatar } from '../components/Avatar'
@@ -63,12 +64,13 @@ function AuthPage() {
     event.preventDefault()
     const found: typeof problems = {}
     if (!EMAIL.test(email.trim())) found.email = t.auth.emailProblem
+    // Nothing typed is said as such, not as the length rule (review 12/11, A09)
+    if (!password) found.password = t.auth.passwordEmpty
+    else if (mode === 'register' && (password.length < 8 || password.length > 128))
+      found.password = t.auth.passwordProblem
     if (mode === 'register') {
-      if (password.length < 8 || password.length > 128) found.password = t.auth.passwordProblem
       if (name.trim().length === 0) found.name = t.auth.nameEmpty
       else if (name.trim().length > 40) found.name = t.auth.nameProblem
-    } else if (!password) {
-      found.password = t.auth.passwordProblem
     }
     setProblems(found)
     if (Object.keys(found).length === 0) send.mutate()
@@ -176,7 +178,17 @@ function AuthPage() {
           )}
           {problem('password')}
         </div>
-        {send.error && <p role="alert">{errorMessage(send.error)}</p>}
+        {send.error && (
+          <p role="alert">
+            {errorMessage(send.error)}
+            {/* The email has an account already: one press to sign in with it (review 12/11, A12) */}
+            {send.error instanceof ApiError && send.error.code === 'email_taken' && (
+              <button type="button" className="btn-ghost" onClick={() => switchTo('signIn')}>
+                {t.auth.signInInstead}
+              </button>
+            )}
+          </p>
+        )}
         <button type="submit" className="btn-primary" disabled={busy}>
           {mode === 'signIn'
             ? busy

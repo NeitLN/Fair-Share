@@ -21,7 +21,8 @@ def test_create_then_get(client):
     created = household(client, "  Nhà trọ Q7  ")
     assert created["name"] == "Nhà trọ Q7"  # trimmed
     # The creator owns it, with a name of their own in the split; no key any more
-    assert set(created) == {"id", "name", "created_at", "role", "member_id", "my_net", "waiting"}
+    assert set(created) == {"id", "name", "created_at", "role", "member_id", "my_net", "waiting",
+                            "people"}
     assert created["role"] == "owner"
 
     assert client.get(f"/api/households/{created['id']}").json() == created
@@ -411,3 +412,13 @@ def test_a_pending_request_carries_neither_the_balance_nor_the_waiting_count(cli
     assert set(body["pending"][0]) == {
         "household_id", "requested_at", "household_name", "owner_name",
     }
+
+def test_the_list_counts_the_people_in_each_house(client):
+    """Review 12/11, A13: a house of one says "Chỉ có bạn" on the houses page, not "Đã xong"."""
+    created = household(client, "Nhà một người")
+    member(client, created["id"], "Tiến")
+    assert card(client, created["id"])["people"] == 1
+    minh = member(client, created["id"], "Minh")["id"]
+    assert card(client, created["id"])["people"] == 2
+    remove_access(client, created["id"], minh)
+    assert card(client, created["id"])["people"] == 1
