@@ -494,6 +494,24 @@ describe('filters and month totals (PROJECT_SPEC §3.4)', () => {
     expect(list().getByText('chạm để xem phần từng người, sửa hoặc xoá')).toBeInTheDocument()
   })
 
+  // Review 12/11, B05: by payer or category the month card counts the whole month, so the filter says its own total
+  test('a payer or category filter says how many it shows and their total; a month alone does not', async () => {
+    three()
+    const user = userEvent.setup()
+    renderApp('/households/7/expenses')
+    await list().findByText('Tiền nhà tháng 9')
+    expect(list().queryByText(/^Đang lọc:/)).not.toBeInTheDocument()
+    await user.selectOptions(list().getByLabelText('Tháng'), '10/2026')
+    expect(list().queryByText(/^Đang lọc:/)).not.toBeInTheDocument()
+
+    await user.selectOptions(list().getByLabelText('Người trả'), 'Tiến')
+    const shown = list()
+      .getAllByRole('listitem')
+      .filter((row) => row.classList.contains('expense-row'))
+    const total = list().getByText(/^Đang lọc:/)
+    expect(total).toHaveTextContent(new RegExp(`^Đang lọc: ${shown.length} khoản · tổng [\\d.]+đ$`))
+  })
+
   test('a filter that matches nothing says so', async () => {
     api({ 'GET /api/households/7/expenses': [200, [water]] })
     const user = userEvent.setup()

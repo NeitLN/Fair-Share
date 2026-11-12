@@ -1596,6 +1596,14 @@ button.ai:active:focus-visible {
   rotate: 90deg;
 }
 
+/* "Đang lọc: 3 khoản · tổng 450.000đ" under a payer or category filter (review 12/11, B05) */
+.filter-total {
+  margin: 4px 0 12px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The list's title with Xuất CSV beside it; the hint goes under both */
 .list-head .section-note {
   order: 3;
@@ -1679,6 +1687,55 @@ button.ai:active:focus-visible {
   display: flex;
   gap: 8px;
   padding: 0 0 12px 44px;
+}
+
+/* On a phone the description gets the row's whole width (review 12/11, D01: about 110 px at 360 px
+   beside the amount): it is the first line, then who paid and the split, with the amount and the
+   chevron at its end. The avatar stays on the left of both. */
+@media (max-width: 599px) {
+  .expense-row summary,
+  .expense-row .expense-summary {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'avatar desc desc desc'
+      'avatar more more more'
+      'avatar meta amount chevron';
+    row-gap: 2px;
+  }
+
+  .expense-row :is(summary, .expense-summary) > .avatar {
+    grid-area: avatar;
+    align-self: start;
+  }
+
+  .expense-row .expense-main {
+    display: contents;
+  }
+
+  .expense-row .expense-description {
+    grid-area: desc;
+  }
+
+  .expense-row .expense-show-full {
+    grid-area: more;
+  }
+
+  .expense-row .expense-main small {
+    grid-area: meta;
+    /* It shares its line with the amount: one more line before it is cut */
+    -webkit-line-clamp: 3;
+  }
+
+  .expense-row .expense-amount {
+    grid-area: amount;
+    align-self: end;
+  }
+
+  .expense-row .row-chevron {
+    grid-area: chevron;
+    align-self: end;
+    margin-bottom: 3px;
+  }
 }
 
 /* Who shares an expense and how much each (design review 05/11), under an opened row */
@@ -3255,8 +3312,13 @@ button.ai:active:focus-visible {
   text-decoration: underline;
 }
 
+/* Mới ghi: two lines at most (review 12/11, D12); the whole text is in the title */
 .recent-text {
   grid-area: text;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
 }
 
@@ -3671,14 +3733,29 @@ button.ai:active:focus-visible {
   width: 176px;
 }
 
+/* "1.532.000đ" fits; the space goes to the description (review 12/11, D01) */
 .expense-table .col-amount {
-  width: 128px;
+  width: 112px;
   text-align: right;
 }
 
 .expense-table .col-actions {
   width: 1%;
   white-space: nowrap;
+}
+
+/* With every column (from 1408 px), the widths are fixed and the description takes what is left: with
+   the automatic layout the split line kept the payer column wide and left the description about 140 px
+   (review 12/11, D01). The payer's split line wraps in its column instead */
+@media (min-width: 1408px) {
+  .expense-table {
+    table-layout: fixed;
+  }
+
+  .expense-table .col-actions {
+    width: 156px;
+    white-space: normal;
+  }
 }
 
 .expense-table .payer {
@@ -3798,7 +3875,12 @@ button.ai:active:focus-visible {
   min-width: 0;
 }
 
+/* Two lines at most, as in Chi tiêu (review 12/11, D12); the whole text is in the title */
 .recent-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -4096,10 +4178,10 @@ button.ai:active:focus-visible {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  /* Wide enough that the split line under the payer wraps once at most, so the description keeps its
-     line (owner review 06/11) */
+  /* Wide enough that the split line under the payer wraps once at most (owner review 06/11), and no
+     wider: the description takes what is left (review 12/11, D01; it was 250 px) */
   .expense-table th.col-payer {
-    width: 250px;
+    width: 184px;
   }
 
   /* Tổng quan, right column: the panels span it, but each line stays within 640 px, centred, so a name

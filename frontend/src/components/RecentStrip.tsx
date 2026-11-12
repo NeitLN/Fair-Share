@@ -75,7 +75,9 @@ function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: Re
           const body = (
             <>
               <Avatar look={recorder} size="sm" decorative />
-              <span className="recent-text">{text}</span>
+              <span className="recent-text" title={text}>
+                {text}
+              </span>
               <small className="recent-when">{savedLabel(item.savedAt, t.recent.at)}</small>
             </>
           )

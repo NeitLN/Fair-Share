@@ -59,7 +59,9 @@ function RecentExpenses({ expenses, members, looks, loading, error, onRetry, ret
               <li key={expense.id} className="recent-row">
                 <Avatar look={payer} size="sm" decorative />
                 <span className="recent-main">
-                  <span className="recent-description">{expense.description}</span>
+                  <span className="recent-description" title={expense.description}>
+                    {expense.description}
+                  </span>
                   <small>
                     {dayLabel(day)} · {t.expenses.paidBy(payer.short, splitText(expense, memberIds))}
                   </small>
