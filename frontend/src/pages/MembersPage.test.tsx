@@ -122,11 +122,14 @@ test('approving someone with a new name puts them in the list', async () => {
 
   const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
   expect(within(asking).getByText('lan@test.local')).toBeInTheDocument()
-  await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
+  await user.click(within(asking).getByRole('button', { name: 'Duyệt Lan' }))
 
   expect(await screen.findByText('Lan đã vào nhà.')).toBeInTheDocument()
   expect(await screen.findByText('Lan', { selector: '.who strong' })).toBeInTheDocument()
   expect(screen.queryByRole('region', { name: 'Người xin vào nhà' })).not.toBeInTheDocument()
+  // The button is named for the person, and with no request left the focus goes to the page's title, not
+  // to nowhere (review 12/11, E05)
+  await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus())
   const approve = fetchFn.mock.calls.find(([url]) => String(url).endsWith('/approve'))
   expect(JSON.parse(approve?.[1]?.body as string)).toEqual({})
 })
@@ -142,14 +145,14 @@ test('when the group already has that name, the owner approves them under anothe
   renderApp('/households/7/members')
 
   const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
-  await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
+  await user.click(within(asking).getByRole('button', { name: /^Duyệt / }))
   expect(await within(asking).findByRole('alert')).toHaveTextContent('Nhà này đã có thành viên trùng tên.')
 
   const field = within(asking).getByLabelText('Tên mới cho Lan')
   await user.clear(field)
-  expect(within(asking).getByRole('button', { name: 'Duyệt' })).toBeDisabled()
+  expect(within(asking).getByRole('button', { name: /^Duyệt / })).toBeDisabled()
   await user.type(field, 'Lan Anh')
-  await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
+  await user.click(within(asking).getByRole('button', { name: /^Duyệt / }))
 
   expect(await screen.findByText('Lan Anh đã vào nhà.')).toBeInTheDocument()
   const approvals = fetchFn.mock.calls.filter(([url]) => String(url).endsWith('/approve'))
@@ -163,7 +166,7 @@ test('approving someone onto a name nobody has keeps that name and its history',
 
   const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
   await user.selectOptions(within(asking).getByLabelText('Vào nhà với tên'), 'Nhận tên có sẵn: Anh')
-  await user.click(within(asking).getByRole('button', { name: 'Duyệt' }))
+  await user.click(within(asking).getByRole('button', { name: /^Duyệt / }))
 
   await waitFor(() => expect(within(row('Anh')).queryByText('Chưa có tài khoản')).not.toBeInTheDocument())
   const approve = fetchFn.mock.calls.find(([url]) => String(url).endsWith('/approve'))
@@ -185,7 +188,7 @@ test('declining a request', async () => {
   renderApp('/households/7/members')
 
   const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
-  await user.click(within(asking).getByRole('button', { name: 'Từ chối' }))
+  await user.click(within(asking).getByRole('button', { name: /^Từ chối / }))
 
   expect(await screen.findByText('Đã từ chối Lan.')).toBeInTheDocument()
   expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('nhập mã mời lại'))
@@ -198,7 +201,7 @@ test('declining asks first; answering no keeps the request', async () => {
   renderApp('/households/7/members')
 
   const asking = await screen.findByRole('region', { name: 'Người xin vào nhà' })
-  await user.click(within(asking).getByRole('button', { name: 'Từ chối' }))
+  await user.click(within(asking).getByRole('button', { name: /^Từ chối / }))
 
   expect(within(asking).getByText('lan@test.local')).toBeInTheDocument()
   expect(fetchFn.mock.calls.some(([url]) => String(url).endsWith('/reject'))).toBe(false)

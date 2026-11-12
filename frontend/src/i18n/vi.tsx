@@ -17,6 +17,8 @@ const vi = {
     tryAgain: 'Thử lại',
     retrying: 'Đang thử lại…',
     undo: 'Hoàn tác',
+    // The first link on every page, shown when the keyboard reaches it (review 12/11, E04)
+    skipToContent: 'Bỏ qua, tới nội dung',
     undoing: 'Đang hoàn tác…',
     save: 'Lưu',
     saving: 'Đang lưu…',
@@ -346,6 +348,9 @@ const vi = {
     approving: 'Đang duyệt…',
     reject: 'Từ chối',
     approved: (name: string) => `${name} đã vào nhà.`,
+    // The buttons name the person they answer (review 12/11, E05)
+    approveLabel: (name: string) => `Duyệt ${name}`,
+    rejectLabel: (name: string) => `Từ chối ${name}`,
     rejected: (name: string) => `Đã từ chối ${name}.`,
     confirmReject: (name: string) => `Từ chối ${name}? Muốn vào nhà, ${name} phải nhập mã mời lại.`,
   },

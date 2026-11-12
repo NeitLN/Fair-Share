@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 
 import { approveRequest, keys, listRequests, rejectRequest } from '../api/households'
 import type { JoinRequest, Member } from '../api/types'
@@ -30,6 +30,20 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
 
   const newName = (request: JoinRequest) => (names[request.user_id] ?? request.display_name).trim()
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.household(householdId) })
+  // The answered request's row goes, and the focus with it: it moves on to the next request's Duyệt,
+  // or to the page's title once none is left (review 12/11, E05)
+  const section = useRef<HTMLElement>(null)
+  const keepFocus = () =>
+    requestAnimationFrame(() => {
+      // Only a focus that was lost with the row: someone who went elsewhere meanwhile keeps their place
+      // (review of #304)
+      const active = document.activeElement
+      if (active && active !== document.body && !section.current?.contains(active)) return
+      const next = section.current?.querySelector<HTMLElement>('.join-request-actions .btn-primary:not(:disabled)')
+      const heading = document.querySelector<HTMLElement>('main h1')
+      if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1')
+      ;(next ?? heading)?.focus()
+    })
   const approve = useMutation({
     mutationFn: (request: JoinRequest) => {
       const choice = choices[request.user_id] ?? NEW
@@ -39,14 +53,14 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
     },
     onSuccess: (member) => {
       toast({ text: t.requests.approved(member.name) })
-      return refresh()
+      return refresh().then(keepFocus)
     },
   })
   const reject = useMutation({
     mutationFn: (request: JoinRequest) => rejectRequest(householdId, request.user_id),
     onSuccess: (_result, request) => {
       toast({ text: t.requests.rejected(request.display_name) })
-      return refresh()
+      return refresh().then(keepFocus)
     },
   })
 
@@ -56,7 +70,7 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
   const failed = approve.error ?? reject.error
 
   return (
-    <section className="join-requests" aria-labelledby={`${id}-title`}>
+    <section ref={section} className="join-requests" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>{t.requests.title}</h2>
       <p className="hint">{t.requests.hint}</p>
       {requests.error && <p role="alert">{errorMessage(requests.error)}</p>}
@@ -109,6 +123,8 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
                 <button
                   type="button"
                   className="btn-primary"
+                  // Whose request it answers, for a screen reader moving between them (E05)
+                  aria-label={t.requests.approveLabel(request.display_name)}
                   disabled={busy || (asNew && !newName(request))}
                   onClick={() => approve.mutate(request)}
                 >
@@ -119,6 +135,7 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
                 <button
                   type="button"
                   className="btn-ghost"
+                  aria-label={t.requests.rejectLabel(request.display_name)}
                   disabled={busy}
                   onClick={() => confirm(t.requests.confirmReject(request.display_name)) && reject.mutate(request)}
                 >

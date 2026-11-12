@@ -332,7 +332,8 @@ function IdentityCard({ user }: { user: User }) {
       <div className="profile-band" aria-hidden="true" />
       <div className="profile-card-body">
         <div className="profile-photo">
-          <Avatar look={look} size="lg" />
+          {/* The name is right under it: read once (review 12/11, E07) */}
+          <Avatar look={look} size="lg" decorative />
         </div>
         <h2 id="profile-card-title" className="profile-card-title">
           {t.profile.cardTitle}

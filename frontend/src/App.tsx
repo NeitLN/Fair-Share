@@ -1,5 +1,5 @@
-import { useLayoutEffect } from 'react'
-import { Link, Route, Routes } from 'react-router'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Link, Route, Routes, useLocation } from 'react-router'
 
 import AccountMenu from './components/AccountMenu'
 import SlowNotice from './components/SlowNotice'
@@ -29,12 +29,35 @@ function App() {
     document.title = t.pageTitle
   }, [t])
 
+  // After moving to another page, a focus left on nothing (the link pressed is gone) goes to the new page's
+  // title, so the keyboard and a screen reader start there (review 12/11, E04). A focus a page placed itself,
+  // or a tab that stays on screen, is left where it is
+  const { pathname } = useLocation()
+  // The page shown last: the first load (run twice under StrictMode in development) is not a move
+  const shownPath = useRef(pathname)
+  useEffect(() => {
+    if (shownPath.current === pathname) return undefined
+    shownPath.current = pathname
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement && document.activeElement !== document.body) return
+      const heading = document.querySelector<HTMLElement>('main h1')
+      if (!heading) return
+      if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1')
+      heading.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pathname])
+
   // Signed out on a computer, the sign-in page carries the wordmark itself, in the middle of the screen
   // (specs/008-wider-desktop-signin), so the header would only repeat it in a corner
   const signInBlock = !session && wide
 
   return (
     <ToastProvider>
+      {/* The first thing the keyboard reaches: straight to the page, past the header (E04) */}
+      <a className="skip-link" href="#main">
+        {t.common.skipToContent}
+      </a>
       {!signInBlock && (
         <header className="app-header">
           <Link to="/" className="home-link">
@@ -47,7 +70,7 @@ function App() {
       )}
       {/* A sleeping server takes about 50 s to answer: said above every page, signed in or not */}
       <SlowNotice />
-      <main className={signInBlock ? 'signed-out' : undefined}>
+      <main id="main" tabIndex={-1} className={signInBlock ? 'signed-out' : undefined}>
         {/* Every page needs an account (docs/ACCOUNTS.md). Signed out, any address shows the sign-in
             form; once signed in, the page that was asked for (an invite link included) opens. */}
         {session ? (

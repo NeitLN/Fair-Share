@@ -431,7 +431,7 @@ test('the sign-in page on a laptop and on a phone', async ({ page }) => {
 
   // Tab from the top: the two tabs, the fields with Hiện, submit, then the language and the theme
   const order: string[] = []
-  for (let i = 0; i < 11; i++) {
+  for (let i = 0; i < 12; i++) {
     await page.keyboard.press('Tab')
     order.push(
       await page.evaluate(() => {
@@ -440,7 +440,8 @@ test('the sign-in page on a laptop and on a phone', async ({ page }) => {
       }),
     )
   }
-  expect(order).toEqual(['Đăng nhập', 'Tạo tài khoản', 'auth-email', 'auth-password', 'Hiện', 'Đăng nhập', 'EN', 'VI', 'Tự động', 'Sáng', 'Tối'])
+  // The skip link comes first (review 12/11, E04)
+  expect(order).toEqual(['Bỏ qua, tới nội dung', 'Đăng nhập', 'Tạo tài khoản', 'auth-email', 'auth-password', 'Hiện', 'Đăng nhập', 'EN', 'VI', 'Tự động', 'Sáng', 'Tối'])
 
   // A phone: the page as before, with the header's wordmark and no brand block
   await page.setViewportSize({ width: 360, height: 800 })
