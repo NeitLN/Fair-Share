@@ -367,7 +367,7 @@ const en: Messages = {
   },
   members: {
     // Another person's receiving account, as a hint only (specs/016-vietqr, FR-011)
-    receivingHint: (bank: string, last4: string) => `Has a receiving account · ${bank} •••• ${last4}`,
+    receivingHint: (bank: string, last4: string) => `Has a receiving account · ${bank} ••••\u00a0${last4}`,
     nameLabel: 'Member name',
     nameEmpty: "The member name can't be empty.",
     add: 'Add member',
@@ -717,7 +717,7 @@ const en: Messages = {
     restoreUnknown: "No answer yet. It may already be recorded again; pressing Try again won't record it twice.",
     paidBy: (payer: string, split: string) => `${payer} paid · ${split}`,
     splitCustom: (n: number) => `custom split, ${count(n, 'person', 'people')}`,
-    splitEqualOf: (n: number, all: number) => `split equally, ${n} of ${all}`,
+    splitEqualOf: (n: number, all: number) => `split equally, ${n}\u00a0of\u00a0${all}`,
     splitEqual: (n: number) => `split equally, ${count(n, 'person', 'people')}`,
     editLabel: (description: string) => `Edit ${description}`,
     sharesOf: (description: string) => `Each person's share of ${description}`,

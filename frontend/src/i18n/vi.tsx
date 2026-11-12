@@ -377,7 +377,7 @@ const vi = {
   },
   members: {
     // Another person's receiving account, as a hint only (specs/016-vietqr, FR-011)
-    receivingHint: (bank: string, last4: string) => `Có tài khoản nhận tiền · ${bank} •••• ${last4}`,
+    receivingHint: (bank: string, last4: string) => `Có tài khoản nhận tiền · ${bank} ••••\u00a0${last4}`,
     nameLabel: 'Tên thành viên',
     nameEmpty: 'Tên thành viên không được để trống.',
     add: 'Thêm thành viên',
@@ -742,9 +742,10 @@ const vi = {
     restoreOffline: 'Chưa ghi lại được: bạn đang mất mạng.',
     restoreUnknown: 'Chưa nhận được kết quả. Có thể khoản chi đã được ghi lại; bấm Thử lại cũng không ghi trùng.',
     paidBy: (payer: string, split: string) => `${payer} trả · ${split}`,
-    splitCustom: (people: number) => `tự chia ${people} người`,
-    splitEqualOf: (people: number, all: number) => `chia đều ${people}/${all} người`,
-    splitEqual: (people: number) => `chia đều ${people} người`,
+    // The number and its unit never part at a line end (review 12/11, D10: "chia đều 3 / người")
+    splitCustom: (people: number) => `tự chia ${people}\u00a0người`,
+    splitEqualOf: (people: number, all: number) => `chia đều ${people}/${all}\u00a0người`,
+    splitEqual: (people: number) => `chia đều ${people}\u00a0người`,
     editLabel: (description: string) => `Sửa ${description}`,
     sharesOf: (description: string) => `Phần của từng người trong ${description}`,
     deleteLabel: (description: string) => `Xoá ${description}`,
