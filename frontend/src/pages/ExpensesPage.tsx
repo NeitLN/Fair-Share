@@ -473,6 +473,13 @@ function ExpensesPage() {
             {totals && filter.month && months.includes(filter.month) && (
               <MonthTotals month={filter.month} totals={totals} looks={looks} me={me} highlight={filter.memberId} />
             )}
+            {/* By payer or category, the month card still counts the whole month: what the filter shows is
+                said apart (review 12/11, B05) */}
+            {(filter.memberId !== null || filter.category !== null) && shown.length > 0 && (
+              <p className="filter-total">
+                {t.expenses.filteredTotal(shown.length, formatVND(shown.reduce((sum, e) => sum + e.amount, 0)))}
+              </p>
+            )}
             {filter.month !== null && !months.includes(filter.month) ? (
               // The month stays chosen with nothing in it, and says so (FR-014)
               <p className="empty">

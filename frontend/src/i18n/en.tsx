@@ -678,6 +678,8 @@ const en: Messages = {
     add: 'Add expense',
     listTitle: 'Expenses',
     filteredCount: (shown: number, all: number) => `${shown} of ${all}`,
+    filteredTotal: (count: number, total: string) =>
+      `Filtered: ${count} ${count === 1 ? 'expense' : 'expenses'} · total ${total}`,
     listHint: "Tap to see each person's share, edit or delete",
     listHintWide: 'newest first',
     saved: (description: string, amount: string) => `Saved: ${description} ${amount}`,

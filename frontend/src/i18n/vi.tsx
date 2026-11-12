@@ -695,6 +695,8 @@ const vi = {
     add: 'Ghi khoản chi',
     listTitle: 'Các khoản chi',
     filteredCount: (shown: number, all: number) => `${shown}/${all} khoản`,
+    // Under a payer or category filter (review 12/11, B05)
+    filteredTotal: (count: number, total: string) => `Đang lọc: ${count} khoản · tổng ${total}`,
     listHint: 'chạm để xem phần từng người, sửa hoặc xoá',
     listHintWide: 'mới nhất ở trên',
     saved: (description: string, amount: string) => `Đã lưu: ${description} ${amount}`,
