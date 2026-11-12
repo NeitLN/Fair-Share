@@ -39,6 +39,17 @@ export function readKept(key: string): KeptDraft | null {
   }
 }
 
+/** Forgets every kept draft of this tab: after a deliberate Đăng xuất (lib/session.ts; review of #301). */
+export function forgetAllKept() {
+  try {
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith('fair-share:expense-draft:')) sessionStorage.removeItem(key)
+    }
+  } catch {
+    // Storage blocked: nothing was kept
+  }
+}
+
 /** Keeps `draft`, or forgets it when nothing has been typed (null). */
 export function writeKept(key: string, draft: KeptDraft | null) {
   try {

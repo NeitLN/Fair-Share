@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 import type { Session } from '../api/types'
+import { forgetAllKept } from './keptDraft'
 
 /**
  * Who is signed in on this browser (docs/ACCOUNTS.md): the session token the API gave at login and
@@ -74,6 +75,8 @@ export const updateUser = (user: Session['user']) => {
  */
 export const signOut = (reason?: 'ended') => {
   if (reason === 'ended' && current) markEnded(true)
+  // Signing out on purpose leaves nothing typed behind; an ended session keeps it for the sign-in again
+  else forgetAllKept()
   set(null)
 }
 

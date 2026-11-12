@@ -20,6 +20,9 @@ export function useUnsaved(part: string, dirty: boolean) {
 
 export const hasUnsaved = () => unsaved.size > 0
 
+/** Whether this one part holds something unsaved. */
+export const isUnsaved = (part: string) => unsaved.has(part)
+
 /**
  * While anything is unsaved: closing or reloading the tab gets the browser's own question, and a link to
  * another page of the app asks `question` first. The link is caught before React Router sees it (a

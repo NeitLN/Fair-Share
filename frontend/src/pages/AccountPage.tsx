@@ -27,7 +27,7 @@ import { initialOf } from '../lib/names'
 import { cropToSquare, PhotoPickError } from '../lib/photoCrop'
 import { currentSession, updateUser, useSession } from '../lib/session'
 import { useToast } from '../lib/toast'
-import { hasUnsaved, useLeaveGuard, useUnsaved } from '../lib/unsaved'
+import { isUnsaved, useLeaveGuard, useUnsaved } from '../lib/unsaved'
 import { usePageTitle } from '../lib/usePageTitle'
 
 /** The photo a data URL holds ("data:image/jpeg;base64,…"), to save it again after Gỡ ảnh. */
@@ -65,19 +65,21 @@ function AccountPage() {
     queryFn: async () => {
       const user = await getMe()
       const before = currentSession()?.user
-      const changed =
-        !before ||
-        before.display_name !== user.display_name ||
-        (before.status ?? '') !== (user.status ?? '') ||
-        (before.gender ?? null) !== (user.gender ?? null)
+      // Part by part: text typed in one part never keeps another on its old value (review of #301)
+      const restart = {
+        name: before?.display_name !== user.display_name && !isUnsaved('name'),
+        status: (before?.status ?? '') !== (user.status ?? '') && !isUnsaved('status'),
+        gender: (before?.gender ?? null) !== (user.gender ?? null) && !isUnsaved('gender'),
+      }
       updateUser(user)
-      return { restart: changed && !hasUnsaved() }
+      return restart
     },
     staleTime: 0,
     gcTime: 0,
     retry: false,
   })
-  const round = fresh.data?.restart ? `fresh-${fresh.dataUpdatedAt}` : 'local'
+  const round = (part: 'name' | 'status' | 'gender') =>
+    fresh.data?.[part] ? `${part}-${fresh.dataUpdatedAt}` : `${part}-local`
   // Leaving with "Chưa lưu" anywhere on the page asks first (F09)
   useLeaveGuard(t.profile.leaveUnsaved)
   if (!session) return null
@@ -98,11 +100,11 @@ function AccountPage() {
       <div className="profile-layout">
         <IdentityCard user={user} />
         <div className="profile-parts">
-          <NameForm key={`name-${round}`} current={user.display_name} />
-          <StatusForm key={`status-${round}`} current={user.status ?? ''} />
+          <NameForm key={round('name')} current={user.display_name} />
+          <StatusForm key={round('status')} current={user.status ?? ''} />
           <ReceivingAccountForm />
           <PasswordForm />
-          <GenderForm key={`gender-${round}`} current={user.gender ?? null} />
+          <GenderForm key={round('gender')} current={user.gender ?? null} />
         </div>
       </div>
     </div>

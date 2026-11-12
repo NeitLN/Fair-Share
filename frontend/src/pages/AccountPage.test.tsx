@@ -782,3 +782,19 @@ test('a link away while a part is not saved asks first', async () => {
   await user.click(screen.getByRole('link', { name: 'Nhà của bạn' }))
   expect(ask).not.toHaveBeenCalled()
 })
+
+// Review of #301: text typed in one part never keeps another part on its old value
+test('a part with nothing typed starts from the account read, even while another part holds text', async () => {
+  let answer: (reply: [number, unknown]) => void = () => {}
+  mockApi({
+    ...noHouses,
+    'GET /api/auth/me': () => new Promise<[number, unknown]>((resolve) => (answer = resolve)),
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'mat-khau-cu')
+  answer([200, { ...testUser, display_name: 'Tiến mới' }])
+  await waitFor(() => expect(screen.getByLabelText('Tên hiển thị')).toHaveValue('Tiến mới'))
+  // The password part keeps what was typed
+  expect(screen.getByLabelText('Mật khẩu hiện tại')).toHaveValue('mat-khau-cu')
+})
