@@ -37,22 +37,179 @@ managed database and a server-side AI call ([assessment checklist](#assessment-c
 
 ## Contents
 
-1. [Features](#features)
-2. [Architecture](#architecture)
-3. [Tech stack](#tech-stack)
-4. [Quick start (Docker Compose)](#quick-start-docker-compose)
-5. [Configuration](#configuration)
-6. [Development without Docker](#development-without-docker)
-7. [API](#api)
-8. [Testing and quality](#testing-and-quality)
-9. [CI/CD pipeline](#cicd-pipeline)
-10. [Deployment](#deployment)
-11. [Security and secrets](#security-and-secrets)
-12. [Repository layout](#repository-layout)
-13. [Troubleshooting](#troubleshooting)
-14. [Project status](#project-status)
-15. [Assessment checklist](#assessment-checklist)
-16. [Team and workflow](#team-and-workflow)
+1. [Install and use Fair-Share](#install-and-use-fair-share)
+2. [Features](#features)
+3. [Architecture](#architecture)
+4. [Tech stack](#tech-stack)
+5. [Quick start (Docker Compose)](#quick-start-docker-compose)
+6. [Configuration](#configuration)
+7. [Development without Docker](#development-without-docker)
+8. [API](#api)
+9. [Testing and quality](#testing-and-quality)
+10. [CI/CD pipeline](#cicd-pipeline)
+11. [Deployment](#deployment)
+12. [Security and secrets](#security-and-secrets)
+13. [Repository layout](#repository-layout)
+14. [Troubleshooting](#troubleshooting)
+15. [Project status](#project-status)
+16. [Assessment checklist](#assessment-checklist)
+17. [Team and workflow](#team-and-workflow)
+
+## Install and use Fair-Share
+
+This part is for anyone who wants to **use** Fair-Share with their housemates. Pick one of three ways:
+
+| Way | Good for | You need |
+|---|---|---|
+| **A. [Use the live app](#a-use-the-live-app)** | Trying it, or starting with your housemates today | A browser |
+| **B. [Run it on your computer](#b-run-it-on-your-computer)** | A private copy; the data stays on your machine | Git and Docker Desktop |
+| **C. [Put your own copy online](#c-put-your-own-copy-online)** | A group that wants its own server, reachable from anywhere | Free GitHub, Render and Supabase accounts (no credit card) |
+
+Then read [Using Fair-Share](#using-fair-share): it is the same app whichever way you choose.
+
+### A. Use the live app
+
+Open **https://fair-share-web.onrender.com** on a phone or a computer, choose **Tạo tài khoản**
+(*Create account*) and continue with [Using Fair-Share](#using-fair-share). Nothing to install.
+
+* If the first page takes up to a minute, the free server is waking up; it stays fast while in use.
+* There is no password reset yet, so keep your password somewhere safe.
+
+### B. Run it on your computer
+
+**1. Install the tools (once).**
+
+* **Git**: https://git-scm.com/downloads
+* **Docker Desktop**: https://www.docker.com/products/docker-desktop/ (Windows, macOS or Linux).
+  On Windows, let the installer turn on WSL 2 and restart when it asks. Open Docker Desktop and wait
+  until it says the engine is running.
+
+Check both in a terminal (PowerShell on Windows, Terminal on macOS):
+
+```bash
+git --version
+docker compose version
+```
+
+**2. Download Fair-Share and start it.**
+
+```bash
+git clone https://github.com/NeitLN/Fair-Share.git
+cd Fair-Share
+docker compose up --build
+```
+
+The first start downloads and builds everything and takes a few minutes; later starts take seconds.
+Keep this terminal open: Fair-Share runs as long as it does. No Node, Python or PostgreSQL to install,
+and no `.env` file to write.
+
+**3. Open it.** Go to **http://localhost:3000**. Create your own account, or look around first with a
+demo account: `tien@demo.local` (owner of the demo house), `minh@demo.local` or `duyanh@demo.local`,
+password `fairshare-demo`. The demo house is visible only to these three accounts, so a new account
+starts empty.
+
+**4. Let your housemates in (optional).** Anyone on the same Wi-Fi can open
+`http://<your computer's IP>:3000` on their phone, for as long as your computer is on and Fair-Share is
+running. Find the IP with `ipconfig` (Windows, the *IPv4 Address* line) or `ipconfig getifaddr en0`
+(macOS), and allow Docker through the firewall if your system asks. For access from anywhere, use
+[way C](#c-put-your-own-copy-online).
+
+**5. Turn on Quick add (optional).** The AI box needs a Google Gemini key; without one, everything
+else works and Quick add says it is not turned on.
+
+1. Create a free key at [Google AI Studio](https://aistudio.google.com/apikey).
+2. In the `Fair-Share` folder, copy the template: `cp .env.example .env`
+   (PowerShell: `Copy-Item .env.example .env`).
+3. Open `.env` and paste the key after `GEMINI_API_KEY=`. Never commit or share this file.
+4. Stop Fair-Share (`Ctrl+C`) and run `docker compose up` again.
+
+**Everyday commands** (run them in the `Fair-Share` folder):
+
+| To | Run | Your data |
+|---|---|---|
+| Start again later | `docker compose up` (add `-d` to free the terminal) | kept |
+| Stop | `Ctrl+C`, or `docker compose down` | kept |
+| Update to the newest version | `git pull`, then `docker compose up --build` | kept |
+| Start over with only the demo house | `docker compose down -v`, then `docker compose up` | **deleted** |
+| Remove Fair-Share completely | `docker compose down -v --rmi local`, then delete the folder | **deleted** |
+
+Something does not start? See [Troubleshooting](#troubleshooting). To keep a copy of your data, see
+the backups in [Deployment](#deployment).
+
+### C. Put your own copy online
+
+The same setup as our live app, on free tiers with no credit card: the database on Supabase, the API
+and the web app on Render.
+
+1. **Fork** this repository to your GitHub account.
+2. **Database.** Create a project on [Supabase](https://supabase.com). Open **Connect**, choose
+   **Session pooler** and copy the URI. Replace `[YOUR-PASSWORD]` with the database password you set,
+   and add `?sslmode=require` at the end if it is not there. This string is your `DATABASE_URL`: a
+   secret, never commit it.
+3. **API.** On [Render](https://render.com): **New → Web Service**, connect your fork, language
+   **Docker** (Render uses the root `Dockerfile`), free instance. Add these environment variables:
+
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | the URI from step 2 |
+   | `APP_ENV` | `production` |
+   | `GEMINI_API_KEY` | optional, for Quick add |
+
+   After the deploy, `https://<your-api>.onrender.com/health/db` should answer `"db":"ok"`. The API
+   creates the tables itself on its first start; the demo house is never added online.
+4. **Web app.** On Render: **New → Static Site**, the same fork, with
+
+   | Setting | Value |
+   |---|---|
+   | Root Directory | `frontend` |
+   | Build Command | `npm ci && npm run build` |
+   | Publish Directory | `dist` |
+   | Environment variable `VITE_API_BASE_URL` | `https://<your-api>.onrender.com` (no `/` at the end) |
+   | Environment variable `NODE_VERSION` | `22` (the version CI uses) |
+
+   Then in **Redirects/Rewrites** add source `/*`, destination `/index.html`, action **Rewrite**, so a
+   link such as `/join/ABCD-EFGH` opens the right page.
+5. **Connect the two.** Back on the API service, add `ALLOWED_ORIGINS` =
+   `https://<your-web>.onrender.com` and save; the API restarts.
+6. Open your web app's URL, create an account and share the link with your housemates.
+
+Good to know: the free Render API sleeps after about 15 minutes without visitors, and Supabase pauses a
+free project after a week without activity (resume it from its dashboard). Render deploys every push to
+your fork by itself; our own repository turns that off and deploys from GitHub Actions instead
+([CI/CD pipeline](#cicd-pipeline)). GitHub keeps Actions off in a new fork; leave the scheduled
+workflows off, as they are written for our services.
+
+### Using Fair-Share
+
+The app speaks Vietnamese by default; **EN / VI** in the header switches to English. Labels below are
+given as they appear in Vietnamese, with the English one in brackets.
+
+1. **Create an account.** **Tạo tài khoản** (*Create account*): your email, a password of at least 8
+   characters and the name your housemates know you by. Emails are not checked, but they are your login.
+2. **Create a house.** One person does this: **+ Tạo nhà mới** (*+ New house*), type a name, then
+   **Tạo nhà** (*Create house*). That person becomes the house's owner (*Trưởng nhóm*).
+3. **Invite your housemates.** On the house's **Thành viên** (*Members*) tab, send them the invite link
+   or the 8-character code (valid for 7 days). They create an account, open the link or choose **Nhập mã
+   mời** (*Enter invite code*), then **Gửi yêu cầu vào nhà** (*Ask to join*).
+4. **Approve them.** The owner sees each request under **Người xin vào nhà** on the **Thành viên** tab
+   and presses **Duyệt** (*Approve*). Only approved people can see the house; to anyone else it does not
+   exist.
+5. **Record what you spend**, right after paying. **+ Ghi khoản chi** (*+ Add expense*): what, how much
+   (VND), who paid, and who shares it, **equally** or with **custom** amounts that must add up to the
+   total. Or type one sentence into **Gõ nhanh bằng AI** (*Quick add with AI*), for example
+   `lẩu 240k Minh trả chia đều cả nhà`, press **Điền giúp** (*Fill form*), check the form, then save.
+   Quick add never saves anything by itself.
+6. **See who owes whom.** **Tổng quan** (*Overview*) tells you in one line whether you owe or are owed,
+   shows each person's balance, and lists the fewest transfers that settle the whole house.
+7. **Settle up.** Pay your housemate as you usually do (bank transfer, cash), then press **Tôi đã
+   chuyển** (*I've sent it*) on that transfer. The person who receives it confirms with **Xác nhận đã
+   nhận** (*Mark as received*), and only then do the balances change. If they add a receiving account
+   on their profile page (**Hồ sơ của bạn**), you also get a VietQR code to scan with your banking app.
+
+More, when you need it: **Báo cáo tháng** (*Monthly report*) shows where the money went each month,
+**Xuất CSV** (*Export CSV*) on **Chi tiêu** (*Expenses*) opens in Excel or Google Sheets, and ticking
+**Lặp lại hằng tháng** on rent or internet reminds the house to record it each month. Who may do what
+(owner, member, waiting) is in [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
 
 ## Features
 
