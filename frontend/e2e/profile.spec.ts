@@ -64,7 +64,8 @@ test('a new password keeps this browser signed in and signs the other one out', 
   await signInPage(phone, minh)
   await phone.goto('/account')
   await phone.getByLabel('Mật khẩu hiện tại').fill('e2e-password-not-secret')
-  await phone.getByLabel('Mật khẩu mới').fill('e2e-new-password-1')
+  await phone.getByLabel('Mật khẩu mới', { exact: true }).fill('e2e-new-password-1')
+  await phone.getByLabel('Nhập lại mật khẩu mới').fill('e2e-new-password-1')
   await phone.getByRole('button', { name: 'Đổi mật khẩu' }).click()
   // The slowest answer in this file: argon2id twice (the old password checked, the new one hashed) and
   // every other session ended, on the free instance. A live run failed once on one of this test's waits

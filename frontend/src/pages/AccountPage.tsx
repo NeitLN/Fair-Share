@@ -6,6 +6,7 @@ import { ApiError } from '../api/client'
 import {
   changePassword,
   GENDER_NOTICE,
+  getMe,
   getMyPhoto,
   getReceivingAccount,
   keys,
@@ -17,14 +18,16 @@ import {
 } from '../api/households'
 import { Avatar } from '../components/Avatar'
 import InlineConfirm from '../components/InlineConfirm'
+import PasswordInput from '../components/PasswordInput'
 import ReceivingAccountForm from '../components/ReceivingAccountForm'
 import type { Gender, MyHouseholds, RenameResult, User } from '../api/types'
 import { useT } from '../i18n'
 import { errorMessage } from '../lib/errors'
 import { initialOf } from '../lib/names'
 import { cropToSquare, PhotoPickError } from '../lib/photoCrop'
-import { updateUser, useSession } from '../lib/session'
+import { currentSession, updateUser, useSession } from '../lib/session'
 import { useToast } from '../lib/toast'
+import { isUnsaved, useLeaveGuard, useUnsaved } from '../lib/unsaved'
 import { usePageTitle } from '../lib/usePageTitle'
 
 /** The photo a data URL holds ("data:image/jpeg;base64,…"), to save it again after Gỡ ảnh. */
@@ -52,6 +55,33 @@ function AccountPage() {
   useEffect(() => {
     if (arrived?.focus === 'title') title.current?.focus()
   }, [arrived])
+  // Another phone may have changed the name, status or gender since this one signed in: read the account
+  // again first, so no part starts from an old value and saves it back (review 12/11, F05). If the read
+  // fails, the parts start from what this browser has
+  // The parts start from what they are given; when the account read differs, they start again from it,
+  // unless something is already typed there (it is never thrown away)
+  const fresh = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const user = await getMe()
+      const before = currentSession()?.user
+      // Part by part: text typed in one part never keeps another on its old value (review of #301)
+      const restart = {
+        name: before?.display_name !== user.display_name && !isUnsaved('name'),
+        status: (before?.status ?? '') !== (user.status ?? '') && !isUnsaved('status'),
+        gender: (before?.gender ?? null) !== (user.gender ?? null) && !isUnsaved('gender'),
+      }
+      updateUser(user)
+      return restart
+    },
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  })
+  const round = (part: 'name' | 'status' | 'gender') =>
+    fresh.data?.[part] ? `${part}-${fresh.dataUpdatedAt}` : `${part}-local`
+  // Leaving with "Chưa lưu" anywhere on the page asks first (F09)
+  useLeaveGuard(t.profile.leaveUnsaved)
   if (!session) return null
   const { user } = session
   return (
@@ -70,11 +100,11 @@ function AccountPage() {
       <div className="profile-layout">
         <IdentityCard user={user} />
         <div className="profile-parts">
-          <NameForm current={user.display_name} />
-          <StatusForm current={user.status ?? ''} />
+          <NameForm key={round('name')} current={user.display_name} />
+          <StatusForm key={round('status')} current={user.status ?? ''} />
           <ReceivingAccountForm />
           <PasswordForm />
-          <GenderForm current={user.gender ?? null} />
+          <GenderForm key={round('gender')} current={user.gender ?? null} />
         </div>
       </div>
     </div>
@@ -135,6 +165,7 @@ function NameForm({ current }: { current: string }) {
   const failure = save.error instanceof ApiError && save.error.status === 422 ? t.profile.nameProblem : null
   const fieldProblem = problem ?? failure
   const dirty = nfc(name) !== nfc(current)
+  useUnsaved('name', dirty)
   return (
     <section className="profile-part" aria-labelledby="profile-name-title">
       <h2 id="profile-name-title">{t.profile.nameTitle}</h2>
@@ -263,6 +294,8 @@ function IdentityCard({ user }: { user: User }) {
     },
   })
   const busy = save.isPending || remove.isPending
+  // A picked photo is not saved until Lưu ảnh
+  useUnsaved('photo', picked !== null)
 
   async function pick(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -433,6 +466,7 @@ function StatusForm({ current }: { current: string }) {
 
   const fieldProblem = problem ?? (save.error instanceof ApiError && save.error.status === 422 ? t.profile.statusProblem : null)
   const dirty = nfc(status) !== nfc(current)
+  useUnsaved('status', dirty)
   return (
     <section className="profile-part" aria-labelledby="profile-status-title">
       <h2 id="profile-status-title">{t.profile.statusTitle}</h2>
@@ -515,6 +549,7 @@ function GenderForm({ current }: { current: Gender | null }) {
     },
   })
   const dirty = choice !== current
+  useUnsaved('gender', dirty)
   return (
     <section className="profile-part" aria-labelledby="profile-gender-title">
       <h2 id="profile-gender-title">{t.profile.genderTitle}</h2>
@@ -573,7 +608,9 @@ function PasswordForm() {
   const t = useT()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
-  const [problems, setProblems] = useState<{ current?: string; next?: string }>({})
+  // Typed twice: there is no reset by email, so a typo here would lock the account (review 12/11, F06)
+  const [again, setAgain] = useState('')
+  const [problems, setProblems] = useState<{ current?: string; next?: string; again?: string }>({})
   const [done, setDone] = useState(false)
   const save = useMutation({
     mutationFn: () => changePassword(current, next),
@@ -581,6 +618,7 @@ function PasswordForm() {
     onSettled: () => {
       setCurrent('')
       setNext('')
+      setAgain('')
     },
     onSuccess: () => setDone(true),
   })
@@ -591,6 +629,7 @@ function PasswordForm() {
     const found: typeof problems = {}
     if (!current) found.current = t.profile.currentProblem
     if (next.length < 8 || next.length > 128) found.next = t.profile.newProblem
+    else if (again !== next) found.again = t.profile.againProblem
     setProblems(found)
     setDone(false)
     if (Object.keys(found).length === 0) save.mutate()
@@ -598,7 +637,8 @@ function PasswordForm() {
 
   const wrong = save.error instanceof ApiError && save.error.code === 'wrong_password'
   const currentProblem = problems.current ?? (wrong ? errorMessage(save.error) : null)
-  const dirty = current !== '' || next !== ''
+  const dirty = current !== '' || next !== '' || again !== ''
+  useUnsaved('password', dirty)
   return (
     <section className="profile-part" aria-labelledby="profile-password-title">
       <h2 id="profile-password-title">{t.profile.passwordTitle}</h2>
@@ -608,14 +648,13 @@ function PasswordForm() {
         <div className="profile-pair">
           <div className="field">
             <label htmlFor="profile-current-password">{t.profile.currentPassword}</label>
-            <input
+            <PasswordInput
               id="profile-current-password"
-              type="password"
               autoComplete="current-password"
               value={current}
-              aria-invalid={currentProblem ? true : undefined}
-              aria-describedby={currentProblem ? 'profile-current-problem' : undefined}
-              onChange={(e) => setCurrent(e.target.value)}
+              invalid={Boolean(currentProblem)}
+              describedBy={currentProblem ? 'profile-current-problem' : undefined}
+              onChange={setCurrent}
             />
             {currentProblem && (
               <p id="profile-current-problem" className="field-problem" role="alert">
@@ -625,14 +664,13 @@ function PasswordForm() {
           </div>
           <div className="field">
             <label htmlFor="profile-new-password">{t.profile.newPassword}</label>
-            <input
+            <PasswordInput
               id="profile-new-password"
-              type="password"
               autoComplete="new-password"
               value={next}
-              aria-invalid={problems.next ? true : undefined}
-              aria-describedby={problems.next ? 'profile-new-hint profile-new-problem' : 'profile-new-hint'}
-              onChange={(e) => setNext(e.target.value)}
+              invalid={Boolean(problems.next)}
+              describedBy={problems.next ? 'profile-new-hint profile-new-problem' : 'profile-new-hint'}
+              onChange={setNext}
             />
             <p id="profile-new-hint" className="hint">
               {t.profile.newPasswordHint}
@@ -640,6 +678,22 @@ function PasswordForm() {
             {problems.next && (
               <p id="profile-new-problem" className="field-problem" role="alert">
                 {problems.next}
+              </p>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="profile-again-password">{t.profile.againPassword}</label>
+            <PasswordInput
+              id="profile-again-password"
+              autoComplete="new-password"
+              value={again}
+              invalid={Boolean(problems.again)}
+              describedBy={problems.again ? 'profile-again-problem' : undefined}
+              onChange={setAgain}
+            />
+            {problems.again && (
+              <p id="profile-again-problem" className="field-problem" role="alert">
+                {problems.again}
               </p>
             )}
           </div>

@@ -23,6 +23,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   localStorage.clear()
+  // A kept expense draft and the "session ended" flag live here (lib/keptDraft.ts, lib/session.ts)
+  sessionStorage.clear()
   reloadSession()
   // Module state of specs/011: no request left waiting, and /api/version asked again as on a new page
   resetSlowRequests()

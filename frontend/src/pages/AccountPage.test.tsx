@@ -110,6 +110,7 @@ test('a wrong current password is said under its field, and nobody is signed out
   renderApp('/account')
   await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'sai-mat-khau')
   await user.type(screen.getByLabelText('Mật khẩu mới'), 'mat-khau-moi-1')
+  await user.type(screen.getByLabelText('Nhập lại mật khẩu mới'), 'mat-khau-moi-1')
   await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
   expect(await screen.findByText('Mật khẩu hiện tại chưa đúng.')).toBeInTheDocument()
   expect(currentSession()).not.toBeNull()
@@ -125,6 +126,7 @@ test('too many tries says to wait, as signing in does', async () => {
   renderApp('/account')
   await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'sai-mat-khau')
   await user.type(screen.getByLabelText('Mật khẩu mới'), 'mat-khau-moi-1')
+  await user.type(screen.getByLabelText('Nhập lại mật khẩu mới'), 'mat-khau-moi-1')
   await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
   expect(await screen.findByText('Bạn thử quá nhiều lần. Đợi một lúc rồi thử lại.')).toBeInTheDocument()
 })
@@ -135,6 +137,7 @@ test('a changed password says the other places are signed out and clears both fi
   renderApp('/account')
   await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'mat-khau-cu')
   await user.type(screen.getByLabelText('Mật khẩu mới'), 'mat-khau-moi-1')
+  await user.type(screen.getByLabelText('Nhập lại mật khẩu mới'), 'mat-khau-moi-1')
   await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
   expect(await screen.findByText('Đã đổi mật khẩu. Các nơi khác đã đăng xuất.')).toBeInTheDocument()
   await waitFor(() => expect(screen.getByLabelText('Mật khẩu mới')).toHaveValue(''))
@@ -710,3 +713,88 @@ test('the receiving account hands the focus on: Thêm → bank, Huỷ → Thêm,
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thêm tài khoản' })).toHaveFocus())
 })
 
+// Review 12/11, F06/E12: typed twice, and Hiện on each field, since there is no reset by email
+test('a new password typed differently the second time is refused before anything is sent', async () => {
+  const api = mockApi({ ...noHouses })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'mat-khau-cu')
+  await user.type(screen.getByLabelText('Mật khẩu mới'), 'mat-khau-moi-1')
+  await user.type(screen.getByLabelText('Nhập lại mật khẩu mới'), 'mat-khau-moi-2')
+  await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
+  expect(screen.getByText('Hai lần nhập mật khẩu mới chưa giống nhau.')).toBeInTheDocument()
+  expect(screen.getByLabelText('Nhập lại mật khẩu mới')).toHaveAttribute('aria-invalid', 'true')
+  expect(api.mock.calls.some(([url]) => url === '/api/me/password')).toBe(false)
+})
+
+test('each password field can be shown to check it', async () => {
+  mockApi({ ...noHouses })
+  const user = userEvent.setup()
+  renderApp('/account')
+  const field = screen.getByLabelText('Mật khẩu mới')
+  expect(field).toHaveAttribute('type', 'password')
+  const show = within(field.closest('.password-field') as HTMLElement).getByRole('button', { name: 'Hiện mật khẩu' })
+  await user.click(show)
+  expect(field).toHaveAttribute('type', 'text')
+  expect(screen.getByLabelText('Nhập lại mật khẩu mới')).toHaveAttribute('type', 'password')
+})
+
+// Review 12/11, E09: how long to wait, from the server's retry_after
+test('a lockout says how many minutes are left', async () => {
+  mockApi({
+    ...noHouses,
+    'POST /api/me/password': [429, { error: { code: 'too_many_attempts', message: 'wait', retry_after: 541 } }],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'sai-mat-khau')
+  await user.type(screen.getByLabelText('Mật khẩu mới'), 'mat-khau-moi-1')
+  await user.type(screen.getByLabelText('Nhập lại mật khẩu mới'), 'mat-khau-moi-1')
+  await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
+  expect(await screen.findByText('Bạn thử quá nhiều lần. Thử lại sau 10 phút.')).toBeInTheDocument()
+})
+
+// Review 12/11, F05: another phone changed the profile; this one starts from the account as it is now
+test('the profile is read again, so a part never starts from an old value', async () => {
+  mockApi({
+    ...noHouses,
+    'GET /api/auth/me': [200, { ...testUser, display_name: 'Tiến mới', status: 'Đi làm' }],
+  })
+  renderApp('/account')
+  await waitFor(() => expect(screen.getByLabelText('Tên hiển thị')).toHaveValue('Tiến mới'))
+  expect(screen.queryByText('Chưa lưu')).not.toBeInTheDocument()
+})
+
+// Review 12/11, F09: leaving with "Chưa lưu" asks first; Ở lại keeps the page and what was typed
+test('a link away while a part is not saved asks first', async () => {
+  mockApi({ ...noHouses })
+  const ask = vi.fn(() => false)
+  vi.stubGlobal('confirm', ask)
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'), 'đi học')
+  await user.click(screen.getByRole('link', { name: 'Nhà của bạn' }))
+  expect(ask).toHaveBeenCalledWith('Có phần bạn sửa mà chưa lưu. Rời trang thì những gì vừa nhập sẽ mất. Vẫn rời trang?')
+  expect(screen.getByLabelText('Trạng thái bạn cùng nhà thấy')).toHaveValue('đi học')
+  // Nothing typed: no question
+  ask.mockClear()
+  await user.clear(screen.getByLabelText('Trạng thái bạn cùng nhà thấy'))
+  await user.click(screen.getByRole('link', { name: 'Nhà của bạn' }))
+  expect(ask).not.toHaveBeenCalled()
+})
+
+// Review of #301: text typed in one part never keeps another part on its old value
+test('a part with nothing typed starts from the account read, even while another part holds text', async () => {
+  let answer: (reply: [number, unknown]) => void = () => {}
+  mockApi({
+    ...noHouses,
+    'GET /api/auth/me': () => new Promise<[number, unknown]>((resolve) => (answer = resolve)),
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.type(screen.getByLabelText('Mật khẩu hiện tại'), 'mat-khau-cu')
+  answer([200, { ...testUser, display_name: 'Tiến mới' }])
+  await waitFor(() => expect(screen.getByLabelText('Tên hiển thị')).toHaveValue('Tiến mới'))
+  // The password part keeps what was typed
+  expect(screen.getByLabelText('Mật khẩu hiện tại')).toHaveValue('mat-khau-cu')
+})

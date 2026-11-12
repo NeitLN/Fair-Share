@@ -87,6 +87,8 @@ const vi = {
   } as Record<string, string>,
   failure: {
     unexpected: 'Đã có lỗi xảy ra. Thử lại sau ít phút.',
+    // Locked out after wrong guesses (review 12/11, E09): how long, from the server's retry_after
+    tryAgainIn: (minutes: number) => `Bạn thử quá nhiều lần. Thử lại sau ${minutes} phút.`,
     server: (status: number) => `Máy chủ trả lỗi ${status}`,
     network: 'Không kết nối được tới máy chủ. Hãy thử lại.',
     // A write that never left the browser (specs/018); money writes say it in their own words (save.*)
@@ -180,6 +182,8 @@ const vi = {
     nameEmpty: 'Nhập tên của bạn.',
     nameProblem: 'Tên cần từ 1 đến 40 ký tự.',
     noReset: 'App chưa hỗ trợ đặt lại mật khẩu nếu bạn quên.',
+    // Signed out by the server or another tab (review 12/11, E10/F16)
+    sessionEnded: 'Phiên đăng nhập đã kết thúc. Đăng nhập lại để tiếp tục; khoản chi đang nhập dở vẫn được giữ.',
     showPassword: 'Hiện',
     hidePassword: 'Ẩn',
     showPasswordLabel: 'Hiện mật khẩu',
@@ -212,6 +216,9 @@ const vi = {
     currentPassword: 'Mật khẩu hiện tại',
     newPassword: 'Mật khẩu mới',
     newPasswordHint: '8 đến 128 ký tự. Đổi xong, các nơi khác đang đăng nhập sẽ bị đăng xuất.',
+    // Typed twice: there is no reset by email (review 12/11, F06)
+    againPassword: 'Nhập lại mật khẩu mới',
+    againProblem: 'Hai lần nhập mật khẩu mới chưa giống nhau.',
     currentProblem: 'Nhập mật khẩu hiện tại.',
     newProblem: 'Mật khẩu mới dài 8 đến 128 ký tự.',
     passwordChanged: 'Đã đổi mật khẩu. Các nơi khác đã đăng xuất.',
@@ -231,6 +238,8 @@ const vi = {
     saveReceiving: 'Lưu tài khoản',
     saveGender: 'Lưu giới tính',
     unsaved: 'Chưa lưu',
+    // Leaving with "Chưa lưu" anywhere on the page (review 12/11, F09)
+    leaveUnsaved: 'Có phần bạn sửa mà chưa lưu. Rời trang thì những gì vừa nhập sẽ mất. Vẫn rời trang?',
     cardTitle: 'Bạn cùng nhà thấy bạn thế này',
     noStatus: 'Chưa có trạng thái',
     photoHint: 'Bạn cùng nhà thấy ảnh này ở mọi chỗ có avatar của bạn. Chưa có ảnh thì là chữ cái đầu tên.',

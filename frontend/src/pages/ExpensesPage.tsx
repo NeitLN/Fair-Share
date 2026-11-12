@@ -22,6 +22,7 @@ import RecurringList from '../components/RecurringList'
 import { draftToFill } from '../lib/draftFill'
 import { newDraftId } from '../lib/draftId'
 import { errorMessage } from '../lib/errors'
+import { keptDraftKey } from '../lib/keptDraft'
 import { formError } from '../lib/formError'
 import { outcomeLine, outcomeOf, savedDraft } from '../lib/saveOutcome'
 import { today } from '../lib/date'
@@ -394,6 +395,8 @@ function ExpensesPage() {
                   onCancel={editing ? () => setEditing(null) : undefined}
                   submitting={form.isPending}
                   serverError={serverError}
+                  // A new expense survives a reload or a sign-in again in this tab (review 12/11, E10/F16)
+                  keepAs={editing || recordingItem || !session ? undefined : keptDraftKey(session.user.id, householdId)}
                 />
                 {form.error instanceof ApiError && form.error.code === 'recurring_month_taken' && (
                   <p className="note" role="alert">
