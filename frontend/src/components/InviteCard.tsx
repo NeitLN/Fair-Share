@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 
 import { getInvite, keys, renewInvite } from '../api/households'
-import { formatDate } from '../lib/date'
+import { formatDate, localDay } from '../lib/date'
 import { errorMessage } from '../lib/errors'
 import { formatCode, joinLink } from '../lib/invite'
 import { useToast } from '../lib/toast'
@@ -72,7 +72,7 @@ function InviteCard({ householdId, isOwner }: { householdId: number; isOwner: bo
             {formatCode(code)}
           </p>
           {invite.data?.expires_at && (
-            <p className="hint">{t.invite.expires(formatDate(invite.data.expires_at.slice(0, 10)))}</p>
+            <p className="hint">{t.invite.expires(formatDate(localDay(invite.data.expires_at)))}</p>
           )}
           <p className="hint">{t.invite.hint}</p>
       <p className="hint">{t.invite.shows}</p>

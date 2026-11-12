@@ -178,7 +178,10 @@ def list_my_households(user: CurrentUser, conn: ConnDep):
         "    WHERE household_id = h.id AND role = 'pending') ELSE 0 END)"
         " + (SELECT count(*) FROM payment_notices"
         "    WHERE household_id = h.id AND to_member_id = hu.member_id"
-        "      AND status = 'sent') AS waiting"
+        "      AND status = 'sent') AS waiting,"
+        # Owners and members: a house of one says "Chỉ có bạn", not "Đã xong" (review 12/11, A13)
+        " (SELECT count(*) FROM household_users"
+        "  WHERE household_id = h.id AND role IN ('owner', 'member')) AS people"
         " FROM household_users hu JOIN households h ON h.id = hu.household_id"
         " WHERE hu.user_id = %s ORDER BY lower(h.name), h.id",
         (user["id"],),

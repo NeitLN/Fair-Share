@@ -79,3 +79,14 @@ test('with none, it says how to get one', () => {
   expect(screen.getByText(/Bạn chưa ở nhà nào/)).toBeInTheDocument()
   expect(screen.queryByRole('list')).not.toBeInTheDocument()
 })
+
+// Review 12/11, A13: nobody else in the house yet is not "done"
+test('a house of one says Chỉ có bạn, not Đã xong', () => {
+  show([
+    { ...mine[0], my_net: 0, people: 1 },
+    { ...mine[1], my_net: 0, people: 3 },
+  ])
+  const links = screen.getAllByRole('link')
+  expect(links[0]).toHaveTextContent('Chỉ có bạn')
+  expect(links[1]).toHaveTextContent('Đã xong')
+})

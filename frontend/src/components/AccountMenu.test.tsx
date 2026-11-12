@@ -1,4 +1,5 @@
 import { act, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { mockApi, renderApp } from '../test/renderApp'
@@ -38,4 +39,18 @@ test('with a photo it shows the photo, and a new one replaces it without a reloa
   // What the profile does after Lưu ảnh or Gỡ ảnh
   await act(() => client.invalidateQueries({ queryKey: ['me', 'photo'] }))
   await waitFor(() => expect(button().querySelector('img')).toHaveAttribute('src', next))
+})
+
+// Review 12/11, A08: Đăng xuất goes back to the start, so whoever signs in next is not on this house
+test('signing out goes back to /, not the house that was open', async () => {
+  mockApi({
+    ...noHouses,
+    'GET /api/me/photo': [200, { version: null, data: null }],
+    'POST /api/auth/logout': [204],
+  })
+  const user = userEvent.setup()
+  renderApp('/account')
+  await user.click(button())
+  await user.click(await screen.findByRole('button', { name: 'Đăng xuất' }))
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
 })

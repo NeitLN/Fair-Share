@@ -41,7 +41,10 @@ function HouseholdList({ households }: { households: MyHousehold[] }) {
             {household.my_net !== undefined && (
               <span className="household-money">
                 {household.my_net === 0 ? (
-                  <span className="household-settled">{t.households.settled}</span>
+                  // Nobody to settle with yet is not "done" (review 12/11, A13)
+                  <span className="household-settled">
+                    {household.people === 1 ? t.households.onlyYou : t.households.settled}
+                  </span>
                 ) : (
                   <>
                     <span className="household-words">
