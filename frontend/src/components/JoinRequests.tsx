@@ -35,6 +35,10 @@ function JoinRequests({ householdId, members }: { householdId: number; members: 
   const section = useRef<HTMLElement>(null)
   const keepFocus = () =>
     requestAnimationFrame(() => {
+      // Only a focus that was lost with the row: someone who went elsewhere meanwhile keeps their place
+      // (review of #304)
+      const active = document.activeElement
+      if (active && active !== document.body && !section.current?.contains(active)) return
       const next = section.current?.querySelector<HTMLElement>('.join-request-actions .btn-primary:not(:disabled)')
       const heading = document.querySelector<HTMLElement>('main h1')
       if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1')

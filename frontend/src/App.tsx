@@ -33,12 +33,11 @@ function App() {
   // title, so the keyboard and a screen reader start there (review 12/11, E04). A focus a page placed itself,
   // or a tab that stays on screen, is left where it is
   const { pathname } = useLocation()
-  const firstPage = useRef(true)
+  // The page shown last: the first load (run twice under StrictMode in development) is not a move
+  const shownPath = useRef(pathname)
   useEffect(() => {
-    if (firstPage.current) {
-      firstPage.current = false
-      return undefined
-    }
+    if (shownPath.current === pathname) return undefined
+    shownPath.current = pathname
     const frame = requestAnimationFrame(() => {
       if (document.activeElement && document.activeElement !== document.body) return
       const heading = document.querySelector<HTMLElement>('main h1')
