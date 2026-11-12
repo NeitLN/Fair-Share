@@ -1157,7 +1157,7 @@ button.ai:active:focus-visible {
   padding: 2px 9px;
   border-radius: var(--radius-pill);
   color: var(--on-fill);
-  font-size: 12px;
+  font-size: 13px; /* the smallest label size (DESIGN.md; review 12/11, D13) */
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1287,6 +1287,38 @@ button.ai:active:focus-visible {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* "Bỏ qua, tới nội dung": out of sight until the keyboard reaches it, then over the header's corner
+   (review 12/11, E04) */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--primary-text);
+  font-weight: 700;
+  translate: 0 -200%;
+}
+
+.skip-link:focus-visible {
+  translate: 0 0;
+}
+
+/* Không tìm thấy trang: the title, then one clear way back (review 12/11, D09) */
+.not-found {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding: 32px 0;
+}
+
+/* The main region takes the focus from the skip link without a ring around the whole page */
+main:focus {
+  outline: none;
 }
 
 /* Danh mục in the form (specs/005-expense-categories): the payer chips without an avatar. The chosen one
@@ -2668,7 +2700,7 @@ button.ai:active:focus-visible {
 }
 
 .balance-row .standing small {
-  font-size: 12px;
+  font-size: 13px; /* the smallest label size (DESIGN.md; review 12/11, D13) */
   font-weight: 500;
 }
 

@@ -456,12 +456,13 @@ function ExpensesPage() {
               <h2 id="expense-list-title" tabIndex={-1}>
                 {t.expenses.listTitle}
               </h2>
-              <span className="section-note" aria-live="polite">
-                {isFiltered(filter)
-                  ? t.expenses.filteredCount(shown.length, allExpenses.length)
-                  : wide
-                    ? t.expenses.listHintWide
-                    : t.expenses.listHint}
+              {/* Only the count under a filter is announced; the hint is static and read with the list
+                  (review 12/11, E08) */}
+              <span className="section-note">
+                <span aria-live="polite">
+                  {isFiltered(filter) ? t.expenses.filteredCount(shown.length, allExpenses.length) : ''}
+                </span>
+                {!isFiltered(filter) && (wide ? t.expenses.listHintWide : t.expenses.listHint)}
               </span>
               {/* The whole household, whatever the filter: the file is the record, not the current view */}
               <ExportCsvButton

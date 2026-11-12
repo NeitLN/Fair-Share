@@ -52,7 +52,9 @@ test('nothing new, nothing shown', () => {
 test('who recorded what and how much, "bạn" when you paid, and when', () => {
   renderStrip([repaymentItem(9, 14), expenseItem(5, 9), expenseItem(6, 8, null)])
   const strip = screen.getByRole('region', { name: 'Mới ghi' })
-  expect(strip).toHaveAttribute('aria-live', 'polite')
+  // The list is live, not the title and its button (review 12/11, E08)
+  expect(strip).not.toHaveAttribute('aria-live')
+  expect(within(strip).getByRole('list')).toHaveAttribute('aria-live', 'polite')
   expect(lines().map((l) => l.querySelector('.recent-text')?.textContent)).toEqual([
     'Minh xác nhận đã nhận 440.000đ từ bạn',
     'Minh ghi Lẩu 5 · 240.000đ',

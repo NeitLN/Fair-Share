@@ -35,7 +35,8 @@ test.describe('an English browser', () => {
       await signInPage(page, tien)
       await page.goto(`/households/${householdId}`)
       await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-      await expect(page).toHaveTitle(/See who owes who/)
+      // The tab names the page and the house (review 12/11, D09)
+      await expect(page).toHaveTitle(/^Overview · /)
       await expect(page.getByRole('heading', { name: 'You owe Minh' })).toBeVisible({ timeout: 60_000 })
       // English money: digits grouped by commas, a no-break space, then ₫
       await expect(page.getByText(/120,000\s₫/).first()).toBeVisible()
@@ -48,7 +49,7 @@ test.describe('an English browser', () => {
       await expect(page.getByRole('heading', { name: 'Bạn cần trả Minh' })).toBeVisible()
       await page.reload()
       await expect(page.locator('html')).toHaveAttribute('lang', 'vi')
-      await expect(page).toHaveTitle(/Rõ ai trả ai/)
+      await expect(page).toHaveTitle(/^Tổng quan · /)
       await expect(page.getByText(/120\.000đ/).first()).toBeVisible()
     } finally {
       const response = await deleteHousehold(request, householdId, tien)

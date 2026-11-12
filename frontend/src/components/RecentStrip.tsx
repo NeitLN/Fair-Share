@@ -53,14 +53,15 @@ function RecentStrip({ items, looks, me, householdId, initialCount, onSeen }: Re
   const nameOf = (memberId: number | null) => (memberId === null ? REMOVED_MEMBER : (looks.get(memberId) ?? REMOVED_MEMBER))
 
   return (
-    <section className="recent-strip" aria-labelledby="recent-strip-title" aria-live="polite">
+    <section className="recent-strip" aria-labelledby="recent-strip-title">
       <div className="recent-head">
         <h2 id="recent-strip-title">{t.recent.title}</h2>
         <button type="button" className="btn-ghost" aria-label={t.recent.seenLabel(items.length)} onClick={onSeen}>
           {t.recent.seen}
         </button>
       </div>
-      <ul id="recent-strip-list">
+      {/* New records are announced; the title and Đánh dấu đã xem are not read again (review 12/11, E08) */}
+      <ul id="recent-strip-list" aria-live="polite">
         {shown.map((item, index) => {
           const ref = open && index === initialCount ? takeFocus : undefined
           const recorder = nameOf(item.recorderMemberId)

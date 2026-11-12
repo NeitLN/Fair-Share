@@ -13,6 +13,7 @@ import { closeFoldOnEscape } from '../lib/fold'
 import { keyFromHash } from '../lib/invite'
 import { memberLooks } from '../lib/names'
 import { useMemberPhotos } from '../lib/useMemberPhotos'
+import { usePageTitle } from '../lib/usePageTitle'
 import { useT } from '../i18n'
 
 // Shared frame for one household (DESIGN.md §6.2): its name and people, the tabs. "Bạn" is the
@@ -44,6 +45,19 @@ function HouseholdLayout() {
     enabled: validId && household.isSuccess,
   })
   const others = (mine.data?.households ?? []).filter((h) => h.id !== householdId)
+
+  // The browser tab says which page of which house this is, so several open tabs can be told apart
+  // (review 12/11, D09)
+  const section = location.pathname.split('/')[3] ?? ''
+  const sectionName =
+    section === 'expenses'
+      ? t.household.expenses
+      : section === 'members'
+        ? t.household.members
+        : section === 'report'
+          ? t.report.open
+          : t.household.overview
+  usePageTitle(household.data ? `${sectionName} · ${household.data.name}` : sectionName, t.pageTitle)
 
   // What waits for you, shown on the tabs (UI review 04/11): someone asking the owner to join, and a
   // "Tôi đã chuyển" sent to you. While the page is open they are asked again every 30 s (never in a

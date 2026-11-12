@@ -1099,3 +1099,10 @@ describe('the expense being typed is kept in this tab', () => {
     expect(Object.keys(sessionStorage).filter((key) => key.startsWith('fair-share:expense-draft:'))).toHaveLength(1)
   })
 })
+
+// Review 12/11, D09: the browser tab says which page of which house this is
+test('the tab title names the page and the house', async () => {
+  api()
+  renderApp('/households/7/expenses')
+  await waitFor(() => expect(document.title).toBe('Chi tiêu · Nhà 7 · Fair-Share'))
+})
