@@ -8,7 +8,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
 ![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1)
 
-**Fair-Share** is a three-tier web application for housemates, being built for Session 20
+**Fair-Share** is a three-tier web application for housemates, built for Session 20
 (12 Nov 2026): record shared expenses, split each one between the people who took part, and see at any
 moment **who owes whom** and a short list of transfers that settles everything. Its one AI-assisted
 feature, **Quick add**, turns a sentence such as *"dinner 240k, Minh paid, split 3 ways"* into a
