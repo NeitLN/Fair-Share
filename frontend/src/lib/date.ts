@@ -9,7 +9,6 @@ export function today(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
-/** "2026-10-20" → "20/10/2026" in Vietnamese, "20 Oct 2026" in English. */
 /**
  * The day a moment from the server falls on here, "YYYY-MM-DD". A `timestamptz` comes in UTC: cut to its
  * first ten characters, 1 a.m. on 12/11 in Việt Nam read as 11/11 (review 12/11, A03).
@@ -20,6 +19,7 @@ export function localDay(timestamp: string): string {
   return `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`
 }
 
+/** "2026-10-20" → "20/10/2026" in Vietnamese, "20 Oct 2026" in English. */
 export function formatDate(isoDate: string): string {
   const [year, month, day] = isoDate.slice(0, 10).split('-')
   if (!year || !month || !day) return isoDate
